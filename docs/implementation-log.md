@@ -234,8 +234,8 @@ Updated `src/pages/index.astro`:
 ### Dependencies Added
 ```json
 {
-  "@astrojs/check": "latest",
-  "typescript": "latest"
+  "@astrojs/check": "^0.9.6",
+  "typescript": "^5.9.3"
 }
 ```
 
@@ -265,4 +265,146 @@ None! All components built successfully on first pass.
 
 **Last Updated**: 2025-12-17
 **Phase Duration**: ~20 minutes
-**Status**: ✅ Complete, Ready for Phase 3
+**Status**: ✅ Complete
+
+---
+
+## Phase 3: Core Layouts & Navigation
+**Date**: 2025-12-17
+**Status**: ✅ Completed
+
+### Objective
+Build reusable layouts and site-wide navigation.
+
+### What Was Built
+
+**1. Base Layout System**
+
+**BaseLayout.astro** (`src/components/layout/BaseLayout.astro`):
+- Complete HTML document structure with semantic HTML5
+- Comprehensive meta tags (title, description, author)
+- OpenGraph tags for social media sharing
+- Twitter Card tags
+- Canonical URL support
+- **ClientRouter** integration (Astro v5 View Transitions) for smooth page navigation
+- ThemeScript integration (prevents FOUC)
+- Header and Footer components included
+- Flexible props for customization (title, description, image, canonicalURL)
+- Global CSS import
+
+**2. Navigation Components**
+
+**Header.astro** (`src/components/layout/Header.astro`):
+- Sticky header with backdrop blur effect
+- Desktop navigation with all nav items from config
+- Active route highlighting (current page)
+- Mobile responsive with hamburger menu
+- ThemeToggle component integration
+- Mobile menu with smooth transitions
+- Closes mobile menu on route change (View Transitions support)
+- Accessible with proper ARIA labels
+- Uses NAV_ITEMS from site config
+
+**Footer.astro** (`src/components/layout/Footer.astro`):
+- Three-column grid layout (responsive)
+- About section with site description
+- Quick links to main pages
+- Social media links (filters out placeholder links)
+- Copyright notice with dynamic year
+- Fully dark mode compatible
+- Uses SITE and SOCIAL_LINKS from config
+
+**3. Specialized Layouts**
+
+**BlogLayout.astro** (`src/layouts/BlogLayout.astro`):
+- Extends BaseLayout
+- "Back to Blog" navigation link
+- Article header with title (h1)
+- Meta information display:
+  - Author
+  - Publication date (formatted)
+  - Updated date (if applicable)
+  - Reading time (if provided)
+- Tags display with Tag components
+- Prose styling for MDX content (prose-lg, dark mode support)
+- Responsive container (md width)
+- Full TypeScript interface for props
+
+**WorkLayout.astro** (`src/layouts/WorkLayout.astro`):
+- Extends BaseLayout
+- "Back to Works" navigation link
+- Type badge (Research/Project/Other) with color coding
+- Work header with title and description
+- Meta information (date, venue for research)
+- Tags display
+- Technologies display (for projects)
+- Action buttons for links (SSRN, PDF, repository, demo)
+- Conditional rendering based on work type
+- Prose styling for MDX content
+- Full TypeScript interface with type discrimination
+
+**4. Updated Pages**
+
+**index.astro**:
+- Now uses BaseLayout instead of raw HTML
+- Maintains all Phase 2 component showcases
+- Added navigation test section
+- Cleaner structure with proper layout hierarchy
+
+### Verification Results
+✅ TypeScript check: 0 errors, 0 warnings, 0 hints (after ClientRouter fix)
+✅ All layouts properly extend BaseLayout
+✅ Navigation functional with active state highlighting
+✅ Mobile menu working correctly
+✅ ClientRouter (View Transitions) enabled and functional
+✅ Dark mode integration working
+✅ Responsive design verified
+✅ All components use site config correctly
+
+### Important Notes
+- **ClientRouter (Astro v5)**: Uses `<ClientRouter />` from `astro:transitions` for SPA-like navigation (replaces deprecated `<ViewTransitions />`)
+- **Active Route Detection**: Uses `Astro.url.pathname` for accurate highlighting
+- **Mobile Menu**: JavaScript-based toggle with proper accessibility
+- **Config-Driven**: All navigation and social links come from `site.ts`
+- **SEO Ready**: BaseLayout includes all essential meta tags
+- **Extensible**: BlogLayout and WorkLayout can be easily customized
+
+### Files Created
+```
+src/components/layout/
+├── BaseLayout.astro   # Main layout with meta tags and structure
+├── Header.astro       # Responsive navigation header
+└── Footer.astro       # Footer with links and social media
+
+src/layouts/
+├── BlogLayout.astro   # Layout for blog posts
+└── WorkLayout.astro   # Layout for work items
+```
+
+### Files Modified
+```
+src/pages/index.astro  # Updated to use BaseLayout
+```
+
+### Next Phase
+**Phase 4: SEO Infrastructure**
+- Create SEO.astro component
+- Create StructuredData.astro component
+- Implement RSS feed
+- Configure sitemap (already in astro.config)
+- Create robots.txt
+- Create SEO utility functions
+
+### Issues Encountered
+**View Transitions Deprecation (RESOLVED)**:
+- Initially used deprecated `<ViewTransitions />` component
+- Updated to use `<ClientRouter />` per Astro v5 documentation
+- Import changed from `ViewTransitions` to `ClientRouter` in `astro:transitions`
+- All deprecation warnings resolved (0 hints after fix)
+
+---
+
+**Last Updated**: 2025-12-17
+**Phase Duration**: ~15 minutes
+**Phase Version**: 3.1 (Updated for Astro v5 ClientRouter)
+**Status**: ✅ Complete, Ready for Phase 4

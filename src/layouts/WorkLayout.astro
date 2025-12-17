@@ -1,0 +1,156 @@
+---
+import BaseLayout from '../components/layout/BaseLayout.astro';
+import Container from '../components/ui/Container.astro';
+import Tag from '../components/ui/Tag.astro';
+import Link from '../components/ui/Link.astro';
+import Button from '../components/ui/Button.astro';
+
+export interface Props {
+  title: string;
+  description: string;
+  type: 'research' | 'project' | 'other';
+  date: Date;
+  tags?: string[];
+  links?: { label: string; url: string }[];
+  // For research
+  venue?: string;
+  // For projects
+  technologies?: string[];
+  repository?: string;
+  demo?: string;
+}
+
+const {
+  title,
+  description,
+  type,
+  date,
+  tags = [],
+  links = [],
+  venue,
+  technologies = [],
+  repository,
+  demo,
+} = Astro.props;
+
+const formattedDate = new Date(date).toLocaleDateString('en-US', {
+  year: 'numeric',
+  month: 'long',
+});
+
+const typeLabel = {
+  research: 'Research',
+  project: 'Project',
+  other: 'Work',
+}[type];
+
+const typeColor = {
+  research: 'primary' as const,
+  project: 'success' as const,
+  other: 'default' as const,
+}[type];
+---
+
+<BaseLayout title={title} description={description}>
+  <article class="py-12">
+    <Container size="md">
+      <!-- Back to Works Link -->
+      <div class="mb-8">
+        <Link href="/works" variant="muted">
+          ← Back to Works
+        </Link>
+      </div>
+
+      <!-- Article Header -->
+      <header class="mb-8">
+        <!-- Type Badge -->
+        <div class="mb-4">
+          <Tag variant={typeColor} size="md">{typeLabel}</Tag>
+        </div>
+
+        <h1 class="text-4xl md:text-5xl font-bold mb-4 text-foreground dark:text-foreground-dark">
+          {title}
+        </h1>
+
+        <!-- Meta Information -->
+        <div class="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mb-6">
+          <time datetime={date.toISOString()}>
+            {formattedDate}
+          </time>
+          {venue && (
+            <>
+              <div>•</div>
+              <div>{venue}</div>
+            </>
+          )}
+        </div>
+
+        <!-- Description -->
+        <p class="text-lg text-gray-600 dark:text-gray-400 mb-6">
+          {description}
+        </p>
+
+        <!-- Tags -->
+        {tags.length > 0 && (
+          <div class="flex flex-wrap gap-2 mb-6">
+            {tags.map((tag) => (
+              <Tag>{tag}</Tag>
+            ))}
+          </div>
+        )}
+
+        <!-- Technologies (for projects) -->
+        {technologies.length > 0 && (
+          <div class="mb-6">
+            <h3 class="text-sm font-semibold mb-2 text-foreground dark:text-foreground-dark">
+              Technologies
+            </h3>
+            <div class="flex flex-wrap gap-2">
+              {technologies.map((tech) => (
+                <Tag variant="success">{tech}</Tag>
+              ))}
+            </div>
+          </div>
+        )}
+
+        <!-- Links -->
+        {(links.length > 0 || repository || demo) && (
+          <div class="flex flex-wrap gap-3">
+            {links.map((link) => (
+              <Button
+                href={link.url}
+                variant="primary"
+                size="sm"
+              >
+                {link.label}
+              </Button>
+            ))}
+            {repository && (
+              <Button
+                href={repository}
+                variant="outline"
+                size="sm"
+              >
+                View Repository
+              </Button>
+            )}
+            {demo && (
+              <Button
+                href={demo}
+                variant="secondary"
+                size="sm"
+              >
+                Live Demo
+              </Button>
+            )}
+          </div>
+        )}
+      </header>
+
+      <!-- Work Content -->
+      <div class="prose prose-lg dark:prose-invert max-w-none">
+        <slot />
+      </div>
+    </Container>
+  </article>
+</BaseLayout>

@@ -1,0 +1,132 @@
+---
+import { NAV_ITEMS, SITE } from '../../config/site';
+import ThemeToggle from '../ui/ThemeToggle';
+import Container from '../ui/Container.astro';
+
+const currentPath = Astro.url.pathname;
+---
+
+<header class="sticky top-0 z-50 border-b border-border dark:border-border-dark bg-background/95 dark:bg-background-dark/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 dark:supports-[backdrop-filter]:bg-background-dark/60">
+  <Container>
+    <nav class="flex items-center justify-between h-16">
+      <!-- Logo / Site Title -->
+      <a
+        href="/"
+        class="text-xl font-bold text-foreground dark:text-foreground-dark hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+      >
+        {SITE.title}
+      </a>
+
+      <!-- Desktop Navigation -->
+      <div class="hidden md:flex items-center gap-8">
+        {NAV_ITEMS.map((item) => {
+          const isActive = currentPath === item.href ||
+            (item.href !== '/' && currentPath.startsWith(item.href));
+
+          return (
+            <a
+              href={item.href}
+              class:list={[
+                'text-sm font-medium transition-colors hover:text-primary-600 dark:hover:text-primary-400',
+                isActive
+                  ? 'text-primary-600 dark:text-primary-400'
+                  : 'text-foreground dark:text-foreground-dark'
+              ]}
+            >
+              {item.label}
+            </a>
+          );
+        })}
+        <ThemeToggle client:load />
+      </div>
+
+      <!-- Mobile Menu Button -->
+      <div class="flex md:hidden items-center gap-4">
+        <ThemeToggle client:load />
+        <button
+          id="mobile-menu-button"
+          type="button"
+          class="p-2 text-foreground dark:text-foreground-dark hover:text-primary-600 dark:hover:text-primary-400 transition-colors"
+          aria-label="Toggle mobile menu"
+          aria-expanded="false"
+        >
+          <svg
+            class="w-6 h-6"
+            fill="none"
+            stroke="currentColor"
+            viewBox="0 0 24 24"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              stroke-linecap="round"
+              stroke-linejoin="round"
+              stroke-width="2"
+              d="M4 6h16M4 12h16M4 18h16"
+            ></path>
+          </svg>
+        </button>
+      </div>
+    </nav>
+
+    <!-- Mobile Menu (Hidden by default) -->
+    <div
+      id="mobile-menu"
+      class="md:hidden hidden pb-4"
+      aria-hidden="true"
+    >
+      <div class="flex flex-col gap-2">
+        {NAV_ITEMS.map((item) => {
+          const isActive = currentPath === item.href ||
+            (item.href !== '/' && currentPath.startsWith(item.href));
+
+          return (
+            <a
+              href={item.href}
+              class:list={[
+                'px-3 py-2 rounded-lg text-sm font-medium transition-colors hover:bg-muted dark:hover:bg-muted-dark',
+                isActive
+                  ? 'text-primary-600 dark:text-primary-400 bg-muted dark:bg-muted-dark'
+                  : 'text-foreground dark:text-foreground-dark'
+              ]}
+            >
+              {item.label}
+            </a>
+          );
+        })}
+      </div>
+    </div>
+  </Container>
+</header>
+
+<script>
+  // Mobile menu toggle
+  const button = document.getElementById('mobile-menu-button');
+  const menu = document.getElementById('mobile-menu');
+
+  if (button && menu) {
+    button.addEventListener('click', () => {
+      const isExpanded = button.getAttribute('aria-expanded') === 'true';
+
+      button.setAttribute('aria-expanded', (!isExpanded).toString());
+      menu.setAttribute('aria-hidden', isExpanded.toString());
+
+      if (isExpanded) {
+        menu.classList.add('hidden');
+      } else {
+        menu.classList.remove('hidden');
+      }
+    });
+  }
+
+  // Close mobile menu on route change (for View Transitions)
+  document.addEventListener('astro:after-swap', () => {
+    const button = document.getElementById('mobile-menu-button');
+    const menu = document.getElementById('mobile-menu');
+
+    if (button && menu) {
+      button.setAttribute('aria-expanded', 'false');
+      menu.setAttribute('aria-hidden', 'true');
+      menu.classList.add('hidden');
+    }
+  });
+</script>

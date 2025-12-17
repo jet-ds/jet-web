@@ -236,7 +236,7 @@ A modern, minimal personal website and blog built with Astro, MDX, and React. Th
    - HTML structure with proper meta tags
    - Header and footer inclusion
    - Dark mode script injection
-   - View Transitions API setup
+   - ClientRouter setup (Astro v5 for smooth page transitions)
 3. Create `Header.astro`:
    - Responsive navigation
    - Active route highlighting
@@ -432,7 +432,7 @@ A modern, minimal personal website and blog built with Astro, MDX, and React. Th
    - Optimize Core Web Vitals
    - Minimize JavaScript payload
 5. Add loading states and transitions:
-   - View Transitions for smooth navigation
+   - ClientRouter (Astro v5) for smooth navigation
    - Loading indicators where appropriate
 
 **Deliverables**:
@@ -551,10 +551,11 @@ Based on focused development work, this project can be completed in phases. The 
 
 ---
 
-**Document Version**: 1.3
+**Document Version**: 1.4
 **Last Updated**: 2025-12-17
 **Status**: Ready for Implementation
 **Change Log**:
+- v1.4: Updated View Transitions to ClientRouter (Astro v5 API change)
 - v1.3: Added docs/ directory structure for project documentation
 - v1.2: Updated for latest stable versions (Astro v5.x, React v19.x, Tailwind CSS v3.4.18). Using Tailwind v3.x for reliability
 - v1.1: Initial version with Tailwind v4.0

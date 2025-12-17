@@ -1,0 +1,80 @@
+---
+import { SITE, SOCIAL_LINKS } from '../../config/site';
+import Container from '../ui/Container.astro';
+import Link from '../ui/Link.astro';
+
+const currentYear = new Date().getFullYear();
+
+const socialLinksArray = Object.entries(SOCIAL_LINKS)
+  .filter(([_, url]) => url && !url.includes('yourusername') && !url.includes('your-id'))
+  .map(([platform, url]) => ({
+    platform: platform.charAt(0).toUpperCase() + platform.slice(1),
+    url,
+  }));
+---
+
+<footer class="border-t border-border dark:border-border-dark bg-background dark:bg-background-dark">
+  <Container class="py-12">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+      <!-- About Section -->
+      <div>
+        <h3 class="text-lg font-semibold mb-4 text-foreground dark:text-foreground-dark">
+          {SITE.title}
+        </h3>
+        <p class="text-sm text-gray-600 dark:text-gray-400">
+          {SITE.description}
+        </p>
+      </div>
+
+      <!-- Quick Links -->
+      <div>
+        <h3 class="text-lg font-semibold mb-4 text-foreground dark:text-foreground-dark">
+          Quick Links
+        </h3>
+        <ul class="space-y-2">
+          <li>
+            <Link href="/about" variant="muted">About</Link>
+          </li>
+          <li>
+            <Link href="/blog" variant="muted">Blog</Link>
+          </li>
+          <li>
+            <Link href="/works" variant="muted">Works</Link>
+          </li>
+          <li>
+            <Link href="/contact" variant="muted">Contact</Link>
+          </li>
+        </ul>
+      </div>
+
+      <!-- Social Links -->
+      <div>
+        <h3 class="text-lg font-semibold mb-4 text-foreground dark:text-foreground-dark">
+          Connect
+        </h3>
+        {socialLinksArray.length > 0 ? (
+          <ul class="space-y-2">
+            {socialLinksArray.map(({ platform, url }) => (
+              <li>
+                <Link href={url} variant="muted" external>
+                  {platform}
+                </Link>
+              </li>
+            ))}
+          </ul>
+        ) : (
+          <p class="text-sm text-gray-600 dark:text-gray-400">
+            Social links coming soon
+          </p>
+        )}
+      </div>
+    </div>
+
+    <!-- Copyright -->
+    <div class="mt-8 pt-8 border-t border-border dark:border-border-dark">
+      <p class="text-center text-sm text-gray-600 dark:text-gray-400">
+        © {currentYear} {SITE.author}. All rights reserved.
+      </p>
+    </div>
+  </Container>
+</footer>
