@@ -1,0 +1,42 @@
+---
+export interface Props {
+  variant?: 'default' | 'primary' | 'success' | 'warning' | 'error';
+  size?: 'sm' | 'md';
+  class?: string;
+  href?: string;
+}
+
+const {
+  variant = 'default',
+  size = 'sm',
+  class: className = '',
+  href,
+  ...rest
+} = Astro.props;
+
+const baseClasses = 'inline-flex items-center font-medium rounded-full transition-colors';
+
+const variantClasses = {
+  default: 'bg-muted text-foreground dark:bg-muted-dark dark:text-foreground-dark',
+  primary: 'bg-primary-100 text-primary-700 dark:bg-primary-900/30 dark:text-primary-300',
+  success: 'bg-green-100 text-green-700 dark:bg-green-900/30 dark:text-green-300',
+  warning: 'bg-yellow-100 text-yellow-700 dark:bg-yellow-900/30 dark:text-yellow-300',
+  error: 'bg-red-100 text-red-700 dark:bg-red-900/30 dark:text-red-300',
+};
+
+const sizeClasses = {
+  sm: 'px-2.5 py-0.5 text-xs',
+  md: 'px-3 py-1 text-sm',
+};
+
+const hoverClasses = href ? 'hover:opacity-80 cursor-pointer' : '';
+
+const classes = `${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${hoverClasses} ${className}`;
+
+const Element = href ? 'a' : 'span';
+const elementProps = href ? { href } : {};
+---
+
+<Element class={classes} {...elementProps} {...rest}>
+  <slot />
+</Element>

@@ -1,0 +1,26 @@
+---
+// Inline script to prevent FOUC (Flash of Unstyled Content)
+// This runs before the page renders to apply dark mode class if needed
+---
+
+<script is:inline>
+  // Check localStorage and system preference for theme
+  const getThemePreference = () => {
+    const stored = localStorage.getItem('theme');
+    if (stored) {
+      return stored;
+    }
+    return window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+  };
+
+  // Apply theme class to html element
+  const theme = getThemePreference();
+  if (theme === 'dark') {
+    document.documentElement.classList.add('dark');
+  } else {
+    document.documentElement.classList.remove('dark');
+  }
+
+  // Store the initial theme
+  localStorage.setItem('theme', theme);
+</script>

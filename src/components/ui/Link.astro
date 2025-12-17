@@ -1,0 +1,48 @@
+---
+export interface Props {
+  href: string;
+  variant?: 'default' | 'primary' | 'muted';
+  underline?: 'none' | 'hover' | 'always';
+  external?: boolean;
+  class?: string;
+}
+
+const {
+  href,
+  variant = 'default',
+  underline = 'hover',
+  external = false,
+  class: className = '',
+  ...rest
+} = Astro.props;
+
+// Auto-detect external links if not explicitly set
+const isExternal = external || href.startsWith('http') || href.startsWith('//');
+
+const baseClasses = 'transition-colors';
+
+const variantClasses = {
+  default: 'text-foreground dark:text-foreground-dark hover:text-primary-600 dark:hover:text-primary-400',
+  primary: 'text-primary-600 dark:text-primary-400 hover:text-primary-700 dark:hover:text-primary-300',
+  muted: 'text-gray-600 dark:text-gray-400 hover:text-foreground dark:hover:text-foreground-dark',
+};
+
+const underlineClasses = {
+  none: 'no-underline',
+  hover: 'no-underline hover:underline',
+  always: 'underline',
+};
+
+const classes = `${baseClasses} ${variantClasses[variant]} ${underlineClasses[underline]} ${className}`;
+
+const externalProps = isExternal
+  ? { target: '_blank', rel: 'noopener noreferrer' }
+  : {};
+---
+
+<a href={href} class={classes} {...externalProps} {...rest}>
+  <slot />
+  {isExternal && (
+    <span class="inline-block ml-1 text-xs" aria-label="External link">↗</span>
+  )}
+</a>

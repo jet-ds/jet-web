@@ -1,16 +1,115 @@
 ---
-
+import ThemeScript from '../components/ui/ThemeScript.astro';
+import ThemeToggle from '../components/ui/ThemeToggle';
+import Container from '../components/ui/Container.astro';
+import Card from '../components/ui/Card.astro';
+import Button from '../components/ui/Button.astro';
+import Tag from '../components/ui/Tag.astro';
+import Link from '../components/ui/Link.astro';
+import '../styles/global.css';
 ---
 
 <html lang="en">
-	<head>
-		<meta charset="utf-8" />
-		<link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-		<meta name="viewport" content="width=device-width" />
-		<meta name="generator" content={Astro.generator} />
-		<title>Astro</title>
-	</head>
-	<body>
-		<h1>Astro</h1>
-	</body>
+  <head>
+    <meta charset="utf-8" />
+    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+    <meta name="viewport" content="width=device-width" />
+    <meta name="generator" content={Astro.generator} />
+    <title>Phase 2 - Design System Test</title>
+    <ThemeScript />
+  </head>
+  <body class="min-h-screen">
+    <Container class="py-12">
+      <div class="flex justify-between items-center mb-12">
+        <h1 class="text-4xl font-bold text-foreground dark:text-foreground-dark">
+          Design System Test
+        </h1>
+        <ThemeToggle client:load />
+      </div>
+
+      <div class="space-y-8">
+        <!-- Buttons Section -->
+        <Card>
+          <h2 class="text-2xl font-bold mb-4 text-foreground dark:text-foreground-dark">Buttons</h2>
+          <div class="flex flex-wrap gap-4">
+            <Button variant="primary">Primary</Button>
+            <Button variant="secondary">Secondary</Button>
+            <Button variant="outline">Outline</Button>
+            <Button variant="ghost">Ghost</Button>
+            <Button variant="primary" size="sm">Small</Button>
+            <Button variant="primary" size="lg">Large</Button>
+          </div>
+        </Card>
+
+        <!-- Tags Section -->
+        <Card>
+          <h2 class="text-2xl font-bold mb-4 text-foreground dark:text-foreground-dark">Tags</h2>
+          <div class="flex flex-wrap gap-2">
+            <Tag>Default</Tag>
+            <Tag variant="primary">Primary</Tag>
+            <Tag variant="success">Success</Tag>
+            <Tag variant="warning">Warning</Tag>
+            <Tag variant="error">Error</Tag>
+            <Tag size="md">Medium Tag</Tag>
+          </div>
+        </Card>
+
+        <!-- Links Section -->
+        <Card>
+          <h2 class="text-2xl font-bold mb-4 text-foreground dark:text-foreground-dark">Links</h2>
+          <div class="space-y-2">
+            <div>
+              <Link href="#" variant="default">Default Link</Link>
+            </div>
+            <div>
+              <Link href="#" variant="primary">Primary Link</Link>
+            </div>
+            <div>
+              <Link href="#" variant="muted">Muted Link</Link>
+            </div>
+            <div>
+              <Link href="https://astro.build" external>External Link</Link>
+            </div>
+          </div>
+        </Card>
+
+        <!-- Card Variants -->
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card padding="sm">
+            <h3 class="text-lg font-semibold mb-2 text-foreground dark:text-foreground-dark">
+              Small Padding Card
+            </h3>
+            <p class="text-gray-600 dark:text-gray-400">
+              This card has small padding applied.
+            </p>
+          </Card>
+
+          <Card padding="lg" hover>
+            <h3 class="text-lg font-semibold mb-2 text-foreground dark:text-foreground-dark">
+              Hover Card
+            </h3>
+            <p class="text-gray-600 dark:text-gray-400">
+              This card has hover effects and large padding.
+            </p>
+          </Card>
+        </div>
+
+        <!-- Typography Test -->
+        <Card>
+          <h2 class="text-2xl font-bold mb-4 text-foreground dark:text-foreground-dark">Typography</h2>
+          <div class="space-y-4">
+            <p class="text-foreground dark:text-foreground-dark">
+              This is a paragraph with default text color that adapts to dark mode.
+            </p>
+            <p class="text-gray-600 dark:text-gray-400">
+              This is muted text that also adapts to dark mode.
+            </p>
+            <h3 class="text-xl font-semibold text-primary-600 dark:text-primary-400">
+              Primary colored heading
+            </h3>
+          </div>
+        </Card>
+      </div>
+    </Container>
+  </body>
 </html>
