@@ -1,0 +1,91 @@
+---
+import { SITE } from '../../config/site';
+
+export interface Props {
+  type: 'website' | 'article' | 'person';
+  // Common fields
+  url?: string;
+  // Website fields
+  name?: string;
+  description?: string;
+  // Article fields
+  headline?: string;
+  image?: string;
+  datePublished?: string;
+  dateModified?: string;
+  author?: string;
+  tags?: string[];
+  // Person fields
+  email?: string;
+  jobTitle?: string;
+  sameAs?: string[];
+}
+
+const {
+  type,
+  url = SITE.siteUrl,
+  name,
+  description,
+  headline,
+  image,
+  datePublished,
+  dateModified,
+  author,
+  tags = [],
+  email,
+  jobTitle,
+  sameAs = [],
+} = Astro.props;
+
+let schema: any;
+
+if (type === 'website') {
+  schema = {
+    '@context': 'https://schema.org',
+    '@type': 'WebSite',
+    name: name || SITE.title,
+    description: description || SITE.description,
+    url: url,
+    inLanguage: 'en-US',
+    publisher: {
+      '@type': 'Person',
+      name: SITE.author,
+    },
+  };
+} else if (type === 'article') {
+  schema = {
+    '@context': 'https://schema.org',
+    '@type': 'Article',
+    headline: headline || name,
+    description: description,
+    image: image,
+    datePublished: datePublished,
+    dateModified: dateModified || datePublished,
+    author: {
+      '@type': 'Person',
+      name: author || SITE.author,
+    },
+    publisher: {
+      '@type': 'Person',
+      name: SITE.author,
+    },
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': url,
+    },
+    keywords: tags.join(', '),
+  };
+} else if (type === 'person') {
+  schema = {
+    '@context': 'https://schema.org',
+    '@type': 'Person',
+    name: name || SITE.author,
+    email: email || SITE.email,
+    url: url,
+    jobTitle: jobTitle,
+    sameAs: sameAs,
+  };
+}
+---
+
+<script is:inline type="application/ld+json" set:html={JSON.stringify(schema)} />

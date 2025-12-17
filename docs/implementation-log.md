@@ -407,4 +407,173 @@ src/pages/index.astro  # Updated to use BaseLayout
 **Last Updated**: 2025-12-17
 **Phase Duration**: ~15 minutes
 **Phase Version**: 3.1 (Updated for Astro v5 ClientRouter)
-**Status**: ✅ Complete, Ready for Phase 4
+**Status**: ✅ Complete
+
+---
+
+## Phase 4: SEO Infrastructure
+**Date**: 2025-12-17
+**Status**: ✅ Completed
+
+### Objective
+Implement comprehensive SEO optimization.
+
+### What Was Built
+
+**1. SEO Utility Functions**
+
+**seo.ts** (`src/utils/seo.ts`):
+- `getCanonicalURL(path)` - Generates full canonical URLs
+- `generateSEOProps(props)` - Creates SEO props with defaults from site config
+- `formatTitle(pageTitle, includeSiteName)` - Formats page titles with site name
+- `truncateDescription(description, maxLength)` - Truncates descriptions to SEO-friendly length (160 chars)
+- TypeScript `SEOProps` interface for type safety
+
+**2. SEO Component**
+
+**SEO.astro** (`src/components/seo/SEO.astro`):
+- Comprehensive meta tags (title, description, author)
+- Canonical URL support
+- OpenGraph tags for social media (Facebook, LinkedIn, etc.)
+  - og:type, og:url, og:title, og:description, og:image
+  - og:site_name, og:locale
+  - Article-specific tags (published_time, modified_time, author, tags)
+- Twitter Card tags (summary_large_image)
+- Keywords meta tag (from tags array)
+- Additional meta tags (robots, googlebot, language, revisit-after)
+- Automatic title formatting with site name
+- Description truncation to 160 characters
+- Full image URL generation
+
+**3. Structured Data Component**
+
+**StructuredData.astro** (`src/components/seo/StructuredData.astro`):
+- JSON-LD schema generation for three types:
+  - **Website**: WebSite schema with name, description, URL, publisher
+  - **Article**: Article schema with headline, author, dates, keywords, publisher
+  - **Person**: Person schema with name, email, job title, sameAs links
+- Schema.org compliant markup
+- Inline script with `is:inline` directive
+
+**4. RSS Feed**
+
+**rss.xml.ts** (`src/pages/rss.xml.ts`):
+- RSS 2.0 feed endpoint at `/rss.xml`
+- Fetches all published blog posts (excludes drafts)
+- Sorts posts by date (newest first)
+- Includes title, description, pubDate, link, author, categories
+- Custom language tag (en-us)
+- Uses `@astrojs/rss` integration
+
+**5. Robots.txt**
+
+**robots.txt** (`public/robots.txt`):
+- Allows all crawlers (User-agent: *)
+- Sitemap location pointing to sitemap-index.xml
+- Crawl delay set to 10 seconds
+- Placeholder comments for blocking specific paths
+
+**6. BaseLayout Integration**
+
+**Updated BaseLayout.astro**:
+- Replaced manual meta tags with `<SEO />` component
+- Added `<StructuredData />` component for JSON-LD
+- Added RSS feed link in head
+- Extended Props interface to support:
+  - `type` ('website' | 'article' | 'profile')
+  - `publishedTime`, `modifiedTime`
+  - `author`, `tags`
+- Uses `generateSEOProps()` utility for consistent defaults
+- Uses `getCanonicalURL()` for proper canonical URLs
+
+### Verification Results
+✅ TypeScript check: 0 errors, 0 warnings, 0 hints
+✅ SEO component properly renders meta tags
+✅ StructuredData component generates valid JSON-LD
+✅ RSS feed endpoint configured
+✅ Sitemap already configured in astro.config.mjs (Phase 1)
+✅ robots.txt created with proper directives
+✅ BaseLayout successfully integrates all SEO components
+✅ All utility functions working correctly
+
+### Important Notes
+- **Sitemap**: Already configured via `@astrojs/sitemap` in Phase 1 - will auto-generate at `/sitemap-index.xml`
+- **RSS Feed**: Available at `/rss.xml` and linked in BaseLayout head
+- **robots.txt**: Currently uses placeholder URL - needs updating with actual domain
+- **Default OG Image**: References `/images/og-default.jpg` which doesn't exist yet
+- **Type Safety**: All SEO components use TypeScript interfaces
+- **Extensibility**: Easy to add more structured data types (Product, FAQ, etc.)
+
+### Files Created
+```
+src/utils/
+└── seo.ts                   # SEO utility functions
+
+src/components/seo/
+├── SEO.astro                # Meta tags component
+└── StructuredData.astro     # JSON-LD schemas
+
+src/pages/
+└── rss.xml.ts               # RSS feed endpoint
+
+public/
+└── robots.txt               # Search engine directives
+```
+
+### Files Modified
+```
+src/components/layout/BaseLayout.astro  # Integrated SEO components
+```
+
+### Next Phase
+**Phase 5: Static Pages**
+- Build Home page with hero, blog preview, featured works
+- Build About page with bio and background
+- Build Contact page with email and social links
+
+### Issues Encountered
+**StructuredData Script Hint (RESOLVED)**:
+- Initial warning about script tag processing
+- Fixed by adding `is:inline` directive to script tag
+- All hints resolved
+
+### Post-Implementation Cleanup (Phase 4.1)
+**Date**: 2025-12-17
+
+**Obsolete SEO Elements Removed** (based on 2025 best practices research):
+
+1. **Removed `<meta name="keywords">`** from SEO.astro
+   - Deprecated by Google since 2009
+   - Confirmed by John Mueller: no effect on indexing/ranking
+   - Modern alternative: Use actual content quality and structured data
+
+2. **Removed `<meta name="revisit-after">`** from SEO.astro
+   - Never supported by major search engines
+   - Invented for local search engine (searchBC), now obsolete
+   - Modern alternative: XML sitemap with `<lastmod>` tags
+
+3. **Removed `Crawl-delay: 10`** from robots.txt
+   - NOT supported by Google (confirmed Nov 2025)
+   - Google uses server response times, not robots.txt timing
+   - Modern alternative: Google Search Console for crawl rate control
+   - Note: Bing and Yandex do support it, but removed for consistency
+
+**Research Sources**:
+- Google official docs (robots.txt spec, search blog)
+- John Mueller statements (2009, 2022)
+- Microsoft Bing confirmation (March 2025): Schema markup helps Copilot
+- AI/LLM optimization: Structured data (JSON-LD) is critical for GEO
+
+**What We're Keeping** (2025 Best Practices):
+- ✅ Structured Data (JSON-LD) - CRITICAL for AI/LLM visibility
+- ✅ OpenGraph & Twitter Cards - Social sharing
+- ✅ Meta description - Still used for snippets
+- ✅ Canonical URLs - Duplicate content management
+- ✅ Robots meta tag - Indexing control
+
+---
+
+**Last Updated**: 2025-12-17
+**Phase Duration**: ~25 minutes (includes research & cleanup)
+**Phase Version**: 4.1 (Removed obsolete SEO elements)
+**Status**: ✅ Complete, Ready for Phase 5

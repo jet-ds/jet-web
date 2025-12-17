@@ -1,9 +1,12 @@
 ---
 import { ClientRouter } from 'astro:transitions';
 import ThemeScript from '../ui/ThemeScript.astro';
+import SEO from '../seo/SEO.astro';
+import StructuredData from '../seo/StructuredData.astro';
 import Header from './Header.astro';
 import Footer from './Footer.astro';
 import { SITE } from '../../config/site';
+import { generateSEOProps, getCanonicalURL } from '../../utils/seo';
 import '../../styles/global.css';
 
 export interface Props {
@@ -11,16 +14,37 @@ export interface Props {
   description?: string;
   image?: string;
   canonicalURL?: string;
+  type?: 'website' | 'article' | 'profile';
+  publishedTime?: string;
+  modifiedTime?: string;
+  author?: string;
+  tags?: string[];
 }
 
 const {
   title = SITE.title,
   description = SITE.description,
-  image = '/og-image.png',
-  canonicalURL = new URL(Astro.url.pathname, Astro.site).href,
+  image,
+  canonicalURL,
+  type = 'website',
+  publishedTime,
+  modifiedTime,
+  author,
+  tags,
 } = Astro.props;
 
-const fullTitle = title === SITE.title ? title : `${title} | ${SITE.title}`;
+// Generate SEO props with defaults
+const seoProps = generateSEOProps({
+  title,
+  description,
+  image,
+  canonicalURL: canonicalURL || getCanonicalURL(Astro.url.pathname),
+  type,
+  publishedTime,
+  modifiedTime,
+  author,
+  tags,
+});
 ---
 
 <!doctype html>
@@ -30,31 +54,28 @@ const fullTitle = title === SITE.title ? title : `${title} | ${SITE.title}`;
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="generator" content={Astro.generator} />
 
-    <!-- Primary Meta Tags -->
-    <title>{fullTitle}</title>
-    <meta name="title" content={fullTitle} />
-    <meta name="description" content={description} />
-    <meta name="author" content={SITE.author} />
+    <!-- SEO Component -->
+    <SEO {...seoProps} />
 
-    <!-- Canonical URL -->
-    <link rel="canonical" href={canonicalURL} />
-
-    <!-- Open Graph / Facebook -->
-    <meta property="og:type" content="website" />
-    <meta property="og:url" content={canonicalURL} />
-    <meta property="og:title" content={fullTitle} />
-    <meta property="og:description" content={description} />
-    <meta property="og:image" content={new URL(image, Astro.site).href} />
-
-    <!-- Twitter -->
-    <meta property="twitter:card" content="summary_large_image" />
-    <meta property="twitter:url" content={canonicalURL} />
-    <meta property="twitter:title" content={fullTitle} />
-    <meta property="twitter:description" content={description} />
-    <meta property="twitter:image" content={new URL(image, Astro.site).href} />
+    <!-- Structured Data (JSON-LD) -->
+    <StructuredData
+      type={type === 'article' ? 'article' : 'website'}
+      url={seoProps.canonicalURL}
+      name={seoProps.title}
+      description={seoProps.description}
+      headline={type === 'article' ? seoProps.title : undefined}
+      image={seoProps.image}
+      datePublished={publishedTime}
+      dateModified={modifiedTime}
+      author={seoProps.author}
+      tags={tags}
+    />
 
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+
+    <!-- RSS Feed -->
+    <link rel="alternate" type="application/rss+xml" title={SITE.title} href="/rss.xml" />
 
     <!-- Theme Script (prevents FOUC) -->
     <ThemeScript />
