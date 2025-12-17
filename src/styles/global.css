@@ -1,0 +1,24 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* Base styles */
+  :root {
+    --color-background: theme('colors.background.DEFAULT');
+    --color-foreground: theme('colors.foreground.DEFAULT');
+  }
+
+  .dark {
+    --color-background: theme('colors.background.dark');
+    --color-foreground: theme('colors.foreground.dark');
+  }
+
+  body {
+    @apply bg-background text-foreground transition-colors duration-300;
+  }
+}
+
+@layer components {
+  /* Custom component styles can go here */
+}
