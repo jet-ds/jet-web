@@ -1,120 +1,161 @@
 ---
+import { getCollection } from 'astro:content';
 import BaseLayout from '../components/layout/BaseLayout.astro';
 import Container from '../components/ui/Container.astro';
 import Card from '../components/ui/Card.astro';
 import Button from '../components/ui/Button.astro';
 import Tag from '../components/ui/Tag.astro';
-import Link from '../components/ui/Link.astro';
+import { SITE } from '../config/site';
+
+// Fetch latest blog posts (limit to 3)
+const allBlogPosts = await getCollection('blog', ({ data }) => data.draft !== true);
+const latestPosts = allBlogPosts
+  .sort((a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime())
+  .slice(0, 3);
+
+// Fetch featured works
+const allWorks = await getCollection('works');
+const featuredWorks = allWorks
+  .filter((work) => work.data.featured === true)
+  .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
+  .slice(0, 3);
 ---
 
-<BaseLayout>
-  <Container class="py-12">
-    <div class="mb-12">
-      <h1 class="text-4xl font-bold mb-4 text-foreground dark:text-foreground-dark">
-        Design System Test
-      </h1>
-      <p class="text-lg text-gray-600 dark:text-gray-400">
-        Testing Phase 2 & Phase 3 components with the new layout system.
-      </p>
-    </div>
-
-    <div class="space-y-8">
-      <!-- Buttons Section -->
-      <Card>
-        <h2 class="text-2xl font-bold mb-4 text-foreground dark:text-foreground-dark">Buttons</h2>
+<BaseLayout
+  title={SITE.title}
+  description={SITE.description}
+>
+  <!-- Hero Section -->
+  <section class="py-20 md:py-32">
+    <Container size="lg">
+      <div class="max-w-3xl">
+        <h1 class="text-4xl md:text-6xl font-bold mb-6 text-foreground dark:text-foreground-dark">
+          Welcome to {SITE.title}
+        </h1>
+        <p class="text-xl md:text-2xl text-gray-600 dark:text-gray-400 mb-8">
+          {SITE.description}
+        </p>
         <div class="flex flex-wrap gap-4">
-          <Button variant="primary">Primary</Button>
-          <Button variant="secondary">Secondary</Button>
-          <Button variant="outline">Outline</Button>
-          <Button variant="ghost">Ghost</Button>
-          <Button variant="primary" size="sm">Small</Button>
-          <Button variant="primary" size="lg">Large</Button>
+          <Button href="/about" variant="primary" size="lg">About Me</Button>
+          <Button href="/contact" variant="outline" size="lg">Get in Touch</Button>
         </div>
-      </Card>
+      </div>
+    </Container>
+  </section>
 
-      <!-- Tags Section -->
-      <Card>
-        <h2 class="text-2xl font-bold mb-4 text-foreground dark:text-foreground-dark">Tags</h2>
-        <div class="flex flex-wrap gap-2">
-          <Tag>Default</Tag>
-          <Tag variant="primary">Primary</Tag>
-          <Tag variant="success">Success</Tag>
-          <Tag variant="warning">Warning</Tag>
-          <Tag variant="error">Error</Tag>
-          <Tag size="md">Medium Tag</Tag>
-        </div>
-      </Card>
-
-      <!-- Links Section -->
-      <Card>
-        <h2 class="text-2xl font-bold mb-4 text-foreground dark:text-foreground-dark">Links</h2>
-        <div class="space-y-2">
-          <div>
-            <Link href="#" variant="default">Default Link</Link>
-          </div>
-          <div>
-            <Link href="#" variant="primary">Primary Link</Link>
-          </div>
-          <div>
-            <Link href="#" variant="muted">Muted Link</Link>
-          </div>
-          <div>
-            <Link href="https://astro.build" external>External Link</Link>
-          </div>
-        </div>
-      </Card>
-
-      <!-- Card Variants -->
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card padding="sm">
-          <h3 class="text-lg font-semibold mb-2 text-foreground dark:text-foreground-dark">
-            Small Padding Card
-          </h3>
-          <p class="text-gray-600 dark:text-gray-400">
-            This card has small padding applied.
-          </p>
-        </Card>
-
-        <Card padding="lg" hover>
-          <h3 class="text-lg font-semibold mb-2 text-foreground dark:text-foreground-dark">
-            Hover Card
-          </h3>
-          <p class="text-gray-600 dark:text-gray-400">
-            This card has hover effects and large padding.
-          </p>
-        </Card>
+  <!-- Latest Blog Posts -->
+  <section class="py-16 bg-muted dark:bg-muted-dark">
+    <Container size="lg">
+      <div class="flex justify-between items-center mb-8">
+        <h2 class="text-3xl font-bold text-foreground dark:text-foreground-dark">
+          Latest Articles
+        </h2>
+        <Button href="/blog" variant="ghost">View All →</Button>
       </div>
 
-      <!-- Typography Test -->
-      <Card>
-        <h2 class="text-2xl font-bold mb-4 text-foreground dark:text-foreground-dark">Typography</h2>
-        <div class="space-y-4">
-          <p class="text-foreground dark:text-foreground-dark">
-            This is a paragraph with default text color that adapts to dark mode.
-          </p>
-          <p class="text-gray-600 dark:text-gray-400">
-            This is muted text that also adapts to dark mode.
-          </p>
-          <h3 class="text-xl font-semibold text-primary-600 dark:text-primary-400">
-            Primary colored heading
-          </h3>
+      {latestPosts.length > 0 ? (
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {latestPosts.map((post) => (
+            <Card hover class="flex flex-col h-full">
+              <div class="flex-1">
+                <h3 class="text-xl font-semibold mb-2 text-foreground dark:text-foreground-dark">
+                  <a href={`/blog/${post.slug}`} class="hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+                    {post.data.title}
+                  </a>
+                </h3>
+                <p class="text-gray-600 dark:text-gray-400 mb-4">
+                  {post.data.description}
+                </p>
+                <div class="flex flex-wrap gap-2 mb-4">
+                  {post.data.tags.slice(0, 3).map((tag) => (
+                    <Tag size="sm">{tag}</Tag>
+                  ))}
+                </div>
+              </div>
+              <div class="text-sm text-gray-500 dark:text-gray-500">
+                {post.data.pubDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+              </div>
+            </Card>
+          ))}
         </div>
-      </Card>
+      ) : (
+        <Card>
+          <p class="text-center text-gray-600 dark:text-gray-400 py-8">
+            No blog posts yet. Check back soon!
+          </p>
+        </Card>
+      )}
+    </Container>
+  </section>
 
-      <!-- Navigation Test -->
-      <Card>
-        <h2 class="text-2xl font-bold mb-4 text-foreground dark:text-foreground-dark">
-          Navigation Test
+  <!-- Featured Works -->
+  <section class="py-16">
+    <Container size="lg">
+      <div class="flex justify-between items-center mb-8">
+        <h2 class="text-3xl font-bold text-foreground dark:text-foreground-dark">
+          Featured Works
         </h2>
-        <p class="text-gray-600 dark:text-gray-400 mb-4">
-          The header navigation is now functional with active route highlighting.
-          Try clicking the navigation links to see View Transitions in action!
-        </p>
-        <div class="flex gap-4">
-          <Button href="/about" variant="primary">Go to About</Button>
-          <Button href="/blog" variant="secondary">Go to Blog</Button>
+        <Button href="/works" variant="ghost">View All →</Button>
+      </div>
+
+      {featuredWorks.length > 0 ? (
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {featuredWorks.map((work) => (
+            <Card hover class="flex flex-col h-full">
+              <div class="flex-1">
+                <div class="flex items-center gap-2 mb-3">
+                  <Tag
+                    variant={work.data.type === 'research' ? 'primary' : work.data.type === 'project' ? 'success' : 'default'}
+                    size="sm"
+                  >
+                    {work.data.type}
+                  </Tag>
+                </div>
+                <h3 class="text-xl font-semibold mb-2 text-foreground dark:text-foreground-dark">
+                  <a href={`/works/${work.slug}`} class="hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+                    {work.data.title}
+                  </a>
+                </h3>
+                <p class="text-gray-600 dark:text-gray-400 mb-4">
+                  {work.data.description}
+                </p>
+                <div class="flex flex-wrap gap-2 mb-4">
+                  {work.data.tags.slice(0, 3).map((tag) => (
+                    <Tag size="sm">{tag}</Tag>
+                  ))}
+                </div>
+              </div>
+              <div class="text-sm text-gray-500 dark:text-gray-500">
+                {work.data.date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
+              </div>
+            </Card>
+          ))}
         </div>
-      </Card>
-    </div>
-  </Container>
+      ) : (
+        <Card>
+          <p class="text-center text-gray-600 dark:text-gray-400 py-8">
+            No featured works yet. Check back soon!
+          </p>
+        </Card>
+      )}
+    </Container>
+  </section>
+
+  <!-- Call to Action -->
+  <section class="py-16 bg-primary-50 dark:bg-primary-950/20">
+    <Container size="md">
+      <div class="text-center">
+        <h2 class="text-3xl font-bold mb-4 text-foreground dark:text-foreground-dark">
+          Let's Connect
+        </h2>
+        <p class="text-lg text-gray-600 dark:text-gray-400 mb-8">
+          Interested in collaborating or have questions? Feel free to reach out!
+        </p>
+        <div class="flex flex-wrap justify-center gap-4">
+          <Button href="/contact" variant="primary" size="lg">Contact Me</Button>
+          <Button href="/about" variant="outline" size="lg">Learn More</Button>
+        </div>
+      </div>
+    </Container>
+  </section>
 </BaseLayout>

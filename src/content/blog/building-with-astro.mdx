@@ -1,0 +1,43 @@
+---
+title: "Building Modern Websites with Astro"
+description: "Exploring Astro's unique approach to web development and why it's an excellent choice for content-focused sites."
+pubDate: 2025-12-16
+author: "Jet"
+tags: ["astro", "web-development", "javascript", "performance"]
+draft: false
+---
+
+Astro has quickly become one of my favorite tools for building modern, performant websites. Here's why.
+
+## The Islands Architecture
+
+Astro's approach to JavaScript is refreshingly pragmatic. Instead of shipping a full JavaScript framework to the browser by default, Astro uses an "islands architecture" where you can selectively hydrate interactive components.
+
+This means:
+- **Faster page loads**: Only essential JavaScript is sent to the browser
+- **Better performance**: Less JavaScript means better Core Web Vitals scores
+- **Developer flexibility**: Use React, Vue, Svelte, or any framework where you need interactivity
+
+## Content Collections
+
+One of Astro's standout features is Content Collections, which provides type-safe content management with built-in validation. You can define schemas for your content and get full TypeScript support throughout your codebase.
+
+```typescript
+const blogCollection = defineCollection({
+  type: 'content',
+  schema: z.object({
+    title: z.string(),
+    description: z.string(),
+    pubDate: z.coerce.date(),
+    tags: z.array(z.string()),
+  }),
+});
+```
+
+## Perfect for Content Sites
+
+Astro excels at content-focused websites like blogs, documentation sites, and marketing pages. The built-in support for MDX means you can enhance your content with interactive components when needed, while keeping most of your site static and fast.
+
+## Conclusion
+
+If you're building a content-heavy site and want excellent performance out of the box, Astro is definitely worth considering. The developer experience is fantastic, and the performance benefits are real.
