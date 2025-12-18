@@ -98,35 +98,41 @@ const currentPath = Astro.url.pathname;
   </Container>
 </header>
 
-<script>
-  // Mobile menu toggle
-  const button = document.getElementById('mobile-menu-button');
-  const menu = document.getElementById('mobile-menu');
+<script is:inline>
+  function setupMobileMenu() {
+    const button = document.getElementById('mobile-menu-button');
+    const menu = document.getElementById('mobile-menu');
 
-  if (button && menu) {
-    button.addEventListener('click', () => {
+    if (!button || !menu) {
+      return;
+    }
+
+    // Add click handler to toggle menu
+    button.addEventListener('click', function(e) {
+      e.preventDefault();
+      e.stopPropagation();
+
       const isExpanded = button.getAttribute('aria-expanded') === 'true';
+      const newState = !isExpanded;
 
-      button.setAttribute('aria-expanded', (!isExpanded).toString());
-      menu.setAttribute('aria-hidden', isExpanded.toString());
+      button.setAttribute('aria-expanded', newState.toString());
+      menu.setAttribute('aria-hidden', (!newState).toString());
 
-      if (isExpanded) {
-        menu.classList.add('hidden');
-      } else {
+      if (newState) {
         menu.classList.remove('hidden');
+      } else {
+        menu.classList.add('hidden');
       }
     });
   }
 
-  // Close mobile menu on route change (for View Transitions)
-  document.addEventListener('astro:after-swap', () => {
-    const button = document.getElementById('mobile-menu-button');
-    const menu = document.getElementById('mobile-menu');
+  // Initialize on initial page load
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', setupMobileMenu);
+  } else {
+    setupMobileMenu();
+  }
 
-    if (button && menu) {
-      button.setAttribute('aria-expanded', 'false');
-      menu.setAttribute('aria-hidden', 'true');
-      menu.classList.add('hidden');
-    }
-  });
+  // Re-initialize after ClientRouter navigation
+  document.addEventListener('astro:page-load', setupMobileMenu);
 </script>
