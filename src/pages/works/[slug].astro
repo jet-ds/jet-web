@@ -1,0 +1,38 @@
+---
+import { getCollection, type CollectionEntry } from 'astro:content';
+import WorkLayout from '../../layouts/WorkLayout.astro';
+
+// Generate static paths for all works
+export async function getStaticPaths() {
+  const works = await getCollection('works');
+
+  return works.map((work) => ({
+    params: { slug: work.slug },
+    props: { work },
+  }));
+}
+
+interface Props {
+  work: CollectionEntry<'works'>;
+}
+
+const { work } = Astro.props;
+const { Content } = await work.render();
+---
+
+<WorkLayout
+  title={work.data.title}
+  description={work.data.description}
+  type={work.data.type}
+  date={work.data.date}
+  tags={work.data.tags}
+  links={work.data.links}
+  venue={work.data.venue}
+  technologies={work.data.technologies}
+  repository={work.data.repository}
+  demo={work.data.demo}
+>
+  <article class="prose prose-lg dark:prose-invert max-w-none">
+    <Content />
+  </article>
+</WorkLayout>
