@@ -18,7 +18,7 @@ const tocHeadings = headings.filter(h => h.depth >= 2 && h.depth <= 3);
 {tocHeadings.length > 0 && (
   <nav class="toc" aria-label="Table of Contents">
     <div class="sticky top-24">
-      <h2 class="text-lg font-bold mb-4 text-foreground">On this page</h2>
+      <h2 class="text-lg font-bold mb-4 text-foreground dark:text-foreground-dark">On this page</h2>
       <ul class="space-y-2 text-sm border-l-2 border-border pl-4">
         {tocHeadings.map((heading) => (
           <li
@@ -30,7 +30,7 @@ const tocHeadings = headings.filter(h => h.depth >= 2 && h.depth <= 3);
           >
             <a
               href={`#${heading.slug}`}
-              class="block py-1 text-muted hover:text-primary-600 dark:hover:text-primary-400 transition-colors line-clamp-2"
+              class="block py-1 text-muted-foreground dark:text-muted-foreground-dark hover:text-primary-600 dark:hover:text-primary-400 transition-colors line-clamp-2"
             >
               {heading.text}
             </a>

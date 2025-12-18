@@ -49,7 +49,7 @@ const pageDescription = selectedType
           ? `${selectedType.charAt(0).toUpperCase() + selectedType.slice(1)} Works`
           : 'Works'}
       </h1>
-      <p class="text-xl text-muted max-w-2xl">
+      <p class="text-xl text-muted-foreground dark:text-muted-foreground-dark max-w-2xl">
         {pageDescription}
       </p>
     </div>
@@ -61,7 +61,7 @@ const pageDescription = selectedType
         class={`px-4 py-2 rounded-lg transition-colors ${
           !selectedType
             ? 'bg-primary-600 text-white'
-            : 'bg-muted hover:bg-primary-100 dark:hover:bg-primary-900 text-foreground'
+            : 'bg-muted hover:bg-primary-100 dark:hover:bg-primary-900 text-foreground dark:text-foreground-dark'
         }`}
       >
         All ({workCounts.all})
@@ -71,7 +71,7 @@ const pageDescription = selectedType
         class={`px-4 py-2 rounded-lg transition-colors ${
           selectedType === 'research'
             ? 'bg-primary-600 text-white'
-            : 'bg-muted hover:bg-primary-100 dark:hover:bg-primary-900 text-foreground'
+            : 'bg-muted hover:bg-primary-100 dark:hover:bg-primary-900 text-foreground dark:text-foreground-dark'
         }`}
       >
         Research ({workCounts.research})
@@ -81,7 +81,7 @@ const pageDescription = selectedType
         class={`px-4 py-2 rounded-lg transition-colors ${
           selectedType === 'project'
             ? 'bg-primary-600 text-white'
-            : 'bg-muted hover:bg-primary-100 dark:hover:bg-primary-900 text-foreground'
+            : 'bg-muted hover:bg-primary-100 dark:hover:bg-primary-900 text-foreground dark:text-foreground-dark'
         }`}
       >
         Projects ({workCounts.project})
@@ -92,7 +92,7 @@ const pageDescription = selectedType
           class={`px-4 py-2 rounded-lg transition-colors ${
             selectedType === 'other'
               ? 'bg-primary-600 text-white'
-              : 'bg-muted hover:bg-primary-100 dark:hover:bg-primary-900 text-foreground'
+              : 'bg-muted hover:bg-primary-100 dark:hover:bg-primary-900 text-foreground dark:text-foreground-dark'
           }`}
         >
           Other ({workCounts.other})
@@ -101,7 +101,7 @@ const pageDescription = selectedType
     </div>
 
     {/* Works count */}
-    <div class="mb-6 text-sm text-muted">
+    <div class="mb-6 text-sm text-muted-foreground dark:text-muted-foreground-dark">
       {displayedWorks.length === 0 && (
         <p>No works found{selectedType ? ` in the ${selectedType} category` : ''}.</p>
       )}
@@ -171,7 +171,7 @@ const pageDescription = selectedType
     {/* Empty state */}
     {displayedWorks.length === 0 && (
       <div class="text-center py-12">
-        <p class="text-muted text-lg mb-4">
+        <p class="text-muted-foreground dark:text-muted-foreground-dark text-lg mb-4">
           {selectedType
             ? `No ${selectedType} works found.`
             : 'No works yet. Check back soon!'}

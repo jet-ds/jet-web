@@ -19,19 +19,29 @@ export default {
           900: '#1e3a8a',
           950: '#172554',
         },
-        // Semantic color tokens
+        // Semantic color tokens - Background colors
         background: {
           DEFAULT: '#ffffff',
           dark: '#0f172a',
         },
+        card: {
+          DEFAULT: '#ffffff',
+          dark: '#1e293b',
+        },
+        muted: {
+          DEFAULT: '#f1f5f9',
+          dark: '#0f172a',
+        },
+        // Semantic color tokens - Text colors
         foreground: {
           DEFAULT: '#0f172a',
           dark: '#f8fafc',
         },
-        muted: {
-          DEFAULT: '#f1f5f9',
-          dark: '#1e293b',
+        'muted-foreground': {
+          DEFAULT: '#64748b',
+          dark: '#94a3b8',
         },
+        // Semantic color tokens - Borders
         border: {
           DEFAULT: '#e2e8f0',
           dark: '#334155',

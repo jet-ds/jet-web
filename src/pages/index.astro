@@ -32,7 +32,7 @@ const featuredWorks = allWorks
         <h1 class="text-4xl md:text-6xl font-bold mb-6 text-foreground dark:text-foreground-dark">
           Welcome to {SITE.title}
         </h1>
-        <p class="text-xl md:text-2xl text-gray-600 dark:text-gray-400 mb-8">
+        <p class="text-xl md:text-2xl text-muted-foreground dark:text-muted-foreground-dark dark:text-muted-foreground-dark mb-8">
           {SITE.description}
         </p>
         <div class="flex flex-wrap gap-4">
@@ -63,7 +63,7 @@ const featuredWorks = allWorks
                     {post.data.title}
                   </a>
                 </h3>
-                <p class="text-gray-600 dark:text-gray-400 mb-4">
+                <p class="text-muted-foreground dark:text-muted-foreground-dark dark:text-muted-foreground-dark mb-4">
                   {post.data.description}
                 </p>
                 <div class="flex flex-wrap gap-2 mb-4">
@@ -72,7 +72,7 @@ const featuredWorks = allWorks
                   ))}
                 </div>
               </div>
-              <div class="text-sm text-gray-500 dark:text-gray-500">
+              <div class="text-sm text-muted-foreground dark:text-muted-foreground-dark dark:text-muted-foreground-dark">
                 {post.data.pubDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
               </div>
             </Card>
@@ -80,7 +80,7 @@ const featuredWorks = allWorks
         </div>
       ) : (
         <Card>
-          <p class="text-center text-gray-600 dark:text-gray-400 py-8">
+          <p class="text-center text-muted-foreground dark:text-muted-foreground-dark dark:text-muted-foreground-dark py-8">
             No blog posts yet. Check back soon!
           </p>
         </Card>
@@ -116,7 +116,7 @@ const featuredWorks = allWorks
                     {work.data.title}
                   </a>
                 </h3>
-                <p class="text-gray-600 dark:text-gray-400 mb-4">
+                <p class="text-muted-foreground dark:text-muted-foreground-dark dark:text-muted-foreground-dark mb-4">
                   {work.data.description}
                 </p>
                 <div class="flex flex-wrap gap-2 mb-4">
@@ -125,7 +125,7 @@ const featuredWorks = allWorks
                   ))}
                 </div>
               </div>
-              <div class="text-sm text-gray-500 dark:text-gray-500">
+              <div class="text-sm text-muted-foreground dark:text-muted-foreground-dark dark:text-muted-foreground-dark">
                 {work.data.date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
               </div>
             </Card>
@@ -133,7 +133,7 @@ const featuredWorks = allWorks
         </div>
       ) : (
         <Card>
-          <p class="text-center text-gray-600 dark:text-gray-400 py-8">
+          <p class="text-center text-muted-foreground dark:text-muted-foreground-dark dark:text-muted-foreground-dark py-8">
             No featured works yet. Check back soon!
           </p>
         </Card>
@@ -148,7 +148,7 @@ const featuredWorks = allWorks
         <h2 class="text-3xl font-bold mb-4 text-foreground dark:text-foreground-dark">
           Let's Connect
         </h2>
-        <p class="text-lg text-gray-600 dark:text-gray-400 mb-8">
+        <p class="text-lg text-muted-foreground dark:text-muted-foreground-dark dark:text-muted-foreground-dark mb-8">
           Interested in collaborating or have questions? Feel free to reach out!
         </p>
         <div class="flex flex-wrap justify-center gap-4">

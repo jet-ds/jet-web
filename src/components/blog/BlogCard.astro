@@ -40,17 +40,17 @@ const readingTime = content ? getReadingTimeText(content) : null;
 
     <div class="p-6">
       {/* Title */}
-      <h2 class="text-2xl font-bold mb-2 text-foreground group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+      <h2 class="text-2xl font-bold mb-2 text-foreground dark:text-foreground-dark group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
         {title}
       </h2>
 
       {/* Description */}
-      <p class="text-muted mb-4 line-clamp-3">
+      <p class="text-muted-foreground dark:text-muted-foreground-dark mb-4 line-clamp-3">
         {description}
       </p>
 
       {/* Metadata */}
-      <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted mb-4">
+      <div class="flex flex-wrap items-center gap-x-4 gap-y-2 text-sm text-muted-foreground dark:text-muted-foreground-dark mb-4">
         <time datetime={pubDate.toISOString()} class="flex items-center gap-1">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />

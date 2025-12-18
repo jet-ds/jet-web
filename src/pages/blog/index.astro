@@ -41,7 +41,7 @@ const pageDescription = selectedTag
       <h1 class="text-4xl md:text-5xl font-bold mb-4">
         {selectedTag ? `Posts tagged with "${selectedTag}"` : 'Blog'}
       </h1>
-      <p class="text-xl text-muted max-w-2xl">
+      <p class="text-xl text-muted-foreground dark:text-muted-foreground-dark max-w-2xl">
         {pageDescription}
       </p>
 
@@ -62,7 +62,7 @@ const pageDescription = selectedTag
     </div>
 
     {/* Posts count */}
-    <div class="mb-6 text-sm text-muted">
+    <div class="mb-6 text-sm text-muted-foreground dark:text-muted-foreground-dark">
       {displayedPosts.length === 0 && (
         <p>No posts found{selectedTag ? ` for tag "${selectedTag}"` : ''}.</p>
       )}
@@ -92,7 +92,7 @@ const pageDescription = selectedTag
       </div>
     ) : (
       <div class="text-center py-12">
-        <p class="text-muted text-lg mb-4">
+        <p class="text-muted-foreground dark:text-muted-foreground-dark text-lg mb-4">
           {selectedTag
             ? `No posts found with the tag "${selectedTag}".`
             : 'No blog posts yet. Check back soon!'}
@@ -121,10 +121,10 @@ const pageDescription = selectedTag
             return (
               <a
                 href={`/blog?tag=${encodeURIComponent(tag)}`}
-                class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-muted hover:bg-primary-100 dark:hover:bg-primary-900 transition-colors text-sm"
+                class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-background dark:bg-card-dark border border-border dark:border-border-dark text-foreground dark:text-foreground-dark hover:bg-primary-100 dark:hover:bg-primary-900 hover:border-primary-200 dark:hover:border-primary-800 transition-colors text-sm"
               >
                 {tag}
-                <span class="text-xs text-muted">({count})</span>
+                <span class="text-xs text-muted-foreground dark:text-muted-foreground-dark dark:text-muted-foreground-dark">({count})</span>
               </a>
             );
           })}

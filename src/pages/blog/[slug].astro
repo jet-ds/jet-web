@@ -69,13 +69,13 @@ const nextPost = currentIndex > 0 ? sortedPosts[currentIndex - 1] : null;
               href={`/blog/${prevPost.slug}`}
               class="block p-6 rounded-lg border border-border hover:border-primary-600 dark:hover:border-primary-400 transition-colors group"
             >
-              <div class="flex items-center gap-2 text-sm text-muted mb-2">
+              <div class="flex items-center gap-2 text-sm text-muted-foreground dark:text-muted-foreground-dark mb-2">
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
                 </svg>
                 Previous
               </div>
-              <div class="font-semibold text-foreground group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+              <div class="font-semibold text-foreground dark:text-foreground-dark group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
                 {prevPost.data.title}
               </div>
             </a>
@@ -89,13 +89,13 @@ const nextPost = currentIndex > 0 ? sortedPosts[currentIndex - 1] : null;
               href={`/blog/${nextPost.slug}`}
               class="block p-6 rounded-lg border border-border hover:border-primary-600 dark:hover:border-primary-400 transition-colors group text-right"
             >
-              <div class="flex items-center justify-end gap-2 text-sm text-muted mb-2">
+              <div class="flex items-center justify-end gap-2 text-sm text-muted-foreground dark:text-muted-foreground-dark mb-2">
                 Next
                 <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                   <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
                 </svg>
               </div>
-              <div class="font-semibold text-foreground group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+              <div class="font-semibold text-foreground dark:text-foreground-dark group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
                 {nextPost.data.title}
               </div>
             </a>
