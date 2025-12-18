@@ -722,3 +722,126 @@ None - All new pages created from scratch
 **Last Updated**: 2025-12-18
 **Phase Duration**: ~20 minutes
 **Status**: ✅ Complete, Ready for Phase 6
+
+---
+
+## Phase 6: Content Collections Setup
+**Date**: 2025-12-18
+**Status**: ✅ Completed
+
+### Objective
+Configure type-safe content management utilities for processing blog posts and works.
+
+### What Was Built
+
+**1. Reading Time Utility**
+
+**readingTime.ts** (`src/utils/readingTime.ts`):
+- `getReadingTime(content)` - Calculates reading time in minutes
+- `getReadingTimeText(content)` - Returns formatted string (e.g., "5 min read")
+- Cleans markdown syntax and HTML for accurate word count
+- Removes code blocks, inline code, images, and links
+- Uses 225 words per minute as reading speed
+- Rounds up to nearest minute, minimum 1 minute
+- Handles MDX content correctly
+
+**2. Date Formatting Utility**
+
+**formatDate.ts** (`src/utils/formatDate.ts`):
+- `formatDate(date, format)` - Formats dates with three styles:
+  - 'long': "December 18, 2025"
+  - 'medium': "Dec 18, 2025" (default)
+  - 'short': "12/18/2025"
+- `formatRelativeDate(date)` - Relative time (e.g., "2 days ago", "3 months ago")
+- `getISODate(date)` - ISO format (YYYY-MM-DD) for HTML time elements
+- Uses UTC timezone to avoid shifts
+- Validates dates and handles errors gracefully
+- Works with both Date objects and date strings
+
+**3. Sort Utility**
+
+**sortByDate.ts** (`src/utils/sortByDate.ts`):
+- `sortByDate(items, order)` - Generic sorting for any items with date properties
+  - Works with both blog posts (pubDate) and works (date)
+  - Supports 'desc' (newest first, default) and 'asc' order
+  - Handles missing dates gracefully
+- `sortBlogPosts(posts, order)` - Specialized for blog posts
+- `sortWorks(works, order)` - Specialized for works
+- Full TypeScript generics with proper type constraints
+- Creates new sorted array (doesn't mutate original)
+
+**4. Tag Filtering Utility**
+
+**filterByTag.ts** (`src/utils/filterByTag.ts`):
+- `filterByTag(items, tag)` - Filter by single tag (case-insensitive)
+- `filterByAllTags(items, tags)` - Filter items with ALL specified tags
+- `filterByAnyTag(items, tags)` - Filter items with ANY of the tags
+- `getAllTags(items)` - Extract all unique tags, sorted alphabetically
+- `getTagCounts(items)` - Count occurrences of each tag
+- Case-insensitive tag matching
+- TypeScript generics for type safety
+
+### Verification Results
+✅ TypeScript check: 0 errors, 0 warnings, 0 hints
+✅ All utility functions created with proper TypeScript types
+✅ Generic functions support both blog posts and works
+✅ Comprehensive functionality for content processing
+✅ Case-insensitive tag filtering
+✅ Markdown/MDX content handling in reading time
+
+### Important Notes
+- **Prerequisites Met**: Content schemas (Phase 1) and sample content (Phase 5) already exist
+- **Type Safety**: All utilities use TypeScript generics with proper constraints
+- **Reusability**: Functions work with any content that follows the schemas
+- **Performance**: All functions create new arrays (immutable approach)
+- **Extensibility**: Easy to add more utility functions as needed
+
+### Features Implemented
+
+**Reading Time**:
+- Accurate word counting with markdown/HTML cleanup
+- Customizable reading speed (225 WPM)
+- Both numeric and text output formats
+
+**Date Formatting**:
+- Multiple format styles for different use cases
+- Relative date display for recent content
+- ISO format for semantic HTML
+
+**Sorting**:
+- Flexible generic function for any date-based content
+- Specialized functions for blog posts and works
+- Bidirectional sorting (newest/oldest first)
+
+**Tag Filtering**:
+- Single and multiple tag filtering
+- AND/OR logic for complex queries
+- Tag extraction and counting utilities
+- Case-insensitive matching
+
+### Files Created
+```
+src/utils/
+├── readingTime.ts    # Reading time calculation
+├── formatDate.ts     # Date formatting utilities
+├── sortByDate.ts     # Content sorting utilities
+└── filterByTag.ts    # Tag filtering utilities
+```
+
+### Next Phase
+**Phase 7: Blog System**
+- Blog list page (`src/pages/blog/index.astro`)
+- Blog post page (`src/pages/blog/[slug].astro`)
+- Blog card component
+- Table of contents component
+- Configure MDX with syntax highlighting
+- Use new utilities for reading time, date formatting, and sorting
+
+### Issues Encountered
+None! All utilities built successfully with zero TypeScript errors.
+
+---
+
+**Last Updated**: 2025-12-18
+**Phase Duration**: ~15 minutes
+**Status**: ✅ Complete, Ready for Phase 7
