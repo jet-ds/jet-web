@@ -17,6 +17,11 @@ export default defineConfig({
     }),
     sitemap(),
   ],
+  image: {
+    // Image optimization configuration
+    domains: [], // Add external domains if needed
+    remotePatterns: [], // Add remote patterns if needed
+  },
   markdown: {
     // Shiki syntax highlighting configuration
     shikiConfig: {

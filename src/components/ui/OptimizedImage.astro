@@ -1,0 +1,51 @@
+---
+import { Image } from 'astro:assets';
+
+interface Props {
+  src: string | ImageMetadata;
+  alt: string;
+  width?: number;
+  height?: number;
+  class?: string;
+  loading?: 'lazy' | 'eager';
+  sizes?: string;
+  quality?: number;
+}
+
+const {
+  src,
+  alt,
+  width,
+  height,
+  class: className = '',
+  loading = 'lazy',
+  sizes,
+  quality = 80,
+} = Astro.props;
+
+// If src is a string (external URL), use regular img tag
+// If src is imported image (ImageMetadata), use Astro Image component
+const isExternalImage = typeof src === 'string';
+---
+
+{isExternalImage ? (
+  <img
+    src={src as string}
+    alt={alt}
+    width={width}
+    height={height}
+    class={className}
+    loading={loading}
+  />
+) : (
+  <Image
+    src={src}
+    alt={alt}
+    width={width}
+    height={height}
+    class={className}
+    loading={loading}
+    sizes={sizes}
+    quality={quality}
+  />
+)}
