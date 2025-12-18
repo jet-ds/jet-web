@@ -1,0 +1,135 @@
+---
+import { getCollection } from 'astro:content';
+import BaseLayout from '../../components/layout/BaseLayout.astro';
+import Container from '../../components/ui/Container.astro';
+import BlogCard from '../../components/blog/BlogCard.astro';
+import { sortBlogPosts } from '../../utils/sortByDate';
+import { getAllTags } from '../../utils/filterByTag';
+
+// Fetch all published blog posts
+const allPosts = await getCollection('blog', ({ data }) => {
+  return data.draft !== true;
+});
+
+// Sort posts by date (newest first)
+const sortedPosts = sortBlogPosts(allPosts);
+
+// Get all unique tags for potential filtering UI
+const allTags = getAllTags(allPosts);
+
+// Get the selected tag from URL query params (optional filtering)
+const url = Astro.url;
+const selectedTag = url.searchParams.get('tag');
+
+// Filter posts by tag if a tag is selected
+const displayedPosts = selectedTag
+  ? sortedPosts.filter(post =>
+      post.data.tags.some(tag => tag.toLowerCase() === selectedTag.toLowerCase())
+    )
+  : sortedPosts;
+
+const pageTitle = selectedTag ? `Blog - ${selectedTag}` : 'Blog';
+const pageDescription = selectedTag
+  ? `Blog posts tagged with "${selectedTag}"`
+  : 'Articles, tutorials, and thoughts on software development, AI, and technology.';
+---
+
+<BaseLayout title={pageTitle} description={pageDescription}>
+  <Container size="lg" class="py-12">
+    {/* Header */}
+    <div class="mb-12">
+      <h1 class="text-4xl md:text-5xl font-bold mb-4">
+        {selectedTag ? `Posts tagged with "${selectedTag}"` : 'Blog'}
+      </h1>
+      <p class="text-xl text-muted max-w-2xl">
+        {pageDescription}
+      </p>
+
+      {/* Tag filter indicator and clear button */}
+      {selectedTag && (
+        <div class="mt-4">
+          <a
+            href="/blog"
+            class="inline-flex items-center gap-2 text-sm text-primary-600 dark:text-primary-400 hover:underline"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
+            </svg>
+            Clear filter
+          </a>
+        </div>
+      )}
+    </div>
+
+    {/* Posts count */}
+    <div class="mb-6 text-sm text-muted">
+      {displayedPosts.length === 0 && (
+        <p>No posts found{selectedTag ? ` for tag "${selectedTag}"` : ''}.</p>
+      )}
+      {displayedPosts.length === 1 && (
+        <p>1 post{selectedTag ? ` tagged with "${selectedTag}"` : ''}</p>
+      )}
+      {displayedPosts.length > 1 && (
+        <p>{displayedPosts.length} posts{selectedTag ? ` tagged with "${selectedTag}"` : ''}</p>
+      )}
+    </div>
+
+    {/* Blog posts grid */}
+    {displayedPosts.length > 0 ? (
+      <div class="grid gap-8 md:grid-cols-2 lg:grid-cols-2">
+        {displayedPosts.map((post) => (
+          <BlogCard
+            slug={post.slug}
+            title={post.data.title}
+            description={post.data.description}
+            pubDate={post.data.pubDate}
+            author={post.data.author}
+            tags={post.data.tags}
+            image={post.data.image}
+            content={post.body}
+          />
+        ))}
+      </div>
+    ) : (
+      <div class="text-center py-12">
+        <p class="text-muted text-lg mb-4">
+          {selectedTag
+            ? `No posts found with the tag "${selectedTag}".`
+            : 'No blog posts yet. Check back soon!'}
+        </p>
+        {selectedTag && (
+          <a
+            href="/blog"
+            class="inline-block px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+          >
+            View all posts
+          </a>
+        )}
+      </div>
+    )}
+
+    {/* Optional: Show all available tags at the bottom */}
+    {!selectedTag && allTags.length > 0 && displayedPosts.length > 0 && (
+      <div class="mt-16 pt-8 border-t border-border">
+        <h2 class="text-2xl font-bold mb-4">Browse by tag</h2>
+        <div class="flex flex-wrap gap-2">
+          {allTags.map((tag) => {
+            const count = allPosts.filter(post =>
+              post.data.tags.some(t => t.toLowerCase() === tag.toLowerCase())
+            ).length;
+
+            return (
+              <a
+                href={`/blog?tag=${encodeURIComponent(tag)}`}
+                class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-muted hover:bg-primary-100 dark:hover:bg-primary-900 transition-colors text-sm"
+              >
+                {tag}
+                <span class="text-xs text-muted">({count})</span>
+              </a>
+            );
+          })}
+        </div>
+      </div>
+    )}
+  </Container>
+</BaseLayout>

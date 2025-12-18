@@ -17,4 +17,21 @@ export default defineConfig({
     }),
     sitemap(),
   ],
+  markdown: {
+    // Shiki syntax highlighting configuration
+    shikiConfig: {
+      // Choose from Shiki's built-in themes (or add your own)
+      // Light theme for light mode, dark theme for dark mode
+      theme: 'github-dark',
+      // Alternative: Use dual themes for light/dark mode
+      // themes: {
+      //   light: 'github-light',
+      //   dark: 'github-dark',
+      // },
+      // Enable word wrap to prevent horizontal scrolling
+      wrap: true,
+      // Add custom languages if needed
+      langs: [],
+    },
+  },
 });

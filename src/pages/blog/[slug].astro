@@ -1,0 +1,107 @@
+---
+import { getCollection, type CollectionEntry } from 'astro:content';
+import BlogLayout from '../../layouts/BlogLayout.astro';
+import TableOfContents from '../../components/blog/TableOfContents.astro';
+import { getReadingTime } from '../../utils/readingTime';
+
+// Generate static paths for all blog posts
+export async function getStaticPaths() {
+  const blogPosts = await getCollection('blog', ({ data }) => {
+    return data.draft !== true;
+  });
+
+  return blogPosts.map((post) => ({
+    params: { slug: post.slug },
+    props: { post },
+  }));
+}
+
+interface Props {
+  post: CollectionEntry<'blog'>;
+}
+
+const { post } = Astro.props;
+const { Content, headings } = await post.render();
+
+const readingTime = getReadingTime(post.body);
+
+// Get previous and next posts (optional navigation)
+const allPosts = await getCollection('blog', ({ data }) => data.draft !== true);
+const sortedPosts = allPosts.sort((a, b) =>
+  new Date(b.data.pubDate).getTime() - new Date(a.data.pubDate).getTime()
+);
+
+const currentIndex = sortedPosts.findIndex(p => p.slug === post.slug);
+const prevPost = currentIndex < sortedPosts.length - 1 ? sortedPosts[currentIndex + 1] : null;
+const nextPost = currentIndex > 0 ? sortedPosts[currentIndex - 1] : null;
+---
+
+<BlogLayout
+  title={post.data.title}
+  description={post.data.description}
+  pubDate={post.data.pubDate}
+  updatedDate={post.data.updatedDate}
+  author={post.data.author}
+  tags={post.data.tags}
+  readingTime={readingTime}
+  image={post.data.image?.url}
+>
+  <div class="grid grid-cols-1 lg:grid-cols-[1fr_250px] gap-8 lg:gap-12">
+    {/* Main content */}
+    <article class="prose prose-lg dark:prose-invert max-w-none">
+      <Content />
+    </article>
+
+    {/* Table of Contents (desktop only) */}
+    <aside class="hidden lg:block">
+      <TableOfContents headings={headings} />
+    </aside>
+  </div>
+
+  {/* Previous/Next Navigation */}
+  {(prevPost || nextPost) && (
+    <nav class="mt-16 pt-8 border-t border-border" aria-label="Post navigation">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {/* Previous Post */}
+        <div>
+          {prevPost && (
+            <a
+              href={`/blog/${prevPost.slug}`}
+              class="block p-6 rounded-lg border border-border hover:border-primary-600 dark:hover:border-primary-400 transition-colors group"
+            >
+              <div class="flex items-center gap-2 text-sm text-muted mb-2">
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7" />
+                </svg>
+                Previous
+              </div>
+              <div class="font-semibold text-foreground group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                {prevPost.data.title}
+              </div>
+            </a>
+          )}
+        </div>
+
+        {/* Next Post */}
+        <div>
+          {nextPost && (
+            <a
+              href={`/blog/${nextPost.slug}`}
+              class="block p-6 rounded-lg border border-border hover:border-primary-600 dark:hover:border-primary-400 transition-colors group text-right"
+            >
+              <div class="flex items-center justify-end gap-2 text-sm text-muted mb-2">
+                Next
+                <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                  <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+              <div class="font-semibold text-foreground group-hover:text-primary-600 dark:group-hover:text-primary-400 transition-colors">
+                {nextPost.data.title}
+              </div>
+            </a>
+          )}
+        </div>
+      </div>
+    </nav>
+  )}
+</BlogLayout>

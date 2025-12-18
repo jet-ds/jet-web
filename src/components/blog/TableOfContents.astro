@@ -1,0 +1,99 @@
+---
+export interface Heading {
+  depth: number;
+  slug: string;
+  text: string;
+}
+
+interface Props {
+  headings: Heading[];
+}
+
+const { headings } = Astro.props;
+
+// Filter to only show h2 and h3 headings for cleaner TOC
+const tocHeadings = headings.filter(h => h.depth >= 2 && h.depth <= 3);
+---
+
+{tocHeadings.length > 0 && (
+  <nav class="toc" aria-label="Table of Contents">
+    <div class="sticky top-24">
+      <h2 class="text-lg font-bold mb-4 text-foreground">On this page</h2>
+      <ul class="space-y-2 text-sm border-l-2 border-border pl-4">
+        {tocHeadings.map((heading) => (
+          <li
+            class:list={[
+              'toc-item',
+              heading.depth === 2 && 'toc-h2',
+              heading.depth === 3 && 'toc-h3 ml-4',
+            ]}
+          >
+            <a
+              href={`#${heading.slug}`}
+              class="block py-1 text-muted hover:text-primary-600 dark:hover:text-primary-400 transition-colors line-clamp-2"
+            >
+              {heading.text}
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
+  </nav>
+)}
+
+<style>
+  .toc {
+    /* Will be positioned in the layout */
+  }
+
+  /* Smooth scroll behavior */
+  :global(html) {
+    scroll-behavior: smooth;
+  }
+
+  /* Active link styling via JavaScript (optional enhancement) */
+  .toc-item a.active {
+    @apply text-primary-600 dark:text-primary-400 font-medium border-l-2 border-primary-600 dark:border-primary-400 -ml-[2px] pl-2;
+  }
+</style>
+
+<script>
+  // Highlight active section in TOC as user scrolls
+  function initTableOfContents() {
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          const id = entry.target.getAttribute('id');
+          if (!id) return;
+
+          const tocLink = document.querySelector(`.toc a[href="#${id}"]`);
+          if (!tocLink) return;
+
+          if (entry.isIntersecting) {
+            // Remove active class from all links
+            document.querySelectorAll('.toc a').forEach((link) => {
+              link.classList.remove('active');
+            });
+            // Add active class to current link
+            tocLink.classList.add('active');
+          }
+        });
+      },
+      {
+        rootMargin: '-100px 0px -66%',
+        threshold: 1.0,
+      }
+    );
+
+    // Observe all headings that are in the TOC
+    document.querySelectorAll('article h2, article h3').forEach((heading) => {
+      observer.observe(heading);
+    });
+  }
+
+  // Run on page load
+  initTableOfContents();
+
+  // Re-run after view transitions
+  document.addEventListener('astro:page-load', initTableOfContents);
+</script>

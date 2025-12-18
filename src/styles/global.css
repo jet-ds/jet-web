@@ -20,5 +20,44 @@
 }
 
 @layer components {
-  /* Custom component styles can go here */
+  /* Prose/Typography customization for MDX content */
+  .prose {
+    @apply text-foreground;
+  }
+
+  .prose :where(a):not(:where([class~="not-prose"] *)) {
+    @apply text-primary-600 dark:text-primary-400 no-underline hover:underline;
+  }
+
+  .prose :where(code):not(:where([class~="not-prose"] *)) {
+    @apply text-primary-700 dark:text-primary-300 bg-muted dark:bg-muted-dark px-1.5 py-0.5 rounded text-sm font-mono;
+  }
+
+  .prose :where(pre):not(:where([class~="not-prose"] *)) {
+    @apply bg-slate-900 dark:bg-slate-950 rounded-lg overflow-x-auto;
+  }
+
+  .prose :where(pre code):not(:where([class~="not-prose"] *)) {
+    @apply bg-transparent text-sm p-0;
+  }
+
+  .prose :where(blockquote):not(:where([class~="not-prose"] *)) {
+    @apply border-l-4 border-primary-600 dark:border-primary-400 pl-4 italic text-muted dark:text-muted-dark;
+  }
+
+  .prose :where(h1, h2, h3, h4, h5, h6):not(:where([class~="not-prose"] *)) {
+    @apply text-foreground dark:text-foreground-dark font-bold;
+  }
+
+  .prose :where(strong):not(:where([class~="not-prose"] *)) {
+    @apply text-foreground dark:text-foreground-dark font-semibold;
+  }
+
+  .prose :where(thead):not(:where([class~="not-prose"] *)) {
+    @apply border-b border-border dark:border-border-dark;
+  }
+
+  .prose :where(tbody tr):not(:where([class~="not-prose"] *)) {
+    @apply border-b border-border dark:border-border-dark;
+  }
 }

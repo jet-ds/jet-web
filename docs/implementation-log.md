@@ -845,3 +845,191 @@ None! All utilities built successfully with zero TypeScript errors.
 **Last Updated**: 2025-12-18
 **Phase Duration**: ~15 minutes
 **Status**: ✅ Complete, Ready for Phase 7
+
+---
+
+## Phase 7: Blog System
+**Date**: 2025-12-18
+**Status**: ✅ Completed
+
+### Objective
+Build complete blog functionality with list page, detail pages, and rich MDX content rendering.
+
+### What Was Built
+
+**1. Blog Card Component** (`src/components/blog/BlogCard.astro`):
+- Displays blog post preview in a card format
+- Shows title, description, publication date
+- Displays author, reading time (calculated dynamically)
+- Tag list with Tag components
+- Optional featured image with hover zoom effect
+- Hover effects and smooth transitions
+- Responsive design with proper accessibility
+- SVG icons for metadata (calendar, clock, author)
+- Line-clamp for description (max 3 lines)
+- Linked card that navigates to full post
+
+**2. Blog List Page** (`src/pages/blog/index.astro`):
+- Fetches all published blog posts (excludes drafts)
+- Sorts by publication date (newest first) using sortBlogPosts utility
+- Displays posts in responsive grid (1 col mobile, 2 cols desktop)
+- Tag filtering via URL query params (?tag=tagname)
+- Shows post count
+- "Browse by tag" section at bottom with tag counts
+- Clear filter button when tag is selected
+- Empty state handling with helpful messages
+- Uses BlogCard component for consistent display
+- Full SEO optimization (title/description change with tag)
+
+**3. Table of Contents Component** (`src/components/blog/TableOfContents.astro`):
+- Auto-generates from h2 and h3 headings
+- Sticky positioning on desktop (top-24)
+- Smooth scroll to sections
+- Active section highlighting via IntersectionObserver
+- Responsive: hidden on mobile, visible on desktop (lg breakpoint)
+- Border indicator for active link
+- Proper ARIA labels for accessibility
+- Works with Astro's ClientRouter (view transitions)
+- Clean hierarchical display (h3 indented)
+
+**4. Blog Post Page** (`src/pages/blog/[slug].astro`):
+- Dynamic routes using getStaticPaths
+- Uses BlogLayout for consistent structure
+- Renders MDX content with proper styling
+- Two-column layout: content (left) + TOC (right) on desktop
+- Previous/Next post navigation at bottom
+- Displays full post metadata (title, date, reading time, tags, author)
+- Prose typography for readable content
+- Responsive: single column on mobile, two columns on desktop
+- Smooth transitions between posts
+
+**5. MDX Configuration**:
+
+**Astro Config** (astro.config.mjs):
+- Shiki syntax highlighting configured
+- Theme: github-dark for code blocks
+- Word wrap enabled to prevent horizontal scrolling
+- Ready for custom languages if needed
+
+**Tailwind Typography Plugin**:
+- Installed @tailwindcss/typography
+- Added to tailwind.config.mjs plugins
+- Provides prose classes for rich content
+
+**Global Styles** (src/styles/global.css):
+- Custom prose styling for dark mode compatibility
+- Link styling (primary color, hover underline)
+- Inline code styling (background, padding, rounded)
+- Code block styling (dark background, overflow handling)
+- Blockquote styling (border, italic, muted color)
+- Heading styling (bold, proper colors)
+- Table styling (borders for thead/tbody)
+- All elements work in both light and dark modes
+
+### Features Implemented
+
+**Blog List Page**:
+- ✅ Fetch and display all published posts
+- ✅ Sort by date (newest first)
+- ✅ Grid layout with responsive columns
+- ✅ Tag filtering (optional, via URL params)
+- ✅ Tag browsing section with counts
+- ✅ Empty states and helpful messages
+- ✅ Post count display
+- ✅ SEO optimized for each view
+
+**Blog Card**:
+- ✅ Title, description, metadata display
+- ✅ Reading time calculation
+- ✅ Tag list
+- ✅ Optional featured image
+- ✅ Hover effects
+- ✅ Accessibility features
+
+**Blog Post Page**:
+- ✅ Full MDX rendering with syntax highlighting
+- ✅ Table of contents (auto-generated, sticky)
+- ✅ Author info and metadata
+- ✅ Previous/Next navigation
+- ✅ Responsive layout
+- ✅ Prose typography
+
+**MDX & Syntax Highlighting**:
+- ✅ Shiki configured with github-dark theme
+- ✅ Custom prose styling for dark mode
+- ✅ Code blocks with proper formatting
+- ✅ Inline code styling
+- ✅ Blockquotes, tables, headings styled
+- ✅ Typography plugin installed
+
+### Verification Results
+✅ Build successful: 7 pages generated (3 blog posts + list + static pages)
+✅ TypeScript check: 0 errors, 0 warnings, 0 hints
+✅ All blog routes working correctly
+✅ Tag filtering functional
+✅ Table of contents working with smooth scroll
+✅ Previous/Next navigation working
+✅ MDX content rendering properly
+✅ Syntax highlighting active
+
+### Important Notes
+- **Reading Time**: Calculated dynamically from post content using getReadingTime utility
+- **Tag Filtering**: Case-insensitive, accessible via ?tag=name query param
+- **TOC Active State**: Uses IntersectionObserver for scroll-based highlighting
+- **Typography**: @tailwindcss/typography plugin provides prose classes
+- **Syntax Highlighting**: Shiki built-in, no additional dependencies needed
+- **Responsive Design**: Mobile-first, TOC hidden on mobile
+- **Navigation**: Previous/Next based on publication date order
+
+### Files Created
+```
+src/components/blog/
+├── BlogCard.astro           # Blog post preview card
+└── TableOfContents.astro    # Auto-generated TOC with sticky positioning
+
+src/pages/blog/
+├── index.astro              # Blog list page with filtering
+└── [slug].astro             # Blog post detail page
+```
+
+### Files Modified
+```
+astro.config.mjs             # Added Shiki syntax highlighting config
+tailwind.config.mjs          # Added typography plugin
+src/styles/global.css        # Added custom prose styling
+package.json                 # Added @tailwindcss/typography
+```
+
+### Dependencies Added
+```json
+{
+  "@tailwindcss/typography": "^0.5.15"
+}
+```
+
+### Next Phase
+**Phase 8: Works Section**
+- Works list page (src/pages/works/index.astro)
+- Work detail page (src/pages/works/[slug].astro)
+- Work card component
+- Support for different work types (research, project, other)
+- Display venue, abstract for research papers
+- Display tech stack, links for projects
+
+### Issues Encountered & Resolved
+
+**TypeScript Error - Reading Time Type Mismatch**:
+- BlogLayout expected readingTime as number, passed string
+- Fixed: Use getReadingTime() instead of getReadingTimeText()
+- BlogLayout formats the display ("{number} min read")
+
+**Warning - Unused Destructuring**:
+- blog/index.astro destructured unused Content and remarkPluginFrontmatter
+- Fixed: Removed post.render() call, directly access post.body
+- Simplified code, eliminated warning
+
+---
+
+**Last Updated**: 2025-12-18
+**Phase Duration**: ~30 minutes
+**Status**: ✅ Complete, Ready for Phase 8
