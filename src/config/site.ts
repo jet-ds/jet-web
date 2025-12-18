@@ -1,3 +1,5 @@
+import { Home, User, FileText, Briefcase, Mail, type LucideIcon } from 'lucide-react';
+
 export const SITE = {
   title: 'Jet - Personal Website',
   description: 'Personal website and blog featuring research, projects, and writings.',
@@ -14,9 +16,16 @@ export const SOCIAL_LINKS = {
 } as const;
 
 export const NAV_ITEMS = [
-  { label: 'Home', href: '/' },
-  { label: 'About', href: '/about' },
-  { label: 'Blog', href: '/blog' },
-  { label: 'Works', href: '/works' },
-  { label: 'Contact', href: '/contact' },
+  { id: 'home', label: 'Home', href: '/', icon: Home },
+  { id: 'about', label: 'About', href: '/about', icon: User },
+  { id: 'blog', label: 'Blog', href: '/blog', icon: FileText },
+  { id: 'works', label: 'Works', href: '/works', icon: Briefcase },
+  { id: 'contact', label: 'Contact', href: '/contact', icon: Mail },
 ] as const;
+
+export type NavItem = {
+  id: string;
+  label: string;
+  href: string;
+  icon: LucideIcon;
+};

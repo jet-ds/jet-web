@@ -1,0 +1,22 @@
+---
+import LiquidGlassDock from './LiquidGlassDock';
+import LiquidGlassMobileMenu from './LiquidGlassMobileMenu';
+
+const currentPath = Astro.url.pathname;
+---
+
+<!-- Desktop Dock -->
+<div class="hidden md:block">
+  <LiquidGlassDock
+    currentPath={currentPath}
+    client:only="react"
+  />
+</div>
+
+<!-- Mobile Menu -->
+<div class="md:hidden">
+  <LiquidGlassMobileMenu
+    currentPath={currentPath}
+    client:only="react"
+  />
+</div>

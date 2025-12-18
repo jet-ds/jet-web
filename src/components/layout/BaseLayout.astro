@@ -3,7 +3,7 @@ import { ClientRouter } from 'astro:transitions';
 import ThemeScript from '../ui/ThemeScript.astro';
 import SEO from '../seo/SEO.astro';
 import StructuredData from '../seo/StructuredData.astro';
-import Header from './Header.astro';
+import DockWrapper from '../navigation/DockWrapper.astro';
 import Footer from './Footer.astro';
 import { SITE } from '../../config/site';
 import { generateSEOProps, getCanonicalURL } from '../../utils/seo';
@@ -84,8 +84,8 @@ const seoProps = generateSEOProps({
     <ClientRouter />
   </head>
   <body class="min-h-screen flex flex-col">
-    <Header />
-    <main class="flex-1">
+    <DockWrapper />
+    <main class="flex-1 pt-24">
       <slot />
     </main>
     <Footer />
