@@ -71,6 +71,18 @@ const seoProps = generateSEOProps({
       tags={tags}
     />
 
+    <!-- Site Navigation Structured Data -->
+    <StructuredData
+      type="navigation"
+      navigationElements={[
+        { name: 'Home', url: SITE.siteUrl },
+        { name: 'About', url: `${SITE.siteUrl}/about` },
+        { name: 'Blog', url: `${SITE.siteUrl}/blog` },
+        { name: 'Works', url: `${SITE.siteUrl}/works` },
+        { name: 'Contact', url: `${SITE.siteUrl}/contact` },
+      ]}
+    />
+
     <!-- Favicon -->
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
 
@@ -85,6 +97,21 @@ const seoProps = generateSEOProps({
   </head>
   <body class="min-h-screen flex flex-col">
     <DockWrapper />
+
+    <noscript>
+      <nav class="fixed top-0 left-0 right-0 z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800">
+        <div class="max-w-7xl mx-auto px-4 py-4">
+          <ul class="flex flex-wrap items-center justify-center gap-6">
+            <li><a href="/" class="text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400">Home</a></li>
+            <li><a href="/about" class="text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400">About</a></li>
+            <li><a href="/blog" class="text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400">Blog</a></li>
+            <li><a href="/works" class="text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400">Works</a></li>
+            <li><a href="/contact" class="text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400">Contact</a></li>
+          </ul>
+        </div>
+      </nav>
+    </noscript>
+
     <main class="flex-1 pt-24">
       <slot />
     </main>

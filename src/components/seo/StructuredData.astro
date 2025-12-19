@@ -2,7 +2,7 @@
 import { SITE } from '../../config/site';
 
 export interface Props {
-  type: 'website' | 'article' | 'person';
+  type: 'website' | 'article' | 'person' | 'navigation';
   // Common fields
   url?: string;
   // Website fields
@@ -19,6 +19,8 @@ export interface Props {
   email?: string;
   jobTitle?: string;
   sameAs?: string[];
+  // Navigation fields
+  navigationElements?: Array<{ name: string; url: string; }>;
 }
 
 const {
@@ -35,6 +37,7 @@ const {
   email,
   jobTitle,
   sameAs = [],
+  navigationElements = [],
 } = Astro.props;
 
 let schema: any;
@@ -84,6 +87,17 @@ if (type === 'website') {
     url: url,
     jobTitle: jobTitle,
     sameAs: sameAs,
+  };
+} else if (type === 'navigation') {
+  schema = {
+    '@context': 'https://schema.org',
+    '@type': 'SiteNavigationElement',
+    name: name || `${SITE.title} Navigation`,
+    hasPart: navigationElements.map((element) => ({
+      '@type': 'WebPage',
+      name: element.name,
+      url: element.url,
+    })),
   };
 }
 ---
