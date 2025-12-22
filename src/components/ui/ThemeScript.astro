@@ -14,13 +14,19 @@
   };
 
   // Apply theme class to html element
-  const theme = getThemePreference();
-  if (theme === 'dark') {
-    document.documentElement.classList.add('dark');
-  } else {
-    document.documentElement.classList.remove('dark');
-  }
+  const applyTheme = () => {
+    const theme = getThemePreference();
+    if (theme === 'dark') {
+      document.documentElement.classList.add('dark');
+    } else {
+      document.documentElement.classList.remove('dark');
+    }
+    localStorage.setItem('theme', theme);
+  };
 
-  // Store the initial theme
-  localStorage.setItem('theme', theme);
+  // Apply theme on initial load
+  applyTheme();
+
+  // Re-apply theme BEFORE page renders on ClientRouter navigation
+  document.addEventListener('astro:after-swap', applyTheme);
 </script>

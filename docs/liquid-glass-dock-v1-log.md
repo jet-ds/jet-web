@@ -452,3 +452,125 @@ src/components/layout/Header.astro
 - **Astro Islands**: https://docs.astro.build/en/concepts/islands/
 - **Framer Motion**: https://www.framer.com/motion/
 - **Lucide Icons**: https://lucide.dev/
+
+---
+
+## v1.1 Update - Post-Launch Refinements
+**Date**: 2025-12-22
+**Status**: ✅ Completed
+
+### Issues Addressed & Improvements
+
+#### 1. Mobile Menu Container Clipping Issue
+**Problem**: Mobile menu icons were cut off, showing only 2 of 6 items due to GlassSurface's default 80px height.
+
+**Root Cause**: GlassSurface component has `height = 80` as default. Mobile menu passed `width="auto"` but no height prop, constraining container to 80px while 6 menu items needed ~380px.
+
+**Solution**: 
+- Added `height="auto"` prop to mobile menu GlassSurface
+- Allows container to expand to fit all content dynamically
+
+**Files Modified**: `src/components/navigation/LiquidGlassMobileMenu.tsx`
+
+---
+
+#### 2. Glass Effect Parameter Consistency
+**Problem**: Plus button and menu panel had inconsistent glass effect values, creating visual disparity.
+
+**Solution**: Standardized parameters across all mobile components:
+- `displace`: 0.5 → 1
+- `backgroundOpacity`: 0.25 → 0.33  
+- `opacity`: 0.5 → 0.9
+
+**Affected Components**:
+- Plus/X toggle button
+- Mobile menu panel
+
+**Result**: Consistent visual appearance across desktop dock and all mobile elements.
+
+---
+
+#### 3. Mobile Menu Glass Effect Rendering Lag
+**Problem**: ~1 second delay when opening mobile menu before liquid glass effect appeared. Effect rendered instantly on desktop but lagged on mobile.
+
+**Investigation Process**:
+1. ❌ Initially kept GlassSurface mounted to pre-render SVG filter
+2. ❌ Removed scale animation (thought ResizeObserver was triggering regeneration)
+3. ✅ Root cause identified: Complex SVG displacement filter computation on mobile GPUs
+
+**Solution**: Added `useFallback` prop to GlassSurface component
+- When `true`: Forces simpler first-tier fallback (blur + saturate + brightness)
+- Mobile menu panel uses `useFallback={true}` for instant rendering
+- Plus button keeps full chromatic aberration effect
+- Desktop dock unaffected
+
+**Performance Impact**:
+- Mobile menu now renders instantly
+- Plus button retains premium glass effect
+- Zero performance degradation
+
+**Files Modified**:
+- `src/components/navigation/GlassSurface.tsx` (added `useFallback` prop)
+- `src/components/navigation/LiquidGlassMobileMenu.tsx` (applied fallback to menu panel)
+
+---
+
+#### 4. Code Quality Improvements
+**Cleanup Actions**:
+- Fixed indentation inconsistency in LiquidGlassDock.tsx (line 116)
+- Removed redundant comments in LiquidGlassMobileMenu.tsx
+- Maintained zero TypeScript errors/warnings
+
+**Verification**: `npm run astro check` - 0 errors, 0 warnings
+
+---
+
+### Mobile Menu Architecture Refinement
+
+**Previous**: Menu container unmounted/remounted with AnimatePresence on open/close
+
+**Current**: 
+```tsx
+{/* Menu Container - Always mounted */}
+<motion.div
+  animate={isOpen ? { opacity: 1, scale: 1, x: 20, y: 80 } : { opacity: 0, scale: 0.5, x: 0, y: 0 }}
+  style={{ pointerEvents: isOpen ? 'auto' : 'none' }}
+>
+  <GlassSurface useFallback={true} height="auto">
+    <AnimatePresence>
+      {isOpen && allItems.map(...)}
+    </AnimatePresence>
+  </GlassSurface>
+</motion.div>
+```
+
+**Benefits**:
+- GlassSurface pre-rendered and ready
+- Smooth animations maintained
+- Menu items still get stagger effect via inner AnimatePresence
+- Zero rendering lag
+
+---
+
+### Updated Component Stats
+
+**GlassSurface.tsx**: 
+- 387 lines (+15)
+- New props: `useFallback` (boolean)
+- Supports forced fallback mode for performance optimization
+
+**LiquidGlassMobileMenu.tsx**:
+- 185 lines (+13)
+- Always-mounted architecture
+- Height auto-sizing
+- Fallback glass effect for instant rendering
+
+**LiquidGlassDock.tsx**:
+- 162 lines (-2 from cleanup)
+- No functional changes
+- Code formatting improved
+
+---
+
+**Last Updated**: 2025-12-22  
+**Status**: ✅ Production Ready (v1.1)

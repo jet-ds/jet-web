@@ -61,7 +61,7 @@ const pageDescription = selectedType
         class={`px-4 py-2 rounded-lg transition-colors ${
           !selectedType
             ? 'bg-primary-600 text-white'
-            : 'bg-muted hover:bg-primary-100 dark:hover:bg-primary-900 text-foreground dark:text-foreground-dark'
+            : 'bg-card dark:bg-card-dark hover:bg-primary-100 dark:hover:bg-primary-900 text-foreground dark:text-foreground-dark'
         }`}
       >
         All ({workCounts.all})
@@ -71,7 +71,7 @@ const pageDescription = selectedType
         class={`px-4 py-2 rounded-lg transition-colors ${
           selectedType === 'research'
             ? 'bg-primary-600 text-white'
-            : 'bg-muted hover:bg-primary-100 dark:hover:bg-primary-900 text-foreground dark:text-foreground-dark'
+            : 'bg-card dark:bg-card-dark hover:bg-primary-100 dark:hover:bg-primary-900 text-foreground dark:text-foreground-dark'
         }`}
       >
         Research ({workCounts.research})
@@ -81,7 +81,7 @@ const pageDescription = selectedType
         class={`px-4 py-2 rounded-lg transition-colors ${
           selectedType === 'project'
             ? 'bg-primary-600 text-white'
-            : 'bg-muted hover:bg-primary-100 dark:hover:bg-primary-900 text-foreground dark:text-foreground-dark'
+            : 'bg-card dark:bg-card-dark hover:bg-primary-100 dark:hover:bg-primary-900 text-foreground dark:text-foreground-dark'
         }`}
       >
         Projects ({workCounts.project})
@@ -92,7 +92,7 @@ const pageDescription = selectedType
           class={`px-4 py-2 rounded-lg transition-colors ${
             selectedType === 'other'
               ? 'bg-primary-600 text-white'
-              : 'bg-muted hover:bg-primary-100 dark:hover:bg-primary-900 text-foreground dark:text-foreground-dark'
+              : 'bg-card dark:bg-card-dark hover:bg-primary-100 dark:hover:bg-primary-900 text-foreground dark:text-foreground-dark'
           }`}
         >
           Other ({workCounts.other})

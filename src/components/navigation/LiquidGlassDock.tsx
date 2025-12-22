@@ -104,17 +104,17 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
         <GlassSurface
           width="auto"
           borderRadius={16}
-          displace={0.5}
+          displace={1}
           distortionScale={-180}
-          backgroundOpacity={0.25}
+          backgroundOpacity={0.33}
           brightness={50}
-          opacity={0.5}
+          opacity={0.9}
           className="px-3 py-6 !overflow-visible"
         >
           <div ref={dockRef} className='flex items-end space-x-6 overflow-visible'>
             {navItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = currentPath === item.href || (item.href !== '/' && currentPath.startsWith(item.href));
+              const Icon = item.icon;
+              const isActive = currentPath === item.href || (item.href !== '/' && currentPath.startsWith(item.href));
 
               return (
                 <a

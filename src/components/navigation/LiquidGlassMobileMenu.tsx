@@ -20,7 +20,6 @@ export default function LiquidGlassMobileMenu({ currentPath }: LiquidGlassMobile
   const [isOpen, setIsOpen] = useState(false);
   const [theme, setTheme] = useState<'light' | 'dark'>('light');
 
-  // Check current theme
   useEffect(() => {
     const checkTheme = () => {
       const isDark = document.documentElement.classList.contains('dark');
@@ -35,7 +34,6 @@ export default function LiquidGlassMobileMenu({ currentPath }: LiquidGlassMobile
     return () => observer.disconnect();
   }, []);
 
-  // Toggle theme
   const toggleTheme = () => {
     const newTheme = theme === 'dark' ? 'light' : 'dark';
     if (newTheme === 'dark') {
@@ -79,11 +77,11 @@ export default function LiquidGlassMobileMenu({ currentPath }: LiquidGlassMobile
           width={56}
           height={56}
           borderRadius={28}
-          displace={0.5}
+          displace={1}
           distortionScale={-180}
-          backgroundOpacity={0.25}
+          backgroundOpacity={0.33}
           brightness={50}
-          opacity={0.5}
+          opacity={0.9}
         >
           <motion.div
             animate={{ rotate: isOpen ? 45 : 0 }}
@@ -94,90 +92,92 @@ export default function LiquidGlassMobileMenu({ currentPath }: LiquidGlassMobile
         </GlassSurface>
       </motion.div>
 
-      {/* Menu Panel */}
+      {/* Backdrop */}
       <AnimatePresence>
         {isOpen && (
-          <>
-            {/* Backdrop */}
-            <motion.div
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              exit={{ opacity: 0 }}
-              className="fixed inset-0 z-40 bg-black/50"
-              onClick={() => setIsOpen(false)}
-            />
-
-            {/* Menu Container */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.5, x: 0, y: 0 }}
-              animate={{ opacity: 1, scale: 1, x: 20, y: 80 }}
-              exit={{ opacity: 0, scale: 0.5, x: 0, y: 0 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 30 }}
-              onClick={(e) => e.stopPropagation()}
-              className="fixed top-4 left-4 z-50"
-            >
-              <GlassSurface
-                width="auto"
-                borderRadius={16}
-                displace={0.5}
-                distortionScale={-180}
-                backgroundOpacity={0.25}
-                brightness={50}
-                opacity={0.5}
-                className="p-4"
-              >
-                <div className="flex flex-col gap-3">
-                  {allItems.map((item, i) => {
-                    const Icon = item.icon;
-                    const isActive = item.href ? (currentPath === item.href || (item.href !== '/' && currentPath.startsWith(item.href))) : false;
-                    const isButton = item.id === 'theme';
-
-                    const content = (
-                      <motion.div
-                        key={item.id}
-                        initial={{ opacity: 0, x: -20 }}
-                        animate={{ opacity: 1, x: 0 }}
-                        transition={{
-                          delay: i * 0.08,
-                          type: 'spring',
-                          stiffness: 300,
-                          damping: 25
-                        }}
-                        className="flex items-center gap-3"
-                      >
-                        <div className={`w-12 h-12 bg-gradient-to-t ${item.gradient} rounded-xl flex items-center justify-center shadow-lg ${isActive ? 'ring-2 ring-white/50' : ''}`}>
-                          <Icon size={24} className='text-white' strokeWidth={2} />
-                        </div>
-                        <span className="text-sm font-medium text-foreground dark:text-foreground-dark whitespace-nowrap">
-                          {item.label}
-                        </span>
-                      </motion.div>
-                    );
-
-                    return isButton ? (
-                      <button
-                        key={item.id}
-                        onClick={item.onClick}
-                        className="text-left"
-                      >
-                        {content}
-                      </button>
-                    ) : (
-                      <a
-                        key={item.id}
-                        href={item.href}
-                        onClick={() => setIsOpen(false)}
-                      >
-                        {content}
-                      </a>
-                    );
-                  })}
-                </div>
-              </GlassSurface>
-            </motion.div>
-          </>
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-40 bg-black/50"
+            onClick={() => setIsOpen(false)}
+          />
         )}
       </AnimatePresence>
+
+      {/* Menu Container - Always mounted */}
+      <motion.div
+        initial={{ opacity: 0, scale: 0.5, x: 0, y: 0 }}
+        animate={isOpen ? { opacity: 1, scale: 1, x: 20, y: 80 } : { opacity: 0, scale: 0.5, x: 0, y: 0 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 30 }}
+        onClick={(e) => e.stopPropagation()}
+        style={{ pointerEvents: isOpen ? 'auto' : 'none' }}
+        className="fixed top-4 left-4 z-50"
+      >
+        <GlassSurface
+          width="auto"
+          height="auto"
+          borderRadius={16}
+          displace={1}
+          distortionScale={-180}
+          backgroundOpacity={0.33}
+          brightness={50}
+          opacity={0.9}
+          useFallback={true}
+          className="p-4"
+        >
+          <div className="flex flex-col gap-3">
+            <AnimatePresence>
+              {isOpen && allItems.map((item, i) => {
+                const Icon = item.icon;
+                const isActive = item.href ? (currentPath === item.href || (item.href !== '/' && currentPath.startsWith(item.href))) : false;
+                const isButton = item.id === 'theme';
+
+                const content = (
+                  <motion.div
+                    key={item.id}
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    exit={{ opacity: 0, x: -20 }}
+                    transition={{
+                      delay: i * 0.08,
+                      type: 'spring',
+                      stiffness: 300,
+                      damping: 25
+                    }}
+                    className="flex items-center gap-3"
+                  >
+                    <div className={`w-12 h-12 bg-gradient-to-t ${item.gradient} rounded-xl flex items-center justify-center shadow-lg ${isActive ? 'ring-2 ring-white/50' : ''}`}>
+                      <Icon size={24} className='text-white' strokeWidth={2} />
+                    </div>
+                    <span className="text-sm font-medium text-foreground dark:text-foreground-dark whitespace-nowrap">
+                      {item.label}
+                    </span>
+                  </motion.div>
+                );
+
+                return isButton ? (
+                  <button
+                    key={item.id}
+                    onClick={item.onClick}
+                    className="text-left"
+                  >
+                    {content}
+                  </button>
+                ) : (
+                  <a
+                    key={item.id}
+                    href={item.href}
+                    onClick={() => setIsOpen(false)}
+                  >
+                    {content}
+                  </a>
+                );
+              })}
+            </AnimatePresence>
+          </div>
+        </GlassSurface>
+      </motion.div>
     </>
   );
 }

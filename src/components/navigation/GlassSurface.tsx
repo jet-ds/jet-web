@@ -39,6 +39,7 @@ export interface GlassSurfaceProps {
     | 'plus-lighter';
   className?: string;
   style?: React.CSSProperties;
+  useFallback?: boolean;
 }
 
 const useDarkMode = () => {
@@ -78,6 +79,7 @@ const GlassSurface: React.FC<GlassSurfaceProps> = ({
   backgroundOpacity = 0,
   saturation = 1,
   distortionScale = -180,
+  useFallback = false,
   redOffset = 0,
   greenOffset = 10,
   blueOffset = 20,
@@ -214,7 +216,7 @@ const GlassSurface: React.FC<GlassSurfaceProps> = ({
       '--glass-saturation': saturation
     } as React.CSSProperties;
 
-    const svgSupported = supportsSVGFilters();
+    const svgSupported = !useFallback && supportsSVGFilters();
     const backdropFilterSupported = supportsBackdropFilter();
 
     if (svgSupported) {
