@@ -109,7 +109,7 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
             })}
 
             <div className='flex items-center'>
-              <div className='w-px h-14 bg-white/50 dark:bg-white/40' />
+              <div className='w-px h-14 bg-black/50 dark:bg-white/50' />
             </div>
 
             <button
