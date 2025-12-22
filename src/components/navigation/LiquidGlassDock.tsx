@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 import { Home, User, FileText, Briefcase, Mail, Moon, Sun } from 'lucide-react';
 import GlassSurface from './GlassSurface';
+import { useTheme } from '../../hooks/useTheme';
 
 interface LiquidGlassDockProps {
   currentPath: string;
@@ -9,33 +10,7 @@ interface LiquidGlassDockProps {
 export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
   const dockRef = useRef<HTMLDivElement>(null);
   const [hoveredIcon, setHoveredIcon] = useState<string | null>(null);
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
-
-  useEffect(() => {
-    const checkTheme = () => {
-      const isDark = document.documentElement.classList.contains('dark');
-      setTheme(isDark ? 'dark' : 'light');
-    };
-    checkTheme();
-    const observer = new MutationObserver(checkTheme);
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['class'],
-    });
-    return () => observer.disconnect();
-  }, []);
-
-  const toggleTheme = () => {
-    const newTheme = theme === 'dark' ? 'light' : 'dark';
-    if (newTheme === 'dark') {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
-    setTheme(newTheme);
-  };
+  const { theme, toggleTheme } = useTheme();
 
   useEffect(() => {
     const handleMouseMove = (e: MouseEvent) => {

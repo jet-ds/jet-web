@@ -1,4 +1,5 @@
-import React, { useEffect, useRef, useState, useId } from 'react';
+import React, { useEffect, useRef, useId } from 'react';
+import { useDarkMode } from '../../hooks/useTheme';
 
 export interface GlassSurfaceProps {
   children?: React.ReactNode;
@@ -41,30 +42,6 @@ export interface GlassSurfaceProps {
   style?: React.CSSProperties;
   useFallback?: boolean;
 }
-
-const useDarkMode = () => {
-  const [isDark, setIsDark] = useState(false);
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return;
-
-    const checkTheme = () => {
-      setIsDark(document.documentElement.classList.contains('dark'));
-    };
-
-    checkTheme();
-
-    const observer = new MutationObserver(checkTheme);
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['class'],
-    });
-
-    return () => observer.disconnect();
-  }, []);
-
-  return isDark;
-};
 
 const GlassSurface: React.FC<GlassSurfaceProps> = ({
   children,

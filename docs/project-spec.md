@@ -551,10 +551,11 @@ Based on focused development work, this project can be completed in phases. The 
 
 ---
 
-**Document Version**: 1.4
-**Last Updated**: 2025-12-17
+**Document Version**: 1.5
+**Last Updated**: 2025-12-22
 **Status**: Ready for Implementation
 **Change Log**:
+- v1.5: Added hooks/ directory structure for custom React hooks (Phase 11)
 - v1.4: Updated View Transitions to ClientRouter (Astro v5 API change)
 - v1.3: Added docs/ directory structure for project documentation
 - v1.2: Updated for latest stable versions (Astro v5.x, React v19.x, Tailwind CSS v3.4.18). Using Tailwind v3.x for reliability

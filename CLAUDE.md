@@ -46,6 +46,7 @@ npm run lint             # Run ESLint (if configured)
 ### File Naming
 - Components: PascalCase (e.g., `BlogCard.astro`, `ThemeToggle.tsx`)
 - Utilities: camelCase (e.g., `readingTime.ts`, `formatDate.ts`)
+- Custom Hooks: camelCase with `use` prefix (e.g., `useTheme.ts`, `useDarkMode.ts`)
 - Content: kebab-case (e.g., `my-first-post.mdx`)
 - Config files: Standard naming (e.g., `astro.config.mjs`, `tailwind.config.mjs`)
 
@@ -80,11 +81,13 @@ npm run lint             # Run ESLint (if configured)
 │   │   ├── seo/         # SEO, StructuredData components
 │   │   ├── ui/          # Button, Card, Tag, etc.
 │   │   ├── blog/        # Blog-specific components
-│   │   └── works/       # Works-specific components
+│   │   ├── works/       # Works-specific components
+│   │   └── navigation/  # Dock and mobile menu components
 │   ├── content/         # Content Collections (type-safe)
 │   │   ├── config.ts    # Schema definitions
 │   │   ├── blog/        # Blog posts (.mdx)
 │   │   └── works/       # Work items (.mdx)
+│   ├── hooks/           # Custom React hooks
 │   ├── layouts/         # Page layouts (alternative to components/layout)
 │   ├── pages/           # File-based routing
 │   │   ├── index.astro  # Home
@@ -249,5 +252,5 @@ npm run lint             # Run ESLint (if configured)
 
 ---
 
-**Last Updated**: 2025-12-17
-**Spec Version**: 1.4
+**Last Updated**: 2025-12-22
+**Spec Version**: 1.5

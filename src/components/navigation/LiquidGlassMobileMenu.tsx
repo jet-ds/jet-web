@@ -1,7 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Plus, Home, User, FileText, Briefcase, Mail, Moon, Sun, type LucideIcon } from 'lucide-react';
 import GlassSurface from './GlassSurface';
+import { useTheme } from '../../hooks/useTheme';
 
 interface LiquidGlassMobileMenuProps {
   currentPath: string;
@@ -18,32 +19,10 @@ type MenuItem = {
 
 export default function LiquidGlassMobileMenu({ currentPath }: LiquidGlassMobileMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
-  const [theme, setTheme] = useState<'light' | 'dark'>('light');
-
-  useEffect(() => {
-    const checkTheme = () => {
-      const isDark = document.documentElement.classList.contains('dark');
-      setTheme(isDark ? 'dark' : 'light');
-    };
-    checkTheme();
-    const observer = new MutationObserver(checkTheme);
-    observer.observe(document.documentElement, {
-      attributes: true,
-      attributeFilter: ['class'],
-    });
-    return () => observer.disconnect();
-  }, []);
+  const { theme, toggleTheme: toggleThemeHook } = useTheme();
 
   const toggleTheme = () => {
-    const newTheme = theme === 'dark' ? 'light' : 'dark';
-    if (newTheme === 'dark') {
-      document.documentElement.classList.add('dark');
-      localStorage.setItem('theme', 'dark');
-    } else {
-      document.documentElement.classList.remove('dark');
-      localStorage.setItem('theme', 'light');
-    }
-    setTheme(newTheme);
+    toggleThemeHook();
     setIsOpen(false);
   };
 
