@@ -193,3 +193,197 @@ Works:
 - Add overlap strategy
 
 ---
+
+## Phase 2: Chunking (Build Pipeline)
+**Date**: 2024-12-26
+**Status**: ✅ Completed
+
+### Objective
+Implement semantic chunking by heading boundaries with token-based splitting and overlap for context continuity in RAG retrieval.
+
+### What Was Built
+
+**1. Chunking Utility Module**
+
+**File**: `src/utils/chunking.ts` (334 lines)
+
+**Configuration** (per spec lines 168-176):
+```typescript
+export const CHUNKING_CONFIG = {
+  targetTokens: 256,        // Target chunk size
+  maxTokens: 512,           // Hard limit
+  minTokens: 64,            // Minimum viable chunk
+  overlapTokens: 32,        // Overlap for context continuity
+  tokenEstimator: (text: string) => Math.ceil(text.length / 4)
+} as const;
+```
+
+**2. Chunk Interface**
+
+**Spec Reference**: Lines 181-194
+
+```typescript
+export interface Chunk {
+  id: string;               // "blog/welcome#intro-0"
+  parentId: string;         // "blog/welcome"
+  text: string;             // Chunk content
+  tokens: number;           // Estimated token count
+  metadata: {
+    type: 'blog' | 'works';
+    title: string;
+    section?: string;       // Heading if available
+    tags: string[];
+    url: string;
+    index: number;          // Chunk index in document
+  };
+}
+```
+
+**3. Core Functions Implemented**
+
+**Function**: `estimateTokens(text: string): number`
+- Heuristic: chars / 4 (conservative estimate)
+- 1 token ≈ 4 characters for English text
+- Aligns with spec line 175
+
+**Function**: `splitByHeadings(content: string): Section[]`
+- Parses h2 (##) and h3 (###) markdown headings
+- Creates sections with heading + content
+- Preserves content before first heading as "intro"
+- Implements spec lines 229-232
+
+**Function**: `getLastNTokens(text: string, n: number): string`
+- Extracts last N tokens for overlap between chunks
+- Uses word-based estimation (~0.75 tokens per word)
+- Implements spec lines 268-274
+
+**Function**: `chunkWithOverlap(text, targetTokens, maxTokens, overlapTokens): string[]`
+- Splits by paragraph boundaries (\n\n+)
+- Accumulates paragraphs until target/max tokens
+- Starts new chunk with overlap from previous
+- Implements spec lines 234-275
+
+**Function**: `splitByTokenLimit(content, targetTokens, maxTokens): string[]`
+- Wrapper around chunkWithOverlap
+- Uses configured overlap (32 tokens)
+
+**Function**: `chunkDocument(item: ContentItem): Chunk[]`
+- Main chunking algorithm (spec lines 196-226)
+- Process:
+  1. Split content by h2/h3 headings
+  2. For each section, split by token limit if needed
+  3. Create Chunk objects with IDs and metadata
+  4. Apply overlap between chunks
+  5. Filter out chunks below minTokens (64)
+
+**Function**: `chunkAll(items: ContentItem[]): Chunk[]`
+- Chunks multiple ContentItems
+- Combines all chunks into single array
+
+**4. Integration with Build Pipeline**
+
+**Updated**: `scripts/build-embeddings.ts`
+
+Added Phase 2 execution:
+```typescript
+// Phase 2: Chunking
+console.log('📝 Phase 2: Chunking');
+const chunks = chunkAll(contentItems);
+
+console.log(`   Created ${chunks.length} chunks`);
+console.log(`   Tokens: ${chunks.reduce((sum, c) => sum + c.tokens, 0)} total`);
+console.log(`   Average: ${Math.round(chunks.reduce(...) / chunks.length)} tokens/chunk`);
+```
+
+**5. Chunking Strategy**
+
+**Approach**: Heading-first semantic chunking
+- Splits by heading boundaries before token limits
+- Preserves semantic coherence (topics stay together)
+- Each heading section becomes separate chunk(s)
+
+**Trade-offs**:
+- ✅ Preserves semantic boundaries
+- ✅ Better for topic-specific retrieval
+- ✅ Clean section separation
+- ⚠️  May produce smaller chunks than target (100-150 tokens)
+- ⚠️  More chunks = potentially more retrieval noise
+
+**Decision**: Keeping heading-first strategy
+- Semantic coherence prioritized over chunk size
+- Acceptable for short-to-medium blog posts (800-2400 chars)
+- Can be adjusted later if retrieval quality suffers
+
+### File Structure
+```
+src/utils/
+└── chunking.ts              # Phase 2 implementation (334 lines)
+
+scripts/
+└── build-embeddings.ts      # Updated with Phase 2 integration
+```
+
+### Code Statistics
+- **Chunking Module**: 334 lines
+- **Functions**: 7 (estimateTokens, splitByHeadings, getLastNTokens, chunkWithOverlap, splitByTokenLimit, chunkDocument, chunkAll)
+- **Interfaces**: 2 (Chunk, Section)
+- **Config**: 1 constant object
+
+### Verification Results
+
+**Test Data**: 3 blog posts, 1 work item
+
+**Chunking Output**:
+```
+Total Documents: 3
+Total Chunks: 7
+Total Tokens: 856
+Avg Chunks/Doc: 2.3
+Avg Tokens/Chunk: 122
+```
+
+**Per-Document Results**:
+1. **"Welcome to My Blog"** (814 chars)
+   - 1 chunk, 101 tokens
+   - Section: "What to Expect"
+
+2. **"The Future of AI"** (2348 chars)
+   - 4 chunks, 520 tokens total
+   - Sections: "Recent Developments" (106), "The Path to AGI" (159), "Implications for Society" (101), "Looking Ahead" (154)
+
+3. **"Building with Astro"** (1599 chars)
+   - 2 chunks, 235 tokens total
+   - Sections: "The Islands Architecture" (123), "Content Collections" (112)
+
+**Quality Checks**:
+- ✅ All chunks above minTokens (64) threshold
+- ✅ Heading-based splitting working correctly
+- ✅ Chunk IDs properly formatted (parentId#section-index)
+- ✅ Metadata preserved (type, title, section, tags, url, index)
+- ✅ No chunks exceed maxTokens (512)
+- ✅ Paragraph structure preserved in chunk text
+- ✅ TypeScript compiles without errors
+
+**Strategy Analysis**:
+- Chunks averaging 122 tokens (below 256 target)
+- Result of heading-first strategy with short posts
+- Acceptable trade-off: semantic coherence > size uniformity
+- Future consideration: Combine small adjacent sections
+
+### Testing Notes
+**Test Endpoint**: `/api/test-chunking` (temporary)
+- Processed all 3 blog posts
+- Verified chunking output format
+- Confirmed heading extraction
+- Validated token estimation
+- Endpoint removed after testing
+
+### Next Phase
+**Phase 3: Embedding Generation** (lines 280-356 in spec)
+- Load Transformers.js model (all-MiniLM-L6-v2)
+- Generate 384-dim embeddings for each chunk
+- Implement batching for performance
+- Add progress reporting
+- Output: Array of embeddings paired with chunks
+
+---

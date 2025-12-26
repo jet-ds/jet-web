@@ -9,6 +9,7 @@
 
 import { getCollection } from 'astro:content';
 import type { CollectionEntry } from 'astro:content';
+import { chunkAll, type Chunk } from '../src/utils/chunking.js';
 
 // ============================================================================
 // Phase 1: Content Discovery
@@ -201,9 +202,19 @@ async function main() {
     const contentItems = await discoverContent();
 
     console.log('✓ Phase 1 Complete');
-    console.log(`  Total items: ${contentItems.length}`);
+    console.log(`  Total items: ${contentItems.length}\n`);
 
-    // TODO: Phase 2 - Chunking
+    // Phase 2: Chunking
+    console.log('📝 Phase 2: Chunking');
+    const chunks = chunkAll(contentItems);
+
+    console.log(`   Created ${chunks.length} chunks`);
+    console.log(`   Tokens: ${chunks.reduce((sum, c) => sum + c.tokens, 0)} total`);
+    console.log(`   Average: ${Math.round(chunks.reduce((sum, c) => sum + c.tokens, 0) / chunks.length)} tokens/chunk`);
+
+    console.log('✓ Phase 2 Complete');
+    console.log(`  Total chunks: ${chunks.length}\n`);
+
     // TODO: Phase 3 - Embedding Generation
     // TODO: Phase 4 - Serialization
     // TODO: Phase 5 - Artifact Upload
