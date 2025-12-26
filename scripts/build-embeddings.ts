@@ -10,6 +10,7 @@
 import { getCollection } from 'astro:content';
 import type { CollectionEntry } from 'astro:content';
 import { chunkAll, type Chunk } from '../src/utils/chunking.js';
+import { pipeline } from '@huggingface/transformers';
 
 // ============================================================================
 // Phase 1: Content Discovery
@@ -40,7 +41,7 @@ interface ContentItem {
  * Process (spec lines 148-154):
  * 1. Load all collections: blog + works
  * 2. Filter out drafts
- * 3. Render to extract body
+ * 3. Extract raw MDX body
  * 4. Strip MDX components, keep prose
  * 5. Normalize whitespace
  *
@@ -91,9 +92,8 @@ async function processEntry(
   type: 'blog' | 'works'
 ): Promise<ContentItem | null> {
   try {
-    // Step 3: Render to extract body
-    const rendered = await entry.render();
-    const rawBody = rendered.body || '';
+    // Step 3: Extract raw MDX body directly from entry
+    const rawBody = entry.body || '';
 
     // Step 4: Strip MDX components, keep prose
     const strippedContent = stripMDXComponents(rawBody);
@@ -190,6 +190,89 @@ function normalizeWhitespace(content: string): string {
 }
 
 // ============================================================================
+// Phase 3: Embedding Generation
+// ============================================================================
+
+/**
+ * EmbeddingResult represents a chunk with its generated embedding vector
+ *
+ * Spec: docs/rag-chatbot-implementation-plan.md - Phase 3, lines 281-337
+ */
+interface EmbeddingResult {
+  chunkId: string;         // Chunk ID reference
+  embedding: number[];     // 384-dim FP32 vector (L2-normalized)
+  dimensions: number;      // Always 384 for all-MiniLM-L6-v2
+}
+
+/**
+ * Generates embeddings for all chunks using Transformers.js
+ *
+ * Model: Xenova/all-MiniLM-L6-v2 (384 dimensions)
+ * Process (spec lines 288-331):
+ * 1. Load feature-extraction pipeline with quantization
+ * 2. Process chunks in batches (batch size 32)
+ * 3. Generate embeddings with mean pooling
+ * 4. L2-normalize for cosine similarity via dot product
+ * 5. Extract Float32 arrays (384 dimensions)
+ *
+ * @param chunks - Array of chunks from Phase 2
+ * @returns Array of embedding results with chunk IDs
+ */
+async function generateEmbeddings(chunks: Chunk[]): Promise<EmbeddingResult[]> {
+  console.log('🧠 Phase 3: Embedding Generation');
+  console.log('   Loading model: Xenova/all-MiniLM-L6-v2');
+
+  // Load model (Node.js environment with quantization)
+  const extractor = await pipeline(
+    'feature-extraction',
+    'Xenova/all-MiniLM-L6-v2',
+    { quantized: true }
+  );
+
+  console.log('   ✓ Model loaded');
+
+  const batchSize = 32;
+  const results: EmbeddingResult[] = [];
+
+  console.log(`   Processing ${chunks.length} chunks in batches of ${batchSize}...`);
+
+  // Process in batches for efficiency
+  for (let i = 0; i < chunks.length; i += batchSize) {
+    const batch = chunks.slice(i, i + batchSize);
+    const texts = batch.map(c => c.text);
+
+    // Generate embeddings with L2 normalization
+    const embeddings = await extractor(texts, {
+      pooling: 'mean',
+      normalize: true  // L2-normalize for cosine similarity
+    });
+
+    // Extract Float32 arrays (model outputs FP32)
+    for (let j = 0; j < batch.length; j++) {
+      const embedding = Array.from(embeddings.data.slice(
+        j * 384,
+        (j + 1) * 384
+      )) as number[]; // 384 dimensions
+
+      results.push({
+        chunkId: batch[j].id,
+        embedding: embedding, // FP32 from model
+        dimensions: 384
+      });
+    }
+
+    console.log(`   Processed ${Math.min(i + batchSize, chunks.length)}/${chunks.length} chunks`);
+  }
+
+  console.log('   ✓ All embeddings generated');
+  console.log(`   Total embeddings: ${results.length}`);
+  console.log(`   Dimensions: ${results[0]?.dimensions || 0}`);
+  console.log(`   Precision: FP32 (L2-normalized)\n`);
+
+  return results;
+}
+
+// ============================================================================
 // Main Execution
 // ============================================================================
 
@@ -215,7 +298,12 @@ async function main() {
     console.log('✓ Phase 2 Complete');
     console.log(`  Total chunks: ${chunks.length}\n`);
 
-    // TODO: Phase 3 - Embedding Generation
+    // Phase 3: Embedding Generation
+    const embeddings = await generateEmbeddings(chunks);
+
+    console.log('✓ Phase 3 Complete');
+    console.log(`  Total embeddings: ${embeddings.length}\n`);
+
     // TODO: Phase 4 - Serialization
     // TODO: Phase 5 - Artifact Upload
     // TODO: Phase 6 - Manifest Generation
