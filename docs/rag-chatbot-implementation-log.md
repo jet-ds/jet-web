@@ -901,10 +901,253 @@ node_modules/
 3. `manifest-{hash}.json`: Metadata + chunk index (human-readable)
 
 ### Next Phase
-**Phase 5: Artifact Upload** (lines 438-501 in spec)
+**Phase 5: Artifact Upload** (lines 438-514 in spec)
 - Upload to Vercel Blob Storage
 - Use build hash in filenames for cache invalidation
 - Set appropriate cache headers (1 year for immutable files)
 - Public access for client-side retrieval
+
+---
+
+## Phase 5: Artifact Upload (Build Pipeline)
+**Date**: 2025-12-26
+**Status**: ✅ Completed
+
+### Objective
+Upload binary artifacts to Vercel Blob Storage with public access, long cache headers, and automatic cache invalidation via build hash in filenames. Write artifact URLs to runtime configuration for client-side loading.
+
+### What Was Built
+
+**1. Dependency Installation**
+
+Installed `@vercel/blob` (8 packages):
+```bash
+npm install @vercel/blob
+```
+
+**2. Type Definitions**
+
+**File**: `scripts/build-embeddings.ts`
+
+**ArtifactConfig Interface**:
+```typescript
+interface ArtifactConfig {
+  embeddingsUrl: string;
+  chunksUrl: string;
+  manifestUrl: string;
+  version: string;
+  buildHash: string;
+}
+```
+
+**3. Upload Function**
+
+**Function**: `async function uploadArtifacts(artifacts): Promise<ArtifactConfig>`
+
+**Implementation** (spec lines 448-503):
+
+```typescript
+async function uploadArtifacts(artifacts: SerializedArtifacts): Promise<ArtifactConfig> {
+  const buildHash = artifacts.manifest.buildHash;
+
+  // Check for BLOB_READ_WRITE_TOKEN
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    throw new Error('BLOB_READ_WRITE_TOKEN environment variable is required');
+  }
+
+  // Upload embeddings.bin
+  const embeddingsBlob = await put(
+    `chatbot/embeddings-${buildHash}.bin`,
+    artifacts.embeddingsBuffer,
+    {
+      access: 'public',
+      contentType: 'application/octet-stream',
+      addRandomSuffix: false,
+      cacheControlMaxAge: 31536000 // 1 year (immutable)
+    }
+  );
+
+  // Upload chunks.bin
+  const chunksBlob = await put(
+    `chatbot/chunks-${buildHash}.bin`,
+    artifacts.chunkTextBuffer,
+    {
+      access: 'public',
+      contentType: 'application/octet-stream',
+      addRandomSuffix: false,
+      cacheControlMaxAge: 31536000
+    }
+  );
+
+  // Upload manifest.json
+  const manifestBlob = await put(
+    `chatbot/manifest-${buildHash}.json`,
+    JSON.stringify(artifacts.manifest, null, 2),
+    {
+      access: 'public',
+      contentType: 'application/json',
+      addRandomSuffix: false,
+      cacheControlMaxAge: 31536000
+    }
+  );
+
+  // Write URLs to local config for runtime
+  const config: ArtifactConfig = {
+    embeddingsUrl: embeddingsBlob.url,
+    chunksUrl: chunksBlob.url,
+    manifestUrl: manifestBlob.url,
+    version: artifacts.manifest.version,
+    buildHash: buildHash
+  };
+
+  await writeFile(
+    'src/config/chatbot-artifacts.json',
+    JSON.stringify(config, null, 2) + '\n'
+  );
+
+  return config;
+}
+```
+
+**4. Build Pipeline Integration**
+
+**Updated**: `scripts/build-embeddings.ts` main() function
+
+```typescript
+// Phase 5: Artifact Upload
+const config = await uploadArtifacts(artifacts);
+
+console.log('✓ Phase 5 Complete');
+console.log(`  Build hash: ${config.buildHash}`);
+console.log(`  Artifacts uploaded to Vercel Blob\n`);
+```
+
+**5. Security Configuration**
+
+**Updated**: `.gitignore`
+
+Added entries to prevent committing sensitive/generated files:
+```
+.env.local                          # Local environment variables (includes token)
+src/config/chatbot-artifacts.json   # Generated URLs (build-specific)
+test-config.json                    # Test artifacts
+```
+
+**6. Environment Variable**
+
+**Required**: `BLOB_READ_WRITE_TOKEN`
+- Set in `.env.local` for local development
+- Set in Vercel project settings for production builds
+- Used by `@vercel/blob` SDK for authentication
+
+### File Structure
+```
+scripts/
+└── build-embeddings.ts      # Updated with Phase 5 (103 lines added)
+
+src/config/
+└── chatbot-artifacts.json   # Generated (gitignored, created by upload)
+
+.gitignore                   # Updated with security entries
+```
+
+### Code Statistics
+- **Phase 5 Addition**: 103 lines (1 interface, 1 function)
+- **Total Build Script**: 640 lines (Phases 1-5)
+- **New Dependencies**: @vercel/blob (8 packages)
+
+### Verification Results
+
+**Test Upload**: Mock artifacts test
+
+**Test Data**: 1 test chunk with mock embedding
+
+**Upload Results**:
+```
+Build hash: 83e19e15022de405
+✓ Embeddings uploaded to Vercel Blob
+✓ Chunks uploaded to Vercel Blob
+✓ Manifest uploaded to Vercel Blob
+```
+
+**Generated URLs**:
+```
+https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/chatbot/test-embeddings-83e19e15022de405.bin
+https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/chatbot/test-chunks-83e19e15022de405.bin
+https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/chatbot/test-manifest-83e19e15022de405.json
+```
+
+**Quality Checks**:
+- ✅ All three artifacts uploaded successfully
+- ✅ Public access working (manifest fetched via curl)
+- ✅ Build hash included in all filenames
+- ✅ Cache headers set correctly (1 year)
+- ✅ URLs written to config file
+- ✅ Environment variable validation working
+- ✅ .gitignore prevents token/config commits
+
+### Cache Strategy
+
+**Long Cache Headers**:
+- `cacheControlMaxAge: 31536000` (1 year)
+- Safe because filenames include build hash
+- Content change → new hash → new URLs → automatic invalidation
+
+**No Manifest Polling**:
+- Client loads URLs from `chatbot-artifacts.json` at build time
+- No runtime manifest fetching for cache checking
+- Simpler, faster, fewer network requests
+
+**Invalidation Flow**:
+1. Content changes
+2. Build runs → new hash computed
+3. New filenames: `embeddings-{newHash}.bin`, etc.
+4. New uploads to Vercel Blob
+5. New URLs written to `chatbot-artifacts.json`
+6. Next deploy uses new URLs automatically
+
+### Security Notes
+
+**Token Handling**:
+- Token required for uploads (build time only)
+- Not needed for client-side artifact fetching (public access)
+- Must be set in environment:
+  - Local: `.env.local` (gitignored)
+  - Production: Vercel project settings (encrypted)
+- Never commit token to repository
+
+**Artifact Access**:
+- All artifacts have `access: 'public'`
+- No authentication needed for downloads
+- Safe: contains only embeddings and metadata (no secrets)
+- CDN-cached for fast worldwide access
+
+**File Permissions**:
+- `.env.local`: Gitignored (contains token)
+- `chatbot-artifacts.json`: Gitignored (build-specific URLs)
+- Build script: Committed (no secrets)
+
+### Vercel Blob Features Used
+
+**Upload Options**:
+- `access: 'public'` - No auth needed for downloads
+- `contentType: 'application/octet-stream'` - Binary data
+- `contentType: 'application/json'` - Manifest metadata
+- `addRandomSuffix: false` - Predictable filenames
+- `cacheControlMaxAge: 31536000` - 1 year cache
+
+**Performance**:
+- Edge network distribution
+- Automatic CDN caching
+- Fast global access
+- No database queries needed
+
+### Next Phase
+**Phase 6: Client-Side Integration** (runtime implementation)
+- Create artifact loader utility
+- FP16 → FP32 conversion for browser
+- Chunk text deserialization
+- Embedding search implementation
+- Integration with chat UI
 
 ---

@@ -13,6 +13,8 @@ import { chunkAll, type Chunk } from '../src/utils/chunking.js';
 import { pipeline } from '@huggingface/transformers';
 import { setFloat16 } from '@petamoriken/float16';
 import { createHash } from 'crypto';
+import { put } from '@vercel/blob';
+import { writeFile } from 'fs/promises';
 
 // ============================================================================
 // Phase 1: Content Discovery
@@ -476,6 +478,110 @@ function serializeEmbeddings(
 }
 
 // ============================================================================
+// Phase 5: Artifact Upload
+// ============================================================================
+
+/**
+ * Artifact configuration written to runtime
+ */
+interface ArtifactConfig {
+  embeddingsUrl: string;
+  chunksUrl: string;
+  manifestUrl: string;
+  version: string;
+  buildHash: string;
+}
+
+/**
+ * Uploads artifacts to Vercel Blob Storage
+ *
+ * Process (spec lines 448-503):
+ * 1. Upload embeddings.bin with build hash in filename
+ * 2. Upload chunks.bin with build hash in filename
+ * 3. Upload manifest.json with build hash in filename
+ * 4. Write URLs to src/config/chatbot-artifacts.json for runtime
+ * 5. Set long cache headers (1 year) - immutable files
+ *
+ * @param artifacts - Serialized artifacts from Phase 4
+ * @returns Artifact URLs configuration
+ */
+async function uploadArtifacts(artifacts: SerializedArtifacts): Promise<ArtifactConfig> {
+  console.log('☁️  Phase 5: Artifact Upload');
+
+  const buildHash = artifacts.manifest.buildHash;
+
+  // Check for BLOB_READ_WRITE_TOKEN
+  if (!process.env.BLOB_READ_WRITE_TOKEN) {
+    throw new Error(
+      'BLOB_READ_WRITE_TOKEN environment variable is required.\n' +
+      'Set it in .env.local for local development or in Vercel project settings.'
+    );
+  }
+
+  console.log(`   Uploading to Vercel Blob (hash: ${buildHash})`);
+
+  // Upload embeddings.bin
+  console.log('   Uploading embeddings.bin...');
+  const embeddingsBlob = await put(
+    `chatbot/embeddings-${buildHash}.bin`,
+    artifacts.embeddingsBuffer,
+    {
+      access: 'public',
+      contentType: 'application/octet-stream',
+      addRandomSuffix: false,
+      cacheControlMaxAge: 31536000 // 1 year (immutable)
+    }
+  );
+  console.log(`   ✓ Embeddings: ${embeddingsBlob.url}`);
+
+  // Upload chunks.bin
+  console.log('   Uploading chunks.bin...');
+  const chunksBlob = await put(
+    `chatbot/chunks-${buildHash}.bin`,
+    artifacts.chunkTextBuffer,
+    {
+      access: 'public',
+      contentType: 'application/octet-stream',
+      addRandomSuffix: false,
+      cacheControlMaxAge: 31536000
+    }
+  );
+  console.log(`   ✓ Chunks: ${chunksBlob.url}`);
+
+  // Upload manifest.json
+  console.log('   Uploading manifest.json...');
+  const manifestBlob = await put(
+    `chatbot/manifest-${buildHash}.json`,
+    JSON.stringify(artifacts.manifest, null, 2),
+    {
+      access: 'public',
+      contentType: 'application/json',
+      addRandomSuffix: false,
+      cacheControlMaxAge: 31536000
+    }
+  );
+  console.log(`   ✓ Manifest: ${manifestBlob.url}`);
+
+  // Write URLs to local config for runtime
+  const config: ArtifactConfig = {
+    embeddingsUrl: embeddingsBlob.url,
+    chunksUrl: chunksBlob.url,
+    manifestUrl: manifestBlob.url,
+    version: artifacts.manifest.version,
+    buildHash: buildHash
+  };
+
+  console.log('   Writing config to src/config/chatbot-artifacts.json...');
+  await writeFile(
+    'src/config/chatbot-artifacts.json',
+    JSON.stringify(config, null, 2) + '\n'
+  );
+  console.log('   ✓ Config written\n');
+
+  return config;
+}
+
+// ============================================================================
 // Main Execution
 // ============================================================================
 
@@ -513,7 +619,13 @@ async function main() {
     console.log('✓ Phase 4 Complete');
     console.log(`  Artifacts ready: embeddings.bin, chunks.bin, manifest.json\n`);
 
-    // TODO: Phase 5 - Artifact Upload
+    // Phase 5: Artifact Upload
+    const config = await uploadArtifacts(artifacts);
+
+    console.log('✓ Phase 5 Complete');
+    console.log(`  Build hash: ${config.buildHash}`);
+    console.log(`  Artifacts uploaded to Vercel Blob\n`);
+
     // TODO: Phase 6 - Manifest Generation
 
   } catch (error) {
