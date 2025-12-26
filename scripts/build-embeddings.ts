@@ -11,6 +11,8 @@ import { getCollection } from 'astro:content';
 import type { CollectionEntry } from 'astro:content';
 import { chunkAll, type Chunk } from '../src/utils/chunking.js';
 import { pipeline } from '@huggingface/transformers';
+import { setFloat16 } from '@petamoriken/float16';
+import { createHash } from 'crypto';
 
 // ============================================================================
 // Phase 1: Content Discovery
@@ -273,6 +275,207 @@ async function generateEmbeddings(chunks: Chunk[]): Promise<EmbeddingResult[]> {
 }
 
 // ============================================================================
+// Phase 4: Serialization
+// ============================================================================
+
+/**
+ * ArtifactManifest contains metadata for the RAG chatbot artifacts
+ *
+ * Spec: docs/rag-chatbot-implementation-plan.md - Phase 4, lines 395-421
+ */
+interface ArtifactManifest {
+  version: string;
+  buildTime: string;
+  buildHash: string;
+  model: {
+    name: string;
+    dimensions: number;
+    normalization: string;
+  };
+  storage: {
+    precision: string;
+    accumulationPrecision: string;
+  };
+  chunks: {
+    id: string;
+    parentId: string;
+    tokens: number;
+    metadata: {
+      type: 'blog' | 'works';
+      title: string;
+      section?: string;
+      tags: string[];
+      url: string;
+      index: number;
+    };
+    embeddingOffset: number;
+  }[];
+  stats: {
+    totalChunks: number;
+    totalTokens: number;
+    avgTokensPerChunk: number;
+  };
+}
+
+/**
+ * SerializedArtifacts represents the three output files
+ *
+ * Spec: docs/rag-chatbot-implementation-plan.md - Phase 4, lines 423-427
+ */
+interface SerializedArtifacts {
+  embeddingsBuffer: ArrayBuffer;  // FP16 binary embeddings
+  chunkTextBuffer: ArrayBuffer;   // Length-prefixed chunk text
+  manifest: ArtifactManifest;     // Metadata JSON
+}
+
+/**
+ * Computes SHA-256 hash of chunks and metadata for cache invalidation
+ *
+ * Hashes chunk content, IDs, metadata, and chunking config to ensure
+ * hash changes when any of these change (not just text content).
+ *
+ * @param chunks - Array of chunks to hash
+ * @returns Hex-encoded SHA-256 hash (first 16 chars)
+ */
+function computeContentHash(chunks: Chunk[]): string {
+  // Include everything that should invalidate the cache:
+  // 1. Chunk text content
+  // 2. Chunk IDs (detects slug changes, reordering)
+  // 3. Metadata (title, tags, sections, URLs)
+  // 4. Chunking config (detects strategy changes)
+  const hashInput = JSON.stringify({
+    chunks: chunks.map(c => ({
+      id: c.id,
+      text: c.text,
+      tokens: c.tokens,
+      metadata: c.metadata
+    })),
+    config: {
+      targetTokens: 256,
+      maxTokens: 512,
+      minTokens: 64,
+      overlapTokens: 32
+    },
+    version: '1.0.0'
+  });
+
+  const hash = createHash('sha256').update(hashInput).digest('hex');
+  return hash.substring(0, 16); // First 16 chars for filename
+}
+
+/**
+ * Serializes embeddings and chunks to binary artifacts
+ *
+ * Process (spec lines 355-428):
+ * 1. Convert FP32 embeddings to FP16 binary (50% size reduction)
+ * 2. Serialize chunk text to binary (length-prefixed strings)
+ * 3. Create manifest with metadata (no chunk text)
+ * 4. Return three artifacts ready for upload
+ *
+ * @param embeddings - FP32 embeddings from Phase 3
+ * @param chunks - Chunks from Phase 2
+ * @returns Serialized artifacts (embeddings.bin, chunks.bin, manifest.json)
+ */
+function serializeEmbeddings(
+  embeddings: EmbeddingResult[],
+  chunks: Chunk[]
+): SerializedArtifacts {
+  console.log('💾 Phase 4: Serialization');
+
+  // Step 1: Convert FP32 to FP16 binary
+  console.log('   Converting embeddings: FP32 → FP16');
+  const buffer = new ArrayBuffer(embeddings.length * 384 * 2); // 2 bytes per FP16
+  const view = new DataView(buffer);
+
+  let offset = 0;
+  for (const embedding of embeddings) {
+    for (let i = 0; i < 384; i++) {
+      setFloat16(view, offset, embedding.embedding[i], true); // little-endian
+      offset += 2;
+    }
+  }
+
+  const embeddingsSizeKB = (buffer.byteLength / 1024).toFixed(2);
+  console.log(`   ✓ Embeddings: ${embeddingsSizeKB} KB (FP16)`);
+
+  // Step 2: Serialize chunk text to binary (length-prefixed strings)
+  console.log('   Serializing chunk text');
+  const encoder = new TextEncoder();
+  const chunkTextBuffers: Uint8Array[] = [];
+  let totalChunkTextSize = 0;
+
+  for (const chunk of chunks) {
+    const textBytes = encoder.encode(chunk.text);
+    const lengthBuffer = new Uint8Array(4);
+    new DataView(lengthBuffer.buffer).setUint32(0, textBytes.length, true);
+
+    chunkTextBuffers.push(lengthBuffer);
+    chunkTextBuffers.push(textBytes);
+    totalChunkTextSize += 4 + textBytes.length;
+  }
+
+  // Concatenate all chunk text buffers
+  const chunkTextBuffer = new Uint8Array(totalChunkTextSize);
+  let chunkTextOffset = 0;
+  for (const buf of chunkTextBuffers) {
+    chunkTextBuffer.set(buf, chunkTextOffset);
+    chunkTextOffset += buf.length;
+  }
+
+  const chunkTextSizeKB = (chunkTextBuffer.byteLength / 1024).toFixed(2);
+  console.log(`   ✓ Chunk text: ${chunkTextSizeKB} KB (binary)`);
+
+  // Step 3: Create manifest (metadata only, no chunk text)
+  console.log('   Generating manifest');
+  const buildHash = computeContentHash(chunks);
+
+  const manifest: ArtifactManifest = {
+    version: '1.0.0',
+    buildTime: new Date().toISOString(),
+    buildHash,
+    model: {
+      name: 'Xenova/all-MiniLM-L6-v2',
+      dimensions: 384,
+      normalization: 'l2'
+    },
+    storage: {
+      precision: 'fp16',
+      accumulationPrecision: 'float64' // JS accumulation is always float64
+    },
+    chunks: chunks.map((chunk, idx) => ({
+      id: chunk.id,
+      parentId: chunk.parentId,
+      // text removed - stored separately in chunks.bin
+      tokens: chunk.tokens,
+      metadata: chunk.metadata,
+      embeddingOffset: idx * 384
+    })),
+    stats: {
+      totalChunks: chunks.length,
+      totalTokens: chunks.reduce((sum, c) => sum + c.tokens, 0),
+      avgTokensPerChunk: chunks.reduce((sum, c) => sum + c.tokens, 0) / chunks.length
+    }
+  };
+
+  const manifestSizeKB = (JSON.stringify(manifest).length / 1024).toFixed(2);
+  console.log(`   ✓ Manifest: ${manifestSizeKB} KB (JSON)`);
+
+  const totalSizeKB = (
+    buffer.byteLength +
+    chunkTextBuffer.byteLength +
+    JSON.stringify(manifest).length
+  ) / 1024;
+  console.log(`   Total artifacts: ${totalSizeKB.toFixed(2)} KB`);
+  console.log(`   Build hash: ${buildHash}\n`);
+
+  return {
+    embeddingsBuffer: buffer,
+    chunkTextBuffer: chunkTextBuffer.buffer,
+    manifest
+  };
+}
+
+// ============================================================================
 // Main Execution
 // ============================================================================
 
@@ -304,7 +507,12 @@ async function main() {
     console.log('✓ Phase 3 Complete');
     console.log(`  Total embeddings: ${embeddings.length}\n`);
 
-    // TODO: Phase 4 - Serialization
+    // Phase 4: Serialization
+    const artifacts = serializeEmbeddings(embeddings, chunks);
+
+    console.log('✓ Phase 4 Complete');
+    console.log(`  Artifacts ready: embeddings.bin, chunks.bin, manifest.json\n`);
+
     // TODO: Phase 5 - Artifact Upload
     // TODO: Phase 6 - Manifest Generation
 

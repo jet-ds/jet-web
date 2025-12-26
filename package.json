@@ -12,6 +12,7 @@
     "@astrojs/mdx": "^4.3.13",
     "@astrojs/react": "^4.4.2",
     "@huggingface/transformers": "^3.8.1",
+    "@petamoriken/float16": "^3.9.3",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "astro": "^5.16.6",

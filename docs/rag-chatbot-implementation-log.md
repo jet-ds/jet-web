@@ -601,3 +601,310 @@ node_modules/
 - Output: 3 artifacts (embeddings.bin, chunks.bin, manifest.json)
 
 ---
+
+## Phase 4: Serialization (Build Pipeline)
+**Date**: 2025-12-26
+**Status**: ✅ Completed
+
+### Objective
+Convert FP32 embeddings to FP16 binary format for 50% size reduction, serialize chunk text to binary, and create metadata manifest. Produces three artifacts ready for upload to Vercel Blob Storage.
+
+### What Was Built
+
+**1. Dependency Installation**
+
+Installed `@petamoriken/float16` (70 packages):
+```bash
+npm install @petamoriken/float16
+```
+
+**2. Type Definitions**
+
+**File**: `scripts/build-embeddings.ts`
+
+**ArtifactManifest Interface** (spec lines 395-421):
+```typescript
+interface ArtifactManifest {
+  version: string;
+  buildTime: string;
+  buildHash: string;
+  model: {
+    name: string;
+    dimensions: number;
+    normalization: string;
+  };
+  storage: {
+    precision: string;
+    accumulationPrecision: string;
+  };
+  chunks: {
+    id: string;
+    parentId: string;
+    tokens: number;
+    metadata: ChunkMetadata;
+    embeddingOffset: number;
+  }[];
+  stats: {
+    totalChunks: number;
+    totalTokens: number;
+    avgTokensPerChunk: number;
+  };
+}
+```
+
+**SerializedArtifacts Interface** (spec lines 423-427):
+```typescript
+interface SerializedArtifacts {
+  embeddingsBuffer: ArrayBuffer;  // FP16 binary embeddings
+  chunkTextBuffer: ArrayBuffer;   // Length-prefixed chunk text
+  manifest: ArtifactManifest;     // Metadata JSON
+}
+```
+
+**3. Hash Generation Function**
+
+**Function**: `computeContentHash(chunks: Chunk[]): string`
+
+**Purpose**: Generate cache-busting hash for artifact filenames
+
+**Implementation**:
+```typescript
+function computeContentHash(chunks: Chunk[]): string {
+  // Hash includes: content, IDs, metadata, chunking config
+  const hashInput = JSON.stringify({
+    chunks: chunks.map(c => ({
+      id: c.id,
+      text: c.text,
+      tokens: c.tokens,
+      metadata: c.metadata
+    })),
+    config: {
+      targetTokens: 256,
+      maxTokens: 512,
+      minTokens: 64,
+      overlapTokens: 32
+    },
+    version: '1.0.0'
+  });
+
+  const hash = createHash('sha256').update(hashInput).digest('hex');
+  return hash.substring(0, 16);
+}
+```
+
+**What Gets Hashed**:
+1. Chunk text content (detects content changes)
+2. Chunk IDs (detects slug changes, reordering)
+3. Metadata (detects title/tag/section changes)
+4. Chunking config (detects strategy changes)
+5. Version string (detects format changes)
+
+**4. Serialization Function**
+
+**Function**: `serializeEmbeddings(embeddings, chunks): SerializedArtifacts`
+
+**Implementation** (spec lines 356-428):
+
+**Step 1: FP32 → FP16 Conversion**
+```typescript
+// Convert FP32 to FP16 binary (50% size reduction)
+const buffer = new ArrayBuffer(embeddings.length * 384 * 2); // 2 bytes per FP16
+const view = new DataView(buffer);
+
+let offset = 0;
+for (const embedding of embeddings) {
+  for (let i = 0; i < 384; i++) {
+    setFloat16(view, offset, embedding.embedding[i], true); // little-endian
+    offset += 2;
+  }
+}
+```
+
+**Step 2: Chunk Text Binary Serialization**
+```typescript
+// Serialize chunk text to binary (length-prefixed strings)
+const encoder = new TextEncoder();
+const chunkTextBuffers: Uint8Array[] = [];
+let totalChunkTextSize = 0;
+
+for (const chunk of chunks) {
+  const textBytes = encoder.encode(chunk.text);
+  const lengthBuffer = new Uint8Array(4);
+  new DataView(lengthBuffer.buffer).setUint32(0, textBytes.length, true);
+
+  chunkTextBuffers.push(lengthBuffer);
+  chunkTextBuffers.push(textBytes);
+  totalChunkTextSize += 4 + textBytes.length;
+}
+
+// Concatenate all chunk text buffers
+const chunkTextBuffer = new Uint8Array(totalChunkTextSize);
+let chunkTextOffset = 0;
+for (const buf of chunkTextBuffers) {
+  chunkTextBuffer.set(buf, chunkTextOffset);
+  chunkTextOffset += buf.length;
+}
+```
+
+**Step 3: Manifest Generation**
+```typescript
+const manifest: ArtifactManifest = {
+  version: '1.0.0',
+  buildTime: new Date().toISOString(),
+  buildHash: computeContentHash(chunks),
+  model: {
+    name: 'Xenova/all-MiniLM-L6-v2',
+    dimensions: 384,
+    normalization: 'l2'
+  },
+  storage: {
+    precision: 'fp16',
+    accumulationPrecision: 'float64'
+  },
+  chunks: chunks.map((chunk, idx) => ({
+    id: chunk.id,
+    parentId: chunk.parentId,
+    tokens: chunk.tokens,
+    metadata: chunk.metadata,
+    embeddingOffset: idx * 384
+  })),
+  stats: {
+    totalChunks: chunks.length,
+    totalTokens: chunks.reduce((sum, c) => sum + c.tokens, 0),
+    avgTokensPerChunk: chunks.reduce((sum, c) => sum + c.tokens, 0) / chunks.length
+  }
+};
+```
+
+**5. Build Pipeline Integration**
+
+**Updated**: `scripts/build-embeddings.ts` main() function
+
+```typescript
+// Phase 4: Serialization
+const artifacts = serializeEmbeddings(embeddings, chunks);
+
+console.log('✓ Phase 4 Complete');
+console.log(`  Artifacts ready: embeddings.bin, chunks.bin, manifest.json\n`);
+```
+
+**6. Progress Logging**
+
+Implemented detailed logging:
+- FP32 → FP16 conversion progress
+- Individual artifact sizes (KB)
+- Total artifact size
+- Build hash output
+
+### File Structure
+```
+scripts/
+└── build-embeddings.ts      # Updated with Phase 4 (178 lines added)
+
+node_modules/
+└── @petamoriken/
+    └── float16/              # 70 packages installed
+```
+
+### Code Statistics
+- **Phase 4 Addition**: 178 lines (3 interfaces, 2 functions)
+- **Total Build Script**: 503 lines (Phases 1-4)
+- **New Dependencies**: @petamoriken/float16, crypto (Node.js built-in)
+
+### Verification Results
+
+**Test Endpoint**: `/api/test-serialization` (temporary)
+
+**Test Data**: 3 chunks with embeddings
+
+**Results**:
+```json
+{
+  "embeddings": {
+    "count": 3,
+    "sizeBytes": 2304,
+    "sizeKB": "2.25",
+    "precision": "FP16",
+    "sizeReduction": "50%"
+  },
+  "chunkText": {
+    "count": 3,
+    "sizeBytes": 1470,
+    "sizeKB": "1.44",
+    "format": "length-prefixed binary"
+  },
+  "manifest": {
+    "sizeBytes": 1249,
+    "sizeKB": "1.22",
+    "buildHash": "7c2a2e5d8bc76eb6",
+    "totalChunks": 3
+  },
+  "total": {
+    "sizeKB": "4.91"
+  },
+  "precisionLoss": {
+    "maxDifference": "0.00005829",
+    "avgDifference": "0.00000737",
+    "percentLoss": "0.0058%"
+  }
+}
+```
+
+**Quality Checks**:
+- ✅ FP32 to FP16 conversion working correctly
+- ✅ 50% size reduction achieved (2304 bytes for 3 embeddings)
+- ✅ Precision loss: 0.0058% (far better than spec's 2-5% expectation)
+- ✅ Max difference: 0.00005829 (excellent precision preservation)
+- ✅ Chunk text binary serialization working (length-prefixed)
+- ✅ Manifest generation with proper metadata
+- ✅ Build hash generated (SHA-256, 16 chars)
+- ✅ Total artifact size: 4.91 KB for 3 chunks
+
+### Size Projections
+
+**For Full Content** (7 chunks):
+- Embeddings: ~5.25 KB (7 × 768 bytes)
+- Chunk text: ~3.36 KB (estimated from sample)
+- Manifest: ~2.85 KB (7 chunk entries)
+- **Total**: ~11.5 KB for all artifacts
+
+**Scaling** (100 blog posts, ~233 chunks):
+- Embeddings: ~175 KB (233 × 768 bytes)
+- Chunk text: ~112 KB (estimated)
+- Manifest: ~95 KB (233 chunk entries)
+- **Total**: ~382 KB for 100 posts
+
+### Technical Notes
+
+**FP16 Precision**:
+- Using production-ready `@petamoriken/float16` library
+- Little-endian byte order for browser compatibility
+- Precision loss: 0.0058% (max diff 0.00005829)
+- Far exceeds spec requirement (2-5% acceptable loss)
+- Cosine similarity impact: negligible (<0.01% on scores)
+
+**Binary Format**:
+- Embeddings: Raw FP16 values (2 bytes × 384 × chunks)
+- Chunk text: Length-prefixed (4-byte uint32 + UTF-8 bytes)
+- Manifest: JSON with metadata only (text excluded)
+
+**Cache Invalidation**:
+- Build hash computed from chunks + metadata + config (SHA-256)
+- Includes: text, IDs, metadata, chunking config, version
+- First 16 hex chars used in filenames
+- Any change → new hash → new filenames → automatic cache bust
+- Prevents false cache hits from slug/metadata/strategy changes
+
+**Artifact Organization**:
+1. `embeddings-{hash}.bin`: Binary FP16 vectors (fast load, direct use)
+2. `chunks-{hash}.bin`: Binary text (compact, fast decode)
+3. `manifest-{hash}.json`: Metadata + chunk index (human-readable)
+
+### Next Phase
+**Phase 5: Artifact Upload** (lines 438-501 in spec)
+- Upload to Vercel Blob Storage
+- Use build hash in filenames for cache invalidation
+- Set appropriate cache headers (1 year for immutable files)
+- Public access for client-side retrieval
+
+---
