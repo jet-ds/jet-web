@@ -11,10 +11,20 @@
  */
 
 // Load environment variables from .env.local
-import 'dotenv/config';
+import dotenv from 'dotenv';
+dotenv.config({ path: '.env.local' });
 
-import { discoverContent, type ContentItem } from './content-loader.js';
-import { chunkAll, type Chunk } from '../src/utils/chunking.js';
+import { discoverContent } from './content-loader.js';
+import { chunkAll } from '../src/utils/chunking.js';
+import type { ContentItem, Chunk, EmbeddingResult, ChunkMetadata } from '../src/types/chatbot.js';
+import {
+  EMBEDDING_CONFIG,
+  CHUNKING_CONFIG,
+  CACHE_CONFIG,
+  ARTIFACT_VERSION,
+  getTotalTokens,
+  getAverageTokens,
+} from '../src/types/chatbot.js';
 import { pipeline } from '@huggingface/transformers';
 import { setFloat16 } from '@petamoriken/float16';
 import { createHash } from 'crypto';
@@ -33,17 +43,6 @@ import { writeFile } from 'fs/promises';
 // ============================================================================
 
 /**
- * EmbeddingResult represents a chunk with its generated embedding vector
- *
- * Spec: docs/rag-chatbot-implementation-plan.md - Phase 3, lines 281-337
- */
-interface EmbeddingResult {
-  chunkId: string;         // Chunk ID reference
-  embedding: number[];     // 384-dim FP32 vector (L2-normalized)
-  dimensions: number;      // Always 384 for all-MiniLM-L6-v2
-}
-
-/**
  * Generates embeddings for all chunks using Transformers.js
  *
  * Model: Xenova/all-MiniLM-L6-v2 (384 dimensions)
@@ -59,25 +58,24 @@ interface EmbeddingResult {
  */
 async function generateEmbeddings(chunks: Chunk[]): Promise<EmbeddingResult[]> {
   console.log('🧠 Phase 3: Embedding Generation');
-  console.log('   Loading model: Xenova/all-MiniLM-L6-v2');
+  console.log(`   Loading model: ${EMBEDDING_CONFIG.model}`);
 
   // Load model (Node.js environment with quantization)
   const extractor = await pipeline(
     'feature-extraction',
-    'Xenova/all-MiniLM-L6-v2',
+    EMBEDDING_CONFIG.model,
     { quantized: true }
   );
 
   console.log('   ✓ Model loaded');
 
-  const batchSize = 32;
   const results: EmbeddingResult[] = [];
 
-  console.log(`   Processing ${chunks.length} chunks in batches of ${batchSize}...`);
+  console.log(`   Processing ${chunks.length} chunks in batches of ${EMBEDDING_CONFIG.batchSize}...`);
 
   // Process in batches for efficiency
-  for (let i = 0; i < chunks.length; i += batchSize) {
-    const batch = chunks.slice(i, i + batchSize);
+  for (let i = 0; i < chunks.length; i += EMBEDDING_CONFIG.batchSize) {
+    const batch = chunks.slice(i, i + EMBEDDING_CONFIG.batchSize);
     const texts = batch.map(c => c.text);
 
     // Generate embeddings with L2 normalization
@@ -89,18 +87,18 @@ async function generateEmbeddings(chunks: Chunk[]): Promise<EmbeddingResult[]> {
     // Extract Float32 arrays (model outputs FP32)
     for (let j = 0; j < batch.length; j++) {
       const embedding = Array.from(embeddings.data.slice(
-        j * 384,
-        (j + 1) * 384
-      )) as number[]; // 384 dimensions
+        j * EMBEDDING_CONFIG.dimensions,
+        (j + 1) * EMBEDDING_CONFIG.dimensions
+      )) as number[];
 
       results.push({
         chunkId: batch[j].id,
         embedding: embedding, // FP32 from model
-        dimensions: 384
+        dimensions: EMBEDDING_CONFIG.dimensions
       });
     }
 
-    console.log(`   Processed ${Math.min(i + batchSize, chunks.length)}/${chunks.length} chunks`);
+    console.log(`   Processed ${Math.min(i + EMBEDDING_CONFIG.batchSize, chunks.length)}/${chunks.length} chunks`);
   }
 
   console.log('   ✓ All embeddings generated');
@@ -137,14 +135,7 @@ interface ArtifactManifest {
     id: string;
     parentId: string;
     tokens: number;
-    metadata: {
-      type: 'blog' | 'works';
-      title: string;
-      section?: string;
-      tags: string[];
-      url: string;
-      index: number;
-    };
+    metadata: ChunkMetadata;
     embeddingOffset: number;
   }[];
   stats: {
@@ -187,13 +178,8 @@ function computeContentHash(chunks: Chunk[]): string {
       tokens: c.tokens,
       metadata: c.metadata
     })),
-    config: {
-      targetTokens: 256,
-      maxTokens: 512,
-      minTokens: 64,
-      overlapTokens: 32
-    },
-    version: '1.0.0'
+    config: CHUNKING_CONFIG,
+    version: ARTIFACT_VERSION
   });
 
   const hash = createHash('sha256').update(hashInput).digest('hex');
@@ -221,12 +207,12 @@ function serializeEmbeddings(
 
   // Step 1: Convert FP32 to FP16 binary
   console.log('   Converting embeddings: FP32 → FP16');
-  const buffer = new ArrayBuffer(embeddings.length * 384 * 2); // 2 bytes per FP16
+  const buffer = new ArrayBuffer(embeddings.length * EMBEDDING_CONFIG.dimensions * 2); // 2 bytes per FP16
   const view = new DataView(buffer);
 
   let offset = 0;
   for (const embedding of embeddings) {
-    for (let i = 0; i < 384; i++) {
+    for (let i = 0; i < EMBEDDING_CONFIG.dimensions; i++) {
       setFloat16(view, offset, embedding.embedding[i], true); // little-endian
       offset += 2;
     }
@@ -267,13 +253,13 @@ function serializeEmbeddings(
   const buildHash = computeContentHash(chunks);
 
   const manifest: ArtifactManifest = {
-    version: '1.0.0',
+    version: ARTIFACT_VERSION,
     buildTime: new Date().toISOString(),
     buildHash,
     model: {
-      name: 'Xenova/all-MiniLM-L6-v2',
-      dimensions: 384,
-      normalization: 'l2'
+      name: EMBEDDING_CONFIG.model,
+      dimensions: EMBEDDING_CONFIG.dimensions,
+      normalization: EMBEDDING_CONFIG.normalization
     },
     storage: {
       precision: 'fp16',
@@ -285,12 +271,12 @@ function serializeEmbeddings(
       // text removed - stored separately in chunks.bin
       tokens: chunk.tokens,
       metadata: chunk.metadata,
-      embeddingOffset: idx * 384
+      embeddingOffset: idx * EMBEDDING_CONFIG.dimensions
     })),
     stats: {
       totalChunks: chunks.length,
-      totalTokens: chunks.reduce((sum, c) => sum + c.tokens, 0),
-      avgTokensPerChunk: chunks.reduce((sum, c) => sum + c.tokens, 0) / chunks.length
+      totalTokens: getTotalTokens(chunks),
+      avgTokensPerChunk: getAverageTokens(chunks)
     }
   };
 
@@ -364,7 +350,7 @@ async function uploadArtifacts(artifacts: SerializedArtifacts): Promise<Artifact
       access: 'public',
       contentType: 'application/octet-stream',
       addRandomSuffix: false,
-      cacheControlMaxAge: 31536000 // 1 year (immutable)
+      cacheControlMaxAge: CACHE_CONFIG.maxAgeSeconds // 1 year (immutable)
     }
   );
   console.log(`   ✓ Embeddings: ${embeddingsBlob.url}`);
@@ -378,7 +364,7 @@ async function uploadArtifacts(artifacts: SerializedArtifacts): Promise<Artifact
       access: 'public',
       contentType: 'application/octet-stream',
       addRandomSuffix: false,
-      cacheControlMaxAge: 31536000
+      cacheControlMaxAge: CACHE_CONFIG.maxAgeSeconds
     }
   );
   console.log(`   ✓ Chunks: ${chunksBlob.url}`);
@@ -392,7 +378,7 @@ async function uploadArtifacts(artifacts: SerializedArtifacts): Promise<Artifact
       access: 'public',
       contentType: 'application/json',
       addRandomSuffix: false,
-      cacheControlMaxAge: 31536000
+      cacheControlMaxAge: CACHE_CONFIG.maxAgeSeconds
     }
   );
   console.log(`   ✓ Manifest: ${manifestBlob.url}`);
@@ -423,7 +409,7 @@ async function uploadArtifacts(artifacts: SerializedArtifacts): Promise<Artifact
 async function main() {
   try {
     console.log('🤖 RAG Chatbot Build Pipeline');
-    console.log('   Implementation Plan v1.5 (Bulletproof)\n');
+    console.log('   Implementation Plan v1.7 (DRY Compliant)\n');
 
     // Phase 1: Content Discovery
     const contentItems = await discoverContent();
@@ -436,11 +422,16 @@ async function main() {
     const chunks = chunkAll(contentItems);
 
     console.log(`   Created ${chunks.length} chunks`);
-    console.log(`   Tokens: ${chunks.reduce((sum, c) => sum + c.tokens, 0)} total`);
-    console.log(`   Average: ${Math.round(chunks.reduce((sum, c) => sum + c.tokens, 0) / chunks.length)} tokens/chunk`);
+    console.log(`   Tokens: ${getTotalTokens(chunks)} total`);
+    console.log(`   Average: ${Math.round(getAverageTokens(chunks))} tokens/chunk`);
 
     console.log('✓ Phase 2 Complete');
     console.log(`  Total chunks: ${chunks.length}\n`);
+
+    // Validation: Check for empty chunks
+    if (chunks.length === 0) {
+      throw new Error('No chunks generated! Check content discovery and chunking logic.');
+    }
 
     // Phase 3: Embedding Generation
     const embeddings = await generateEmbeddings(chunks);
@@ -473,5 +464,3 @@ async function main() {
 if (import.meta.url === `file://${process.argv[1]}`) {
   main();
 }
-
-export { discoverContent, type ContentItem };

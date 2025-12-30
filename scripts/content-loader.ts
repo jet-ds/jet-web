@@ -22,56 +22,8 @@ import { readdir, readFile } from 'fs/promises';
 import matter from 'gray-matter';
 import path from 'path';
 import { z } from 'zod';
-
-// Define schemas inline (must match src/content/config.ts)
-const blogSchema = z.object({
-  title: z.string(),
-  description: z.string(),
-  pubDate: z.coerce.date(),
-  updatedDate: z.coerce.date().optional(),
-  author: z.string().default('Jet'),
-  tags: z.array(z.string()).default([]),
-  draft: z.boolean().default(false),
-  image: z.object({
-    url: z.string(),
-    alt: z.string(),
-  }).optional(),
-});
-
-const worksSchema = z.object({
-  title: z.string(),
-  description: z.string(),
-  type: z.enum(['research', 'project', 'other']),
-  date: z.coerce.date(),
-  tags: z.array(z.string()).default([]),
-  featured: z.boolean().default(false),
-  links: z.array(z.object({
-    label: z.string(),
-    url: z.string(),
-  })).optional(),
-  venue: z.string().optional(),
-  abstract: z.string().optional(),
-  technologies: z.array(z.string()).optional(),
-  repository: z.string().optional(),
-  demo: z.string().optional(),
-});
-
-/**
- * Content item interface (matches build script expectations)
- */
-export interface ContentItem {
-  id: string;              // "blog/welcome-to-my-blog"
-  slug: string;            // "welcome-to-my-blog"
-  type: 'blog' | 'works';  // Collection type
-  title: string;
-  content: string;         // Raw MDX body
-  metadata: {
-    tags: string[];
-    pubDate?: Date;
-    date?: Date;
-    author?: string;
-  };
-}
+import { blogSchema, worksSchema } from '../src/schemas/content.js';
+import type { ContentItem } from '../src/types/chatbot.js';
 
 /**
  * Load a single content collection from the filesystem
@@ -168,3 +120,6 @@ export async function discoverContent(): Promise<ContentItem[]> {
 
   return [...blogItems, ...worksItems];
 }
+
+// Re-export for convenience
+export type { ContentItem };

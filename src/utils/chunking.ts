@@ -1,53 +1,19 @@
 /**
  * RAG Chatbot - Phase 2: Chunking
  *
- * Based on: /docs/rag-chatbot-implementation-plan.md v1.5
+ * Based on: /docs/rag-chatbot-implementation-plan.md v1.6
  * Spec: Lines 162-277
  *
  * Implements semantic chunking by heading boundaries with overlap
  * for context continuity in RAG retrieval.
  */
 
-import type { ContentItem } from '../../scripts/build-embeddings';
+import type { ContentItem, Chunk } from '../types/chatbot.js';
+import { CHUNKING_CONFIG } from '../types/chatbot.js';
 
-// ============================================================================
-// Configuration
-// ============================================================================
-
-/**
- * Chunking parameters
- * Spec: Lines 168-176
- */
-export const CHUNKING_CONFIG = {
-  targetTokens: 256,        // Target chunk size
-  maxTokens: 512,           // Hard limit
-  minTokens: 64,            // Minimum viable chunk
-  overlapTokens: 32,        // Overlap for context continuity
-  tokenEstimator: (text: string) => Math.ceil(text.length / 4)
-} as const;
-
-// ============================================================================
-// Types
-// ============================================================================
-
-/**
- * Chunk represents a semantic unit of content for embedding
- * Spec: Lines 181-194
- */
-export interface Chunk {
-  id: string;               // "blog/welcome#intro-0"
-  parentId: string;         // "blog/welcome"
-  text: string;             // Chunk content
-  tokens: number;           // Estimated token count
-  metadata: {
-    type: 'blog' | 'works';
-    title: string;          // Post title
-    section?: string;       // Heading if available
-    tags: string[];
-    url: string;            // Canonical URL to post
-    index: number;          // Chunk index in document
-  };
-}
+// Re-export for backward compatibility
+export type { Chunk };
+export { CHUNKING_CONFIG };
 
 /**
  * Section represents a content section split by headings
@@ -73,7 +39,7 @@ interface Section {
  * @param text - Text to estimate
  * @returns Estimated token count
  */
-export function estimateTokens(text: string): number {
+function estimateTokens(text: string): number {
   return CHUNKING_CONFIG.tokenEstimator(text);
 }
 
