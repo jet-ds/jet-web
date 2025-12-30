@@ -1143,11 +1143,223 @@ https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/chatbot/test-manifest-83
 - No database queries needed
 
 ### Next Phase
-**Phase 6: Client-Side Integration** (runtime implementation)
-- Create artifact loader utility
-- FP16 → FP32 conversion for browser
+**Build Script Integration** (lines 585-608 in spec)
+- Add npm scripts for embeddings build pipeline
+- Install tsx for TypeScript execution
+- Integrate with Astro build process
+- Configure CI/CD for Vercel
+
+---
+
+## Build Script Integration (Build Pipeline)
+**Date**: 2025-12-30
+**Status**: ✅ Completed
+
+### Objective
+Integrate the build-embeddings.ts script into the npm build pipeline and configure for CI/CD deployment on Vercel. Ensure embeddings are generated before the Astro site build.
+
+### What Was Built
+
+**1. Dependency Installation**
+
+Installed `tsx` as dev dependency (4 packages):
+```bash
+npm install -D tsx
+```
+
+**Purpose**: TypeScript execution for build scripts (faster than ts-node, no compilation step needed)
+
+**2. npm Scripts**
+
+**File**: `package.json`
+
+**Scripts Added** (spec lines 587-599):
+```json
+{
+  "scripts": {
+    "dev": "astro dev",
+    "build": "npm run build:embeddings && npm run build:site",
+    "build:embeddings": "tsx scripts/build-embeddings.ts",
+    "build:site": "astro build",
+    "dev:embeddings": "tsx scripts/build-embeddings.ts && astro dev",
+    "preview": "astro preview",
+    "astro": "astro"
+  }
+}
+```
+
+**Script Descriptions**:
+
+1. **`build:embeddings`**
+   - Runs the complete build pipeline (Phases 1-5)
+   - Executes `scripts/build-embeddings.ts` using tsx
+   - Outputs:
+     - Uploads binary artifacts to Vercel Blob
+     - Generates `src/config/chatbot-artifacts.json` with URLs
+   - Requires: `BLOB_READ_WRITE_TOKEN` environment variable
+
+2. **`build:site`**
+   - Original Astro build command (unchanged)
+   - Builds static site to `dist/`
+   - Includes `chatbot-artifacts.json` in build
+
+3. **`build`** (main production build)
+   - Sequential execution: embeddings → site
+   - Ensures artifacts are generated before Astro build
+   - Used by CI/CD (Vercel)
+
+4. **`dev:embeddings`**
+   - Generates embeddings then starts dev server
+   - Useful for testing artifact changes locally
+   - Alternative to plain `npm run dev`
+
+### Integration Flow
+
+**Local Development**:
+```bash
+# Standard dev (no embedding rebuild)
+npm run dev
+
+# Dev with embedding rebuild (when content changes)
+npm run dev:embeddings
+```
+
+**Production Build**:
+```bash
+# Complete build (CI/CD)
+npm run build
+
+# Executes:
+# 1. npm run build:embeddings → uploads to Vercel Blob
+# 2. npm run build:site → builds Astro site with artifact URLs
+```
+
+### CI/CD Configuration
+
+**Vercel Build Settings** (spec lines 601-608):
+
+**Build Command**:
+```bash
+npm run build
+```
+
+**Output Directory**:
+```
+dist
+```
+
+**Environment Variables** (Vercel Project Settings):
+```
+BLOB_READ_WRITE_TOKEN=<vercel-blob-token>
+```
+
+**Build Process**:
+1. Vercel triggers build on git push
+2. `npm run build` executes
+3. `build:embeddings` uploads artifacts to Vercel Blob
+4. `build:site` builds Astro site
+5. Vercel deploys `dist/` to edge network
+6. Artifacts accessible via public URLs (CDN-cached)
+
+### Test Results
+
+**Local Build Test**:
+```bash
+$ npm run build
+
+> build:embeddings
+🚀 RAG Chatbot - Build Pipeline
+📁 Phase 1: Content Discovery
+   Found 4 entries (3 blog, 1 works)
+✂️  Phase 2: Semantic Chunking
+   Created 9 chunks
+🧠 Phase 3: Embedding Generation
+   Generated 9 embeddings
+📦 Phase 4: Serialization
+   Total size: 13.7 KB
+☁️  Phase 5: Artifact Upload
+   ✓ Uploaded 3 artifacts
+   Config: src/config/chatbot-artifacts.json
+✅ Build complete!
+
+> build:site
+astro build
+...
+Build complete!
+```
+
+**Quality Checks**:
+- ✅ Sequential execution (embeddings before site)
+- ✅ tsx executes TypeScript without compilation
+- ✅ Artifact URLs written to config before Astro build
+- ✅ Build fails if BLOB_READ_WRITE_TOKEN missing
+- ✅ Standard npm script conventions followed
+
+### Dependencies
+
+**Production**:
+- `@huggingface/transformers@^3.8.1` (embedding generation)
+- `@petamoriken/float16@^3.9.3` (FP16 conversion)
+- `@vercel/blob@^2.0.0` (artifact upload)
+
+**Development**:
+- `tsx@^4.21.0` (TypeScript execution)
+
+### File Structure
+
+**Generated Files** (gitignored):
+```
+src/config/chatbot-artifacts.json  # Artifact URLs (build-specific)
+.env.local                          # BLOB_READ_WRITE_TOKEN (local only)
+```
+
+**Build Script**:
+```
+scripts/build-embeddings.ts         # Complete pipeline (1154 lines)
+```
+
+### Environment Setup
+
+**Local Development**:
+1. Create `.env.local`:
+   ```
+   BLOB_READ_WRITE_TOKEN=vercel_blob_rw_...
+   ```
+2. Run `npm run dev:embeddings` (first time or after content changes)
+3. Run `npm run dev` (standard development)
+
+**Production (Vercel)**:
+1. Set environment variable in Vercel project settings
+2. Build command: `npm run build`
+3. Automatic deployment on git push
+
+### Technical Notes
+
+**Why tsx?**:
+- No compilation step (faster than tsc + node)
+- ESM support out of the box
+- Supports latest TypeScript features
+- Smaller and faster than ts-node
+
+**Build Order**:
+- Embeddings MUST run before site build
+- Ensures `chatbot-artifacts.json` exists for Astro build
+- Sequential execution via `&&` operator
+
+**Error Handling**:
+- Missing token → Build fails early (Phase 5)
+- Upload errors → Build fails (prevents broken deployment)
+- Content validation errors → Build fails (Phases 1-2)
+
+### Next Steps
+
+**Build Pipeline**: ✅ Complete (all phases 1-5 + integration)
+
+**Next High-Level Phase**: Runtime Phase 1 (Week 2)
+- Lazy loading infrastructure
+- FP16 → FP32 conversion in browser
 - Chunk text deserialization
-- Embedding search implementation
+- Artifact loader utility
 - Integration with chat UI
 
 ---
