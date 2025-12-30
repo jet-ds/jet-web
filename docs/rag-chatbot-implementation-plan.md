@@ -3,7 +3,7 @@
 **Status**: Implementation Ready (Revised)
 **Date**: December 2025
 **Project**: jet-web (Astro Personal Website)
-**Specification Version**: 1.5 (final correction pass - bulletproof)
+**Specification Version**: 1.6 (filesystem architecture correction)
 
 > **Primary Reference**: This plan implements the architecture defined in `docs/rag-chatbot-architecture.md` with explicit architectural constraints and implementation details.
 
@@ -124,9 +124,9 @@
 
 ### Phase 1: Content Discovery
 
-**Location**: `scripts/build-embeddings.ts`
+**Location**: `scripts/content-loader.ts` (filesystem-based)
 
-**Input**: Astro Content Collections
+**Input**: MDX files from `src/content/{blog,works}/`
 **Output**: Array of `ContentItem[]`
 
 ```typescript
@@ -145,12 +145,20 @@ interface ContentItem {
 }
 ```
 
+**Architecture Note**:
+Uses filesystem reading with `gray-matter` instead of `getCollection()` from `astro:content`. This is necessary because `astro:content` is a Vite virtual module only available within Astro's build context, not in standalone Node.js scripts.
+
+**Dependencies**:
+- `gray-matter` - Frontmatter parsing
+- `zod` - Schema validation (reuses schemas from `src/content/config.ts`)
+
 **Process**:
-1. Load all collections: `getCollection('blog')`, `getCollection('works')`
-2. Filter out drafts: `filter(item => !item.data.draft)`
-3. Render to extract body: `await item.render()`
-4. Strip MDX components, keep prose
-5. Normalize whitespace
+1. Read MDX files from `src/content/blog/` and `src/content/works/` using `fs.readdir()`
+2. Parse frontmatter with `gray-matter` (extracts YAML frontmatter + body content)
+3. Validate frontmatter against collection schemas (same Zod schemas as Astro uses)
+4. Filter out drafts: `data.draft === true`
+5. Extract raw body content (prose + markdown)
+6. Return normalized `ContentItem[]` array
 
 **Exclusions**:
 - Posts with `draft: true`
@@ -3140,6 +3148,16 @@ export interface ChatResponse {
 
 ## Document Change Log
 
+**Version 1.6** (Filesystem Architecture Correction)
+- **Content Discovery**: Refactored Phase 1 to use filesystem reading instead of `getCollection()`
+- **Root Cause**: `astro:content` is a Vite virtual module only available in Astro's build context
+- **Solution**: Direct file reading with `fs.readdir()` + `gray-matter` for frontmatter parsing
+- **Validation**: Reuse Zod schemas from `src/content/config.ts` for consistency
+- **Dependencies Added**: `gray-matter` (frontmatter parsing), `dotenv` (env file loading)
+- **Location**: New file `scripts/content-loader.ts` handles content discovery
+- **Benefits**: Standalone script execution, simpler architecture, portable across build tools
+- **Trade-offs**: Manual schema sync required, no automatic type generation
+
 **Version 1.5** (Final Correction Pass - Bulletproof)
 - **ESM/TypeScript**: Moved `import artifactConfig` to module scope (not inside functions)
 - **Cache Validation**: Fixed version access to use `cached.manifest.version` (not `cached.version`)
@@ -3194,9 +3212,9 @@ export interface ChatResponse {
 
 ---
 
-**Document Status**: ✅ Ready for Implementation (v1.5 - Bulletproof)
+**Document Status**: ✅ Ready for Implementation (v1.6 - Filesystem Architecture)
 
-This implementation plan is a complete, rigorous specification that can be used to build the database-less RAG chatbot system. All architectural constraints have been addressed, **critical technical corrections incorporated (v1.1)**, **consistency passes completed (v1.2, v1.3)**, **correction passes completed (v1.4, v1.5)**, and **exhaustively verified for internal consistency**.
+This implementation plan is a complete, rigorous specification that can be used to build the database-less RAG chatbot system. All architectural constraints have been addressed, **critical technical corrections incorporated (v1.1)**, **consistency passes completed (v1.2, v1.3)**, **correction passes completed (v1.4, v1.5)**, **architecture corrected for standalone execution (v1.6)**, and **exhaustively verified for internal consistency**.
 
 **All Fixes Implemented**:
 1. ✅ RRF fusion correctly unions semantic + BM25 candidates
