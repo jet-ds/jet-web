@@ -64,7 +64,7 @@ async function generateEmbeddings(chunks: Chunk[]): Promise<EmbeddingResult[]> {
   const extractor = await pipeline(
     'feature-extraction',
     EMBEDDING_CONFIG.model,
-    { quantized: true }
+    { dtype: 'q8' } // Use quantized model for faster inference (v3.x API)
   );
 
   console.log('   ✓ Model loaded');

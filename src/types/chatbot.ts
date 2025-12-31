@@ -131,3 +131,131 @@ export function getAverageTokens(chunks: Chunk[]): number {
   if (chunks.length === 0) return 0;
   return Math.round(getTotalTokens(chunks) / chunks.length);
 }
+
+// ============================================================================
+// Runtime Types - Phase 2: Lazy Loading Infrastructure
+// ============================================================================
+
+/**
+ * ChatbotState represents the lifecycle state of the chatbot
+ */
+export type ChatbotState =
+  | 'uninitialized'  // Default state before activation
+  | 'initializing'   // Loading resources
+  | 'ready'          // Ready for queries
+  | 'processing'     // Handling a query
+  | 'error';         // Fatal error occurred
+
+/**
+ * InitializationSubstate tracks progress during initialization
+ */
+export type InitializationSubstate =
+  | 'checking-cache'      // Check IndexedDB for cached resources
+  | 'loading-model'       // Download/load embedding model
+  | 'fetching-artifacts'  // Fetch embeddings.bin + manifest.json + chunks.bin
+  | 'initializing-search' // Set up MiniSearch index
+  | 'spawning-worker'     // Initialize Web Worker
+  | 'complete';           // Ready for queries
+
+/**
+ * Message represents a chat message (user or assistant)
+ */
+export interface Message {
+  id: string;
+  role: 'user' | 'assistant';
+  content: string;
+  timestamp: number;
+  sources?: Array<{
+    title: string;
+    url: string;
+    section?: string;
+  }>;
+}
+
+/**
+ * ArtifactManifest metadata structure (runtime version)
+ */
+export interface ArtifactManifest {
+  version: string;
+  buildTime: string;
+  buildHash: string;
+  model: {
+    name: string;
+    dimensions: number;
+    normalization: string;
+  };
+  storage: {
+    precision: string;
+    accumulationPrecision: string;
+  };
+  chunks: Array<{
+    id: string;
+    parentId: string;
+    tokens: number;
+    metadata: ChunkMetadata;
+    embeddingOffset: number;
+  }>;
+  stats: {
+    totalChunks: number;
+    totalTokens: number;
+    avgTokensPerChunk: number;
+  };
+}
+
+/**
+ * ArtifactConfig points to Vercel Blob URLs for artifacts
+ */
+export interface ArtifactConfig {
+  embeddingsUrl: string;
+  chunksUrl: string;
+  manifestUrl: string;
+  version: string;
+  buildHash: string;
+}
+
+/**
+ * CachedResources represents resources stored in IndexedDB
+ */
+export interface CachedResources {
+  model: {
+    timestamp: number;
+    available: boolean;
+  };
+  artifacts: {
+    buildHash: string;
+    timestamp: number;
+    embeddings: ArrayBuffer;
+    manifest: ArtifactManifest;
+    chunks: string[]; // Parsed from binary chunks.bin
+  } | null;
+}
+
+/**
+ * ChatbotDB schema for IndexedDB
+ */
+export interface ChatbotDB {
+  artifacts: {
+    key: string;
+    value: {
+      buildHash: string;
+      timestamp: number;
+      embeddings: ArrayBuffer;
+      manifest: ArtifactManifest;
+      chunks: string[];
+    };
+  };
+}
+
+/**
+ * ChatbotError for error handling
+ */
+export class ChatbotError extends Error {
+  constructor(
+    message: string,
+    public code: string,
+    public recoverable: boolean = false
+  ) {
+    super(message);
+    this.name = 'ChatbotError';
+  }
+}
