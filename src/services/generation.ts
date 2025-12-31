@@ -13,6 +13,8 @@
 
 import { retrieve, type RetrievedChunk } from './retrieval';
 import type { ChatbotState } from '../types/chatbot';
+import { ChatbotError } from '../types/chatbot';
+import { retryWithBackoff, RETRY_CONFIGS } from '../utils/retry';
 
 /**
  * Generation result with sources
@@ -89,10 +91,27 @@ export async function retrieveAndGenerate(
 
   // 1. Retrieve relevant chunks
   onStateChange?.('retrieving');
-  const chunks = await retrieve(context, query, maxTokens);
 
-  if (chunks.length === 0) {
-    throw new Error('No relevant content found for your query');
+  let chunks;
+  try {
+    chunks = await retrieve(context, query, maxTokens);
+
+    if (chunks.length === 0) {
+      throw new ChatbotError(
+        'retrieval-failed',
+        'No relevant content found for your query',
+        false
+      );
+    }
+  } catch (error) {
+    if (error instanceof ChatbotError) {
+      throw error;
+    }
+    throw new ChatbotError(
+      'retrieval-failed',
+      error instanceof Error ? error.message : 'Search failed',
+      true // Recoverable with retry
+    );
   }
 
   // 2. Format context
@@ -106,24 +125,43 @@ export async function retrieveAndGenerate(
     section: chunk.section,
   }));
 
-  // 4. Call /api/chat with streaming
+  // 4. Call /api/chat with streaming (with retry)
   onStateChange?.('generating');
 
-  const response = await fetch('/api/chat', {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-    },
-    body: JSON.stringify({
-      query,
-      context: formattedContext,
-    }),
-  });
+  const response = await retryWithBackoff(async () => {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        query,
+        context: formattedContext,
+      }),
+    });
 
-  if (!response.ok) {
-    const error = await response.text();
-    throw new Error(`API error (${response.status}): ${error}`);
-  }
+    if (!res.ok) {
+      const error = await res.text();
+
+      // Handle rate limiting
+      if (res.status === 429) {
+        throw new ChatbotError(
+          'rate-limited',
+          'Too many requests. Please wait a moment.',
+          false
+        );
+      }
+
+      // Handle other API errors as recoverable
+      throw new ChatbotError(
+        'api-error',
+        `API error (${res.status}): ${error}`,
+        true // Recoverable with retry
+      );
+    }
+
+    return res;
+  }, RETRY_CONFIGS.apiCall);
 
   // 5. Stream response
   onStateChange?.('streaming');

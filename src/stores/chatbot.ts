@@ -14,6 +14,7 @@ import type {
   InitializationSubstate,
   Message,
   ArtifactManifest,
+  ChatbotError,
 } from '../types/chatbot';
 
 /**
@@ -34,7 +35,7 @@ interface ChatbotStore {
   messages: Message[];
 
   /** Current error (if any) */
-  error: Error | null;
+  error: ChatbotError | null;
 
   // ==================== Resources ====================
   /** Transformers.js embedding model (lazy-loaded) */
@@ -61,7 +62,7 @@ interface ChatbotStore {
   setInitProgress: (substate: InitializationSubstate, progress: number) => void;
 
   /** Set error state */
-  setError: (error: Error | null) => void;
+  setError: (error: ChatbotError | null) => void;
 
   /** Add a message to the conversation */
   addMessage: (message: Message) => void;

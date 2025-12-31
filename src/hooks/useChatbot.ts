@@ -15,6 +15,7 @@ import { useCallback } from 'react';
 import { useChatbotStore } from '../stores/chatbot';
 import { initializeChatbot } from '../services/initialization';
 import { retrieveAndGenerate } from '../services/generation';
+import { ChatbotError, ERROR_MESSAGES } from '../types/chatbot';
 
 /**
  * useChatbot - Main chatbot hook
@@ -72,8 +73,18 @@ export function useChatbot() {
       setResources(resources);
       setState('ready');
     } catch (err) {
-      const error = err instanceof Error ? err : new Error('Initialization failed');
-      console.error('[useChatbot] Initialization error:', error);
+      console.error('[useChatbot] Initialization error:', err);
+
+      // Convert to ChatbotError if needed
+      const error =
+        err instanceof ChatbotError
+          ? err
+          : new ChatbotError(
+              'unknown',
+              err instanceof Error ? err.message : 'Initialization failed',
+              false
+            );
+
       setError(error);
     }
   }, [setState, setError, setInitProgress, setResources]);
@@ -154,15 +165,26 @@ export function useChatbot() {
         // Set back to ready
         setState('ready');
       } catch (err) {
-        const error = err instanceof Error ? err : new Error('Message sending failed');
-        setError(error);
-        console.error('[useChatbot] Send message error:', error);
+        console.error('[useChatbot] Send message error:', err);
 
-        // Add error message to conversation
+        // Convert to ChatbotError if needed
+        const error =
+          err instanceof ChatbotError
+            ? err
+            : new ChatbotError(
+                'unknown',
+                err instanceof Error ? err.message : 'Message sending failed',
+                false
+              );
+
+        setError(error);
+
+        // Add user-friendly error message to conversation
+        const userMessage = ERROR_MESSAGES[error.type] || error.message;
         addMessage({
           id: `error-${Date.now()}`,
           role: 'assistant',
-          content: `Sorry, I encountered an error: ${error.message}`,
+          content: `Sorry, I encountered an error: ${userMessage}`,
           timestamp: Date.now(),
         });
 

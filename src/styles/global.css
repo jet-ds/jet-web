@@ -61,3 +61,15 @@
     @apply border-b border-border dark:border-border-dark;
   }
 }
+
+@layer utilities {
+  /* Loading animations */
+  @keyframes shimmer {
+    0% {
+      transform: translateX(-100%);
+    }
+    100% {
+      transform: translateX(100%);
+    }
+  }
+}

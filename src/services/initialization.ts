@@ -16,8 +16,9 @@
 
 import MiniSearch from 'minisearch';
 import type { InitializationSubstate, ArtifactManifest } from '../types/chatbot';
-import { EMBEDDING_CONFIG } from '../types/chatbot';
+import { EMBEDDING_CONFIG, ChatbotError } from '../types/chatbot';
 import { checkCache, fetchArtifacts } from '../utils/artifact-loader';
+import { retryWithBackoff, RETRY_CONFIGS } from '../utils/retry';
 
 /**
  * Progress callback type for initialization updates
@@ -56,25 +57,34 @@ export interface InitializationResult {
  * @returns Transformers.js feature-extraction pipeline
  */
 async function loadModel(onProgress: (progress: number) => void): Promise<any> {
-  const { pipeline } = await import('@huggingface/transformers');
+  try {
+    const { pipeline } = await import('@huggingface/transformers');
 
-  console.log('[Init] Loading embedding model:', EMBEDDING_CONFIG.model);
+    console.log('[Init] Loading embedding model:', EMBEDDING_CONFIG.model);
 
-  const extractor = await pipeline(
-    'feature-extraction',
-    EMBEDDING_CONFIG.model,
-    {
-      dtype: 'q8', // Use quantized model for faster inference (v3.x API)
-      progress_callback: (progressData: any) => {
-        // Report download progress (0-100)
-        const progress = (progressData.progress || 0) * 100;
-        onProgress(progress);
-      },
-    }
-  );
+    const extractor = await pipeline(
+      'feature-extraction',
+      EMBEDDING_CONFIG.model,
+      {
+        dtype: 'q8', // Use quantized model for faster inference (v3.x API)
+        progress_callback: (progressData: any) => {
+          // Report download progress (0-100)
+          const progress = (progressData.progress || 0) * 100;
+          onProgress(progress);
+        },
+      }
+    );
 
-  console.log('[Init] ✓ Model loaded');
-  return extractor;
+    console.log('[Init] ✓ Model loaded');
+    return extractor;
+  } catch (error) {
+    console.error('[Init] Model load failed:', error);
+    throw new ChatbotError(
+      'model-load-failed',
+      error instanceof Error ? error.message : 'Failed to load embedding model',
+      true // Recoverable with retry
+    );
+  }
 }
 
 // ============================================================================
@@ -177,33 +187,43 @@ async function spawnWorker(
   );
 
   // Wait for worker ready signal
-  await new Promise<void>((resolve, reject) => {
-    const timeout = setTimeout(() => {
-      reject(new Error('Worker initialization timeout'));
-    }, 30000); // 30s timeout for deserialization
+  try {
+    await new Promise<void>((resolve, reject) => {
+      const timeout = setTimeout(() => {
+        reject(new Error('Worker initialization timeout'));
+      }, 30000); // 30s timeout for deserialization
 
-    const messageHandler = (e: MessageEvent) => {
-      if (e.data.type === 'ready') {
+      const messageHandler = (e: MessageEvent) => {
+        if (e.data.type === 'ready') {
+          clearTimeout(timeout);
+          worker.removeEventListener('message', messageHandler);
+          worker.removeEventListener('error', errorHandler);
+          resolve();
+        }
+      };
+
+      const errorHandler = (e: ErrorEvent) => {
         clearTimeout(timeout);
         worker.removeEventListener('message', messageHandler);
         worker.removeEventListener('error', errorHandler);
-        resolve();
-      }
-    };
+        reject(new Error(`Worker error: ${e.message}`));
+      };
 
-    const errorHandler = (e: ErrorEvent) => {
-      clearTimeout(timeout);
-      worker.removeEventListener('message', messageHandler);
-      worker.removeEventListener('error', errorHandler);
-      reject(new Error(`Worker error: ${e.message}`));
-    };
+      worker.addEventListener('message', messageHandler);
+      worker.addEventListener('error', errorHandler);
+    });
 
-    worker.addEventListener('message', messageHandler);
-    worker.addEventListener('error', errorHandler);
-  });
-
-  console.log('[Init] ✓ Worker ready');
-  return worker;
+    console.log('[Init] ✓ Worker ready');
+    return worker;
+  } catch (error) {
+    console.error('[Init] Worker spawn failed:', error);
+    worker.terminate(); // Clean up failed worker
+    throw new ChatbotError(
+      'worker-spawn-failed',
+      error instanceof Error ? error.message : 'Failed to initialize worker',
+      true // Recoverable with retry
+    );
+  }
 }
 
 // ============================================================================
@@ -235,15 +255,22 @@ export async function initializeChatbot(
 
     // ==================== Sub-Phase 2: Load Model ====================
     onProgress('loading-model', 10);
-    const model = await loadModel((modelProgress) => {
-      // Map model progress (0-100) to overall progress (10-40%)
-      const overallProgress = 10 + (modelProgress * 0.3);
-      onProgress('loading-model', overallProgress);
-    });
+    const model = await retryWithBackoff(
+      () =>
+        loadModel((modelProgress) => {
+          // Map model progress (0-100) to overall progress (10-40%)
+          const overallProgress = 10 + (modelProgress * 0.3);
+          onProgress('loading-model', overallProgress);
+        }),
+      RETRY_CONFIGS.modelLoad
+    );
 
     // ==================== Sub-Phase 3: Fetch Artifacts ====================
     onProgress('fetching-artifacts', 40);
-    const artifacts = await fetchArtifacts(cache?.artifacts || undefined);
+    const artifacts = await retryWithBackoff(
+      () => fetchArtifacts(cache?.artifacts || undefined),
+      RETRY_CONFIGS.artifactFetch
+    );
 
     // ==================== Sub-Phase 4: Initialize Search ====================
     onProgress('initializing-search', 70);

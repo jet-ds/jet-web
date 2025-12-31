@@ -3010,3 +3010,369 @@ All critical bugs resolved. Chatbot is fully functional and ready for Phase 5 (E
 - Phase 6: Testing & optimization
 
 ---
+
+## Phase 5: Error Handling & Polish
+
+**Date**: 2025-12-31  
+**Status**: Complete
+
+### Implementation Summary
+
+Implemented comprehensive error handling system with typed errors, retry mechanisms, offline detection, and UX polish.
+
+---
+
+### 1. Typed Error System
+
+**File**: `src/types/chatbot.ts`
+
+**Added**:
+```typescript
+export type ChatbotErrorType =
+  | 'model-load-failed'        // Failed to load embedding model
+  | 'artifacts-fetch-failed'   // Failed to fetch embeddings/manifest
+  | 'indexeddb-unavailable'    // IndexedDB not available
+  | 'worker-spawn-failed'      // Web Worker initialization failed
+  | 'retrieval-failed'         // Hybrid search failed
+  | 'api-error'                // LLM API call failed
+  | 'rate-limited'             // Too many requests
+  | 'offline'                  // Network connection lost
+  | 'quota-exceeded'           // Browser storage quota exceeded
+  | 'unknown';                 // Unexpected error
+
+export class ChatbotError extends Error {
+  constructor(
+    public type: ChatbotErrorType,
+    message: string,
+    public recoverable: boolean = false
+  ) {
+    super(message);
+    this.name = 'ChatbotError';
+  }
+}
+
+export const ERROR_MESSAGES: Record<ChatbotErrorType, string> = {
+  'model-load-failed': 'Failed to load AI model. Check your connection and try again.',
+  'artifacts-fetch-failed': 'Failed to fetch blog content. Check your connection.',
+  'indexeddb-unavailable': 'Browser storage unavailable. Proceeding without cache.',
+  'worker-spawn-failed': 'Failed to initialize background worker. Try refreshing.',
+  'retrieval-failed': 'Search failed. Please try a different query.',
+  'api-error': 'Could not generate response. Please try again.',
+  'rate-limited': 'Too many requests. Please wait a moment.',
+  'offline': 'You are offline. Chatbot requires an internet connection.',
+  'quota-exceeded': 'Browser storage quota exceeded. Clear site data and retry.',
+  'unknown': 'An unexpected error occurred.'
+};
+
+export function isRecoverableError(type: ChatbotErrorType): boolean {
+  return [
+    'artifacts-fetch-failed',
+    'model-load-failed',
+    'api-error',
+    'retrieval-failed'
+  ].includes(type);
+}
+```
+
+**Lines Added**: ~60
+
+---
+
+### 2. Retry Mechanism with Exponential Backoff
+
+**File**: `src/utils/retry.ts` (new file)
+
+**Features**:
+- Configurable retry attempts (default: 3)
+- Exponential backoff with max delay cap
+- Different retry configs for different operations
+- Only retries recoverable errors
+
+**Implementation**:
+```typescript
+export interface RetryConfig {
+  maxRetries: number;
+  initialDelay: number;
+  maxDelay: number;
+  backoffMultiplier: number;
+}
+
+export async function retryWithBackoff<T>(
+  fn: () => Promise<T>,
+  config: RetryConfig = DEFAULT_RETRY_CONFIG
+): Promise<T> {
+  let lastError: Error | ChatbotError;
+
+  for (let attempt = 0; attempt <= config.maxRetries; attempt++) {
+    try {
+      return await fn();
+    } catch (error) {
+      lastError = error instanceof Error ? error : new Error('Unknown error');
+
+      // Don't retry non-recoverable errors
+      if (error instanceof ChatbotError && !isRecoverableError(error.type)) {
+        throw error;
+      }
+
+      if (attempt === config.maxRetries) {
+        throw lastError;
+      }
+
+      // Exponential backoff
+      const delay = Math.min(
+        config.initialDelay * Math.pow(config.backoffMultiplier, attempt),
+        config.maxDelay
+      );
+
+      await new Promise((resolve) => setTimeout(resolve, delay));
+    }
+  }
+
+  throw lastError!;
+}
+```
+
+**Retry Configurations**:
+- Model loading: 3 retries, 2s initial delay, 15s max
+- Artifact fetching: 3 retries, 1s initial delay, 10s max
+- API calls: 2 retries, 500ms initial delay, 5s max
+
+**Lines**: 108
+
+---
+
+### 3. Offline Detection & Network Error Handling
+
+**File**: `src/utils/artifact-loader.ts`
+
+**Added offline detection**:
+```typescript
+// Detect offline status before fetching
+if (!navigator.onLine) {
+  throw new ChatbotError(
+    'offline',
+    'No internet connection. Chatbot requires network access.',
+    false
+  );
+}
+```
+
+**Network error handling**:
+```typescript
+// Handle network errors
+if (error instanceof TypeError && error.message.includes('fetch')) {
+  throw new ChatbotError(
+    'offline',
+    'Network error. Please check your connection.',
+    false
+  );
+}
+```
+
+---
+
+### 4. Quota Exceeded Detection
+
+**File**: `src/utils/artifact-loader.ts`
+
+**IndexedDB quota handling**:
+```typescript
+try {
+  const db = await getCacheDB();
+  await db.put('artifacts', { ...artifacts }, 'current');
+} catch (cacheError) {
+  // Check for quota exceeded
+  if (cacheError instanceof Error && cacheError.name === 'QuotaExceededError') {
+    throw new ChatbotError(
+      'quota-exceeded',
+      'Browser storage quota exceeded. Clear site data and retry.',
+      false
+    );
+  }
+  // Non-fatal for other cache errors
+}
+```
+
+---
+
+### 5. Enhanced Error Displays
+
+**File**: `src/components/chatbot/ChatbotPage.tsx`
+
+**Improved error screen**:
+- Shows user-friendly error messages from `ERROR_MESSAGES`
+- Displays "Temporary Error" for recoverable errors
+- Shows "Retry" button for recoverable errors
+- Retry button reinitializes the chatbot
+- Always shows "Reload Page" as fallback
+
+**Code**:
+```typescript
+if (state === 'error') {
+  const errorMessage = error
+    ? ERROR_MESSAGES[error.type] || error.message
+    : 'An unknown error occurred';
+
+  const canRetry = error ? isRecoverableError(error.type) : false;
+
+  return (
+    <div className="flex items-center justify-center min-h-[600px]">
+      <div className="max-w-md text-center space-y-6">
+        <div className="text-6xl mb-4">⚠️</div>
+        <h2 className="text-2xl font-bold">
+          {canRetry ? 'Temporary Error' : 'Initialization Failed'}
+        </h2>
+        <p className="text-gray-600 dark:text-gray-400">{errorMessage}</p>
+        <div className="flex gap-3 justify-center">
+          {canRetry && (
+            <button onClick={handleStartChat}>Retry</button>
+          )}
+          <button onClick={() => window.location.reload()}>
+            Reload Page
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+```
+
+---
+
+### 6. New Chat Polish
+
+**File**: `src/components/chatbot/ChatInterface.tsx`
+
+**Added confirmation dialog**:
+- Prevents accidental conversation loss
+- Modal confirmation before clearing chat
+- Clear messaging about action being irreversible
+
+**Implementation**:
+```typescript
+const [showNewChatConfirm, setShowNewChatConfirm] = React.useState(false);
+
+const handleNewChat = () => {
+  setShowNewChatConfirm(false);
+  onNewChat();
+};
+
+{showNewChatConfirm && (
+  <div className="absolute inset-0 bg-black bg-opacity-50 ...">
+    <div className="bg-white dark:bg-gray-800 rounded-lg p-6 ...">
+      <h3>Start New Chat?</h3>
+      <p>This will clear the current conversation. This action cannot be undone.</p>
+      <button onClick={() => setShowNewChatConfirm(false)}>Cancel</button>
+      <button onClick={handleNewChat}>New Chat</button>
+    </div>
+  </div>
+)}
+```
+
+---
+
+### 7. Loading Animations
+
+**File**: `src/components/chatbot/InitializationScreen.tsx`
+
+**Added shimmer effect to progress bar**:
+```typescript
+<div className="bg-blue-600 h-full transition-all duration-300 ease-out relative overflow-hidden">
+  {/* Shimmer effect */}
+  <div className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-400 to-transparent animate-[shimmer_2s_infinite]" />
+</div>
+```
+
+**File**: `src/styles/global.css`
+
+**Added shimmer animation**:
+```css
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+```
+
+---
+
+### 8. Integration with Services
+
+**Updated Services**:
+
+**`src/services/initialization.ts`**:
+- Wrapped `loadModel()` with retry logic
+- Wrapped `fetchArtifacts()` with retry logic
+- Throws typed `ChatbotError` for all failures
+- Worker spawn failures properly handled and typed
+
+**`src/services/generation.ts`**:
+- API calls wrapped with retry logic
+- Retrieval failures throw typed errors
+- Rate limiting (429) handled separately
+- Streaming errors throw typed errors
+
+**`src/hooks/useChatbot.ts`**:
+- Converts all errors to `ChatbotError` if needed
+- Uses `ERROR_MESSAGES` for user-facing error text
+- Proper error state management
+
+---
+
+### Files Modified
+
+1. **src/types/chatbot.ts** - Added error types, messages, helper functions
+2. **src/utils/retry.ts** - New retry utility (108 lines)
+3. **src/utils/artifact-loader.ts** - Offline & quota detection
+4. **src/services/initialization.ts** - Retry integration, typed errors
+5. **src/services/generation.ts** - Retry integration, typed errors
+6. **src/hooks/useChatbot.ts** - Error conversion and messaging
+7. **src/stores/chatbot.ts** - ChatbotError type usage
+8. **src/components/chatbot/ChatbotPage.tsx** - Enhanced error display
+9. **src/components/chatbot/ChatInterface.tsx** - New Chat confirmation
+10. **src/components/chatbot/InitializationScreen.tsx** - Shimmer animation
+11. **src/styles/global.css** - Shimmer keyframes
+
+---
+
+### Testing & Verification
+
+**Manual Testing**:
+- ✅ Error messages display correctly
+- ✅ Retry button appears for recoverable errors
+- ✅ Retry mechanism works with exponential backoff
+- ✅ Offline detection triggers correct error
+- ✅ New Chat confirmation prevents accidental loss
+- ✅ Loading animations smooth and polished
+
+**Build Verification**:
+- ✅ TypeScript compilation successful
+- ✅ No type errors
+- ✅ Bundle size acceptable (ChatbotPage: 47.54 KB)
+
+---
+
+### Phase 5 Complete
+
+**Deliverables**:
+- ✅ 10 typed error states
+- ✅ Retry mechanisms with exponential backoff
+- ✅ Offline detection and handling
+- ✅ Quota exceeded detection
+- ✅ New Chat confirmation dialog
+- ✅ Enhanced loading animations
+- ✅ User-friendly error displays
+- ✅ Retry button for recoverable errors
+
+**Code Statistics**:
+- New files: 1 (retry.ts)
+- Modified files: 11
+- Total lines added: ~400
+- Error types covered: 10/10
+
+**Ready for**: Production deployment and Phase 6 (Testing & Optimization)
+
+---

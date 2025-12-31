@@ -249,15 +249,58 @@ export interface ChatbotDB {
 }
 
 /**
- * ChatbotError for error handling
+ * ChatbotErrorType - All possible error types in the system
+ */
+export type ChatbotErrorType =
+  | 'model-load-failed'        // Failed to load embedding model
+  | 'artifacts-fetch-failed'   // Failed to fetch embeddings/manifest from Vercel Blob
+  | 'indexeddb-unavailable'    // IndexedDB not available (private browsing, etc.)
+  | 'worker-spawn-failed'      // Web Worker initialization failed
+  | 'retrieval-failed'         // Hybrid search failed
+  | 'api-error'                // LLM API call failed
+  | 'rate-limited'             // Too many requests
+  | 'offline'                  // Network connection lost
+  | 'quota-exceeded'           // Browser storage quota exceeded
+  | 'unknown';                 // Unexpected error
+
+/**
+ * ChatbotError for typed error handling
  */
 export class ChatbotError extends Error {
   constructor(
+    public type: ChatbotErrorType,
     message: string,
-    public code: string,
     public recoverable: boolean = false
   ) {
     super(message);
     this.name = 'ChatbotError';
   }
+}
+
+/**
+ * User-friendly error messages for each error type
+ */
+export const ERROR_MESSAGES: Record<ChatbotErrorType, string> = {
+  'model-load-failed': 'Failed to load AI model. Check your connection and try again.',
+  'artifacts-fetch-failed': 'Failed to fetch blog content. Check your connection.',
+  'indexeddb-unavailable': 'Browser storage unavailable. Proceeding without cache.',
+  'worker-spawn-failed': 'Failed to initialize background worker. Try refreshing.',
+  'retrieval-failed': 'Search failed. Please try a different query.',
+  'api-error': 'Could not generate response. Please try again.',
+  'rate-limited': 'Too many requests. Please wait a moment.',
+  'offline': 'You are offline. Chatbot requires an internet connection.',
+  'quota-exceeded': 'Browser storage quota exceeded. Clear site data and retry.',
+  'unknown': 'An unexpected error occurred.'
+};
+
+/**
+ * Determines if an error type is recoverable with retry
+ */
+export function isRecoverableError(type: ChatbotErrorType): boolean {
+  return [
+    'artifacts-fetch-failed',
+    'model-load-failed',
+    'api-error',
+    'retrieval-failed'
+  ].includes(type);
 }

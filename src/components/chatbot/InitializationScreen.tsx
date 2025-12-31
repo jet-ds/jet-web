@@ -64,11 +64,14 @@ export function InitializationScreen({
         </div>
 
         {/* Progress Bar */}
-        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-4 overflow-hidden">
+        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-4 overflow-hidden relative">
           <div
-            className="bg-blue-600 h-full transition-all duration-300 ease-out"
+            className="bg-blue-600 h-full transition-all duration-300 ease-out relative overflow-hidden"
             style={{ width: `${Math.min(progress, 100)}%` }}
-          />
+          >
+            {/* Shimmer effect */}
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-400 to-transparent animate-[shimmer_2s_infinite]" />
+          </div>
         </div>
 
         {/* Progress Percentage */}

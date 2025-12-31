@@ -21,8 +21,8 @@ import type {
   ArtifactConfig,
   CachedResources,
   ChatbotDB,
-  ChatbotError,
 } from '../types/chatbot';
+import { ChatbotError } from '../types/chatbot';
 
 // Import bundled artifact config (generated at build time)
 import artifactConfig from '../config/chatbot-artifacts.json';
@@ -195,69 +195,111 @@ export async function fetchArtifacts(
     };
   }
 
-  console.log('[Artifact Loader] Fetching fresh artifacts from Vercel Blob');
-
-  const config = artifactConfig as ArtifactConfig;
-
-  // Fetch all artifacts in parallel
-  const [embeddingsResponse, manifestResponse, chunksResponse] =
-    await Promise.all([
-      fetch(config.embeddingsUrl),
-      fetch(config.manifestUrl),
-      fetch(config.chunksUrl),
-    ]);
-
-  // Check for errors
-  if (!embeddingsResponse.ok) {
-    throw new Error(
-      `Failed to fetch embeddings: ${embeddingsResponse.status} ${embeddingsResponse.statusText}`
-    );
-  }
-  if (!manifestResponse.ok) {
-    throw new Error(
-      `Failed to fetch manifest: ${manifestResponse.status} ${manifestResponse.statusText}`
-    );
-  }
-  if (!chunksResponse.ok) {
-    throw new Error(
-      `Failed to fetch chunks: ${chunksResponse.status} ${chunksResponse.statusText}`
-    );
-  }
-
-  // Parse responses
-  const embeddings = await embeddingsResponse.arrayBuffer();
-  const manifest: ArtifactManifest = await manifestResponse.json();
-  const chunksBuffer = await chunksResponse.arrayBuffer();
-
-  console.log('[Artifact Loader] ✓ Artifacts fetched');
-  console.log('  Embeddings:', (embeddings.byteLength / 1024).toFixed(2), 'KB');
-  console.log('  Chunks:', (chunksBuffer.byteLength / 1024).toFixed(2), 'KB');
-  console.log('  Manifest chunks:', manifest.chunks.length);
-
-  // Parse binary chunk text
-  const chunks = parseChunkTextBuffer(chunksBuffer, manifest.chunks.length);
-
-  console.log('[Artifact Loader] ✓ Chunk text parsed:', chunks.length, 'chunks');
-
-  // Cache in IndexedDB (best-effort, don't fail if caching fails)
   try {
-    const db = await getCacheDB();
-    await db.put(
-      'artifacts',
-      {
-        buildHash: manifest.buildHash,
-        timestamp: Date.now(),
-        embeddings,
-        manifest,
-        chunks,
-      },
-      'current'
-    );
-    console.log('[Artifact Loader] ✓ Cached to IndexedDB');
-  } catch (error) {
-    console.warn('[Artifact Loader] Could not cache artifacts:', error);
-    // Non-fatal: continue without caching
-  }
+    console.log('[Artifact Loader] Fetching fresh artifacts from Vercel Blob');
 
-  return { embeddings, manifest, chunks };
+    const config = artifactConfig as ArtifactConfig;
+
+    // Detect offline status before fetching
+    if (!navigator.onLine) {
+      throw new ChatbotError(
+        'offline',
+        'No internet connection. Chatbot requires network access.',
+        false
+      );
+    }
+
+    // Fetch all artifacts in parallel
+    const [embeddingsResponse, manifestResponse, chunksResponse] =
+      await Promise.all([
+        fetch(config.embeddingsUrl),
+        fetch(config.manifestUrl),
+        fetch(config.chunksUrl),
+      ]);
+
+    // Check for errors
+    if (!embeddingsResponse.ok) {
+      throw new Error(
+        `Failed to fetch embeddings: ${embeddingsResponse.status} ${embeddingsResponse.statusText}`
+      );
+    }
+    if (!manifestResponse.ok) {
+      throw new Error(
+        `Failed to fetch manifest: ${manifestResponse.status} ${manifestResponse.statusText}`
+      );
+    }
+    if (!chunksResponse.ok) {
+      throw new Error(
+        `Failed to fetch chunks: ${chunksResponse.status} ${chunksResponse.statusText}`
+      );
+    }
+
+    // Parse responses
+    const embeddings = await embeddingsResponse.arrayBuffer();
+    const manifest: ArtifactManifest = await manifestResponse.json();
+    const chunksBuffer = await chunksResponse.arrayBuffer();
+
+    console.log('[Artifact Loader] ✓ Artifacts fetched');
+    console.log('  Embeddings:', (embeddings.byteLength / 1024).toFixed(2), 'KB');
+    console.log('  Chunks:', (chunksBuffer.byteLength / 1024).toFixed(2), 'KB');
+    console.log('  Manifest chunks:', manifest.chunks.length);
+
+    // Parse binary chunk text
+    const chunks = parseChunkTextBuffer(chunksBuffer, manifest.chunks.length);
+
+    console.log('[Artifact Loader] ✓ Chunk text parsed:', chunks.length, 'chunks');
+
+    // Cache in IndexedDB (best-effort, don't fail if caching fails)
+    try {
+      const db = await getCacheDB();
+      await db.put(
+        'artifacts',
+        {
+          buildHash: manifest.buildHash,
+          timestamp: Date.now(),
+          embeddings,
+          manifest,
+          chunks,
+        },
+        'current'
+      );
+      console.log('[Artifact Loader] ✓ Cached to IndexedDB');
+    } catch (cacheError) {
+      // Check for quota exceeded
+      if (cacheError instanceof Error && cacheError.name === 'QuotaExceededError') {
+        console.warn('[Artifact Loader] Storage quota exceeded');
+        throw new ChatbotError(
+          'quota-exceeded',
+          'Browser storage quota exceeded. Clear site data and retry.',
+          false
+        );
+      }
+      console.warn('[Artifact Loader] Could not cache artifacts:', cacheError);
+      // Non-fatal for other cache errors: continue without caching
+    }
+
+    return { embeddings, manifest, chunks };
+  } catch (error) {
+    // Handle typed errors
+    if (error instanceof ChatbotError) {
+      throw error;
+    }
+
+    // Handle network errors
+    if (error instanceof TypeError && error.message.includes('fetch')) {
+      throw new ChatbotError(
+        'offline',
+        'Network error. Please check your connection.',
+        false
+      );
+    }
+
+    // Handle other artifact fetch failures
+    console.error('[Artifact Loader] Fetch failed:', error);
+    throw new ChatbotError(
+      'artifacts-fetch-failed',
+      error instanceof Error ? error.message : 'Failed to fetch artifacts',
+      true // Recoverable with retry
+    );
+  }
 }

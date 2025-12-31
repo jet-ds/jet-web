@@ -16,6 +16,7 @@ import { useChatbot } from '../../hooks/useChatbot';
 import { WelcomeScreen } from './WelcomeScreen';
 import { InitializationScreen } from './InitializationScreen';
 import { ChatInterface } from './ChatInterface';
+import { ERROR_MESSAGES, isRecoverableError } from '../../types/chatbot';
 
 /**
  * ChatbotPage - Main chatbot page component
@@ -76,22 +77,36 @@ export function ChatbotPage() {
   }
 
   if (state === 'error') {
+    const errorMessage = error
+      ? ERROR_MESSAGES[error.type] || error.message
+      : 'An unknown error occurred';
+
+    const canRetry = error ? isRecoverableError(error.type) : false;
+
     return (
       <div className="flex items-center justify-center min-h-[600px]">
         <div className="max-w-md text-center space-y-6">
           <div className="text-6xl mb-4">⚠️</div>
           <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
-            Initialization Failed
+            {canRetry ? 'Temporary Error' : 'Initialization Failed'}
           </h2>
-          <p className="text-gray-600 dark:text-gray-400">
-            {error?.message || 'An unknown error occurred'}
-          </p>
-          <button
-            onClick={() => window.location.reload()}
-            className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
-          >
-            Reload Page
-          </button>
+          <p className="text-gray-600 dark:text-gray-400">{errorMessage}</p>
+          <div className="flex gap-3 justify-center">
+            {canRetry && (
+              <button
+                onClick={handleStartChat}
+                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+              >
+                Retry
+              </button>
+            )}
+            <button
+              onClick={() => window.location.reload()}
+              className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+            >
+              Reload Page
+            </button>
+          </div>
         </div>
       </div>
     );
