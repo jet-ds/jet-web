@@ -143,7 +143,9 @@ export type ChatbotState =
   | 'uninitialized'  // Default state before activation
   | 'initializing'   // Loading resources
   | 'ready'          // Ready for queries
-  | 'processing'     // Handling a query
+  | 'retrieving'     // Retrieving relevant chunks (hybrid search)
+  | 'generating'     // Calling LLM API
+  | 'streaming'      // Streaming response tokens
   | 'error';         // Fatal error occurred
 
 /**

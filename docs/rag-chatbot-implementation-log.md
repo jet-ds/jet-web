@@ -2727,3 +2727,117 @@ data: [DONE]
 - ✅ Rate limiting in place
 
 ---
+
+## Phase 4 (continued): UI Components
+
+**Date**: 2025-12-31  
+**Status**: ✅ Completed
+
+### UI Components Built
+
+**1. SourcesPanel** (`src/components/chatbot/SourcesPanel.tsx` - 68 lines)
+- Displays attributed sources with relevance scores
+- Links to source content (opens in new tab)
+- Section information display
+- Tailwind CSS styling with dark mode support
+
+**2. MessageList** (`src/components/chatbot/MessageList.tsx` - 70 lines)
+- Conversation history display
+- User/assistant message differentiation
+- Timestamp display
+- Auto-scroll to latest message
+- Empty state handling
+
+**3. InputBar** (`src/components/chatbot/InputBar.tsx` - 88 lines)
+- Text input with multiline support
+- Send button with loading state
+- Enter key submission (Shift+Enter for newline)
+- Dynamic placeholder based on chatbot state
+- Disabled state during processing
+
+**4. ChatInterface** (`src/components/chatbot/ChatInterface.tsx` - 114 lines)
+- Main chat UI container
+- Header with title and close button
+- New Chat functionality
+- Source attribution panel integration
+- Message list and input bar coordination
+
+**5. useChatbot Hook** (`src/hooks/useChatbot.ts` - 218 lines)
+- Complete state orchestration
+- Initialization management
+- Message sending with streaming
+- Error handling
+- Cleanup logic
+
+**6. Generation Service** (`src/services/generation.ts` - 156 lines)
+- RAG pipeline orchestration
+- Context formatting with attribution
+- API call with streaming
+- State change callbacks
+- Chunk callback for UI updates
+
+### Type System Updates
+
+**File**: `src/types/chatbot.ts`
+
+**Added States**:
+- `retrieving`: Hybrid search in progress
+- `generating`: LLM API call
+- `streaming`: Response streaming
+
+### Code Statistics
+
+**UI Components**: ~714 lines total
+- 4 React components (340 lines)
+- 1 custom hook (218 lines)
+- 1 service module (156 lines)
+
+**Total Phase 4**: ~961 lines (API 247 + UI 714)
+
+### Verification Results
+
+**TypeScript Compilation**:
+- ✅ 0 errors
+- ✅ All components properly typed
+- ✅ State machine type-safe
+
+**Architecture Verification**:
+- ✅ Proper separation of concerns
+- ✅ Service layer abstracts API details
+- ✅ Hook manages state and side effects
+- ✅ Components are presentational
+
+### Integration Flow
+
+```typescript
+// 1. User opens chatbot modal
+const { initialize, sendMessage, messages, state } = useChatbot();
+
+// 2. Initialize on mount
+await initialize();
+// State: uninitialized → initializing → ready
+
+// 3. User sends message
+await sendMessage("What is Astro?");
+// State: ready → retrieving → generating → streaming → ready
+
+// 4. Response streams to UI
+// - onStreamChunk updates MessageList incrementally
+// - Sources displayed in SourcesPanel
+// - Input bar disabled during processing
+```
+
+### Phase 4 Complete
+
+**Deliverables**:
+- ✅ Chat API endpoint with streaming
+- ✅ OpenRouter integration with fallbacks
+- ✅ Rate limiting
+- ✅ Error handling
+- ✅ ChatInterface UI
+- ✅ SourcesPanel for attribution
+- ✅ Complete state orchestration
+
+**Ready for**: Phase 5 (Error Handling & Polish) or deployment testing
+
+---
