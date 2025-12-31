@@ -138,38 +138,71 @@ async function initializeSearch(
 // ============================================================================
 
 /**
- * Spawns Web Worker for semantic search (placeholder for Phase 3)
+ * Spawns Web Worker for semantic search
  *
- * TODO Phase 3: Implement worker that accepts embeddings + manifest
- * and performs similarity search using FP16 deserialization
+ * Process:
+ * 1. Create worker from retrieval.worker.ts
+ * 2. Clone embeddings buffer (enables re-initialization)
+ * 3. Transfer cloned buffer to worker with manifest
+ * 4. Wait for 'ready' signal (worker deserializes FP16 → FP32)
+ * 5. Return initialized worker
  *
- * @param embeddings - Embeddings ArrayBuffer
+ * @param embeddings - Embeddings ArrayBuffer (FP16)
  * @param manifest - Artifact manifest
- * @returns Worker instance (placeholder)
+ * @returns Initialized worker instance
  */
 async function spawnWorker(
   embeddings: ArrayBuffer,
   manifest: ArtifactManifest
 ): Promise<Worker> {
-  console.log('[Init] Spawning Web Worker (placeholder)');
+  console.log('[Init] Spawning Web Worker');
 
-  // TODO Phase 3: Create actual worker
-  // For now, create a minimal worker that doesn't crash
-  const workerBlob = new Blob(
-    [
-      `
-      self.onmessage = function(e) {
-        // Placeholder worker - will be implemented in Phase 3
-        self.postMessage({ type: 'ready' });
-      };
-    `,
-    ],
-    { type: 'application/javascript' }
+  // Create worker from module
+  const worker = new Worker(
+    new URL('../workers/retrieval.worker.ts', import.meta.url),
+    { type: 'module' }
   );
 
-  const worker = new Worker(URL.createObjectURL(workerBlob));
+  // CRITICAL: Clone buffer before transfer (enables re-initialization)
+  const embeddingsClone = embeddings.slice(0);
 
-  console.log('[Init] ✓ Worker spawned (placeholder)');
+  // Post init message with embeddings and manifest
+  worker.postMessage(
+    {
+      type: 'init',
+      embeddings: embeddingsClone,
+      manifest: manifest,
+    },
+    [embeddingsClone] // Transfer ownership of cloned buffer
+  );
+
+  // Wait for worker ready signal
+  await new Promise<void>((resolve, reject) => {
+    const timeout = setTimeout(() => {
+      reject(new Error('Worker initialization timeout'));
+    }, 30000); // 30s timeout for deserialization
+
+    const messageHandler = (e: MessageEvent) => {
+      if (e.data.type === 'ready') {
+        clearTimeout(timeout);
+        worker.removeEventListener('message', messageHandler);
+        worker.removeEventListener('error', errorHandler);
+        resolve();
+      }
+    };
+
+    const errorHandler = (e: ErrorEvent) => {
+      clearTimeout(timeout);
+      worker.removeEventListener('message', messageHandler);
+      worker.removeEventListener('error', errorHandler);
+      reject(new Error(`Worker error: ${e.message}`));
+    };
+
+    worker.addEventListener('message', messageHandler);
+    worker.addEventListener('error', errorHandler);
+  });
+
+  console.log('[Init] ✓ Worker ready');
   return worker;
 }
 
