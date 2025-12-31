@@ -1,0 +1,21 @@
+---
+/**
+ * Chatbot Page - Jet's Ghost
+ *
+ * Dedicated page for RAG chatbot interaction.
+ * Shows WelcomeScreen initially, then initializes on user action.
+ *
+ * Activation Boundary: No resources loaded until user clicks "Start Chat"
+ */
+import BaseLayout from '../components/layout/BaseLayout.astro';
+import { ChatbotPage } from '../components/chatbot/ChatbotPage';
+
+const title = "Jet's Ghost - AI Chat Assistant";
+const description = "Ask questions about my blog posts, research papers, and projects. Powered by AI with semantic search and grounded responses.";
+---
+
+<BaseLayout title={title} description={description}>
+  <div class="container mx-auto px-4 py-8">
+    <ChatbotPage client:load />
+  </div>
+</BaseLayout>

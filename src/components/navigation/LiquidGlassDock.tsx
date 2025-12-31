@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { Home, User, FileText, Briefcase, Mail, Moon, Sun } from 'lucide-react';
+import { Home, User, FileText, Briefcase, Mail, Moon, Sun, Ghost } from 'lucide-react';
 import GlassSurface from './GlassSurface';
 import { useTheme } from '../../hooks/useTheme';
 
@@ -70,6 +70,7 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
     { id: 'about', label: 'About', href: '/about', icon: User, gradient: 'from-purple-600 to-purple-400' },
     { id: 'blog', label: 'Blog', href: '/blog', icon: FileText, gradient: 'from-green-600 to-green-400' },
     { id: 'works', label: 'Works', href: '/works', icon: Briefcase, gradient: 'from-orange-600 to-orange-400' },
+    { id: 'chatbot', label: "Jet's Ghost", href: '/chatbot', icon: Ghost, gradient: 'from-indigo-600 to-indigo-400' },
     { id: 'contact', label: 'Contact', href: '/contact', icon: Mail, gradient: 'from-red-600 to-red-400' },
   ];
 
