@@ -350,6 +350,7 @@ async function uploadArtifacts(artifacts: SerializedArtifacts): Promise<Artifact
       access: 'public',
       contentType: 'application/octet-stream',
       addRandomSuffix: false,
+      allowOverwrite: true, // Allow overwriting for development/testing builds
       cacheControlMaxAge: CACHE_CONFIG.maxAgeSeconds // 1 year (immutable)
     }
   );
@@ -364,6 +365,7 @@ async function uploadArtifacts(artifacts: SerializedArtifacts): Promise<Artifact
       access: 'public',
       contentType: 'application/octet-stream',
       addRandomSuffix: false,
+      allowOverwrite: true, // Allow overwriting for development/testing builds
       cacheControlMaxAge: CACHE_CONFIG.maxAgeSeconds
     }
   );
@@ -378,6 +380,7 @@ async function uploadArtifacts(artifacts: SerializedArtifacts): Promise<Artifact
       access: 'public',
       contentType: 'application/json',
       addRandomSuffix: false,
+      allowOverwrite: true, // Allow overwriting for development/testing builds
       cacheControlMaxAge: CACHE_CONFIG.maxAgeSeconds
     }
   );
