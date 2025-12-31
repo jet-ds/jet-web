@@ -14,6 +14,7 @@
   "dependencies": {
     "@astrojs/mdx": "^4.3.13",
     "@astrojs/react": "^4.4.2",
+    "@astrojs/vercel": "^9.0.2",
     "@huggingface/transformers": "^3.8.1",
     "@petamoriken/float16": "^3.9.3",
     "@types/react": "^19.2.7",
