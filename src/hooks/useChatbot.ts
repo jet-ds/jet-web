@@ -73,8 +73,8 @@ export function useChatbot() {
       setState('ready');
     } catch (err) {
       const error = err instanceof Error ? err : new Error('Initialization failed');
-      setError(error);
       console.error('[useChatbot] Initialization error:', error);
+      setError(error);
     }
   }, [setState, setError, setInitProgress, setResources]);
 
@@ -121,30 +121,32 @@ export function useChatbot() {
           artifacts,
         };
 
-        // Track assistant message ID for streaming updates
+        // Track assistant message ID and accumulate content for streaming updates
         let assistantMessageId: string | null = null;
+        let accumulatedContent = '';
 
         // Retrieve and generate with streaming
-        const { sources } = await retrieveAndGenerate(query, context, {
+        await retrieveAndGenerate(query, context, {
           onStateChange: (newState) => {
             setState(newState);
           },
-          onStreamChunk: (chunk) => {
+          onStreamChunk: (chunk, sources) => {
+            // Accumulate content
+            accumulatedContent += chunk;
+
             // Create assistant message on first chunk
             if (!assistantMessageId) {
               assistantMessageId = `assistant-${Date.now()}`;
               addMessage({
                 id: assistantMessageId,
                 role: 'assistant',
-                content: chunk,
+                content: accumulatedContent,
                 timestamp: Date.now(),
                 sources,
               });
             } else {
-              // Update existing assistant message
-              updateLastMessage(
-                messages.find((m) => m.id === assistantMessageId)!.content + chunk
-              );
+              // Update existing assistant message with accumulated content
+              updateLastMessage(accumulatedContent);
             }
           },
         });

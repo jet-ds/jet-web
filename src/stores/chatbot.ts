@@ -120,10 +120,17 @@ export const useChatbotStore = create<ChatbotStore>((set, get) => ({
     }),
 
   setError: (error) =>
-    set({
-      state: 'error',
-      error,
-    }),
+    set(
+      error
+        ? {
+            state: 'error',
+            error,
+          }
+        : {
+            error: null,
+            // Don't change state when clearing error
+          }
+    ),
 
   addMessage: (message) =>
     set((state) => ({

@@ -32,7 +32,7 @@ export interface GenerationResult {
  */
 export interface GenerationOptions {
   onStateChange?: (state: ChatbotState) => void;
-  onStreamChunk?: (chunk: string) => void;
+  onStreamChunk?: (chunk: string, sources: Array<{ title: string; url: string; score?: number; section?: string; }>) => void;
   maxTokens?: number; // Context token budget (default 2000)
 }
 
@@ -142,11 +142,12 @@ export async function retrieveAndGenerate(
       fullResponse += chunk;
 
       // Call chunk callback for UI updates
-      onStreamChunk?.(chunk);
+      onStreamChunk?.(chunk, sources);
     }
   } catch (error) {
     console.error('[Generation] Stream error:', error);
-    throw new Error('Streaming failed');
+    const errorMessage = error instanceof Error ? error.message : 'Unknown streaming error';
+    throw new Error(`Streaming failed: ${errorMessage}`);
   }
 
   return {

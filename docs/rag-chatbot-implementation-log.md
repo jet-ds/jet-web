@@ -2841,3 +2841,172 @@ await sendMessage("What is Astro?");
 **Ready for**: Phase 5 (Error Handling & Polish) or deployment testing
 
 ---
+
+## Phase 4 Post-Deployment Bug Fixes
+
+**Date**: 2025-12-31  
+**Status**: Critical bugs resolved, chatbot fully functional
+
+### Issues Discovered in Production
+
+After initial Phase 4 deployment, three critical bugs prevented chatbot functionality:
+
+1. **Initialization Error Flash**
+   - Symptom: Yellow warning icon briefly displayed before modal opens
+   - Impact: Poor UX, confusion about chatbot state
+   
+2. **API Endpoint Failures**
+   - Symptom: "Unexpected end of JSON input" errors
+   - Impact: Complete API failure, no responses possible
+
+3. **Streaming Response Failures**
+   - Symptom: "Cannot access 'sources' before initialization" error
+   - Impact: Responses fail to stream, chatbot unusable
+
+### Root Cause Analysis
+
+#### Issue 1: State Management Bug in `setError`
+
+**File**: `src/stores/chatbot.ts`
+
+**Problem**:
+```typescript
+// BUGGY CODE
+setError: (error) =>
+  set({
+    state: 'error',  // ❌ ALWAYS sets state to 'error', even when clearing
+    error,
+  }),
+```
+
+When `setError(null)` was called during initialization to clear previous errors, it inadvertently set `state: 'error'`, causing the error screen to flash.
+
+**Fix**:
+```typescript
+setError: (error) =>
+  set(
+    error
+      ? {
+          state: 'error',
+          error,
+        }
+      : {
+          error: null,
+          // Don't change state when clearing error
+        }
+  ),
+```
+
+**Lines Changed**: 122-133
+
+#### Issue 2: Static Endpoint Configuration
+
+**File**: `src/pages/api/chat.ts`
+
+**Problem**:
+- API route was being treated as static endpoint
+- `request.json()` failed because body wasn't available in static mode
+- Server logs showed: `[WARN] [router] /api/chat POST requests are not available in static endpoints`
+
+**Fix**:
+```typescript
+// Mark this endpoint as server-rendered (not static)
+export const prerender = false;
+```
+
+**Additional Fixes**:
+- Reduced OpenRouter models array from 7 to 3 items (API limit)
+- Improved error response format to include error message as JSON
+- Removed debugging console.log statements
+
+**Lines Changed**: 16, 64-68, 112-118
+
+#### Issue 3: SSE Buffer Flush & Closure Scope Bug
+
+**File**: `src/pages/api/chat.ts`
+
+**Problem 1**: Stream ended without processing remaining buffer data
+
+**Fix**: Added final buffer flush before closing stream
+```typescript
+if (done) {
+  // Process any remaining data in buffer before closing
+  if (buffer.trim()) {
+    const lines = buffer.split('\n');
+    for (const line of lines) {
+      // Process remaining SSE data...
+    }
+  }
+  controller.close();
+  return;
+}
+```
+
+**Lines Changed**: 175-198
+
+**File**: `src/services/generation.ts` + `src/hooks/useChatbot.ts`
+
+**Problem 2**: Temporal dead zone - `sources` accessed before initialization
+
+```typescript
+// BUGGY CODE
+const { sources } = await retrieveAndGenerate(query, context, {
+  onStreamChunk: (chunk) => {
+    // ❌ sources not available yet - function hasn't returned!
+    addMessage({ ..., sources });
+  },
+});
+```
+
+The callback executes DURING `retrieveAndGenerate`, but `sources` is only available AFTER the function returns.
+
+**Fix**: Pass sources as callback parameter
+```typescript
+// Updated interface
+export interface GenerationOptions {
+  onStreamChunk?: (chunk: string, sources: Array<...>) => void;
+}
+
+// Updated invocation
+onStreamChunk?.(chunk, sources);
+
+// Updated handler
+onStreamChunk: (chunk, sources) => {
+  addMessage({ ..., sources });  // ✅ sources available immediately
+}
+```
+
+**Lines Changed**:
+- `generation.ts`: 35, 145
+- `useChatbot.ts`: 129, 133
+
+### Files Modified
+
+1. `src/stores/chatbot.ts` - Fixed setError state management
+2. `src/pages/api/chat.ts` - Fixed endpoint config, buffer flush, error handling
+3. `src/services/generation.ts` - Updated callback signature
+4. `src/hooks/useChatbot.ts` - Updated callback handler
+
+### Testing & Verification
+
+**Manual Testing**:
+- ✅ No initialization error flash on modal open
+- ✅ API endpoint returns 200 OK
+- ✅ Streaming responses work correctly
+- ✅ Sources displayed with proper attribution
+- ✅ Error messages are descriptive
+
+**Server Logs**:
+- ✅ No static endpoint warnings
+- ✅ Successful OpenRouter API calls
+- ✅ 200 OK responses with ~10s completion time
+
+### Phase 4 Status: COMPLETE
+
+All critical bugs resolved. Chatbot is fully functional and ready for Phase 5 (Error Handling & Polish).
+
+**Next Steps**: 
+- Phase 5: Comprehensive error states, retry mechanisms, offline handling
+- Phase 6: Testing & optimization
+
+---

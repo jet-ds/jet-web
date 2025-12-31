@@ -13,6 +13,9 @@
 
 import type { APIRoute } from 'astro';
 
+// Mark this endpoint as server-rendered (not static)
+export const prerender = false;
+
 /**
  * Chat request payload
  */
@@ -58,7 +61,11 @@ export const POST: APIRoute = async ({ request }) => {
     });
   } catch (error) {
     console.error('[Chat API] Error:', error);
-    return new Response('Internal server error', { status: 500 });
+    const errorMessage = error instanceof Error ? error.message : 'Internal server error';
+    return new Response(JSON.stringify({ error: errorMessage }), {
+      status: 500,
+      headers: { 'Content-Type': 'application/json' }
+    });
   }
 };
 
@@ -86,30 +93,28 @@ async function generateResponse(
   }
 
   // Call OpenRouter API
-  const response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
-    method: 'POST',
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      'Content-Type': 'application/json',
-      'HTTP-Referer': 'https://jet-web.vercel.app', // Optional: for OpenRouter analytics
-      'X-Title': 'Jet Blog RAG Chatbot', // Optional: for OpenRouter analytics
-    },
-    body: JSON.stringify({
-      model: 'xiaomi/mimo-v2-flash:free',
-      route: 'fallback',
-      models: [
-        'xiaomi/mimo-v2-flash:free',
-        'tngtech/deepseek-r1t2-chimera:free',
-        'nex-agi/deepseek-v3.1-nex-n1:free',
-        'deepseek/deepseek-r1-0528:free',
-        'google/gemma-3-27b-it:free',
-        'meta-llama/llama-3.3-70b-instruct:free',
-        'openai/gpt-oss-120b:free',
-      ],
-      messages: [
-        {
-          role: 'system',
-          content: `You are a helpful assistant that answers questions based on blog content.
+  let response: Response;
+  try {
+    response = await fetch('https://openrouter.ai/api/v1/chat/completions', {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        'Content-Type': 'application/json',
+        'HTTP-Referer': 'https://jet-web.vercel.app', // Optional: for OpenRouter analytics
+        'X-Title': 'Jet Blog RAG Chatbot', // Optional: for OpenRouter analytics
+      },
+      body: JSON.stringify({
+        model: 'xiaomi/mimo-v2-flash:free',
+        route: 'fallback',
+        models: [
+          'xiaomi/mimo-v2-flash:free',
+          'google/gemma-3-27b-it:free',
+          'meta-llama/llama-3.3-70b-instruct:free',
+        ],
+        messages: [
+          {
+            role: 'system',
+            content: `You are a helpful assistant that answers questions based on blog content.
 
 CRITICAL INSTRUCTIONS:
 - Answer ONLY based on the provided context
@@ -118,20 +123,25 @@ CRITICAL INSTRUCTIONS:
 - Be concise and accurate (aim for 2-4 sentences)
 - Do not make up information
 - Use a friendly, conversational tone`,
-        },
-        {
-          role: 'user',
-          content: `Context:\n${context}\n\nQuestion: ${query}`,
-        },
-      ],
-      stream: true,
-      max_tokens: 500,
-      temperature: 0.7,
-    }),
-  });
+          },
+          {
+            role: 'user',
+            content: `Context:\n${context}\n\nQuestion: ${query}`,
+          },
+        ],
+        stream: true,
+        max_tokens: 500,
+        temperature: 0.7,
+      }),
+    });
+  } catch (fetchError) {
+    console.error('[generateResponse] Fetch error:', fetchError);
+    throw new Error(`Failed to reach OpenRouter API: ${fetchError instanceof Error ? fetchError.message : 'Network error'}`);
+  }
 
   if (!response.ok) {
     const error = await response.text();
+    console.error('[generateResponse] OpenRouter error response:', error);
     throw new Error(
       `OpenRouter API error (${response.status}): ${error}`
     );
@@ -163,6 +173,26 @@ function parseOpenRouterSSE(stream: ReadableStream<Uint8Array>): ReadableStream 
           const { done, value } = await reader.read();
 
           if (done) {
+            // Process any remaining data in buffer before closing
+            if (buffer.trim()) {
+              const lines = buffer.split('\n');
+              for (const line of lines) {
+                if (line.startsWith('data: ')) {
+                  const data = line.slice(6).trim();
+                  if (data && data !== '[DONE]') {
+                    try {
+                      const json = JSON.parse(data);
+                      const content = json.choices?.[0]?.delta?.content;
+                      if (content) {
+                        controller.enqueue(new TextEncoder().encode(content));
+                      }
+                    } catch (e) {
+                      console.warn('[Chat API] Malformed SSE data in final buffer:', data);
+                    }
+                  }
+                }
+              }
+            }
             controller.close();
             return;
           }
