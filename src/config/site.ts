@@ -5,7 +5,7 @@ export const SITE = {
   description: 'Personal website and blog featuring research, projects, and writings.',
   author: 'Jet',
   email: 'your.email@example.com', // TODO: Update with your actual email
-  siteUrl: 'https://example.com', // TODO: Update with your actual domain
+  siteUrl: 'https://jetsanchez.com',
 } as const;
 
 export const SOCIAL_LINKS = {

@@ -9,7 +9,7 @@ import vercel from '@astrojs/vercel';
 
 // https://astro.build/config
 export default defineConfig({
-  site: 'https://example.com', // TODO: Update with your actual domain
+  site: 'https://jetsanchez.com',
   adapter: vercel(), // Vercel adapter for API routes
   integrations: [
     react(),
