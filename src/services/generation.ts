@@ -1,0 +1,195 @@
+/**
+ * Generation Service - Retrieve + Generate Pipeline
+ *
+ * Based on: /docs/rag-chatbot-implementation-plan.md v1.7
+ * Spec: Phase 4 - LLM Integration
+ *
+ * Orchestrates the full RAG pipeline:
+ * 1. Retrieve relevant chunks (hybrid search)
+ * 2. Format context with attribution
+ * 3. Call LLM API with streaming
+ * 4. Return response and sources
+ */
+
+import { retrieve, type RetrievedChunk } from './retrieval';
+import type { ChatbotState } from '../types/chatbot';
+import { ChatbotError } from '../types/chatbot';
+import { retryWithBackoff, RETRY_CONFIGS } from '../utils/retry';
+
+/**
+ * Generation result with sources
+ */
+export interface GenerationResult {
+  response: string; // Full generated response
+  sources: Array<{
+    title: string;
+    url: string;
+    score?: number;
+    section?: string;
+  }>;
+}
+
+/**
+ * Generation options
+ */
+export interface GenerationOptions {
+  onStateChange?: (state: ChatbotState) => void;
+  onStreamChunk?: (chunk: string, sources: Array<{ title: string; url: string; score?: number; section?: string; }>) => void;
+  maxTokens?: number; // Context token budget (default 2000)
+}
+
+/**
+ * Retrieval context (from initialized chatbot)
+ */
+interface RetrievalContext {
+  model: any;
+  worker: Worker;
+  searchIndex: any;
+  artifacts: {
+    embeddings: ArrayBuffer;
+    manifest: any;
+    chunks: string[];
+  };
+}
+
+/**
+ * Format retrieved chunks as context for LLM
+ *
+ * @param chunks - Retrieved chunks with metadata
+ * @returns Formatted context string with attribution
+ */
+function formatContext(chunks: RetrievedChunk[]): string {
+  return chunks
+    .map(
+      (chunk, idx) =>
+        `[Source ${idx + 1}] ${chunk.title}${chunk.section ? ` - ${chunk.section}` : ''}\n${chunk.text}\nURL: ${chunk.url}\n`
+    )
+    .join('\n---\n\n');
+}
+
+/**
+ * Retrieve and generate response using RAG pipeline
+ *
+ * Process:
+ * 1. Retrieve relevant chunks (hybrid search)
+ * 2. Format context with attribution
+ * 3. Call /api/chat with streaming
+ * 4. Stream response chunks to callback
+ * 5. Return full response and sources
+ *
+ * @param query - User query
+ * @param context - Retrieval context (initialized resources)
+ * @param options - Generation options (callbacks, token budget)
+ * @returns Generated response with sources
+ */
+export async function retrieveAndGenerate(
+  query: string,
+  context: RetrievalContext,
+  options: GenerationOptions = {}
+): Promise<GenerationResult> {
+  const { onStateChange, onStreamChunk, maxTokens = 2000 } = options;
+
+  // 1. Retrieve relevant chunks
+  onStateChange?.('retrieving');
+
+  let chunks;
+  try {
+    chunks = await retrieve(context, query, maxTokens);
+
+    if (chunks.length === 0) {
+      throw new ChatbotError(
+        'retrieval-failed',
+        'No relevant content found for your query',
+        false
+      );
+    }
+  } catch (error) {
+    if (error instanceof ChatbotError) {
+      throw error;
+    }
+    throw new ChatbotError(
+      'retrieval-failed',
+      error instanceof Error ? error.message : 'Search failed',
+      true // Recoverable with retry
+    );
+  }
+
+  // 2. Format context
+  const formattedContext = formatContext(chunks);
+
+  // 3. Prepare sources for attribution
+  const sources = chunks.map((chunk) => ({
+    title: chunk.title,
+    url: chunk.url,
+    score: chunk.score,
+    section: chunk.section,
+  }));
+
+  // 4. Call /api/chat with streaming (with retry)
+  onStateChange?.('generating');
+
+  const response = await retryWithBackoff(async () => {
+    const res = await fetch('/api/chat', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        query,
+        context: formattedContext,
+      }),
+    });
+
+    if (!res.ok) {
+      const error = await res.text();
+
+      // Handle rate limiting
+      if (res.status === 429) {
+        throw new ChatbotError(
+          'rate-limited',
+          'Too many requests. Please wait a moment.',
+          false
+        );
+      }
+
+      // Handle other API errors as recoverable
+      throw new ChatbotError(
+        'api-error',
+        `API error (${res.status}): ${error}`,
+        true // Recoverable with retry
+      );
+    }
+
+    return res;
+  }, RETRY_CONFIGS.apiCall);
+
+  // 5. Stream response
+  onStateChange?.('streaming');
+
+  const reader = response.body!.getReader();
+  const decoder = new TextDecoder();
+  let fullResponse = '';
+
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+
+      if (done) break;
+
+      const chunk = decoder.decode(value, { stream: true });
+      fullResponse += chunk;
+
+      // Call chunk callback for UI updates
+      onStreamChunk?.(chunk, sources);
+    }
+  } catch (error) {
+    console.error('[Generation] Stream error:', error);
+    const errorMessage = error instanceof Error ? error.message : 'Unknown streaming error';
+    throw new Error(`Streaming failed: ${errorMessage}`);
+  }
+
+  return {
+    response: fullResponse,
+    sources,
+  };
+}

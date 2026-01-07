@@ -4,20 +4,32 @@
   "version": "0.0.1",
   "scripts": {
     "dev": "astro dev",
-    "build": "astro build",
+    "build": "npm run build:embeddings && npm run build:site",
+    "build:embeddings": "tsx scripts/build-embeddings.ts",
+    "build:site": "astro build",
+    "dev:embeddings": "tsx scripts/build-embeddings.ts && astro dev",
     "preview": "astro preview",
     "astro": "astro"
   },
   "dependencies": {
     "@astrojs/mdx": "^4.3.13",
     "@astrojs/react": "^4.4.2",
+    "@astrojs/vercel": "^9.0.2",
+    "@huggingface/transformers": "^3.8.1",
+    "@petamoriken/float16": "^3.9.3",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
+    "@vercel/blob": "^2.0.0",
     "astro": "^5.16.6",
+    "dotenv": "^17.2.3",
     "framer-motion": "^12.23.26",
+    "gray-matter": "^4.0.3",
+    "idb": "^8.0.3",
     "lucide-react": "^0.562.0",
+    "minisearch": "^7.2.0",
     "react": "^19.2.3",
-    "react-dom": "^19.2.3"
+    "react-dom": "^19.2.3",
+    "zustand": "^5.0.9"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.6",
@@ -26,6 +38,7 @@
     "@astrojs/tailwind": "^5.1.5",
     "@tailwindcss/typography": "^0.5.19",
     "tailwindcss": "^3.4.18",
+    "tsx": "^4.21.0",
     "typescript": "^5.9.3"
   }
 }

@@ -5,10 +5,12 @@ import react from '@astrojs/react';
 import mdx from '@astrojs/mdx';
 import tailwind from '@astrojs/tailwind';
 import sitemap from '@astrojs/sitemap';
+import vercel from '@astrojs/vercel';
 
 // https://astro.build/config
 export default defineConfig({
   site: 'https://example.com', // TODO: Update with your actual domain
+  adapter: vercel(), // Vercel adapter for API routes
   integrations: [
     react(),
     mdx(),

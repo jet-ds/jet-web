@@ -15,7 +15,12 @@ pnpm-debug.log*
 
 # environment variables
 .env
+.env.local
 .env.production
+
+# chatbot artifacts (generated URLs, not secrets but build-specific)
+src/config/chatbot-artifacts.json
+test-config.json
 
 # macOS-specific files
 .DS_Store
