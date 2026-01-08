@@ -5,9 +5,8 @@ import Card from '../components/ui/Card.astro';
 import Link from '../components/ui/Link.astro';
 import { SITE, SOCIAL_LINKS } from '../config/site';
 
-// Filter out placeholder social links
 const activeSocialLinks = Object.entries(SOCIAL_LINKS)
-  .filter(([_, url]) => url && !url.includes('yourusername') && !url.includes('your-id'))
+  .filter(([_, url]) => url)
   .map(([platform, url]) => ({
     platform: platform.charAt(0).toUpperCase() + platform.slice(1),
     url,

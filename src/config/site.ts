@@ -4,15 +4,14 @@ export const SITE = {
   title: 'Jet - Personal Website',
   description: 'Personal website and blog featuring research, projects, and writings.',
   author: 'Jet',
-  email: 'your.email@example.com', // TODO: Update with your actual email
+  email: 'jetsanchezzz@gmail.com',
   siteUrl: 'https://jetsanchez.com',
 } as const;
 
 export const SOCIAL_LINKS = {
-  github: 'https://github.com/yourusername', // TODO: Update
-  linkedin: 'https://linkedin.com/in/yourusername', // TODO: Update
-  twitter: 'https://twitter.com/yourusername', // TODO: Update (optional)
-  ssrn: 'https://ssrn.com/author=your-id', // TODO: Update with your SSRN author page
+  github: 'https://github.com/jet-ds',
+  linkedin: 'https://www.linkedin.com/in/jetsanchez/',
+  ssrn: 'https://ssrn.com/author=7608771',
 } as const;
 
 export const NAV_ITEMS = [

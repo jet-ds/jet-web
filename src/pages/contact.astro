@@ -5,9 +5,8 @@ import Card from '../components/ui/Card.astro';
 import Button from '../components/ui/Button.astro';
 import { SITE, SOCIAL_LINKS } from '../config/site';
 
-// Filter out placeholder social links
 const activeSocialLinks = Object.entries(SOCIAL_LINKS)
-  .filter(([_, url]) => url && !url.includes('yourusername') && !url.includes('your-id'))
+  .filter(([_, url]) => url)
   .map(([platform, url]) => ({
     platform: platform.charAt(0).toUpperCase() + platform.slice(1),
     url,
@@ -17,7 +16,7 @@ const activeSocialLinks = Object.entries(SOCIAL_LINKS)
 // Professional/Academic links (SSRN, Google Scholar, etc.)
 const professionalLinks = [
   { name: 'SSRN', url: SOCIAL_LINKS.ssrn, description: 'Research papers and publications' },
-].filter(link => link.url && !link.url.includes('your-id'));
+].filter(link => link.url);
 ---
 
 <BaseLayout

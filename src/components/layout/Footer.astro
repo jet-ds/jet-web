@@ -6,7 +6,7 @@ import Link from '../ui/Link.astro';
 const currentYear = new Date().getFullYear();
 
 const socialLinksArray = Object.entries(SOCIAL_LINKS)
-  .filter(([_, url]) => url && !url.includes('yourusername') && !url.includes('your-id'))
+  .filter(([_, url]) => url)
   .map(([platform, url]) => ({
     platform: platform.charAt(0).toUpperCase() + platform.slice(1),
     url,
