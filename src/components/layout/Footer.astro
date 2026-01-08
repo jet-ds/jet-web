@@ -5,10 +5,17 @@ import Link from '../ui/Link.astro';
 
 const currentYear = new Date().getFullYear();
 
+// Map platform keys to proper brand names
+const platformNames: Record<string, string> = {
+  github: 'GitHub',
+  linkedin: 'LinkedIn',
+  ssrn: 'SSRN',
+};
+
 const socialLinksArray = Object.entries(SOCIAL_LINKS)
   .filter(([_, url]) => url)
   .map(([platform, url]) => ({
-    platform: platform.charAt(0).toUpperCase() + platform.slice(1),
+    platform: platformNames[platform],
     url,
   }));
 ---

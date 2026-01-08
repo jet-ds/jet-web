@@ -5,10 +5,17 @@ import Card from '../components/ui/Card.astro';
 import Button from '../components/ui/Button.astro';
 import { SITE, SOCIAL_LINKS } from '../config/site';
 
+// Map platform keys to proper brand names
+const platformNames: Record<string, string> = {
+  github: 'GitHub',
+  linkedin: 'LinkedIn',
+  ssrn: 'SSRN',
+};
+
 const activeSocialLinks = Object.entries(SOCIAL_LINKS)
   .filter(([_, url]) => url)
   .map(([platform, url]) => ({
-    platform: platform.charAt(0).toUpperCase() + platform.slice(1),
+    platform: platformNames[platform],
     url,
     icon: platform, // Could be used for icon mapping later
   }));
