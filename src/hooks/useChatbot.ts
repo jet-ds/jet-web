@@ -111,7 +111,7 @@ export function useChatbot() {
 
       if (!model || !artifacts || !searchIndex || !worker) {
         console.error('[useChatbot] Resources not initialized');
-        setError(new Error('Chatbot not initialized'));
+        setError(new ChatbotError('unknown', 'Chatbot not initialized', false));
         return;
       }
 

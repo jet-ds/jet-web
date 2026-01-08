@@ -140,14 +140,12 @@ export function getLastNTokens(text: string, n: number): string {
  * - Overlap: last N tokens from previous chunk
  *
  * @param text - Text to chunk
- * @param targetTokens - Target chunk size
  * @param maxTokens - Hard limit
  * @param overlapTokens - Overlap size
  * @returns Array of chunked text
  */
 export function chunkWithOverlap(
   text: string,
-  targetTokens: number,
   maxTokens: number,
   overlapTokens: number
 ): string[] {
@@ -190,18 +188,15 @@ export function chunkWithOverlap(
  * Used by chunkDocument to split large sections
  *
  * @param content - Section content
- * @param targetTokens - Target chunk size
  * @param maxTokens - Hard limit
  * @returns Array of chunked text
  */
 export function splitByTokenLimit(
   content: string,
-  targetTokens: number,
   maxTokens: number
 ): string[] {
   return chunkWithOverlap(
     content,
-    targetTokens,
     maxTokens,
     CHUNKING_CONFIG.overlapTokens
   );
@@ -234,7 +229,6 @@ export function chunkDocument(item: ContentItem): Chunk[] {
     // Split section by token limit (with overlap)
     const sectionChunks = splitByTokenLimit(
       section.content,
-      CHUNKING_CONFIG.targetTokens,
       CHUNKING_CONFIG.maxTokens
     );
 

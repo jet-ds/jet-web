@@ -16,7 +16,7 @@ dotenv.config({ path: '.env.local' });
 
 import { discoverContent } from './content-loader.js';
 import { chunkAll } from '../src/utils/chunking.js';
-import type { ContentItem, Chunk, EmbeddingResult, ChunkMetadata } from '../src/types/chatbot.js';
+import type { Chunk, EmbeddingResult, ChunkMetadata } from '../src/types/chatbot.js';
 import {
   EMBEDDING_CONFIG,
   CHUNKING_CONFIG,
