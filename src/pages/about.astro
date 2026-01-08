@@ -3,6 +3,7 @@ import BaseLayout from '../components/layout/BaseLayout.astro';
 import Container from '../components/ui/Container.astro';
 import Card from '../components/ui/Card.astro';
 import Link from '../components/ui/Link.astro';
+import StructuredData from '../components/seo/StructuredData.astro';
 import { SITE, SOCIAL_LINKS } from '../config/site';
 
 // Map platform keys to proper brand names
@@ -10,6 +11,7 @@ const platformNames: Record<string, string> = {
   github: 'GitHub',
   linkedin: 'LinkedIn',
   ssrn: 'SSRN',
+  scholar: 'Google Scholar',
 };
 
 const activeSocialLinks = Object.entries(SOCIAL_LINKS)
@@ -25,6 +27,20 @@ const activeSocialLinks = Object.entries(SOCIAL_LINKS)
   description="Learn more about me, my background, and what I'm passionate about."
   type="profile"
 >
+  <!-- Canonical Person Identity for SEO -->
+  <StructuredData
+    type="person"
+    id={`${SITE.siteUrl}/#person`}
+    name={SITE.author}
+    givenName={SITE.givenName}
+    familyName={SITE.familyName}
+    alternateName={SITE.alternateNames}
+    jobTitle={SITE.jobTitle}
+    email={SITE.email}
+    url={SITE.siteUrl}
+    sameAs={Object.values(SOCIAL_LINKS).filter(url => url)}
+  />
+
   <Container size="md" class="py-16">
     <!-- Header -->
     <div class="mb-12">

@@ -5,6 +5,7 @@ export interface Props {
   type: 'website' | 'article' | 'person' | 'navigation';
   // Common fields
   url?: string;
+  id?: string; // @id for entity linking
   // Website fields
   name?: string;
   description?: string;
@@ -16,6 +17,9 @@ export interface Props {
   author?: string;
   tags?: string[];
   // Person fields
+  givenName?: string;
+  familyName?: string;
+  alternateName?: string[];
   email?: string;
   jobTitle?: string;
   sameAs?: string[];
@@ -26,6 +30,7 @@ export interface Props {
 const {
   type,
   url = SITE.siteUrl,
+  id,
   name,
   description,
   headline,
@@ -34,6 +39,9 @@ const {
   dateModified,
   author,
   tags = [],
+  givenName,
+  familyName,
+  alternateName = [],
   email,
   jobTitle,
   sameAs = [],
@@ -52,6 +60,7 @@ if (type === 'website') {
     inLanguage: 'en-US',
     publisher: {
       '@type': 'Person',
+      '@id': `${SITE.siteUrl}/#person`,
       name: SITE.author,
     },
   };
@@ -66,10 +75,12 @@ if (type === 'website') {
     dateModified: dateModified || datePublished,
     author: {
       '@type': 'Person',
+      '@id': `${SITE.siteUrl}/#person`,
       name: author || SITE.author,
     },
     publisher: {
       '@type': 'Person',
+      '@id': `${SITE.siteUrl}/#person`,
       name: SITE.author,
     },
     mainEntityOfPage: {
@@ -82,11 +93,15 @@ if (type === 'website') {
   schema = {
     '@context': 'https://schema.org',
     '@type': 'Person',
+    ...(id && { '@id': id }),
     name: name || SITE.author,
+    ...(givenName && { givenName }),
+    ...(familyName && { familyName }),
+    ...(alternateName.length > 0 && { alternateName }),
     email: email || SITE.email,
     url: url,
-    jobTitle: jobTitle,
-    sameAs: sameAs,
+    ...(jobTitle && { jobTitle }),
+    ...(sameAs.length > 0 && { sameAs }),
   };
 } else if (type === 'navigation') {
   schema = {

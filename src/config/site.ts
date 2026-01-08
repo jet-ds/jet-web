@@ -3,7 +3,15 @@ import { Home, User, FileText, Briefcase, Mail, type LucideIcon } from 'lucide-r
 export const SITE = {
   title: 'Jet - Personal Website',
   description: 'Personal website and blog featuring research, projects, and writings.',
-  author: 'Jet',
+  author: 'Jet Sanchez',
+  givenName: 'Jet',
+  familyName: 'Sanchez',
+  alternateNames: [
+    'Josh Ethan Maupin Sanchez',
+    'Josh Ethan Sanchez',
+    'Jet (Josh Ethan) Sanchez',
+  ],
+  jobTitle: 'AI Researcher & Content Strategist',
   email: 'jetsanchezzz@gmail.com',
   siteUrl: 'https://jetsanchez.com',
 } as const;
@@ -12,6 +20,7 @@ export const SOCIAL_LINKS = {
   github: 'https://github.com/jet-ds',
   linkedin: 'https://www.linkedin.com/in/jetsanchez/',
   ssrn: 'https://ssrn.com/author=7608771',
+  scholar: 'https://scholar.google.com/citations?user=npRT5wwAAAAJ',
 } as const;
 
 export const NAV_ITEMS = [

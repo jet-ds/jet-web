@@ -10,6 +10,7 @@ const platformNames: Record<string, string> = {
   github: 'GitHub',
   linkedin: 'LinkedIn',
   ssrn: 'SSRN',
+  scholar: 'Google Scholar',
 };
 
 const activeSocialLinks = Object.entries(SOCIAL_LINKS)
@@ -23,6 +24,7 @@ const activeSocialLinks = Object.entries(SOCIAL_LINKS)
 // Professional/Academic links (SSRN, Google Scholar, etc.)
 const professionalLinks = [
   { name: 'SSRN', url: SOCIAL_LINKS.ssrn, description: 'Research papers and publications' },
+  { name: 'Google Scholar', url: SOCIAL_LINKS.scholar, description: 'Academic citations and research profile' },
 ].filter(link => link.url);
 ---
 
