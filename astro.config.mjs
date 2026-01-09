@@ -6,6 +6,7 @@ import mdx from '@astrojs/mdx';
 import tailwind from '@astrojs/tailwind';
 import sitemap from '@astrojs/sitemap';
 import vercel from '@astrojs/vercel';
+import partytown from '@astrojs/partytown';
 
 // https://astro.build/config
 export default defineConfig({
@@ -18,6 +19,11 @@ export default defineConfig({
       applyBaseStyles: false, // We'll use our own global.css
     }),
     sitemap(),
+    partytown({
+      config: {
+        forward: ['dataLayer.push'], // Forward GA4 events to web worker
+      },
+    }),
   ],
   image: {
     // Image optimization configuration

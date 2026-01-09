@@ -3,6 +3,7 @@ import { ClientRouter } from 'astro:transitions';
 import ThemeScript from '../ui/ThemeScript.astro';
 import SEO from '../seo/SEO.astro';
 import StructuredData from '../seo/StructuredData.astro';
+import GoogleAnalytics from '../seo/GoogleAnalytics.astro';
 import DockWrapper from '../navigation/DockWrapper.astro';
 import Footer from './Footer.astro';
 import { SITE } from '../../config/site';
@@ -91,6 +92,9 @@ const seoProps = generateSEOProps({
 
     <!-- Theme Script (prevents FOUC) -->
     <ThemeScript />
+
+    <!-- Google Analytics 4 -->
+    <GoogleAnalytics measurementId={SITE.ga4MeasurementId} />
 
     <!-- Client Router (Astro v5 View Transitions) -->
     <ClientRouter />

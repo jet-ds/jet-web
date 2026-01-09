@@ -1,0 +1,69 @@
+---
+/**
+ * Google Analytics 4 (GA4) Integration with Partytown
+ *
+ * Adds GA4 tracking to the page with:
+ * - Partytown web worker execution (non-blocking)
+ * - Single page_view tracking (no duplicates)
+ * - ClientRouter integration for SPA navigation
+ *
+ * Configuration:
+ * - send_page_view: false - Disables automatic page_view on gtag('config')
+ * - Manual page_view via astro:page-load - Single tracking for all page loads
+ *
+ * Usage:
+ * - Import in BaseLayout.astro and place in <head>
+ * - Set measurementId prop from SITE.ga4MeasurementId
+ */
+
+export interface Props {
+  measurementId?: string;
+}
+
+const { measurementId } = Astro.props;
+
+// Don't render if no measurement ID provided
+if (!measurementId) {
+  console.warn('GA4: No measurement ID provided, skipping analytics');
+}
+
+// Optional: Skip analytics in development
+const isDevelopment = import.meta.env.DEV;
+const shouldSkipAnalytics = isDevelopment && import.meta.env.PUBLIC_DISABLE_ANALYTICS_DEV === 'true';
+
+if (shouldSkipAnalytics) {
+  console.log('GA4: Analytics disabled in development');
+}
+---
+
+{measurementId && !shouldSkipAnalytics && (
+  <>
+    <!-- Google tag (gtag.js) with Partytown -->
+    <script type="text/partytown" async src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`}></script>
+    <script type="text/partytown" define:vars={{ measurementId }}>
+      window.dataLayer = window.dataLayer || [];
+      function gtag(){dataLayer.push(arguments);}
+      gtag('js', new Date());
+
+      // IMPORTANT: send_page_view: false prevents double tracking
+      // We handle all page views manually via astro:page-load
+      gtag('config', measurementId, {
+        send_page_view: false
+      });
+    </script>
+
+    <!-- ClientRouter page_view tracking - runs on main thread -->
+    <script is:inline define:vars={{ measurementId }}>
+      // Track page views on navigation (including initial page load)
+      document.addEventListener('astro:page-load', () => {
+        if (window.gtag) {
+          window.gtag('event', 'page_view', {
+            page_location: window.location.href,
+            page_path: window.location.pathname,
+            page_title: document.title,
+          });
+        }
+      });
+    </script>
+  </>
+)}

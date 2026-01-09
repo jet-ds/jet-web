@@ -14,6 +14,7 @@ export const SITE = {
   jobTitle: 'AI Researcher & Content Strategist',
   email: 'jetsanchezzz@gmail.com',
   siteUrl: 'https://jetsanchez.com',
+  ga4MeasurementId: 'G-71J4JTMLJE',
 } as const;
 
 export const SOCIAL_LINKS = {
