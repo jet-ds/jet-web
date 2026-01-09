@@ -5,6 +5,8 @@ import GlassSurface from './GlassSurface';
 import { useTheme } from '../../hooks/useTheme';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 
+const DOCK_SCROLLED_KEY = 'dockScrolled';
+
 interface LiquidGlassDockProps {
   currentPath: string;
 }
@@ -12,26 +14,65 @@ interface LiquidGlassDockProps {
 export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
   const dockRef = useRef<HTMLDivElement>(null);
   const themeIconRef = useRef<HTMLButtonElement>(null);
+
+  // Tracks initial mount to prevent race condition with sessionStorage read
+  const isInitialMount = useRef(true);
+
+  // Session-level: Has user discovered button in this browsing session?
+  const buttonDiscoveredInSession = useRef(false);
+
+  // Tracks if button has been rendered (for skipping initial animation on restore)
+  const hasAnimatedButton = useRef(false);
+
   const [hoveredIcon, setHoveredIcon] = useState<string | null>(null);
   const [dockVisible, setDockVisible] = useState(true);
-  const [hasScrolledOnce, setHasScrolledOnce] = useState(false);
+
+  // Page-level: Has user scrolled on THIS page? (resets per navigation)
+  const [hasScrolledOnPage, setHasScrolledOnPage] = useState(false);
   const [buttonLeftPosition, setButtonLeftPosition] = useState<number | null>(null);
+
   const { theme, toggleTheme } = useTheme();
   const isMobile = useMediaQuery('(max-width: 768px)');
 
+  // Restore session state: Check if button was already discovered in this session
   useEffect(() => {
+    const stored = sessionStorage.getItem(DOCK_SCROLLED_KEY);
+    if (stored === 'true') {
+      buttonDiscoveredInSession.current = true;
+    }
+  }, []);
+
+  // Handle breakpoint changes: Reset state when switching to desktop
+  useEffect(() => {
+    // Skip cleanup on initial mount (prevent race condition with sessionStorage read)
+    if (isInitialMount.current) {
+      isInitialMount.current = false;
+      return;
+    }
+
+    // Only cleanup when switching from mobile to desktop mid-session
     if (!isMobile) {
       setDockVisible(true);
-      setHasScrolledOnce(false);
+      setHasScrolledOnPage(false);
+      sessionStorage.removeItem(DOCK_SCROLLED_KEY);
+      buttonDiscoveredInSession.current = false;
     }
   }, [isMobile]);
 
+  // One-time scroll detection: Hide dock and reveal button on first scroll
   useEffect(() => {
-    if (!isMobile || hasScrolledOnce) return;
+    if (!isMobile || hasScrolledOnPage) return;
 
     const handleFirstScroll = () => {
       if (window.scrollY > 100) {
-        setHasScrolledOnce(true);
+        setHasScrolledOnPage(true);
+
+        // Persist discovery in session (only on first-ever discovery)
+        if (!buttonDiscoveredInSession.current) {
+          sessionStorage.setItem(DOCK_SCROLLED_KEY, 'true');
+          buttonDiscoveredInSession.current = true;
+        }
+
         setDockVisible(false);
         window.removeEventListener('scroll', handleFirstScroll);
       }
@@ -39,10 +80,12 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
 
     window.addEventListener('scroll', handleFirstScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleFirstScroll);
-  }, [isMobile, hasScrolledOnce]);
+  }, [isMobile, hasScrolledOnPage]);
 
+  // Calculate Plus/X button horizontal position (aligned with theme icon)
   useEffect(() => {
-    if (!isMobile || !themeIconRef.current) return;
+    const shouldShowButton = hasScrolledOnPage || buttonDiscoveredInSession.current;
+    if (!isMobile || !themeIconRef.current || !shouldShowButton) return;
 
     const calculatePosition = () => {
       if (!themeIconRef.current) return;
@@ -55,7 +98,7 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
 
     window.addEventListener('resize', calculatePosition);
     return () => window.removeEventListener('resize', calculatePosition);
-  }, [isMobile]);
+  }, [isMobile, hasScrolledOnPage]);
 
   useEffect(() => {
     if (isMobile) return;
@@ -120,6 +163,20 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
     { id: 'chatbot', label: "Jet's Ghost", href: '/chatbot', icon: Ghost, gradient: 'from-indigo-600 to-indigo-400' },
     { id: 'contact', label: 'Contact', href: '/contact', icon: Mail, gradient: 'from-red-600 to-red-400' },
   ];
+
+  // Determine if Plus/X button should show and skip initial animation (pure derivation)
+  const shouldShowButton = hasScrolledOnPage || buttonDiscoveredInSession.current;
+  const shouldSkipButtonAnimation =
+    shouldShowButton &&
+    buttonDiscoveredInSession.current &&
+    !hasAnimatedButton.current;
+
+  // Record that button has been animated (side effect after render commits)
+  useEffect(() => {
+    if (shouldSkipButtonAnimation) {
+      hasAnimatedButton.current = true;
+    }
+  }, [shouldSkipButtonAnimation]);
 
   return (
     <>
@@ -194,7 +251,7 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
         </GlassSurface>
       </motion.div>
 
-      {isMobile && hasScrolledOnce && buttonLeftPosition !== null && (
+      {isMobile && shouldShowButton && buttonLeftPosition !== null && (
         <motion.button
           className='fixed z-50'
           style={{
@@ -206,7 +263,11 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
             rotate: dockVisible ? 45 : 0,
             x: '-50%',
           }}
-          transition={{ duration: 0.3, ease: 'easeInOut' }}
+          transition={
+            shouldSkipButtonAnimation
+              ? { duration: 0 }
+              : { duration: 0.3, ease: 'easeInOut' }
+          }
           onClick={() => setDockVisible(!dockVisible)}
           aria-label={dockVisible ? 'Close navigation' : 'Open navigation'}
         >
