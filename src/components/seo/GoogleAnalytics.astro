@@ -54,15 +54,17 @@ if (shouldSkipAnalytics) {
 
     <!-- ClientRouter page_view tracking - runs on main thread -->
     <script is:inline define:vars={{ measurementId }}>
-      // Track page views on navigation (including initial page load)
+      window.dataLayer = window.dataLayer || [];
+
+      // Define a local helper that pushes to dataLayer in the format GA4 expects
+      function gtag(){ window.dataLayer.push(arguments); }
+
       document.addEventListener('astro:page-load', () => {
-        if (window.gtag) {
-          window.gtag('event', 'page_view', {
-            page_location: window.location.href,
-            page_path: window.location.pathname,
-            page_title: document.title,
-          });
-        }
+        gtag('event', 'page_view', {
+          page_location: window.location.href,
+          page_path: window.location.pathname,
+          page_title: document.title,
+        });
       });
     </script>
   </>
