@@ -4,7 +4,6 @@ import { Home, User, FileText, Briefcase, Mail, Moon, Sun, Ghost, Plus } from 'l
 import GlassSurface from './GlassSurface';
 import { useTheme } from '../../hooks/useTheme';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
-import { useScrollDirection } from '../../hooks/useScrollDirection';
 
 interface LiquidGlassDockProps {
   currentPath: string;
@@ -12,17 +11,51 @@ interface LiquidGlassDockProps {
 
 export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
   const dockRef = useRef<HTMLDivElement>(null);
+  const themeIconRef = useRef<HTMLButtonElement>(null);
   const [hoveredIcon, setHoveredIcon] = useState<string | null>(null);
   const [dockVisible, setDockVisible] = useState(true);
+  const [hasScrolledOnce, setHasScrolledOnce] = useState(false);
+  const [buttonLeftPosition, setButtonLeftPosition] = useState<number | null>(null);
   const { theme, toggleTheme } = useTheme();
   const isMobile = useMediaQuery('(max-width: 768px)');
-  const scrollVisible = useScrollDirection();
 
   useEffect(() => {
-    if (isMobile) {
-      setDockVisible(scrollVisible);
+    if (!isMobile) {
+      setDockVisible(true);
+      setHasScrolledOnce(false);
     }
-  }, [scrollVisible, isMobile]);
+  }, [isMobile]);
+
+  useEffect(() => {
+    if (!isMobile || hasScrolledOnce) return;
+
+    const handleFirstScroll = () => {
+      if (window.scrollY > 100) {
+        setHasScrolledOnce(true);
+        setDockVisible(false);
+        window.removeEventListener('scroll', handleFirstScroll);
+      }
+    };
+
+    window.addEventListener('scroll', handleFirstScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleFirstScroll);
+  }, [isMobile, hasScrolledOnce]);
+
+  useEffect(() => {
+    if (!isMobile || !themeIconRef.current) return;
+
+    const calculatePosition = () => {
+      if (!themeIconRef.current) return;
+      const rect = themeIconRef.current.getBoundingClientRect();
+      const centerX = rect.left + rect.width / 2;
+      setButtonLeftPosition(centerX);
+    };
+
+    calculatePosition();
+
+    window.addEventListener('resize', calculatePosition);
+    return () => window.removeEventListener('resize', calculatePosition);
+  }, [isMobile]);
 
   useEffect(() => {
     if (isMobile) return;
@@ -140,11 +173,13 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
             </div>
 
             <button
+              ref={themeIconRef}
               onClick={toggleTheme}
               onMouseEnter={() => !isMobile && setHoveredIcon('theme')}
               onMouseLeave={() => !isMobile && setHoveredIcon(null)}
               className='relative dock-icon-container'
               style={{ transformOrigin: 'bottom center' }}
+              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             >
               <div className='w-10 h-10 md:w-14 md:h-14 bg-gradient-to-t from-gray-700 to-gray-500 rounded-lg md:rounded-xl flex items-center justify-center shadow-lg transition-transform'>
                 {theme === 'dark' ? (
@@ -159,16 +194,21 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
         </GlassSurface>
       </motion.div>
 
-      {isMobile && (
+      {isMobile && hasScrolledOnce && buttonLeftPosition !== null && (
         <motion.button
-          className='fixed bottom-4 right-4 z-50'
+          className='fixed z-50'
+          style={{
+            left: buttonLeftPosition,
+          }}
+          initial={{ bottom: '1rem', rotate: 0, x: '-50%' }}
           animate={{
-            opacity: dockVisible ? 0 : 1,
-            scale: dockVisible ? 0.8 : 1,
+            bottom: dockVisible ? '6.5rem' : '1rem',
+            rotate: dockVisible ? 45 : 0,
+            x: '-50%',
           }}
           transition={{ duration: 0.3, ease: 'easeInOut' }}
-          style={{ pointerEvents: dockVisible ? 'none' : 'auto' }}
-          onClick={() => setDockVisible(true)}
+          onClick={() => setDockVisible(!dockVisible)}
+          aria-label={dockVisible ? 'Close navigation' : 'Open navigation'}
         >
           <GlassSurface
             width={48}
