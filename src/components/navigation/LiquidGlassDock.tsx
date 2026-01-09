@@ -175,7 +175,7 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
         } : {}}
         transition={{ duration: 0.3, ease: 'easeInOut' }}
         style={{
-          pointerEvents: dockVisible ? 'auto' : 'none',
+          pointerEvents: 'none',
           x: '-50%',
           willChange: isMobile ? 'transform' : 'auto',
         }}
@@ -188,7 +188,7 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
           backgroundOpacity={0.33}
           brightness={50}
           opacity={0.9}
-          className="px-2 py-3 md:px-3 md:py-6 !overflow-visible"
+          className={`px-2 py-3 md:px-3 md:py-6 !overflow-visible ${isMobile && !dockVisible ? 'pointer-events-none' : 'pointer-events-auto'}`}
         >
           <div ref={dockRef} className='flex items-end space-x-2 md:space-x-6 overflow-visible'>
             {navItems.map((item) => {
