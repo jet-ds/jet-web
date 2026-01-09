@@ -190,7 +190,8 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
         transition={{ duration: 0.3, ease: 'easeInOut' }}
         style={{
           pointerEvents: dockVisible ? 'auto' : 'none',
-          x: '-50%'
+          x: '-50%',
+          willChange: isMobile ? 'transform' : 'auto',
         }}
       >
         <GlassSurface
@@ -256,10 +257,12 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
           className='fixed z-50'
           style={{
             left: buttonLeftPosition,
+            bottom: '1rem',
+            willChange: 'transform',
           }}
-          initial={{ bottom: '1rem', rotate: 0, x: '-50%' }}
+          initial={{ y: 0, rotate: 0, x: '-50%' }}
           animate={{
-            bottom: dockVisible ? '6.5rem' : '1rem',
+            y: dockVisible ? -88 : 0,
             rotate: dockVisible ? 45 : 0,
             x: '-50%',
           }}
