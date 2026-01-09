@@ -21,7 +21,7 @@ export default defineConfig({
     sitemap(),
     partytown({
       config: {
-        forward: ['dataLayer.push'], // Forward GA4 events to web worker
+        forward: ['dataLayer.push', 'gtag'], // Forward GA4 events to web worker
       },
     }),
   ],

@@ -42,25 +42,18 @@ if (shouldSkipAnalytics) {
     <script type="text/partytown" async src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`}></script>
     <script type="text/partytown" define:vars={{ measurementId }}>
       window.dataLayer = window.dataLayer || [];
-      function gtag(){dataLayer.push(arguments);}
+      window.gtag = function() { dataLayer.push(arguments); };
       gtag('js', new Date());
-
-      // IMPORTANT: send_page_view: false prevents double tracking
-      // We handle all page views manually via astro:page-load
-      gtag('config', measurementId, {
-        send_page_view: false
-      });
+      gtag('config', measurementId, { send_page_view: false });
     </script>
 
     <!-- ClientRouter page_view tracking - runs on main thread -->
     <script is:inline define:vars={{ measurementId }}>
       window.dataLayer = window.dataLayer || [];
-
-      // Define a local helper that pushes to dataLayer in the format GA4 expects
-      function gtag(){ window.dataLayer.push(arguments); }
+      window.gtag = function() { dataLayer.push(arguments); };
 
       document.addEventListener('astro:page-load', () => {
-        gtag('event', 'page_view', {
+        window.gtag('event', 'page_view', {
           page_location: window.location.href,
           page_path: window.location.pathname,
           page_title: document.title,
