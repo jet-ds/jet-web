@@ -1,8 +1,8 @@
 import { Home, User, FileText, Briefcase, Mail, type LucideIcon } from 'lucide-react';
 
 export const SITE = {
-  title: 'Jet - Personal Website',
-  description: 'Personal website and blog featuring research, projects, and writings.',
+  title: 'Jet Sanchez',
+  description: 'Research, systems & tools for thinking clearly in an AI-driven world',
   author: 'Jet Sanchez',
   givenName: 'Jet',
   familyName: 'Sanchez',
@@ -11,7 +11,7 @@ export const SITE = {
     'Josh Ethan Sanchez',
     'Jet (Josh Ethan) Sanchez',
   ],
-  jobTitle: 'AI Researcher & Content Strategist',
+  jobTitle: 'Marketing Engineer & AI Researcher',
   email: 'jetsanchezzz@gmail.com',
   siteUrl: 'https://jetsanchez.com',
   ga4MeasurementId: 'G-71J4JTMLJE',
