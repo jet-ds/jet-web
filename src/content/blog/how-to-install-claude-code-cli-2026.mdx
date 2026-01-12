@@ -1,0 +1,316 @@
+---
+title: "How to Install and Get Started With Claude Code CLI in 2026"
+description: "Complete guide to installing Claude Code CLI, setting up plugins, leveraging skills, and getting productive with Anthropic's agentic coding tool."
+pubDate: 2026-01-13
+author: "Jet Sanchez"
+tags: ["claude-code", "ai", "dev-tools", "cli", "tutorial", "anthropic"]
+draft: false
+---
+
+Claude Code has quietly become one of the most influential and impactful technologies of the AI era. It's been so ridiculously good at what it does that some circles have gone so far as calling it AGI incarnate.
+
+But what is [Claude Code](https://code.claude.com/docs/en/overview)? Anthropic's agentic coding tool lives in your terminal (among other places) and turns natural language into working code. Crucially, the CLI version has access to your machine's file system and understands your codebase, executes routine tasks, debugs issues, and even handles git workflows—all through conversational commands.
+
+If you're wondering how to get started with agentic coding, this guide covers everything you need to install, configure, and start using Claude Code CLI in 2026.
+
+## Why Claude Code in 2026?
+
+Let's be honest, Claude has been and still is preferred by developers shipping at the frontier, touted for its often superior coding performance and enterprise focus. 
+
+With Claude Code, Anthropic appears to have a real moat. Alternative agentic CLI tools like Codex CLI and Gemini CLI exist, but my testing has found these to be a step below what Claude Code has to offer. The harness and tooling Anthropic has built around the model is almost certainly the primary driver.
+
+## Prerequisites
+
+Before installing, ensure you have:
+
+- **Claude subscription**: Pro, Max, Teams, or Enterprise (or a Claude Console account)
+- **Terminal access**: macOS Terminal, Linux shell, or Windows PowerShell
+- **Internet connection**: For installation and authentication
+
+## Installation: Native Installer (Recommended)
+
+The native installer is now the **standard installation method** as of 2026. It offers better stability, automatic updates, and zero dependency conflicts.
+
+### macOS / Linux / WSL
+
+Open your terminal and run:
+
+```bash
+curl -fsSL https://claude.ai/install.sh | bash
+```
+
+The installer will:
+1. Download the latest Claude Code binary
+2. Install to your system path
+3. Set up shell completions
+4. Configure auto-updates
+
+### Windows
+
+Open PowerShell as Admin and run:
+
+```powershell
+irm https://claude.ai/install.ps1 | iex
+```
+
+The PowerShell script handles:
+- Binary download and installation
+- PATH configuration
+- Auto-update setup
+- Shell integration
+
+### Verify Installation
+
+After installation completes, verify it worked:
+
+```bash
+claude --version
+```
+
+You should see output like: `claude version 2.x.x`
+
+If you encounter issues, run the diagnostic tool:
+
+```bash
+claude doctor
+```
+
+This checks for common problems and suggests fixes.
+
+## Migrating from npm to Native
+
+If you previously installed Claude Code via npm, migrating is straightforward:
+
+1. **Uninstall npm version**:
+   ```bash
+   npm uninstall -g @anthropic-ai/claude-code
+   ```
+
+2. **Install native version** (see commands above)
+
+3. **Your settings are preserved**: Configuration files in `~/.claude/settings.json` and project settings in `.claude/` remain intact during migration.
+
+The native installer recognizes existing configurations and migrates them automatically.
+
+## First Time Setup
+
+### Authentication
+
+On first run, Claude Code prompts you to authenticate:
+
+```bash
+claude
+```
+
+This opens your browser to complete login with your Claude account. Once authenticated, you're ready to use Claude Code in any project.
+
+### Project Initialization
+
+Navigate to your project directory:
+
+```bash
+cd /path/to/your/project
+claude
+```
+
+Claude Code will analyze your project structure and should be ready to assist. You can now give it natural language instructions like:
+
+- "Add unit tests for the authentication module"
+- "Fix the bug causing the form to not submit"
+- "Refactor the API client to use async/await"
+
+## Understanding Plugins
+
+Plugins extend Claude Code with custom functionality. The plugin system allows you to add:
+
+- **Slash commands**: Custom commands like `/deploy` or `/test`
+- **Agents**: Specialized AI agents for specific tasks
+- **Hooks**: React to events (file changes, git commits, etc.)
+- **Skills**: Task-specific instruction sets
+- **MCP servers**: Advanced integrations via Model Context Protocol
+
+### Plugin Structure
+
+A Claude Code plugin lives in a `.claude-plugin/` directory:
+
+```
+.claude-plugin/
+├── plugin.json       # Plugin metadata
+├── commands/         # Custom slash commands
+├── agents/           # Specialized agents
+├── skills/           # Task-specific skills
+├── hooks/            # Event hooks
+└── .mcp.json         # MCP server config
+```
+
+### Installing Plugins
+
+**Official plugins** can be installed via the CLI:
+
+```bash
+claude plugin install <plugin-name>
+```
+
+**Community plugins** typically provide installation instructions in their README.
+
+**Manual installation**: Clone/download the plugin to your project's `.claude-plugin/` directory or your global plugins folder `~/.claude/plugins/`.
+
+### Creating Custom Plugins
+
+Create a `plugin.json` file to define your plugin:
+
+```json
+{
+  "name": "my-plugin",
+  "version": "1.0.0",
+  "description": "Custom plugin for my workflow",
+  "commands": {
+    "deploy": {
+      "description": "Deploy to production",
+      "script": "./commands/deploy.sh"
+    }
+  }
+}
+```
+## Leveraging Skills
+
+**Skills** are one of Claude Code's most powerful features. They teach Claude how to complete specific tasks in a repeatable, somewhat more deterministic way.
+
+### What Are Skills?
+
+A skill is a folder containing:
+- **Instructions**: How to perform the task
+- **Scripts**: Automation tools
+- **Resources**: Templates, examples, configs
+- **Tool restrictions**: Safety boundaries
+
+Skills use **progressive disclosure**, as Claude only loads relevant information when needed, keeping context usage more efficient.
+
+Anthropic maintains an [official skills repo](https://github.com/anthropics/skills) with skills for UI/UX, code reviews, agentic workflows, and more.
+
+### Using Skills
+
+Skills activate automatically when Claude detects relevant tasks. You can also explicitly invoke them:
+
+```bash
+claude --skill code-review "Review my PR changes"
+```
+
+### Creating Custom Skills
+
+Create a skill directory structure:
+
+```
+my-skill/
+├── skill.json        # Skill metadata
+├── instructions.md   # How to perform the task
+├── examples/         # Reference examples
+└── tools/            # Helper scripts
+```
+
+**skill.json** example:
+
+```json
+{
+  "name": "api-testing",
+  "description": "Comprehensive API endpoint testing",
+  "triggers": ["test api", "api test", "endpoint test"],
+  "tools": ["bash", "curl", "jq"]
+}
+```
+
+Place custom skills in `~/.claude/skills/` or `.claude/skills/` within your project.
+
+## Configuration & Settings
+
+Customize Claude Code behavior via `~/.claude/settings.json`:
+
+```json
+{
+  "model": "claude-sonnet-4",
+  "temperature": 0.7,
+  "autoCommit": false,
+  "plugins": {
+    "enabled": true,
+    "autoUpdate": true
+  },
+  "skills": {
+    "path": "~/.claude/skills"
+  }
+}
+```
+
+Project-specific settings go in `.claude/settings.json` within your project root.
+
+## MCP Servers
+
+Anthropic's Model Context Protocol (MCP) allows Claude Code to connect to external systems and APIs. MCP servers provide:
+
+- Database access
+- API integrations
+- File system operations
+- Custom data sources
+
+Configure MCP servers in `.claude-plugin/.mcp.json`:
+
+```json
+{
+  "servers": {
+    "database": {
+      "url": "postgresql://localhost:5432/mydb",
+      "type": "postgres"
+    }
+  }
+}
+```
+
+## Best Practices
+
+### 1. Start Specific, Iterate Broadly
+
+Begin with specific requests:
+- ❌ "Make the app better"
+- ✅ "Add input validation to the email field with regex pattern matching"
+
+Then iterate based on results.
+
+### 2. Leverage Context
+
+Claude Code understands your entire codebase. Reference existing patterns:
+- "Add a new API endpoint following the pattern in `src/api/users.ts`"
+- "Use the same error handling approach as the authentication module"
+
+### 3. Use Plugins for Repetitive Tasks
+
+If you find yourself asking Claude to do the same task repeatedly, create a plugin or skill for it.
+
+### 4. Review Before Accepting
+
+Claude Code can make changes autonomously, but **you maintain control**. Review changes before accepting them, especially for:
+- Security-sensitive code
+- Database migrations
+- Production deployments
+
+### 5. Combine with Git Workflows
+
+Claude Code integrates seamlessly with git and Github CLI:
+- Ask it to explain git diffs
+- Generate commit messages
+- Create pull request descriptions
+- Review code changes before committing
+
+## What's Next?
+
+Agentic coding has made the leap from hype to paradigm-shifting, and Claude Code is at the forefront of that. There's never been a better time to get started and build things with AI. 
+
+Start with simple commands, explore plugins, experiment with skills, and watch the magic happen.
+
+Ready to get started? Open your terminal and run:
+
+```bash
+curl -fsSL https://claude.ai/install.sh | bash
+```
+
+Then `cd` into a project and type `claude`. Welcome to agentic coding.
+
+---
