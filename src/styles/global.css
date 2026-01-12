@@ -15,7 +15,12 @@
   }
 
   body {
-    @apply bg-muted dark:bg-muted-dark text-foreground dark:text-foreground-dark transition-colors duration-300;
+    @apply bg-muted dark:bg-muted-dark text-foreground dark:text-foreground-dark transition-colors duration-300 font-sans;
+  }
+
+  /* Global typography system: Brawler for headings, IBM Plex Sans for body */
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif;
   }
 }
 
@@ -46,7 +51,7 @@
   }
 
   .prose :where(h1, h2, h3, h4, h5, h6):not(:where([class~="not-prose"] *)) {
-    @apply text-foreground dark:text-foreground-dark font-bold;
+    @apply text-foreground dark:text-foreground-dark font-serif font-bold;
   }
 
   .prose :where(strong):not(:where([class~="not-prose"] *)) {

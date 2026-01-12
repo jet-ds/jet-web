@@ -49,7 +49,7 @@ export default {
       },
       fontFamily: {
         sans: [
-          'Inter',
+          '"Work Sans"',
           'system-ui',
           '-apple-system',
           'BlinkMacSystemFont',
@@ -59,8 +59,16 @@ export default {
           'Arial',
           'sans-serif',
         ],
+        serif: [
+          'Brawler',
+          'Georgia',
+          'Cambria',
+          '"Times New Roman"',
+          'Times',
+          'serif',
+        ],
         mono: [
-          '"Fira Code"',
+          '"JetBrains Mono"',
           'ui-monospace',
           'SFMono-Regular',
           'Menlo',
