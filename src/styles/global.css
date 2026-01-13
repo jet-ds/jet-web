@@ -97,10 +97,10 @@
   }
 
   body {
-    @apply bg-muted dark:bg-muted-dark text-foreground dark:text-foreground-dark transition-colors duration-300 font-sans;
+    @apply bg-bg-base text-text-primary transition-colors duration-300 font-sans;
   }
 
-  /* Global typography system: Brawler for headings, IBM Plex Sans for body */
+  /* Global typography system: Brawler for headings, Work Sans for body */
   h1, h2, h3, h4, h5, h6 {
     @apply font-serif;
   }
@@ -109,19 +109,19 @@
 @layer components {
   /* Prose/Typography customization for MDX content */
   .prose {
-    @apply text-foreground dark:text-foreground-dark;
+    @apply text-text-primary;
   }
 
   .prose :where(a):not(:where([class~="not-prose"] *)) {
-    @apply text-primary-600 dark:text-primary-400 no-underline hover:underline;
+    @apply text-brand-base no-underline hover:underline;
   }
 
   .prose :where(code):not(:where([class~="not-prose"] *)) {
-    @apply text-primary-700 dark:text-primary-300 bg-muted dark:bg-muted-dark px-1.5 py-0.5 rounded text-sm font-mono;
+    @apply text-brand-text bg-bg-subtle px-1.5 py-0.5 rounded text-sm font-mono;
   }
 
   .prose :where(pre):not(:where([class~="not-prose"] *)) {
-    @apply bg-slate-900 dark:bg-slate-950 rounded-lg overflow-x-auto;
+    @apply bg-brand-11 rounded-lg overflow-x-auto;
   }
 
   .prose :where(pre code):not(:where([class~="not-prose"] *)) {
@@ -129,23 +129,23 @@
   }
 
   .prose :where(blockquote):not(:where([class~="not-prose"] *)) {
-    @apply border-l-4 border-primary-600 dark:border-primary-400 pl-4 italic text-muted-foreground dark:text-muted-foreground-dark;
+    @apply border-l-4 border-brand-base pl-4 italic text-text-tertiary;
   }
 
   .prose :where(h1, h2, h3, h4, h5, h6):not(:where([class~="not-prose"] *)) {
-    @apply text-foreground dark:text-foreground-dark font-serif font-bold;
+    @apply text-text-primary font-serif font-bold;
   }
 
   .prose :where(strong):not(:where([class~="not-prose"] *)) {
-    @apply text-foreground dark:text-foreground-dark font-semibold;
+    @apply text-text-primary font-semibold;
   }
 
   .prose :where(thead):not(:where([class~="not-prose"] *)) {
-    @apply border-b border-border dark:border-border-dark;
+    @apply border-b border-border-default;
   }
 
   .prose :where(tbody tr):not(:where([class~="not-prose"] *)) {
-    @apply border-b border-border dark:border-border-dark;
+    @apply border-b border-border-default;
   }
 }
 
