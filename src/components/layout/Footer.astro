@@ -21,22 +21,22 @@ const socialLinksArray = Object.entries(SOCIAL_LINKS)
   }));
 ---
 
-<footer class="border-t border-border dark:border-border-dark bg-background dark:bg-background-dark">
+<footer class="border-t border-border-default bg-bg-base">
   <Container class="py-12">
     <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
       <!-- About Section -->
       <div>
-        <h3 class="text-lg font-semibold mb-4 text-foreground dark:text-foreground-dark">
+        <h3 class="text-lg font-semibold mb-4 text-text-primary">
           {SITE.title}
         </h3>
-        <p class="text-sm text-muted-foreground dark:text-muted-foreground-dark dark:text-muted-foreground-dark">
+        <p class="text-sm text-text-tertiary">
           {SITE.description}
         </p>
       </div>
 
       <!-- Quick Links -->
       <div>
-        <h3 class="text-lg font-semibold mb-4 text-foreground dark:text-foreground-dark">
+        <h3 class="text-lg font-semibold mb-4 text-text-primary">
           Quick Links
         </h3>
         <ul class="space-y-2">
@@ -60,7 +60,7 @@ const socialLinksArray = Object.entries(SOCIAL_LINKS)
 
       <!-- Social Links -->
       <div>
-        <h3 class="text-lg font-semibold mb-4 text-foreground dark:text-foreground-dark">
+        <h3 class="text-lg font-semibold mb-4 text-text-primary">
           Connect
         </h3>
         <ul class="space-y-2">
@@ -76,8 +76,8 @@ const socialLinksArray = Object.entries(SOCIAL_LINKS)
     </div>
 
     <!-- Copyright -->
-    <div class="mt-8 pt-8 border-t border-border dark:border-border-dark">
-      <p class="text-center text-sm text-muted-foreground dark:text-muted-foreground-dark dark:text-muted-foreground-dark">
+    <div class="mt-8 pt-8 border-t border-border-default">
+      <p class="text-center text-sm text-text-tertiary">
         © {currentYear} {SITE.author}. All rights reserved.
       </p>
     </div>
