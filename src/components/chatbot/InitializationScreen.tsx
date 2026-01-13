@@ -55,27 +55,27 @@ export function InitializationScreen({
         {/* Ghost Icon with animation */}
         <div className="text-center">
           <div className="text-6xl mb-4 animate-bounce">👻</div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100 mb-2">
+          <h2 className="text-2xl font-bold text-text-primary mb-2">
             Waking up Jet's Ghost...
           </h2>
-          <p className="text-gray-600 dark:text-gray-400">
+          <p className="text-text-tertiary">
             {getSubstateMessage(substate)}
           </p>
         </div>
 
         {/* Progress Bar */}
-        <div className="w-full bg-gray-200 dark:bg-gray-700 rounded-full h-4 overflow-hidden relative">
+        <div className="w-full bg-neutral-3 rounded-full h-4 overflow-hidden relative">
           <div
-            className="bg-blue-600 h-full transition-all duration-300 ease-out relative overflow-hidden"
+            className="bg-brand-base h-full transition-all duration-300 ease-out relative overflow-hidden"
             style={{ width: `${Math.min(progress, 100)}%` }}
           >
             {/* Shimmer effect */}
-            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-blue-400 to-transparent animate-[shimmer_2s_infinite]" />
+            <div className="absolute inset-0 bg-gradient-to-r from-transparent via-brand-4 to-transparent animate-[shimmer_2s_infinite]" />
           </div>
         </div>
 
         {/* Progress Percentage */}
-        <div className="text-center text-sm text-gray-500 dark:text-gray-400">
+        <div className="text-center text-sm text-text-tertiary">
           {Math.floor(progress)}% complete
         </div>
 
@@ -87,10 +87,10 @@ export function InitializationScreen({
                 key={step}
                 className={`w-2 h-2 rounded-full transition-colors ${
                   step === substate
-                    ? 'bg-blue-600'
+                    ? 'bg-brand-base'
                     : progress >= getStepProgress(step)
-                      ? 'bg-blue-400'
-                      : 'bg-gray-300 dark:bg-gray-600'
+                      ? 'bg-brand-4'
+                      : 'bg-neutral-4'
                 }`}
               />
             )
@@ -99,7 +99,7 @@ export function InitializationScreen({
 
         {/* First-time notice */}
         {substate === 'loading-model' && (
-          <p className="text-xs text-center text-gray-500 dark:text-gray-400">
+          <p className="text-xs text-center text-text-tertiary">
             First load downloads the AI model (~23 MB). Subsequent loads are instant.
           </p>
         )}
