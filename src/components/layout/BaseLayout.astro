@@ -62,7 +62,7 @@ const seoProps = generateSEOProps({
     <StructuredData
       type={type === 'article' ? 'article' : 'website'}
       url={seoProps.canonicalURL}
-      name={seoProps.title}
+      name={type === 'article' ? seoProps.title : SITE.title}
       description={seoProps.description}
       headline={type === 'article' ? seoProps.title : undefined}
       image={seoProps.image}
