@@ -46,7 +46,7 @@ const typeLabel = {
 
 const typeColor = {
   research: 'primary' as const,
-  project: 'success' as const,
+  project: 'primary' as const,
   other: 'default' as const,
 }[type];
 ---
@@ -68,12 +68,12 @@ const typeColor = {
           <Tag variant={typeColor} size="md">{typeLabel}</Tag>
         </div>
 
-        <h1 class="text-4xl md:text-5xl font-bold mb-4 text-foreground dark:text-foreground-dark">
+        <h1 class="text-4xl md:text-5xl font-bold mb-4 text-text-primary">
           {title}
         </h1>
 
         <!-- Meta Information -->
-        <div class="flex flex-wrap items-center gap-4 text-sm text-muted-foreground dark:text-muted-foreground-dark dark:text-muted-foreground-dark mb-6">
+        <div class="flex flex-wrap items-center gap-4 text-sm text-text-tertiary mb-6">
           <time datetime={date.toISOString()}>
             {formattedDate}
           </time>
@@ -86,7 +86,7 @@ const typeColor = {
         </div>
 
         <!-- Description -->
-        <p class="text-lg text-muted-foreground dark:text-muted-foreground-dark dark:text-muted-foreground-dark mb-6">
+        <p class="text-lg text-text-tertiary mb-6">
           {description}
         </p>
 
@@ -102,12 +102,12 @@ const typeColor = {
         <!-- Technologies (for projects) -->
         {technologies.length > 0 && (
           <div class="mb-6">
-            <h3 class="text-sm font-semibold mb-2 text-foreground dark:text-foreground-dark">
+            <h3 class="text-sm font-semibold mb-2 text-text-primary">
               Technologies
             </h3>
             <div class="flex flex-wrap gap-2">
               {technologies.map((tech) => (
-                <Tag variant="success">{tech}</Tag>
+                <Tag>{tech}</Tag>
               ))}
             </div>
           </div>

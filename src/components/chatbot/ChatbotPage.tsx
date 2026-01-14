@@ -87,22 +87,22 @@ export function ChatbotPage() {
       <div className="flex items-center justify-center min-h-[600px]">
         <div className="max-w-md text-center space-y-6">
           <div className="text-6xl mb-4">⚠️</div>
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-100">
+          <h2 className="text-2xl font-bold text-text-primary">
             {canRetry ? 'Temporary Error' : 'Initialization Failed'}
           </h2>
-          <p className="text-gray-600 dark:text-gray-400">{errorMessage}</p>
+          <p className="text-text-tertiary">{errorMessage}</p>
           <div className="flex gap-3 justify-center">
             {canRetry && (
               <button
                 onClick={handleStartChat}
-                className="px-6 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors"
+                className="px-6 py-2 bg-brand-base text-brand-contrast rounded-lg hover:bg-brand-hover transition-colors"
               >
                 Retry
               </button>
             )}
             <button
               onClick={() => window.location.reload()}
-              className="px-6 py-2 bg-gray-600 text-white rounded-lg hover:bg-gray-700 transition-colors"
+              className="px-6 py-2 bg-neutral-8 text-white rounded-lg hover:bg-neutral-9 transition-colors"
             >
               Reload Page
             </button>
@@ -118,7 +118,7 @@ export function ChatbotPage() {
       {/* Modal Overlay */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-          <div className="bg-white dark:bg-gray-900 rounded-lg shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col">
+          <div className="bg-surface-base rounded-lg shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col">
             <ChatInterface
               messages={messages}
               state={state}
@@ -133,7 +133,7 @@ export function ChatbotPage() {
       {/* Background content when modal is open */}
       {isModalOpen && (
         <div className="flex items-center justify-center min-h-[600px]">
-          <div className="text-center text-gray-500 dark:text-gray-400">
+          <div className="text-center text-text-tertiary">
             <p>Chat is open</p>
           </div>
         </div>
@@ -144,7 +144,7 @@ export function ChatbotPage() {
         <div className="flex items-center justify-center min-h-[600px]">
           <button
             onClick={() => setIsModalOpen(true)}
-            className="px-8 py-3 bg-blue-600 text-white rounded-lg hover:bg-blue-700 transition-colors font-semibold text-lg shadow-lg"
+            className="px-8 py-3 bg-brand-base text-brand-contrast rounded-lg hover:bg-brand-hover transition-colors font-semibold text-lg shadow-lg"
           >
             Open Chat
           </button>

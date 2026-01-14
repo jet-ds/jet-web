@@ -62,7 +62,7 @@ const seoProps = generateSEOProps({
     <StructuredData
       type={type === 'article' ? 'article' : 'website'}
       url={seoProps.canonicalURL}
-      name={seoProps.title}
+      name={type === 'article' ? seoProps.title : SITE.title}
       description={seoProps.description}
       headline={type === 'article' ? seoProps.title : undefined}
       image={seoProps.image}
@@ -108,14 +108,14 @@ const seoProps = generateSEOProps({
     <DockWrapper />
 
     <noscript>
-      <nav class="fixed top-0 left-0 right-0 z-50 bg-white/90 dark:bg-gray-900/90 backdrop-blur-sm border-b border-gray-200 dark:border-gray-800">
+      <nav class="fixed top-0 left-0 right-0 z-50 bg-surface-base/90 backdrop-blur-sm border-b border-border-default">
         <div class="max-w-7xl mx-auto px-4 py-4">
           <ul class="flex flex-wrap items-center justify-center gap-6">
-            <li><a href="/" class="text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400">Home</a></li>
-            <li><a href="/about" class="text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400">About</a></li>
-            <li><a href="/blog" class="text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400">Blog</a></li>
-            <li><a href="/works" class="text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400">Works</a></li>
-            <li><a href="/contact" class="text-gray-900 dark:text-gray-100 hover:text-blue-600 dark:hover:text-blue-400">Contact</a></li>
+            <li><a href="/" class="text-text-primary hover:text-brand-base">Home</a></li>
+            <li><a href="/about" class="text-text-primary hover:text-brand-base">About</a></li>
+            <li><a href="/blog" class="text-text-primary hover:text-brand-base">Blog</a></li>
+            <li><a href="/works" class="text-text-primary hover:text-brand-base">Works</a></li>
+            <li><a href="/contact" class="text-text-primary hover:text-brand-base">Contact</a></li>
           </ul>
         </div>
       </nav>

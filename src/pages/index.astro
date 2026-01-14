@@ -19,6 +19,13 @@ const featuredWorks = allWorks
   .filter((work) => work.data.featured === true)
   .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
   .slice(0, 3);
+
+// Type labels
+const typeLabel: Record<string, string> = {
+  research: 'Research',
+  project: 'Project',
+  other: 'Other',
+};
 ---
 
 <BaseLayout
@@ -29,10 +36,10 @@ const featuredWorks = allWorks
   <section class="pt-24 pb-20 md:pt-40 md:pb-32">
     <Container size="lg">
       <div class="max-w-4xl mx-auto text-center">
-        <h1 class="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 text-foreground dark:text-foreground-dark">
+        <h1 class="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 text-text-primary">
           Hi, I'm Jet Sanchez.
         </h1>
-        <p class="text-sm md:text-lg text-muted-foreground dark:text-muted-foreground-dark dark:text-muted-foreground-dark mb-8">
+        <p class="text-sm md:text-lg text-text-tertiary mb-8">
           Research, systems & tools for thinking clearly in an AI-driven world
         </p>
         <div class="flex flex-wrap gap-4 justify-center">
@@ -44,10 +51,10 @@ const featuredWorks = allWorks
   </section>
 
   <!-- Latest Blog Posts -->
-  <section class="py-16 bg-muted dark:bg-muted-dark">
+  <section class="py-16 bg-bg-subtle">
     <Container size="lg">
       <div class="flex justify-between items-center mb-8">
-        <h2 class="text-3xl font-bold text-foreground dark:text-foreground-dark">
+        <h2 class="text-3xl font-bold text-text-primary">
           Latest Articles
         </h2>
         <Button href="/blog" variant="ghost">View All →</Button>
@@ -58,12 +65,12 @@ const featuredWorks = allWorks
           {latestPosts.map((post) => (
             <Card hover class="flex flex-col h-full">
               <div class="flex-1">
-                <h3 class="text-xl font-semibold mb-2 text-foreground dark:text-foreground-dark">
-                  <a href={`/blog/${post.slug}`} class="hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+                <h3 class="text-xl font-semibold mb-2 text-text-primary">
+                  <a href={`/blog/${post.slug}`} class="hover:text-brand-base transition-colors">
                     {post.data.title}
                   </a>
                 </h3>
-                <p class="text-muted-foreground dark:text-muted-foreground-dark dark:text-muted-foreground-dark mb-4">
+                <p class="text-text-tertiary mb-4">
                   {post.data.description}
                 </p>
                 <div class="flex flex-wrap gap-2 mb-4">
@@ -72,7 +79,7 @@ const featuredWorks = allWorks
                   ))}
                 </div>
               </div>
-              <div class="text-sm text-muted-foreground dark:text-muted-foreground-dark dark:text-muted-foreground-dark">
+              <div class="text-sm text-text-tertiary">
                 {post.data.pubDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
               </div>
             </Card>
@@ -80,7 +87,7 @@ const featuredWorks = allWorks
         </div>
       ) : (
         <Card>
-          <p class="text-center text-muted-foreground dark:text-muted-foreground-dark dark:text-muted-foreground-dark py-8">
+          <p class="text-center text-text-tertiary py-8">
             No blog posts yet. Check back soon!
           </p>
         </Card>
@@ -92,7 +99,7 @@ const featuredWorks = allWorks
   <section class="py-16">
     <Container size="lg">
       <div class="flex justify-between items-center mb-8">
-        <h2 class="text-3xl font-bold text-foreground dark:text-foreground-dark">
+        <h2 class="text-3xl font-bold text-text-primary">
           Featured Works
         </h2>
         <Button href="/works" variant="ghost">View All →</Button>
@@ -105,18 +112,18 @@ const featuredWorks = allWorks
               <div class="flex-1">
                 <div class="flex items-center gap-2 mb-3">
                   <Tag
-                    variant={work.data.type === 'research' ? 'primary' : work.data.type === 'project' ? 'success' : 'default'}
+                    variant={work.data.type === 'research' ? 'primary' : work.data.type === 'project' ? 'primary' : 'default'}
                     size="sm"
                   >
-                    {work.data.type}
+                    {typeLabel[work.data.type]}
                   </Tag>
                 </div>
-                <h3 class="text-xl font-semibold mb-2 text-foreground dark:text-foreground-dark">
-                  <a href={`/works/${work.slug}`} class="hover:text-primary-600 dark:hover:text-primary-400 transition-colors">
+                <h3 class="text-xl font-semibold mb-2 text-text-primary">
+                  <a href={`/works/${work.slug}`} class="hover:text-brand-base transition-colors">
                     {work.data.title}
                   </a>
                 </h3>
-                <p class="text-muted-foreground dark:text-muted-foreground-dark dark:text-muted-foreground-dark mb-4">
+                <p class="text-text-tertiary mb-4">
                   {work.data.description}
                 </p>
                 <div class="flex flex-wrap gap-2 mb-4">
@@ -125,7 +132,7 @@ const featuredWorks = allWorks
                   ))}
                 </div>
               </div>
-              <div class="text-sm text-muted-foreground dark:text-muted-foreground-dark dark:text-muted-foreground-dark">
+              <div class="text-sm text-text-tertiary">
                 {work.data.date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
               </div>
             </Card>
@@ -133,7 +140,7 @@ const featuredWorks = allWorks
         </div>
       ) : (
         <Card>
-          <p class="text-center text-muted-foreground dark:text-muted-foreground-dark dark:text-muted-foreground-dark py-8">
+          <p class="text-center text-text-tertiary py-8">
             No featured works yet. Check back soon!
           </p>
         </Card>
@@ -142,13 +149,13 @@ const featuredWorks = allWorks
   </section>
 
   <!-- Call to Action -->
-  <section class="py-16 bg-primary-50 dark:bg-primary-950/20">
+  <section class="py-16 bg-brand-subtle">
     <Container size="md">
       <div class="text-center">
-        <h2 class="text-3xl font-bold mb-4 text-foreground dark:text-foreground-dark">
+        <h2 class="text-3xl font-bold mb-4 text-text-primary">
           Let's Connect
         </h2>
-        <p class="text-lg text-muted-foreground dark:text-muted-foreground-dark dark:text-muted-foreground-dark mb-8">
+        <p class="text-lg text-text-secondary mb-8">
           Interested in collaborating or have questions? Feel free to reach out!
         </p>
         <div class="flex flex-wrap justify-center gap-4">

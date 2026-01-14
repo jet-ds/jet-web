@@ -12,7 +12,7 @@ const {
   ...rest
 } = Astro.props;
 
-const baseClasses = 'bg-card dark:bg-card-dark border border-border dark:border-border-dark rounded-lg transition-colors';
+const baseClasses = 'bg-surface-base border border-border-default rounded-lg transition-colors';
 
 const paddingClasses = {
   none: '',
@@ -22,7 +22,7 @@ const paddingClasses = {
 };
 
 const hoverClasses = hover
-  ? 'hover:border-primary-500 dark:hover:border-primary-400 hover:shadow-md cursor-pointer'
+  ? 'hover:border-brand-base hover:shadow-md cursor-pointer'
   : '';
 
 const classes = `${baseClasses} ${paddingClasses[padding]} ${hoverClasses} ${className}`;
