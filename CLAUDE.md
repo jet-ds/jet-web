@@ -42,6 +42,12 @@ npm run lint             # Run ESLint (if configured)
 - **Quotes**: Single quotes for strings, double quotes for JSX attributes
 - **Semicolons**: Required
 - **TypeScript**: Strict mode enabled
+- **Commits**: Use conventional commits with detailed bodies:
+  - Format: `type(optional-scope): Summary starting with capital`
+  - Blank line, then short summary paragraph (distinct from bullets)
+  - Blank line, then bulleted description of changes
+  - Blank line, then end with Claude attribution
+  - Types: `feat`, `fix`, `docs`, `chore`, `refactor`, `perf`, `test`
 
 ### File Naming
 - Components: PascalCase (e.g., `BlogCard.astro`, `ThemeToggle.tsx`)
