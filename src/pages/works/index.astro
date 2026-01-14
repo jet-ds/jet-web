@@ -49,7 +49,7 @@ const pageDescription = selectedType
           ? `${selectedType.charAt(0).toUpperCase() + selectedType.slice(1)} Works`
           : 'Works'}
       </h1>
-      <p class="text-xl text-muted-foreground dark:text-muted-foreground-dark max-w-2xl">
+      <p class="text-xl text-text-tertiary max-w-2xl">
         {pageDescription}
       </p>
     </div>
@@ -60,8 +60,8 @@ const pageDescription = selectedType
         href="/works"
         class={`px-4 py-2 rounded-lg transition-colors ${
           !selectedType
-            ? 'bg-primary-600 text-white'
-            : 'bg-card dark:bg-card-dark hover:bg-primary-100 dark:hover:bg-primary-900 text-foreground dark:text-foreground-dark'
+            ? 'bg-brand-base text-brand-contrast'
+            : 'bg-surface-base hover:bg-bg-hover text-text-primary'
         }`}
       >
         All ({workCounts.all})
@@ -70,8 +70,8 @@ const pageDescription = selectedType
         href="/works?type=research"
         class={`px-4 py-2 rounded-lg transition-colors ${
           selectedType === 'research'
-            ? 'bg-primary-600 text-white'
-            : 'bg-card dark:bg-card-dark hover:bg-primary-100 dark:hover:bg-primary-900 text-foreground dark:text-foreground-dark'
+            ? 'bg-brand-base text-brand-contrast'
+            : 'bg-surface-base hover:bg-bg-hover text-text-primary'
         }`}
       >
         Research ({workCounts.research})
@@ -80,8 +80,8 @@ const pageDescription = selectedType
         href="/works?type=project"
         class={`px-4 py-2 rounded-lg transition-colors ${
           selectedType === 'project'
-            ? 'bg-primary-600 text-white'
-            : 'bg-card dark:bg-card-dark hover:bg-primary-100 dark:hover:bg-primary-900 text-foreground dark:text-foreground-dark'
+            ? 'bg-brand-base text-brand-contrast'
+            : 'bg-surface-base hover:bg-bg-hover text-text-primary'
         }`}
       >
         Projects ({workCounts.project})
@@ -91,8 +91,8 @@ const pageDescription = selectedType
           href="/works?type=other"
           class={`px-4 py-2 rounded-lg transition-colors ${
             selectedType === 'other'
-              ? 'bg-primary-600 text-white'
-              : 'bg-card dark:bg-card-dark hover:bg-primary-100 dark:hover:bg-primary-900 text-foreground dark:text-foreground-dark'
+              ? 'bg-brand-base text-brand-contrast'
+              : 'bg-surface-base hover:bg-bg-hover text-text-primary'
           }`}
         >
           Other ({workCounts.other})
@@ -101,7 +101,7 @@ const pageDescription = selectedType
     </div>
 
     {/* Works count */}
-    <div class="mb-6 text-sm text-muted-foreground dark:text-muted-foreground-dark">
+    <div class="mb-6 text-sm text-text-tertiary">
       {displayedWorks.length === 0 && (
         <p>No works found{selectedType ? ` in the ${selectedType} category` : ''}.</p>
       )}
@@ -117,7 +117,7 @@ const pageDescription = selectedType
     {featuredWorks.length > 0 && (
       <div class="mb-12">
         <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-primary-600 dark:text-primary-400" viewBox="0 0 20 20" fill="currentColor">
+          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-brand-base" viewBox="0 0 20 20" fill="currentColor">
             <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
           </svg>
           Featured
@@ -171,7 +171,7 @@ const pageDescription = selectedType
     {/* Empty state */}
     {displayedWorks.length === 0 && (
       <div class="text-center py-12">
-        <p class="text-muted-foreground dark:text-muted-foreground-dark text-lg mb-4">
+        <p class="text-text-tertiary text-lg mb-4">
           {selectedType
             ? `No ${selectedType} works found.`
             : 'No works yet. Check back soon!'}
@@ -179,7 +179,7 @@ const pageDescription = selectedType
         {selectedType && (
           <a
             href="/works"
-            class="inline-block px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+            class="inline-block px-6 py-3 bg-brand-base text-brand-contrast rounded-lg hover:bg-brand-hover transition-colors"
           >
             View all works
           </a>

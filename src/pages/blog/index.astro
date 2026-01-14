@@ -41,7 +41,7 @@ const pageDescription = selectedTag
       <h1 class="text-4xl md:text-5xl font-bold mb-4">
         {selectedTag ? `Posts tagged with "${selectedTag}"` : 'Blog'}
       </h1>
-      <p class="text-xl text-muted-foreground dark:text-muted-foreground-dark max-w-2xl">
+      <p class="text-xl text-text-tertiary max-w-2xl">
         {pageDescription}
       </p>
 
@@ -50,7 +50,7 @@ const pageDescription = selectedTag
         <div class="mt-4">
           <a
             href="/blog"
-            class="inline-flex items-center gap-2 text-sm text-primary-600 dark:text-primary-400 hover:underline"
+            class="inline-flex items-center gap-2 text-sm text-brand-base hover:underline"
           >
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
@@ -62,7 +62,7 @@ const pageDescription = selectedTag
     </div>
 
     {/* Posts count */}
-    <div class="mb-6 text-sm text-muted-foreground dark:text-muted-foreground-dark">
+    <div class="mb-6 text-sm text-text-tertiary">
       {displayedPosts.length === 0 && (
         <p>No posts found{selectedTag ? ` for tag "${selectedTag}"` : ''}.</p>
       )}
@@ -92,7 +92,7 @@ const pageDescription = selectedTag
       </div>
     ) : (
       <div class="text-center py-12">
-        <p class="text-muted-foreground dark:text-muted-foreground-dark text-lg mb-4">
+        <p class="text-text-tertiary text-lg mb-4">
           {selectedTag
             ? `No posts found with the tag "${selectedTag}".`
             : 'No blog posts yet. Check back soon!'}
@@ -100,7 +100,7 @@ const pageDescription = selectedTag
         {selectedTag && (
           <a
             href="/blog"
-            class="inline-block px-6 py-3 bg-primary-600 text-white rounded-lg hover:bg-primary-700 transition-colors"
+            class="inline-block px-6 py-3 bg-brand-base text-brand-contrast rounded-lg hover:bg-brand-hover transition-colors"
           >
             View all posts
           </a>
@@ -110,7 +110,7 @@ const pageDescription = selectedTag
 
     {/* Optional: Show all available tags at the bottom */}
     {!selectedTag && allTags.length > 0 && displayedPosts.length > 0 && (
-      <div class="mt-16 pt-8 border-t border-border">
+      <div class="mt-16 pt-8 border-t border-border-default">
         <h2 class="text-2xl font-bold mb-4">Browse by tag</h2>
         <div class="flex flex-wrap gap-2">
           {allTags.map((tag) => {
@@ -121,10 +121,10 @@ const pageDescription = selectedTag
             return (
               <a
                 href={`/blog?tag=${encodeURIComponent(tag)}`}
-                class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-background dark:bg-card-dark border border-border dark:border-border-dark text-foreground dark:text-foreground-dark hover:bg-primary-100 dark:hover:bg-primary-900 hover:border-primary-200 dark:hover:border-primary-800 transition-colors text-sm"
+                class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-surface-base border border-border-default text-text-primary hover:bg-bg-hover hover:border-brand-base transition-colors text-sm"
               >
                 {tag}
-                <span class="text-xs text-muted-foreground dark:text-muted-foreground-dark dark:text-muted-foreground-dark">({count})</span>
+                <span class="text-xs text-text-tertiary">({count})</span>
               </a>
             );
           })}
