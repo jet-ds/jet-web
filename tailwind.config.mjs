@@ -86,44 +86,6 @@ export default {
         'glass-border': 'var(--color-glass-border)',
         'glass-highlight': 'var(--color-glass-highlight)',
         'glass-shadow': 'var(--color-glass-shadow)',
-        // Compatibility aliases (to be removed after migration)
-        primary: {
-          50: 'oklch(0.9755 0.0045 258.32)',   // brand.1
-          100: 'oklch(0.9502 0.0069 247.9)',   // brand.2
-          200: 'oklch(0.8895 0.0164 245.1)',   // brand.3
-          300: 'oklch(0.7896 0.0331 246.79)',  // brand.4
-          400: 'oklch(0.6728 0.0512 244.82)',  // brand.5
-          500: 'oklch(0.5725 0.0587 245.59)',  // brand.6
-          600: 'oklch(0.4956 0.0566 248.16)',  // brand.7
-          700: 'oklch(0.4296 0.0477 248.99)',  // brand.8
-          800: 'oklch(0.384 0.0392 251.63)',   // brand.9
-          900: 'oklch(0.3536 0.0306 248.71)',  // brand.10
-          950: 'oklch(0.27 0.0235 256.43)',    // brand.11
-        },
-        background: {
-          DEFAULT: 'oklch(1 0 0)',
-          dark: 'oklch(0.27 0.0235 256.43)',
-        },
-        card: {
-          DEFAULT: 'oklch(1 0 0)',
-          dark: 'oklch(0.3151 0.0143 256.78)',
-        },
-        muted: {
-          DEFAULT: 'oklch(0.9764 0.0045 214.33)',
-          dark: 'oklch(0.27 0.0235 256.43)',
-        },
-        foreground: {
-          DEFAULT: 'oklch(0.3151 0.0143 256.78)',
-          dark: 'oklch(0.9764 0.0045 214.33)',
-        },
-        'muted-foreground': {
-          DEFAULT: 'oklch(0.6596 0.0375 252.38)',
-          dark: 'oklch(0.7342 0.0322 242.16)',
-        },
-        border: {
-          DEFAULT: 'oklch(0.8614 0.018 229.04)',
-          dark: 'oklch(0.4956 0.0566 248.16)',
-        },
       },
       fontFamily: {
         sans: [
