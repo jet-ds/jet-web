@@ -1,5 +1,6 @@
 ---
 import BaseLayout from '../components/layout/BaseLayout.astro';
+import PageWrapper from '../components/layout/PageWrapper.astro';
 import Container from '../components/ui/Container.astro';
 import Card from '../components/ui/Card.astro';
 import Button from '../components/ui/Button.astro';
@@ -32,28 +33,29 @@ const professionalLinks = [
   title="Contact"
   description="Get in touch with me - email, social media, and professional links."
 >
-  <Container size="md" class="py-16">
-    <!-- Header -->
-    <div class="mb-12 text-center">
-      <h1 class="text-4xl md:text-5xl font-bold mb-4 text-text-primary">
-        Get in Touch
-      </h1>
-      <p class="text-xl text-text-tertiary">
-        I'd love to hear from you. Here's how you can reach me.
-      </p>
-    </div>
+  <PageWrapper spacing="default">
+    <Container size="md">
+      <!-- Header -->
+      <div class="mb-xl text-center">
+        <h1 class="text-5xl font-bold mb-s text-text-primary">
+          Get in Touch
+        </h1>
+        <p class="text-xl text-text-tertiary">
+          I'd love to hear from you. Here's how you can reach me.
+        </p>
+      </div>
 
-    <div class="space-y-6">
-      <!-- Email Card -->
-      <Card hover>
-        <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-4">
-          <div class="flex-1">
-            <h2 class="text-xl font-semibold mb-2 text-text-primary">
-              Email
-            </h2>
-            <p class="text-text-tertiary mb-3">
-              The best way to reach me for inquiries, collaborations, or just to say hello.
-            </p>
+      <div class="space-y-m">
+        <!-- Email Card -->
+        <Card hover>
+          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-s">
+            <div class="flex-1">
+              <h2 class="text-xl font-semibold mb-2xs text-text-primary">
+                Email
+              </h2>
+              <p class="text-text-tertiary mb-xs">
+                The best way to reach me for inquiries, collaborations, or just to say hello.
+              </p>
             <a
               href={`mailto:${SITE.email}`}
               class="text-lg font-medium text-brand-base hover:underline"
@@ -70,19 +72,19 @@ const professionalLinks = [
       <!-- Social Media Card -->
       {activeSocialLinks.length > 0 && (
         <Card>
-          <h2 class="text-xl font-semibold mb-4 text-text-primary">
+          <h2 class="text-xl font-semibold mb-s text-text-primary">
             Social Media
           </h2>
-          <p class="text-text-tertiary mb-6">
+          <p class="text-text-tertiary mb-m">
             Connect with me on social platforms
           </p>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+          <div class="grid grid-cols-1 sm:grid-cols-2 gap-s">
             {activeSocialLinks.map((social) => (
               <a
                 href={social.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                class="flex items-center justify-between p-4 rounded-lg border border-border-default hover:border-brand-base hover:bg-bg-hover transition-all group"
+                class="flex items-center justify-between p-s rounded-lg border border-border-default hover:border-brand-base hover:bg-bg-hover transition-all group"
               >
                 <span class="font-medium text-text-primary group-hover:text-brand-base">
                   {social.platform}
@@ -99,29 +101,29 @@ const professionalLinks = [
       <!-- Professional/Academic Links Card -->
       {professionalLinks.length > 0 && (
         <Card>
-          <h2 class="text-xl font-semibold mb-4 text-text-primary">
+          <h2 class="text-xl font-semibold mb-s text-text-primary">
             Professional Links
           </h2>
-          <p class="text-text-tertiary mb-6">
+          <p class="text-text-tertiary mb-m">
             Find my research and professional profiles
           </p>
-          <div class="space-y-4">
+          <div class="space-y-s">
             {professionalLinks.map((link) => (
               <a
                 href={link.url}
                 target="_blank"
                 rel="noopener noreferrer"
-                class="flex items-start justify-between p-4 rounded-lg border border-border-default hover:border-brand-base hover:bg-bg-hover transition-all group"
+                class="flex items-start justify-between p-s rounded-lg border border-border-default hover:border-brand-base hover:bg-bg-hover transition-all group"
               >
                 <div>
                   <div class="font-medium text-text-primary group-hover:text-brand-base">
                     {link.name}
                   </div>
-                  <div class="text-sm text-text-tertiary mt-1">
+                  <div class="text-sm text-text-tertiary mt-3xs">
                     {link.description}
                   </div>
                 </div>
-                <span class="text-text-tertiary group-hover:text-brand-base flex-shrink-0 ml-4">
+                <span class="text-text-tertiary group-hover:text-brand-base flex-shrink-0 ml-s">
                   ↗
                 </span>
               </a>
@@ -132,10 +134,10 @@ const professionalLinks = [
 
       <!-- Response Time Notice -->
       <Card class="bg-brand-subtle border-brand-base/20">
-        <div class="flex items-start gap-3">
+        <div class="flex items-start gap-xs">
           <span class="text-2xl">💡</span>
           <div>
-            <h3 class="font-semibold text-text-primary mb-2">
+            <h3 class="font-semibold text-text-primary mb-2xs">
               Response Time
             </h3>
             <p class="text-text-tertiary">
@@ -145,6 +147,7 @@ const professionalLinks = [
           </div>
         </div>
       </Card>
-    </div>
-  </Container>
+      </div>
+    </Container>
+  </PageWrapper>
 </BaseLayout>
