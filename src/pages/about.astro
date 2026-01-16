@@ -1,5 +1,6 @@
 ---
 import BaseLayout from '../components/layout/BaseLayout.astro';
+import PageWrapper from '../components/layout/PageWrapper.astro';
 import Container from '../components/ui/Container.astro';
 import Card from '../components/ui/Card.astro';
 import Link from '../components/ui/Link.astro';
@@ -41,21 +42,22 @@ const activeSocialLinks = Object.entries(SOCIAL_LINKS)
     sameAs={Object.values(SOCIAL_LINKS).filter(url => url)}
   />
 
-  <Container size="md" class="py-16">
-    <!-- Header -->
-    <div class="mb-12">
-      <h1 class="text-4xl md:text-5xl font-bold mb-4 text-text-primary">
-        About
-      </h1>
-      <p class="text-xl text-text-tertiary">
-        Research, systems, and applied AI
-      </p>
-    </div>
+  <PageWrapper spacing="default">
+    <Container size="md">
+      <!-- Header -->
+      <div class="mb-xl">
+        <h1 class="text-5xl font-bold mb-s text-text-primary">
+          About
+        </h1>
+        <p class="text-xl text-text-tertiary">
+          Research, systems, and applied AI
+        </p>
+      </div>
 
-    <!-- Bio Section -->
-    <Card class="mb-8">
+      <!-- Bio Section -->
+      <Card class="mb-l">
       <div class="prose prose-lg dark:prose-invert max-w-none">
-        <h2 class="text-2xl font-bold mb-4">Background</h2>
+        <h2 class="text-2xl font-bold mb-s">Background</h2>
         <p>
           I am a marketing engineer working at the intersection of AI research, applied AI, and systems design.
         </p>
@@ -72,16 +74,16 @@ const activeSocialLinks = Object.entries(SOCIAL_LINKS)
     </Card>
 
     <!-- Interests & Expertise -->
-    <Card class="mb-8">
-      <h2 class="text-2xl font-bold mb-6 text-text-primary">
+    <Card class="mb-l">
+      <h2 class="text-2xl font-bold mb-m text-text-primary">
         Interests & Expertise
       </h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-m">
         <div>
-          <h3 class="text-lg font-semibold mb-3 text-brand-base">
+          <h3 class="text-lg font-semibold mb-xs text-brand-base">
             Research Areas
           </h3>
-          <ul class="space-y-2 text-text-tertiary">
+          <ul class="space-y-2xs text-text-tertiary">
             <li>• Artificial Intelligence</li>
             <li>• AI Safety & Alignment</li>
             <li>• Recursive and Complex Systems</li>
@@ -92,10 +94,10 @@ const activeSocialLinks = Object.entries(SOCIAL_LINKS)
           </ul>
         </div>
         <div>
-          <h3 class="text-lg font-semibold mb-3 text-brand-base">
+          <h3 class="text-lg font-semibold mb-xs text-brand-base">
             Technical Focus
           </h3>
-          <ul class="space-y-2 text-text-tertiary">
+          <ul class="space-y-2xs text-text-tertiary">
             <li>• Marketing Engineering</li>
             <li>• SEO & GEO Strategy</li>
             <li>• Applied Business Logic & Systems Integration</li>
@@ -110,15 +112,15 @@ const activeSocialLinks = Object.entries(SOCIAL_LINKS)
 
     <!-- Connect Section -->
     <Card>
-      <h2 class="text-2xl font-bold mb-6 text-text-primary">
+      <h2 class="text-2xl font-bold mb-m text-text-primary">
         Connect
       </h2>
-      <p class="text-text-tertiary mb-6">
+      <p class="text-text-tertiary mb-m">
         I'm always interested in connecting with people doing serious work in AI, research, governance, or future-ready strategy. If something here resonates or you want to collaborate, feel free to reach out.
       </p>
 
       {activeSocialLinks.length > 0 ? (
-        <div class="flex flex-wrap gap-4">
+        <div class="flex flex-wrap gap-s">
           {activeSocialLinks.map((social) => (
             <Link
               href={social.url}
@@ -131,8 +133,8 @@ const activeSocialLinks = Object.entries(SOCIAL_LINKS)
           ))}
         </div>
       ) : (
-        <div class="space-y-3">
-          <div class="flex items-center gap-3 text-text-tertiary">
+        <div class="space-y-xs">
+          <div class="flex items-center gap-xs text-text-tertiary">
             <span class="font-semibold">Email:</span>
             <Link href={`mailto:${SITE.email}`} variant="primary">
               {SITE.email}
@@ -144,5 +146,6 @@ const activeSocialLinks = Object.entries(SOCIAL_LINKS)
         </div>
       )}
     </Card>
-  </Container>
+    </Container>
+  </PageWrapper>
 </BaseLayout>

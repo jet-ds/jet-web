@@ -1,6 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
 import BaseLayout from '../components/layout/BaseLayout.astro';
+import Section from '../components/layout/Section.astro';
 import Container from '../components/ui/Container.astro';
 import Card from '../components/ui/Card.astro';
 import Button from '../components/ui/Button.astro';
@@ -33,27 +34,27 @@ const typeLabel: Record<string, string> = {
   description="Jet Sanchez produces research, systems, and tools for thinking clearly in an AI-driven world, with a focus on applied AI and emerging technologies."
 >
   <!-- Hero Section -->
-  <section class="pt-24 pb-20 md:pt-40 md:pb-32">
+  <Section spacing="spacious">
     <Container size="lg">
       <div class="max-w-4xl mx-auto text-center">
-        <h1 class="text-4xl md:text-6xl lg:text-7xl font-bold mb-6 text-text-primary">
+        <h1 class="text-7xl font-bold mb-m text-text-primary">
           Hi, I'm Jet Sanchez.
         </h1>
-        <p class="text-sm md:text-lg text-text-tertiary mb-8">
+        <p class="text-lg text-text-tertiary mb-l">
           Research, systems & tools for thinking clearly in an AI-driven world
         </p>
-        <div class="flex flex-wrap gap-4 justify-center">
+        <div class="flex flex-wrap gap-s justify-center">
           <Button href="/about" variant="primary" size="lg">About Me</Button>
           <Button href="/contact" variant="outline" size="lg">Get in Touch</Button>
         </div>
       </div>
     </Container>
-  </section>
+  </Section>
 
   <!-- Latest Blog Posts -->
-  <section class="py-16 bg-bg-subtle">
+  <Section spacing="default" background="subtle">
     <Container size="lg">
-      <div class="flex justify-between items-center mb-8">
+      <div class="flex justify-between items-center mb-l">
         <h2 class="text-3xl font-bold text-text-primary">
           Latest Articles
         </h2>
@@ -61,19 +62,19 @@ const typeLabel: Record<string, string> = {
       </div>
 
       {latestPosts.length > 0 ? (
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-m">
           {latestPosts.map((post) => (
             <Card hover class="flex flex-col h-full">
               <div class="flex-1">
-                <h3 class="text-xl font-semibold mb-2 text-text-primary">
+                <h3 class="text-xl font-semibold mb-2xs text-text-primary">
                   <a href={`/blog/${post.slug}`} class="hover:text-brand-base transition-colors">
                     {post.data.title}
                   </a>
                 </h3>
-                <p class="text-text-tertiary mb-4">
+                <p class="text-text-tertiary mb-s">
                   {post.data.description}
                 </p>
-                <div class="flex flex-wrap gap-2 mb-4">
+                <div class="flex flex-wrap gap-2xs mb-s">
                   {post.data.tags.slice(0, 3).map((tag) => (
                     <Tag size="sm">{tag}</Tag>
                   ))}
@@ -87,18 +88,18 @@ const typeLabel: Record<string, string> = {
         </div>
       ) : (
         <Card>
-          <p class="text-center text-text-tertiary py-8">
+          <p class="text-center text-text-tertiary py-l">
             No blog posts yet. Check back soon!
           </p>
         </Card>
       )}
     </Container>
-  </section>
+  </Section>
 
   <!-- Featured Works -->
-  <section class="py-16">
+  <Section spacing="default">
     <Container size="lg">
-      <div class="flex justify-between items-center mb-8">
+      <div class="flex justify-between items-center mb-l">
         <h2 class="text-3xl font-bold text-text-primary">
           Featured Works
         </h2>
@@ -106,11 +107,11 @@ const typeLabel: Record<string, string> = {
       </div>
 
       {featuredWorks.length > 0 ? (
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-m">
           {featuredWorks.map((work) => (
             <Card hover class="flex flex-col h-full">
               <div class="flex-1">
-                <div class="flex items-center gap-2 mb-3">
+                <div class="flex items-center gap-2xs mb-xs">
                   <Tag
                     variant={work.data.type === 'research' ? 'primary' : work.data.type === 'project' ? 'primary' : 'default'}
                     size="sm"
@@ -118,15 +119,15 @@ const typeLabel: Record<string, string> = {
                     {typeLabel[work.data.type]}
                   </Tag>
                 </div>
-                <h3 class="text-xl font-semibold mb-2 text-text-primary">
+                <h3 class="text-xl font-semibold mb-2xs text-text-primary">
                   <a href={`/works/${work.slug}`} class="hover:text-brand-base transition-colors">
                     {work.data.title}
                   </a>
                 </h3>
-                <p class="text-text-tertiary mb-4">
+                <p class="text-text-tertiary mb-s">
                   {work.data.description}
                 </p>
-                <div class="flex flex-wrap gap-2 mb-4">
+                <div class="flex flex-wrap gap-2xs mb-s">
                   {work.data.tags.slice(0, 3).map((tag) => (
                     <Tag size="sm">{tag}</Tag>
                   ))}
@@ -140,29 +141,29 @@ const typeLabel: Record<string, string> = {
         </div>
       ) : (
         <Card>
-          <p class="text-center text-text-tertiary py-8">
+          <p class="text-center text-text-tertiary py-l">
             No featured works yet. Check back soon!
           </p>
         </Card>
       )}
     </Container>
-  </section>
+  </Section>
 
   <!-- Call to Action -->
-  <section class="py-16 bg-brand-subtle">
+  <Section spacing="default" background="brand">
     <Container size="md">
       <div class="text-center">
-        <h2 class="text-3xl font-bold mb-4 text-text-primary">
+        <h2 class="text-3xl font-bold mb-s text-text-primary">
           Let's Connect
         </h2>
-        <p class="text-lg text-text-secondary mb-8">
+        <p class="text-lg text-text-secondary mb-l">
           Interested in collaborating or have questions? Feel free to reach out!
         </p>
-        <div class="flex flex-wrap justify-center gap-4">
+        <div class="flex flex-wrap justify-center gap-s">
           <Button href="/contact" variant="primary" size="lg">Contact Me</Button>
           <Button href="/about" variant="outline" size="lg">Learn More</Button>
         </div>
       </div>
     </Container>
-  </section>
+  </Section>
 </BaseLayout>

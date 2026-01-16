@@ -203,10 +203,18 @@
     margin-top: var(--space-l);
   }
 
+  .prose :where(h2:first-child):not(:where([class~="not-prose"] *)) {
+    margin-top: 0;
+  }
+
   .prose :where(h3):not(:where([class~="not-prose"] *)) {
     font-size: var(--step-3);
     margin-bottom: var(--space-xs);
     margin-top: var(--space-m);
+  }
+
+  .prose :where(h3:first-child):not(:where([class~="not-prose"] *)) {
+    margin-top: 0;
   }
 
   .prose :where(p):not(:where([class~="not-prose"] *)) {
