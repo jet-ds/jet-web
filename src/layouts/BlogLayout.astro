@@ -1,5 +1,6 @@
 ---
 import BaseLayout from '../components/layout/BaseLayout.astro';
+import PageWrapper from '../components/layout/PageWrapper.astro';
 import Container from '../components/ui/Container.astro';
 import Tag from '../components/ui/Tag.astro';
 import Link from '../components/ui/Link.astro';
@@ -42,23 +43,24 @@ const formattedUpdatedDate = updatedDate
 ---
 
 <BaseLayout title={title} description={description} image={image}>
-  <article class="py-12">
+  <PageWrapper spacing="compact">
     <Container size="md">
-      <!-- Back to Blog Link -->
-      <div class="mb-8">
-        <Link href="/blog" variant="muted">
-          ← Back to Blog
-        </Link>
-      </div>
+      <article>
+        <!-- Back to Blog Link -->
+        <div class="mb-l">
+          <Link href="/blog" variant="muted">
+            ← Back to Blog
+          </Link>
+        </div>
 
-      <!-- Article Header -->
-      <header class="mb-8">
-        <h1 class="text-4xl md:text-5xl font-bold mb-4 text-text-primary">
-          {title}
-        </h1>
+        <!-- Article Header -->
+        <header class="mb-l">
+          <h1 class="text-5xl font-bold mb-s text-text-primary">
+            {title}
+          </h1>
 
-        <!-- Meta Information -->
-        <div class="flex flex-wrap items-center gap-4 text-sm text-text-tertiary mb-6">
+          <!-- Meta Information -->
+          <div class="flex flex-wrap items-center gap-s text-sm text-text-tertiary mb-m">
           <div>
             <span class="font-medium">By {author}</span>
           </div>
@@ -86,18 +88,19 @@ const formattedUpdatedDate = updatedDate
 
         <!-- Tags -->
         {tags.length > 0 && (
-          <div class="flex flex-wrap gap-2">
+          <div class="flex flex-wrap gap-2xs">
             {tags.map((tag) => (
               <Tag variant="primary">{tag}</Tag>
             ))}
           </div>
         )}
-      </header>
+        </header>
 
-      <!-- Article Content -->
-      <div class="prose prose-lg dark:prose-invert max-w-none">
-        <slot />
-      </div>
+        <!-- Article Content -->
+        <div class="prose prose-lg dark:prose-invert max-w-none">
+          <slot />
+        </div>
+      </article>
     </Container>
-  </article>
+  </PageWrapper>
 </BaseLayout>

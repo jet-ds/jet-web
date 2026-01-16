@@ -1,6 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../components/layout/BaseLayout.astro';
+import PageWrapper from '../../components/layout/PageWrapper.astro';
 import Container from '../../components/ui/Container.astro';
 import BlogCard from '../../components/blog/BlogCard.astro';
 import { sortBlogPosts } from '../../utils/sortByDate';
@@ -35,23 +36,24 @@ const pageDescription = selectedTag
 ---
 
 <BaseLayout title={pageTitle} description={pageDescription}>
-  <Container size="lg" class="py-12">
-    {/* Header */}
-    <div class="mb-12">
-      <h1 class="text-4xl md:text-5xl font-bold mb-4">
-        {selectedTag ? `Posts tagged with "${selectedTag}"` : 'Blog'}
-      </h1>
-      <p class="text-xl text-text-tertiary max-w-2xl">
-        {pageDescription}
-      </p>
+  <PageWrapper spacing="compact">
+    <Container size="lg">
+      {/* Header */}
+      <div class="mb-xl">
+        <h1 class="text-5xl font-bold mb-s">
+          {selectedTag ? `Posts tagged with "${selectedTag}"` : 'Blog'}
+        </h1>
+        <p class="text-xl text-text-tertiary max-w-2xl">
+          {pageDescription}
+        </p>
 
-      {/* Tag filter indicator and clear button */}
-      {selectedTag && (
-        <div class="mt-4">
-          <a
-            href="/blog"
-            class="inline-flex items-center gap-2 text-sm text-brand-base hover:underline"
-          >
+        {/* Tag filter indicator and clear button */}
+        {selectedTag && (
+          <div class="mt-s">
+            <a
+              href="/blog"
+              class="inline-flex items-center gap-2xs text-sm text-brand-base hover:underline"
+            >
             <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
             </svg>
@@ -62,7 +64,7 @@ const pageDescription = selectedTag
     </div>
 
     {/* Posts count */}
-    <div class="mb-6 text-sm text-text-tertiary">
+    <div class="mb-m text-sm text-text-tertiary">
       {displayedPosts.length === 0 && (
         <p>No posts found{selectedTag ? ` for tag "${selectedTag}"` : ''}.</p>
       )}
@@ -76,7 +78,7 @@ const pageDescription = selectedTag
 
     {/* Blog posts grid */}
     {displayedPosts.length > 0 ? (
-      <div class="grid gap-8 md:grid-cols-2 lg:grid-cols-2">
+      <div class="grid gap-l md:grid-cols-2 lg:grid-cols-2">
         {displayedPosts.map((post) => (
           <BlogCard
             slug={post.slug}
@@ -91,8 +93,8 @@ const pageDescription = selectedTag
         ))}
       </div>
     ) : (
-      <div class="text-center py-12">
-        <p class="text-text-tertiary text-lg mb-4">
+      <div class="text-center py-xl">
+        <p class="text-text-tertiary text-lg mb-s">
           {selectedTag
             ? `No posts found with the tag "${selectedTag}".`
             : 'No blog posts yet. Check back soon!'}
@@ -100,7 +102,7 @@ const pageDescription = selectedTag
         {selectedTag && (
           <a
             href="/blog"
-            class="inline-block px-6 py-3 bg-brand-base text-brand-contrast rounded-lg hover:bg-brand-hover transition-colors"
+            class="inline-block px-m py-xs bg-brand-base text-brand-contrast rounded-lg hover:bg-brand-hover transition-colors"
           >
             View all posts
           </a>
@@ -110,9 +112,9 @@ const pageDescription = selectedTag
 
     {/* Optional: Show all available tags at the bottom */}
     {!selectedTag && allTags.length > 0 && displayedPosts.length > 0 && (
-      <div class="mt-16 pt-8 border-t border-border-default">
-        <h2 class="text-2xl font-bold mb-4">Browse by tag</h2>
-        <div class="flex flex-wrap gap-2">
+      <div class="mt-2xl pt-l border-t border-border-default">
+        <h2 class="text-2xl font-bold mb-s">Browse by tag</h2>
+        <div class="flex flex-wrap gap-2xs">
           {allTags.map((tag) => {
             const count = allPosts.filter(post =>
               post.data.tags.some(t => t.toLowerCase() === tag.toLowerCase())
@@ -121,7 +123,7 @@ const pageDescription = selectedTag
             return (
               <a
                 href={`/blog?tag=${encodeURIComponent(tag)}`}
-                class="inline-flex items-center gap-2 px-4 py-2 rounded-full bg-surface-base border border-border-default text-text-primary hover:bg-bg-hover hover:border-brand-base transition-colors text-sm"
+                class="inline-flex items-center gap-2xs px-s py-2xs rounded-full bg-surface-base border border-border-default text-text-primary hover:bg-bg-hover hover:border-brand-base transition-colors text-sm"
               >
                 {tag}
                 <span class="text-xs text-text-tertiary">({count})</span>
@@ -131,5 +133,6 @@ const pageDescription = selectedTag
         </div>
       </div>
     )}
-  </Container>
+    </Container>
+  </PageWrapper>
 </BaseLayout>

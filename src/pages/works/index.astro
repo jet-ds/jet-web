@@ -1,6 +1,7 @@
 ---
 import { getCollection } from 'astro:content';
 import BaseLayout from '../../components/layout/BaseLayout.astro';
+import PageWrapper from '../../components/layout/PageWrapper.astro';
 import Container from '../../components/ui/Container.astro';
 import WorkCard from '../../components/works/WorkCard.astro';
 import { sortWorks } from '../../utils/sortByDate';
@@ -41,24 +42,25 @@ const pageDescription = selectedType
 ---
 
 <BaseLayout title={pageTitle} description={pageDescription}>
-  <Container size="lg" class="py-12">
-    {/* Header */}
-    <div class="mb-12">
-      <h1 class="text-4xl md:text-5xl font-bold mb-4">
-        {selectedType
-          ? `${selectedType.charAt(0).toUpperCase() + selectedType.slice(1)} Works`
-          : 'Works'}
-      </h1>
-      <p class="text-xl text-text-tertiary max-w-2xl">
-        {pageDescription}
-      </p>
-    </div>
+  <PageWrapper spacing="compact">
+    <Container size="lg">
+      {/* Header */}
+      <div class="mb-xl">
+        <h1 class="text-5xl font-bold mb-s">
+          {selectedType
+            ? `${selectedType.charAt(0).toUpperCase() + selectedType.slice(1)} Works`
+            : 'Works'}
+        </h1>
+        <p class="text-xl text-text-tertiary max-w-2xl">
+          {pageDescription}
+        </p>
+      </div>
 
-    {/* Type filter tabs */}
-    <div class="mb-8 flex flex-wrap gap-2">
-      <a
-        href="/works"
-        class={`px-4 py-2 rounded-lg transition-colors ${
+      {/* Type filter tabs */}
+      <div class="mb-l flex flex-wrap gap-2xs">
+        <a
+          href="/works"
+          class={`px-s py-2xs rounded-lg transition-colors ${
           !selectedType
             ? 'bg-brand-base text-brand-contrast'
             : 'bg-surface-base hover:bg-bg-hover text-text-primary'
@@ -68,7 +70,7 @@ const pageDescription = selectedType
       </a>
       <a
         href="/works?type=research"
-        class={`px-4 py-2 rounded-lg transition-colors ${
+        class={`px-s py-2xs rounded-lg transition-colors ${
           selectedType === 'research'
             ? 'bg-brand-base text-brand-contrast'
             : 'bg-surface-base hover:bg-bg-hover text-text-primary'
@@ -78,7 +80,7 @@ const pageDescription = selectedType
       </a>
       <a
         href="/works?type=project"
-        class={`px-4 py-2 rounded-lg transition-colors ${
+        class={`px-s py-2xs rounded-lg transition-colors ${
           selectedType === 'project'
             ? 'bg-brand-base text-brand-contrast'
             : 'bg-surface-base hover:bg-bg-hover text-text-primary'
@@ -89,7 +91,7 @@ const pageDescription = selectedType
       {workCounts.other > 0 && (
         <a
           href="/works?type=other"
-          class={`px-4 py-2 rounded-lg transition-colors ${
+          class={`px-s py-2xs rounded-lg transition-colors ${
             selectedType === 'other'
               ? 'bg-brand-base text-brand-contrast'
               : 'bg-surface-base hover:bg-bg-hover text-text-primary'
@@ -101,7 +103,7 @@ const pageDescription = selectedType
     </div>
 
     {/* Works count */}
-    <div class="mb-6 text-sm text-text-tertiary">
+    <div class="mb-m text-sm text-text-tertiary">
       {displayedWorks.length === 0 && (
         <p>No works found{selectedType ? ` in the ${selectedType} category` : ''}.</p>
       )}
@@ -115,14 +117,14 @@ const pageDescription = selectedType
 
     {/* Featured works section */}
     {featuredWorks.length > 0 && (
-      <div class="mb-12">
-        <h2 class="text-2xl font-bold mb-6 flex items-center gap-2">
+      <div class="mb-xl">
+        <h2 class="text-2xl font-bold mb-m flex items-center gap-2xs">
           <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-brand-base" viewBox="0 0 20 20" fill="currentColor">
             <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
           </svg>
           Featured
         </h2>
-        <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div class="grid gap-m md:grid-cols-2 lg:grid-cols-3">
           {featuredWorks.map((work) => (
             <WorkCard
               slug={work.slug}
@@ -145,11 +147,11 @@ const pageDescription = selectedType
     {regularWorks.length > 0 && (
       <div>
         {featuredWorks.length > 0 && (
-          <h2 class="text-2xl font-bold mb-6">
+          <h2 class="text-2xl font-bold mb-m">
             {selectedType ? 'More Works' : 'All Works'}
           </h2>
         )}
-        <div class="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+        <div class="grid gap-m md:grid-cols-2 lg:grid-cols-3">
           {regularWorks.map((work) => (
             <WorkCard
               slug={work.slug}
@@ -170,8 +172,8 @@ const pageDescription = selectedType
 
     {/* Empty state */}
     {displayedWorks.length === 0 && (
-      <div class="text-center py-12">
-        <p class="text-text-tertiary text-lg mb-4">
+      <div class="text-center py-xl">
+        <p class="text-text-tertiary text-lg mb-s">
           {selectedType
             ? `No ${selectedType} works found.`
             : 'No works yet. Check back soon!'}
@@ -179,12 +181,13 @@ const pageDescription = selectedType
         {selectedType && (
           <a
             href="/works"
-            class="inline-block px-6 py-3 bg-brand-base text-brand-contrast rounded-lg hover:bg-brand-hover transition-colors"
+            class="inline-block px-m py-xs bg-brand-base text-brand-contrast rounded-lg hover:bg-brand-hover transition-colors"
           >
             View all works
           </a>
         )}
       </div>
     )}
-  </Container>
+    </Container>
+  </PageWrapper>
 </BaseLayout>
