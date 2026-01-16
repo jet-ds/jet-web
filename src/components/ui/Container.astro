@@ -1,16 +1,18 @@
 ---
 export interface Props {
   size?: 'sm' | 'md' | 'lg' | 'xl' | 'full';
+  gutter?: boolean;
   class?: string;
 }
 
 const {
   size = 'lg',
+  gutter = true,
   class: className = '',
   ...rest
 } = Astro.props;
 
-const baseClasses = 'mx-auto px-4 sm:px-6 lg:px-8';
+const baseClasses = gutter ? 'mx-auto px-gutter' : 'mx-auto';
 
 const sizeClasses = {
   sm: 'max-w-2xl',
