@@ -173,7 +173,7 @@
   }
 
   .prose :where(code):not(:where([class~="not-prose"] *)) {
-    @apply text-brand-text bg-bg-subtle px-1.5 py-0.5 rounded text-sm font-mono;
+    @apply text-brand-text bg-bg-subtle px-3xs py-3xs rounded text-sm font-mono;
   }
 
   .prose :where(pre):not(:where([class~="not-prose"] *)) {
@@ -185,11 +185,32 @@
   }
 
   .prose :where(blockquote):not(:where([class~="not-prose"] *)) {
-    @apply border-l-4 border-brand-base pl-4 italic text-text-tertiary;
+    @apply border-l-4 border-brand-base pl-s italic text-text-tertiary;
   }
 
   .prose :where(h1, h2, h3, h4, h5, h6):not(:where([class~="not-prose"] *)) {
     @apply text-text-primary font-serif font-bold;
+  }
+
+  .prose :where(h1):not(:where([class~="not-prose"] *)) {
+    font-size: var(--step-5);
+    margin-bottom: var(--space-m);
+  }
+
+  .prose :where(h2):not(:where([class~="not-prose"] *)) {
+    font-size: var(--step-4);
+    margin-bottom: var(--space-s);
+    margin-top: var(--space-l);
+  }
+
+  .prose :where(h3):not(:where([class~="not-prose"] *)) {
+    font-size: var(--step-3);
+    margin-bottom: var(--space-xs);
+    margin-top: var(--space-m);
+  }
+
+  .prose :where(p):not(:where([class~="not-prose"] *)) {
+    margin-bottom: var(--space-s);
   }
 
   .prose :where(strong):not(:where([class~="not-prose"] *)) {
