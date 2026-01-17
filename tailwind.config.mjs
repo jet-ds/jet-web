@@ -81,11 +81,6 @@ export default {
         'accent-subtle': 'var(--color-accent-subtle)',
         'accent-text': 'var(--color-accent-text)',
         'accent-contrast': 'var(--color-accent-contrast)',
-        // Glass morphism
-        'glass-bg': 'var(--color-glass-bg)',
-        'glass-border': 'var(--color-glass-border)',
-        'glass-highlight': 'var(--color-glass-highlight)',
-        'glass-shadow': 'var(--color-glass-shadow)',
       },
       fontFamily: {
         sans: [
