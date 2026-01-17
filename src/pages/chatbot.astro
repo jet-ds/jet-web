@@ -8,6 +8,8 @@
  * Activation Boundary: No resources loaded until user clicks "Start Chat"
  */
 import BaseLayout from '../components/layout/BaseLayout.astro';
+import PageWrapper from '../components/layout/PageWrapper.astro';
+import Container from '../components/ui/Container.astro';
 import { ChatbotPage } from '../components/chatbot/ChatbotPage';
 
 const title = "Jet's Ghost - AI Chat Assistant";
@@ -15,7 +17,9 @@ const description = "Ask questions about my blog posts, research papers, and pro
 ---
 
 <BaseLayout title={title} description={description}>
-  <div class="container mx-auto px-4 py-8">
-    <ChatbotPage client:load />
-  </div>
+  <PageWrapper spacing="compact">
+    <Container size="lg">
+      <ChatbotPage client:load />
+    </Container>
+  </PageWrapper>
 </BaseLayout>

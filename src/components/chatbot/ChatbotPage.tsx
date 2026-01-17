@@ -87,7 +87,7 @@ export function ChatbotPage() {
       <div className="flex items-center justify-center min-h-[600px]">
         <div className="max-w-md text-center space-y-6">
           <div className="text-6xl mb-4">⚠️</div>
-          <h2 className="text-2xl font-bold text-text-primary">
+          <h2 className="text-2xl font-bold leading-tight text-text-primary">
             {canRetry ? 'Temporary Error' : 'Initialization Failed'}
           </h2>
           <p className="text-text-tertiary">{errorMessage}</p>

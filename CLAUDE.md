@@ -127,10 +127,68 @@ npm run lint             # Run ESLint (if configured)
 
 ## Design System
 
-### Color Palette
-- **Primary**: Custom blue shades (50-950) defined in `tailwind.config.mjs`
-- **Semantic tokens**: background, foreground, accent, muted, border
-- **Dark mode**: All colors must have dark mode variants
+### OKLCH Color System
+
+The site uses OKLCH color space for perceptually uniform colors that work consistently across light and dark modes.
+
+**Color Scales (Radix-style 1-11 numbering):**
+
+**Brand (Slate Blue)** - Primary interactive elements
+- Scale: oklch(0.9755 0.0045 258.32) → oklch(0.27 0.0235 256.43)
+- Usage: Links, buttons, interactive states
+- 11 steps from lightest (#f5f7fa) to darkest (#1f2732)
+
+**Accent (Mustard Yellow)** - Highlights, CTAs
+- Scale: oklch(0.9873 0.0262 102.21) → oklch(0.2852 0.0664 52.21)
+- Usage: Call-to-action buttons, highlights, special emphasis
+- 11 steps from lightest (#fefce8) to darkest (#431f05)
+
+**Neutral (Neutral Blue/Slate Grey)** - Base UI, text, backgrounds
+- Scale: oklch(0.9764 0.0045 214.33) → oklch(0.3151 0.0143 256.78)
+- Usage: Text hierarchy, borders, backgrounds
+- 11 steps from lightest (#f4f8f9) to darkest (#2d3239)
+
+**Semantic Color Tokens:**
+
+These semantic tokens automatically adapt to light/dark mode via CSS variables:
+
+Background hierarchy:
+- `bg-bg-base` - Page background (neutral.1 / brand.11)
+- `bg-bg-subtle` - Subtle backgrounds (neutral.2 / brand.10)
+- `bg-bg-ui` - UI element backgrounds (neutral.3 / brand.9)
+- `bg-bg-hover` - Hover states (neutral.4 / brand.8)
+- `bg-bg-active` - Active states (neutral.5 / brand.7)
+
+Text hierarchy:
+- `text-text-primary` - Headings (neutral.11 / neutral.1)
+- `text-text-secondary` - Body text (neutral.9 / neutral.4)
+- `text-text-tertiary` - Muted text (neutral.7 / neutral.6)
+- `text-text-disabled` - Disabled state (neutral.5 / neutral.7)
+
+Brand/Interactive:
+- `bg-brand-base` - Primary brand color
+- `bg-brand-hover` - Brand hover state
+- `bg-brand-subtle` - Subtle brand backgrounds
+- `text-brand-text` - Brand text color
+
+Accent:
+- `bg-accent-base` - Accent color
+- `bg-accent-hover` - Accent hover state
+- `text-accent-text` - Accent text color
+
+**Dark Mode Behavior:**
+- Light mode: Uses lower scale numbers (1-5 for backgrounds, 9-11 for text)
+- Dark mode: Inverts scale (11 for darkest bg, 1 for lightest text)
+- All semantic tokens defined in `src/styles/global.css` under `:root` and `.dark`
+- Theme toggle persists to localStorage
+
+**Implementation:**
+- Color scales defined in `tailwind.config.mjs`
+- Semantic tokens as CSS variables in `src/styles/global.css`
+- Always use semantic tokens (not direct scale values) in components
+
+**Special Cases:**
+- Navigation dock (LiquidGlassDock/GlassSurface) uses custom glass morphism implementation with specialized backdrop-filter effects and browser compatibility handling
 
 ### Dark Mode Implementation
 - Use Tailwind's `dark:` variant for styling
@@ -142,6 +200,73 @@ npm run lint             # Run ESLint (if configured)
 - Define custom font families in Tailwind config
 - Responsive typography using Tailwind's responsive utilities
 - Reading time calculation for blog posts
+
+### Utopia Fluid Design System
+
+The site uses the Utopia fluid design system for spacing and typography, providing smooth viewport-based scaling without breakpoint jumps.
+
+**Configuration:**
+- Viewport range: 320px → 1440px
+- Base size: 16px → 17px
+- Type scale: 1.125 (Major Second) → 1.2 (Minor Third)
+- Optimized for 1080p displays where viewport ~1280-1519px
+
+**Spacing Philosophy:**
+All spacing uses fluid scales. Never use responsive breakpoints for spacing (`md:py-*`, `lg:px-*`).
+
+**Semantic spacing tokens (use these first):**
+- `px-gutter` - Container padding (16px → 17px base × 0.9821 + 0.0893vw)
+- `py-section` - Section spacing (via `--space-l-xl`)
+- `py-section-lg` - Large sections (via `--space-xl-2xl`)
+- `p-card` - Card padding (via `--space-m-l`)
+- `gap-m` - Grid gaps (1.5rem → 1.625rem)
+
+**T-shirt size tokens:**
+- Single values: `3xs`, `2xs`, `xs`, `s`, `m`, `l`, `xl`, `2xl`, `3xl`, `4xl`, `5xl`
+- Space pairs (dramatic scaling): `s-m`, `m-l`, `l-xl`, `xl-2xl`, `2xl-3xl`
+- Extended: `5xs`, `4xs` (static 0.25rem), `s-l` custom pair
+
+**Typography scale:**
+- `text-7xl` - Hero headings (~36px → ~61px)
+- `text-5xl` - Page headings (~29px → ~42px)
+- `text-3xl` - Section headings (~23px → ~29px)
+- `text-xl` - Card titles (~20px → ~24px)
+- `text-base` - Body text (16px → 17px)
+- `text-sm` - Metadata (~14px → ~14px)
+
+**Component patterns:**
+
+Page layout:
+```astro
+<PageWrapper spacing="default">
+  <Container size="lg">
+    <!-- content -->
+  </Container>
+</PageWrapper>
+```
+
+Sections:
+```astro
+<Section spacing="default" background="subtle">
+  <Container size="lg">
+    <!-- content -->
+  </Container>
+</Section>
+```
+
+Hero sections:
+```astro
+<Section spacing="none" class="min-h-[75svh] flex items-center">
+  <Container size="lg">
+    <!-- hero content -->
+  </Container>
+</Section>
+```
+
+**Important:**
+- Avoid responsive spacing variants - use fluid tokens
+- Use viewport units (`svh`) for hero sections, not fixed spacing
+- Some responsive utilities remain for functional reasons (dock positioning)
 
 ## SEO Best Practices
 

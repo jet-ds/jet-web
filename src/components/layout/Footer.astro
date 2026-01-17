@@ -22,11 +22,11 @@ const socialLinksArray = Object.entries(SOCIAL_LINKS)
 ---
 
 <footer class="border-t border-border-default bg-bg-base">
-  <Container class="py-12">
-    <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
+  <Container class="py-xl">
+    <div class="grid grid-cols-1 md:grid-cols-3 gap-l">
       <!-- About Section -->
       <div>
-        <h3 class="text-lg font-semibold mb-4 text-text-primary">
+        <h3 class="text-lg font-semibold mb-s text-text-primary">
           {SITE.title}
         </h3>
         <p class="text-sm text-text-tertiary">
@@ -36,10 +36,10 @@ const socialLinksArray = Object.entries(SOCIAL_LINKS)
 
       <!-- Quick Links -->
       <div>
-        <h3 class="text-lg font-semibold mb-4 text-text-primary">
+        <h3 class="text-lg font-semibold mb-s text-text-primary">
           Quick Links
         </h3>
-        <ul class="space-y-2">
+        <ul class="space-y-2xs">
           <li>
             <Link href="/" variant="muted">Home</Link>
           </li>
@@ -60,10 +60,10 @@ const socialLinksArray = Object.entries(SOCIAL_LINKS)
 
       <!-- Social Links -->
       <div>
-        <h3 class="text-lg font-semibold mb-4 text-text-primary">
+        <h3 class="text-lg font-semibold mb-s text-text-primary">
           Connect
         </h3>
-        <ul class="space-y-2">
+        <ul class="space-y-2xs">
           {socialLinksArray.map(({ platform, url }) => (
             <li>
               <Link href={url} variant="muted" external>
@@ -76,7 +76,7 @@ const socialLinksArray = Object.entries(SOCIAL_LINKS)
     </div>
 
     <!-- Copyright -->
-    <div class="mt-8 pt-8 border-t border-border-default">
+    <div class="mt-l pt-l border-t border-border-default">
       <p class="text-center text-sm text-text-tertiary">
         © {currentYear} {SITE.author}. All rights reserved.
       </p>

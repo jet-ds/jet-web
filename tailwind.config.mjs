@@ -81,11 +81,6 @@ export default {
         'accent-subtle': 'var(--color-accent-subtle)',
         'accent-text': 'var(--color-accent-text)',
         'accent-contrast': 'var(--color-accent-contrast)',
-        // Glass morphism
-        'glass-bg': 'var(--color-glass-bg)',
-        'glass-border': 'var(--color-glass-border)',
-        'glass-highlight': 'var(--color-glass-highlight)',
-        'glass-shadow': 'var(--color-glass-shadow)',
       },
       fontFamily: {
         sans: [
@@ -119,9 +114,77 @@ export default {
           'monospace',
         ],
       },
+      // === UTOPIA FLUID TYPOGRAPHY ===
+      fontSize: {
+        'xs': 'var(--step--2)',
+        'sm': 'var(--step--1)',
+        'base': 'var(--step-0)',
+        'lg': 'var(--step-1)',
+        'xl': 'var(--step-2)',
+        '2xl': 'var(--step-3)',
+        '3xl': 'var(--step-4)',
+        '4xl': 'var(--step-5)',
+        '5xl': 'var(--step-6)',
+        '6xl': 'var(--step-7)',
+        '7xl': 'var(--step-7)', // Consolidate with 6xl
+      },
+      // === UTOPIA FLUID SPACING ===
+      spacing: {
+        // Single space values
+        '5xs': 'var(--space-5xs)',
+        '4xs': 'var(--space-4xs)',
+        '3xs': 'var(--space-3xs)',
+        '2xs': 'var(--space-2xs)',
+        'xs': 'var(--space-xs)',
+        's': 'var(--space-s)',
+        'm': 'var(--space-m)',
+        'l': 'var(--space-l)',
+        'xl': 'var(--space-xl)',
+        '2xl': 'var(--space-2xl)',
+        '3xl': 'var(--space-3xl)',
+        '4xl': 'var(--space-4xl)',
+        '5xl': 'var(--space-5xl)',
+
+        // Space pairs (one-up interpolation)
+        '5xs-4xs': 'var(--space-5xs-4xs)',
+        '4xs-3xs': 'var(--space-4xs-3xs)',
+        '3xs-2xs': 'var(--space-3xs-2xs)',
+        '2xs-xs': 'var(--space-2xs-xs)',
+        'xs-s': 'var(--space-xs-s)',
+        's-m': 'var(--space-s-m)',
+        'm-l': 'var(--space-m-l)',
+        'l-xl': 'var(--space-l-xl)',
+        'xl-2xl': 'var(--space-xl-2xl)',
+        '2xl-3xl': 'var(--space-2xl-3xl)',
+        '3xl-4xl': 'var(--space-3xl-4xl)',
+        '4xl-5xl': 'var(--space-4xl-5xl)',
+
+        // Custom pairs
+        's-l': 'var(--space-s-l)',
+
+        // Semantic tokens
+        'gutter': 'var(--space-gutter)',
+        'section': 'var(--space-section)',
+        'section-lg': 'var(--space-section-lg)',
+        'card': 'var(--space-card)',
+        'stack-xs': 'var(--space-stack-xs)',
+        'stack-s': 'var(--space-stack-s)',
+        'stack-m': 'var(--space-stack-m)',
+        'stack-l': 'var(--space-stack-l)',
+      },
     },
   },
   plugins: [
     require('@tailwindcss/typography'),
+    require('tailwind-utopia')({
+      minScreen: '320px',
+      maxScreen: '1440px',
+      minSize: 16,
+      maxSize: 17,
+      minScale: 1.125,
+      maxScale: 1.2,
+      prefix: 'space',
+      useClamp: true,
+    }),
   ],
 };

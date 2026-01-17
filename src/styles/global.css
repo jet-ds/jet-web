@@ -43,11 +43,67 @@
     --color-accent-text: oklch(0.4766 0.1078 59.07);     /* accent.9 */
     --color-accent-contrast: oklch(0 0 0);               /* Black */
 
-    /* Glass morphism */
-    --color-glass-bg: oklch(1 0 0 / 0.25);              /* 25% white */
-    --color-glass-border: oklch(1 0 0 / 0.3);           /* 30% white */
-    --color-glass-highlight: oklch(0 0 0 / 0.1);        /* Highlight */
-    --color-glass-shadow: oklch(0.2 0.01 256 / 0.05);   /* Shadow */
+    /* === UTOPIA FLUID TYPOGRAPHY === */
+    /* @link https://utopia.fyi/type/calculator?c=320,16,1.125,1440,17,1.2,7,2,&s=0.75|0.5|0.25|0.25|0.25,1.5|2|3|4|6|6|6,s-l&g=s,l,xl,12 */
+    /* Scale: 1.125 (Major Second) → 1.2 (Minor Third) */
+    /* Viewport: 320px → 1440px (optimized for 1080p displays) */
+    --step--2: clamp(0.7378rem, 0.8051rem + -0.0747vw, 0.7901rem);
+    --step--1: clamp(0.8854rem, 0.8899rem + -0.005vw, 0.8889rem);
+    --step-0: clamp(1rem, 0.9821rem + 0.0893vw, 1.0625rem);
+    --step-1: clamp(1.125rem, 1.0821rem + 0.2143vw, 1.275rem);
+    --step-2: clamp(1.2656rem, 1.1901rem + 0.3777vw, 1.53rem);
+    --step-3: clamp(1.4238rem, 1.3061rem + 0.5888vw, 1.836rem);
+    --step-4: clamp(1.6018rem, 1.43rem + 0.8591vw, 2.2032rem);
+    --step-5: clamp(1.802rem, 1.5615rem + 1.2026vw, 2.6438rem);
+    --step-6: clamp(2.0273rem, 1.7001rem + 1.6362vw, 3.1726rem);
+    --step-7: clamp(2.2807rem, 1.8446rem + 2.1806vw, 3.8071rem);
+
+    /* === UTOPIA FLUID SPACING === */
+    /* @link https://utopia.fyi/space/calculator?c=320,16,1.125,1440,17,1.2,7,2,&s=0.75|0.5|0.25|0.25|0.25,1.5|2|3|4|6|6|6,s-l&g=s,l,xl,12 */
+    /* Viewport: 320px → 1440px (optimized for 1080p displays) */
+
+    /* Single space values */
+    --space-5xs: clamp(0.25rem, 0.25rem + 0vw, 0.25rem);
+    --space-4xs: clamp(0.25rem, 0.25rem + 0vw, 0.25rem);
+    --space-3xs: clamp(0.25rem, 0.25rem + 0vw, 0.25rem);
+    --space-2xs: clamp(0.5rem, 0.4821rem + 0.0893vw, 0.5625rem);
+    --space-xs: clamp(0.75rem, 0.7321rem + 0.0893vw, 0.8125rem);
+    --space-s: clamp(1rem, 0.9821rem + 0.0893vw, 1.0625rem);
+    --space-m: clamp(1.5rem, 1.4643rem + 0.1786vw, 1.625rem);
+    --space-l: clamp(2rem, 1.9643rem + 0.1786vw, 2.125rem);
+    --space-xl: clamp(3rem, 2.9464rem + 0.2679vw, 3.1875rem);
+    --space-2xl: clamp(4rem, 3.9286rem + 0.3571vw, 4.25rem);
+    --space-3xl: clamp(6rem, 5.8929rem + 0.5357vw, 6.375rem);
+    --space-4xl: clamp(6rem, 5.8929rem + 0.5357vw, 6.375rem);
+    --space-5xl: clamp(6rem, 5.8929rem + 0.5357vw, 6.375rem);
+
+    /* Space pairs - one-up interpolation */
+    --space-5xs-4xs: clamp(0.25rem, 0.25rem + 0vw, 0.25rem);
+    --space-4xs-3xs: clamp(0.25rem, 0.25rem + 0vw, 0.25rem);
+    --space-3xs-2xs: clamp(0.25rem, 0.1607rem + 0.4464vw, 0.5625rem);
+    --space-2xs-xs: clamp(0.5rem, 0.4107rem + 0.4464vw, 0.8125rem);
+    --space-xs-s: clamp(0.75rem, 0.6607rem + 0.4464vw, 1.0625rem);
+    --space-s-m: clamp(1rem, 0.8214rem + 0.8929vw, 1.625rem);
+    --space-m-l: clamp(1.5rem, 1.3214rem + 0.8929vw, 2.125rem);
+    --space-l-xl: clamp(2rem, 1.6607rem + 1.6964vw, 3.1875rem);
+    --space-xl-2xl: clamp(3rem, 2.6429rem + 1.7857vw, 4.25rem);
+    --space-2xl-3xl: clamp(4rem, 3.3214rem + 3.3929vw, 6.375rem);
+    --space-3xl-4xl: clamp(6rem, 5.8929rem + 0.5357vw, 6.375rem);
+    --space-4xl-5xl: clamp(6rem, 5.8929rem + 0.5357vw, 6.375rem);
+
+    /* Custom pairs */
+    --space-s-l: clamp(1rem, 0.6786rem + 1.6071vw, 2.125rem);
+
+    /* === SEMANTIC SPACING TOKENS === */
+    /* These provide named tokens for common spacing patterns */
+    --space-gutter: var(--space-s-m);           /* Container padding: 16px → 27px */
+    --space-section: var(--space-l-xl);         /* Section spacing: 36px → 60.75px */
+    --space-section-lg: var(--space-xl-2xl);    /* Large sections: 54px → 91.13px */
+    --space-card: var(--space-m-l);             /* Card padding: 24px → 40.5px */
+    --space-stack-xs: var(--space-3xs-2xs);     /* Tight stacking: 4.25px → 7.74px */
+    --space-stack-s: var(--space-2xs-xs);       /* Small stacking: 6.88px → 12px */
+    --space-stack-m: var(--space-xs-s);         /* Medium stacking: 10.67px → 18px */
+    --space-stack-l: var(--space-s-m);          /* Large stacking: 16px → 27px */
   }
 
   .dark {
@@ -88,16 +144,11 @@
     --color-accent-subtle: oklch(0.5558 0.1239 64.52);  /* accent.8 */
     --color-accent-text: oklch(0.9455 0.1274 101.26);   /* accent.3 */
     --color-accent-contrast: oklch(0 0 0);              /* Black */
-
-    /* Glass morphism */
-    --color-glass-bg: oklch(0 0 0 / 0.4);              /* 40% black */
-    --color-glass-border: oklch(1 0 0 / 0.2);          /* 20% white */
-    --color-glass-highlight: oklch(1 0 0 / 0.15);      /* Highlight */
-    --color-glass-shadow: oklch(0 0 0 / 0.05);         /* Black shadow */
   }
 
   body {
     @apply bg-bg-base text-text-primary transition-colors duration-300 font-sans;
+    font-size: var(--step-0); /* Fluid base font */
   }
 
   /* Global typography system: Brawler for headings, Work Sans for body */
@@ -117,7 +168,7 @@
   }
 
   .prose :where(code):not(:where([class~="not-prose"] *)) {
-    @apply text-brand-text bg-bg-subtle px-1.5 py-0.5 rounded text-sm font-mono;
+    @apply text-brand-text bg-bg-subtle px-3xs py-3xs rounded text-sm font-mono;
   }
 
   .prose :where(pre):not(:where([class~="not-prose"] *)) {
@@ -129,11 +180,40 @@
   }
 
   .prose :where(blockquote):not(:where([class~="not-prose"] *)) {
-    @apply border-l-4 border-brand-base pl-4 italic text-text-tertiary;
+    @apply border-l-4 border-brand-base pl-s italic text-text-tertiary;
   }
 
   .prose :where(h1, h2, h3, h4, h5, h6):not(:where([class~="not-prose"] *)) {
     @apply text-text-primary font-serif font-bold;
+  }
+
+  .prose :where(h1):not(:where([class~="not-prose"] *)) {
+    font-size: var(--step-5);
+    margin-bottom: var(--space-m);
+  }
+
+  .prose :where(h2):not(:where([class~="not-prose"] *)) {
+    font-size: var(--step-4);
+    margin-bottom: var(--space-s);
+    margin-top: var(--space-l);
+  }
+
+  .prose :where(h2:first-child):not(:where([class~="not-prose"] *)) {
+    margin-top: 0;
+  }
+
+  .prose :where(h3):not(:where([class~="not-prose"] *)) {
+    font-size: var(--step-3);
+    margin-bottom: var(--space-xs);
+    margin-top: var(--space-m);
+  }
+
+  .prose :where(h3:first-child):not(:where([class~="not-prose"] *)) {
+    margin-top: 0;
+  }
+
+  .prose :where(p):not(:where([class~="not-prose"] *)) {
+    margin-bottom: var(--space-s);
   }
 
   .prose :where(strong):not(:where([class~="not-prose"] *)) {

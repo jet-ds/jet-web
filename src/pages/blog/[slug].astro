@@ -46,7 +46,7 @@ const nextPost = currentIndex > 0 ? sortedPosts[currentIndex - 1] : null;
   readingTime={readingTime}
   image={post.data.image?.url}
 >
-  <div class="grid grid-cols-1 lg:grid-cols-[1fr_250px] gap-8 lg:gap-12">
+  <div class="grid grid-cols-1 lg:grid-cols-[1fr_250px] gap-l">
     {/* Main content */}
     <article class="prose prose-lg dark:prose-invert max-w-none">
       <Content />

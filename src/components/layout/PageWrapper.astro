@@ -1,0 +1,25 @@
+---
+export interface Props {
+  spacing?: 'none' | 'default' | 'compact' | 'spacious';
+  class?: string;
+}
+
+const {
+  spacing = 'default',
+  class: className = '',
+  ...rest
+} = Astro.props;
+
+const spacingClasses = {
+  none: '',
+  compact: 'py-section',
+  default: 'py-section-lg',
+  spacious: 'py-[var(--space-3xl)]',
+};
+
+const classes = `${spacingClasses[spacing]} ${className}`;
+---
+
+<div class={classes} {...rest}>
+  <slot />
+</div>
