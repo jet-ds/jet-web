@@ -46,7 +46,7 @@ const pageDescription = selectedType
     <Container size="lg">
       {/* Header */}
       <div class="mb-xl">
-        <h1 class="text-5xl font-bold mb-s">
+        <h1 class="text-5xl font-bold leading-tight mb-s">
           {selectedType
             ? `${selectedType.charAt(0).toUpperCase() + selectedType.slice(1)} Works`
             : 'Works'}
@@ -147,7 +147,7 @@ const pageDescription = selectedType
     {regularWorks.length > 0 && (
       <div>
         {featuredWorks.length > 0 && (
-          <h2 class="text-2xl font-bold mb-m">
+          <h2 class="text-2xl font-bold leading-tight mb-m">
             {selectedType ? 'More Works' : 'All Works'}
           </h2>
         )}

@@ -25,7 +25,7 @@ export function WelcomeScreen({ onStartChat }: WelcomeScreenProps) {
     <div className="flex items-center justify-center min-h-[600px]">
       <div className="max-w-md text-center space-y-6">
         <div className="text-6xl mb-4">👻</div>
-        <h1 className="text-3xl font-bold text-text-primary">
+        <h1 className="text-3xl font-bold leading-tight text-text-primary">
           Jet's Ghost
         </h1>
         <p className="text-lg text-text-tertiary">

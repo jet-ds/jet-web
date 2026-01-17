@@ -55,7 +55,7 @@ export function InitializationScreen({
         {/* Ghost Icon with animation */}
         <div className="text-center">
           <div className="text-6xl mb-4 animate-bounce">👻</div>
-          <h2 className="text-2xl font-bold text-text-primary mb-2">
+          <h2 className="text-2xl font-bold leading-tight text-text-primary mb-2">
             Waking up Jet's Ghost...
           </h2>
           <p className="text-text-tertiary">

@@ -37,10 +37,10 @@ const typeLabel: Record<string, string> = {
   <Section spacing="none" class="min-h-[75svh] flex items-center">
     <Container size="lg">
       <div class="max-w-4xl mx-auto text-center">
-        <h1 class="text-7xl font-bold mb-m text-text-primary">
+        <h1 class="text-7xl font-bold leading-tight mb-m text-text-primary">
           Hi, I'm Jet Sanchez.
         </h1>
-        <p class="text-lg text-text-tertiary mb-l">
+        <p class="text-base text-text-tertiary mb-l">
           Research, systems & tools for thinking clearly in an AI-driven world
         </p>
         <div class="flex flex-wrap gap-s justify-center">
@@ -55,7 +55,7 @@ const typeLabel: Record<string, string> = {
   <Section spacing="default" background="subtle">
     <Container size="lg">
       <div class="flex justify-between items-center mb-l">
-        <h2 class="text-3xl font-bold text-text-primary">
+        <h2 class="text-3xl font-bold leading-tight text-text-primary">
           Latest Articles
         </h2>
         <Button href="/blog" variant="ghost">View All →</Button>
@@ -66,7 +66,7 @@ const typeLabel: Record<string, string> = {
           {latestPosts.map((post) => (
             <Card hover class="flex flex-col h-full">
               <div class="flex-1">
-                <h3 class="text-xl font-semibold mb-2xs text-text-primary">
+                <h3 class="text-lg font-semibold leading-snug mb-2xs text-text-primary">
                   <a href={`/blog/${post.slug}`} class="hover:text-brand-base transition-colors">
                     {post.data.title}
                   </a>
@@ -100,7 +100,7 @@ const typeLabel: Record<string, string> = {
   <Section spacing="default">
     <Container size="lg">
       <div class="flex justify-between items-center mb-l">
-        <h2 class="text-3xl font-bold text-text-primary">
+        <h2 class="text-3xl font-bold leading-tight text-text-primary">
           Featured Works
         </h2>
         <Button href="/works" variant="ghost">View All →</Button>
@@ -119,7 +119,7 @@ const typeLabel: Record<string, string> = {
                     {typeLabel[work.data.type]}
                   </Tag>
                 </div>
-                <h3 class="text-xl font-semibold mb-2xs text-text-primary">
+                <h3 class="text-lg font-semibold leading-snug mb-2xs text-text-primary">
                   <a href={`/works/${work.slug}`} class="hover:text-brand-base transition-colors">
                     {work.data.title}
                   </a>

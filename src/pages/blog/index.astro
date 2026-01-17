@@ -40,7 +40,7 @@ const pageDescription = selectedTag
     <Container size="lg">
       {/* Header */}
       <div class="mb-xl">
-        <h1 class="text-5xl font-bold mb-s">
+        <h1 class="text-5xl font-bold leading-tight mb-s">
           {selectedTag ? `Posts tagged with "${selectedTag}"` : 'Blog'}
         </h1>
         <p class="text-xl text-text-tertiary max-w-2xl">
@@ -113,7 +113,7 @@ const pageDescription = selectedTag
     {/* Optional: Show all available tags at the bottom */}
     {!selectedTag && allTags.length > 0 && displayedPosts.length > 0 && (
       <div class="mt-2xl pt-l border-t border-border-default">
-        <h2 class="text-2xl font-bold mb-s">Browse by tag</h2>
+        <h2 class="text-2xl font-bold leading-tight mb-s">Browse by tag</h2>
         <div class="flex flex-wrap gap-2xs">
           {allTags.map((tag) => {
             const count = allPosts.filter(post =>
