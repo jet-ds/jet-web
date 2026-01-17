@@ -1,0 +1,114 @@
+---
+title: 'Vibe Coding vs Agentic Coding: Why the Distinction Matters'
+description: 'Vibe coding is exploratory. Agentic coding is survivable. Learn why intent, cognition, and workflow maturity now define modern software.'
+pubDate: 2026-01-17
+author: 'Jet Sanchez'
+tags:
+  - AI
+  - dev-tools
+  - vibe-coding
+  - agentic-coding
+  - claude-code
+draft: false
+---
+
+"Vibe coding" has become a pejorative in 2026.
+
+In AI and software circles (or [Reddit](https://www.reddit.com/r/vibecoding/)), it's increasingly used by the old guard to imply recklessness, lack of rigor, or an overreliance on LLMs and coding agents to magically infer intent. The subtext is usually something like: *real engineers don't vibe, they build.*
+
+That framing misses the point. Worse, it obscures what's actually changing about how software is built.
+
+The problem isn't vibe coding. The problem is using vibe coding where agentic coding is required.
+
+## What People Mean by "Vibe Coding"
+
+At its core, vibe coding is exploratory development.
+
+You have a rough goal, an intuition for what the system should do, and you iterate quickly with an LLM in the loop until the output feels right. You prompt, tweak, rerun, refactor, and adjust based on feedback that's as much aesthetic as it is functional.
+
+This is not new. Developers have always worked this way when prototyping, sketching ideas, or feeling their way through unfamiliar domains. The only difference now is that LLMs dramatically accelerate the loop.
+
+Vibe coding is excellent at:
+
+- Early exploration and prototyping
+- Creative tooling and internal scripts
+- Learning a new framework or domain
+- Discovering what you actually want to build
+
+Its weakness is also obvious: intent lives in the developer's head. When context resets, collaborators join, or the system grows beyond a few files and a few thousand LOC, that implicit intent starts to leak. The AI fills the gaps. Humans forget why decisions were made. Technical debt quietly accumulates.
+
+When vibe coding fails, it fails silently.
+
+## What Agentic Coding Actually Is
+
+Agentic coding isn't "letting the AI do whatever it wants." That's a caricature.
+
+In practice, agentic coding is intent-anchored development: a workflow where goals, constraints, and reasoning are externalized into durable artifacts that both humans and AI systems can reliably reference over time.
+
+This usually includes:
+
+- Intensive upfront planning (often offline)
+- Explicit, written specifications generated or refined with AI
+- Persistent context artifacts the system can return to across sessions
+- Implementation logs that record what changed and why
+- Iteration that is opinionated, not passive
+
+In this model, the AI is not inferring intent but executing against it.
+
+Agentic coding shines when:
+
+- Projects span many sessions or contributors
+- Consistency and correctness matter more than speed
+- Refactors, migrations, or long-running changes are required
+- You need the freedom to step away without losing coherence
+
+Where vibe coding optimizes for immediacy, agentic coding optimizes for continuity.
+
+## The Real Difference: Where Cognition Lives
+
+The key distinction isn't about tools or models. It's about where cognition is stored.
+
+In vibe coding, cognition lives primarily in the human (for better or worse). The model amplifies creativity and speed but does not carry durable understanding. That's why outsourcing cognition and understanding to the model is a recipe for disaster.
+
+In agentic coding, cognition is partially externalized into specs, logs, plans, and constraints that persist beyond any single session or model run.
+
+This is why agentic systems like [Claude Code](/blog/how-to-install-claude-code-cli-2026) can feel "slower" or more arcane at first. You're paying the cost of making intent explicit. The payoff is leverage: repeatability, inspectability, and resilience to context drift.
+
+## Control vs Humility
+
+One of the most misunderstood aspects of agentic coding is control.
+
+Effective agentic workflows are highly opinionated. You must know what you want and resist the temptation to let the AI invent goals on your behalf. Autonomy without alignment is just fast misdirection.
+
+At the same time, agentic coding requires humility. You have to recognize when your mental model is incomplete, or when you need more documentation, more context, or a fundamentally different approach. The discipline isn't rigidity but knowing when to pause and widen the frame.
+
+The AI is allowed to surprise you. It is not allowed to decide for you.
+
+## Why "Vibe Coding" Shouldn't Be an Insult
+
+Treating vibe coding as a failure mode misunderstands its role.
+
+Vibe coding is one way ideas are born. Agentic coding is how those ideas survive.
+
+Most successful systems move through both phases:
+
+1. Vibe coding to explore the space and find signal
+2. Agentic coding to stabilize, scale, and maintain intent
+
+Problems arise only when we confuse the phases, when we improvise systems that require rigor, or over-engineer ideas that haven't earned structure yet.
+
+## The Maturity Curve
+
+Beginner workflows rely on vibes because everything is new. Advanced workflows rely on agents because complexity demands it. The transition *should* be inevitable.
+
+And yet it isn't.
+
+Some people never make the crossover, whether they're cognitively incapable or refuse to for one reason or another. Other times it's a matter of identity, tied to the old ways of syntax-based software engineering. Sometimes still it's a false sense of speed that collapses the moment the project spans multiple sessions, contributors, or constraints.
+
+In all cases, the failure mode is the same: staying in vibe mode long after the project has entered the "this needs to survive contact with reality" phase. Vibe coding becomes not a phase or a means to an end, but a permanent lifestyle. Context drifts. Decisions lose their rationale. The AI starts "helping" by inventing coherence. The system grows, but it doesn't stabilize.
+
+The future of software development isn't less creativity or more autonomy but better representations of intent. That means specs that don't rot, logs that preserve reasoning, and systems that can be resumed without re-explaining the universe.
+
+Vibe coding isn't the enemy. It's the sketchbook.
+
+Agentic coding is the architecture that keeps the building standing once the sketch becomes real.
