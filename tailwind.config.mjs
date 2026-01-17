@@ -135,7 +135,9 @@ export default {
       },
       // === UTOPIA FLUID SPACING ===
       spacing: {
-        // Single space values (1.5 → 1.618 scale)
+        // Single space values
+        '5xs': 'var(--space-5xs)',
+        '4xs': 'var(--space-4xs)',
         '3xs': 'var(--space-3xs)',
         '2xs': 'var(--space-2xs)',
         'xs': 'var(--space-xs)',
@@ -148,7 +150,9 @@ export default {
         '4xl': 'var(--space-4xl)',
         '5xl': 'var(--space-5xl)',
 
-        // Space pairs (one-up dramatic interpolation)
+        // Space pairs (one-up interpolation)
+        '5xs-4xs': 'var(--space-5xs-4xs)',
+        '4xs-3xs': 'var(--space-4xs-3xs)',
         '3xs-2xs': 'var(--space-3xs-2xs)',
         '2xs-xs': 'var(--space-2xs-xs)',
         'xs-s': 'var(--space-xs-s)',
@@ -159,6 +163,9 @@ export default {
         '2xl-3xl': 'var(--space-2xl-3xl)',
         '3xl-4xl': 'var(--space-3xl-4xl)',
         '4xl-5xl': 'var(--space-4xl-5xl)',
+
+        // Custom pairs
+        's-l': 'var(--space-s-l)',
 
         // Semantic tokens
         'gutter': 'var(--space-gutter)',
@@ -174,5 +181,15 @@ export default {
   },
   plugins: [
     require('@tailwindcss/typography'),
+    require('tailwind-utopia')({
+      minScreen: '320px',
+      maxScreen: '1440px',
+      minSize: 16,
+      maxSize: 17,
+      minScale: 1.125,
+      maxScale: 1.2,
+      prefix: 'space',
+      useClamp: true,
+    }),
   ],
 };
