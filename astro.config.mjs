@@ -27,8 +27,13 @@ export default defineConfig({
   ],
   image: {
     // Image optimization configuration
-    domains: [], // Add external domains if needed
-    remotePatterns: [], // Add remote patterns if needed
+    domains: [],
+    remotePatterns: [
+      {
+        protocol: 'https',
+        hostname: '**.public.blob.vercel-storage.com',
+      },
+    ],
   },
   markdown: {
     // Shiki syntax highlighting configuration
