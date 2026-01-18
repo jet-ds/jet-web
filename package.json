@@ -10,7 +10,8 @@
     "dev:embeddings": "tsx scripts/build-embeddings.ts && astro dev",
     "preview": "astro preview",
     "astro": "astro",
-    "upload-image": "tsx scripts/upload-image.ts"
+    "upload-image": "tsx scripts/upload-image.ts",
+    "validate-images": "tsx scripts/validate-images.ts"
   },
   "dependencies": {
     "@astrojs/mdx": "^4.3.13",
