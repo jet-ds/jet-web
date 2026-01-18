@@ -44,7 +44,7 @@ const nextPost = currentIndex > 0 ? sortedPosts[currentIndex - 1] : null;
   author={post.data.author}
   tags={post.data.tags}
   readingTime={readingTime}
-  image={post.data.image?.url}
+  image={post.data.image}
 >
   <div class="grid grid-cols-1 lg:grid-cols-[1fr_250px] gap-l">
     {/* Main content */}
