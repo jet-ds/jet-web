@@ -58,10 +58,10 @@ const seoProps = generateSEOProps({
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="generator" content={Astro.generator} />
 
-    <!-- SEO Component -->
+    <!-- Search Engine Optimization -->
     <SEO {...seoProps} />
 
-    <!-- Structured Data (JSON-LD) -->
+    <!-- Structured Data -->
     <StructuredData
       type={type === 'article' ? 'article' : 'website'}
       url={seoProps.canonicalURL}
@@ -75,7 +75,7 @@ const seoProps = generateSEOProps({
       tags={tags}
     />
 
-    <!-- Site Navigation Structured Data -->
+    <!-- Site Navigation -->
     <StructuredData
       type="navigation"
       navigationElements={[
@@ -87,12 +87,12 @@ const seoProps = generateSEOProps({
       ]}
     />
 
-    <!-- Google Fonts -->
+    <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
     <link href="https://fonts.googleapis.com/css2?family=Brawler:wght@400;700&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
 
-    <!-- Favicon -->
+    <!-- Site Icons -->
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
     <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png" />
@@ -103,13 +103,13 @@ const seoProps = generateSEOProps({
     <!-- RSS Feed -->
     <link rel="alternate" type="application/rss+xml" title={SITE.title} href="/rss.xml" />
 
-    <!-- Theme Script (prevents FOUC) -->
+    <!-- Theme -->
     <ThemeScript />
 
-    <!-- Google Analytics 4 -->
+    <!-- Analytics -->
     <GoogleAnalytics measurementId={SITE.ga4MeasurementId} />
 
-    <!-- Client Router (Astro v5 View Transitions) -->
+    <!-- Page Transitions -->
     <ClientRouter />
   </head>
   <body class="min-h-screen flex flex-col">

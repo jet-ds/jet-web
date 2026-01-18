@@ -38,7 +38,7 @@ if (shouldSkipAnalytics) {
 
 {measurementId && !shouldSkipAnalytics && (
   <>
-    <!-- Google tag (gtag.js) with Partytown -->
+    <!-- Analytics Tracking -->
     <script type="text/partytown" async src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`}></script>
     <script type="text/partytown" define:vars={{ measurementId }}>
       window.dataLayer = window.dataLayer || [];
@@ -47,7 +47,7 @@ if (shouldSkipAnalytics) {
       gtag('config', measurementId, { send_page_view: false });
     </script>
 
-    <!-- ClientRouter page_view tracking - runs on main thread -->
+    <!-- Page View Tracking -->
     <script is:inline define:vars={{ measurementId }}>
       window.dataLayer = window.dataLayer || [];
       window.gtag = function() { dataLayer.push(arguments); };
