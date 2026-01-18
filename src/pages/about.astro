@@ -4,6 +4,7 @@ import PageWrapper from '../components/layout/PageWrapper.astro';
 import Container from '../components/ui/Container.astro';
 import Card from '../components/ui/Card.astro';
 import Link from '../components/ui/Link.astro';
+import OptimizedImage from '../components/ui/OptimizedImage.astro';
 import StructuredData from '../components/seo/StructuredData.astro';
 import { SITE, SOCIAL_LINKS } from '../config/site';
 
@@ -77,10 +78,14 @@ const activeSocialLinks = Object.entries(SOCIAL_LINKS)
 
         <!-- Image Card -->
         <Card padding="none" class="overflow-hidden">
-          <img
+          <OptimizedImage
             src="https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/about/about-hero-b0ab33a5.jpg"
             alt="Jet Sanchez"
+            width={1200}
+            height={1600}
             class="w-full h-full object-cover"
+            loading="eager"
+            quality={85}
           />
         </Card>
       </div>
