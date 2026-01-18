@@ -67,7 +67,7 @@ const typeLabel: Record<string, string> = {
             <Card hover class="flex flex-col h-full">
               <div class="flex-1">
                 <h3 class="text-lg font-semibold leading-snug mb-2xs text-text-primary">
-                  <a href={`/blog/${post.slug}`} class="hover:text-brand-base transition-colors">
+                  <a href={`/blog/${post.id}`} class="hover:text-brand-base transition-colors">
                     {post.data.title}
                   </a>
                 </h3>
@@ -120,7 +120,7 @@ const typeLabel: Record<string, string> = {
                   </Tag>
                 </div>
                 <h3 class="text-lg font-semibold leading-snug mb-2xs text-text-primary">
-                  <a href={`/works/${work.slug}`} class="hover:text-brand-base transition-colors">
+                  <a href={`/works/${work.id}`} class="hover:text-brand-base transition-colors">
                     {work.data.title}
                   </a>
                 </h3>

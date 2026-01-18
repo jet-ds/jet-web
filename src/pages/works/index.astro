@@ -127,7 +127,7 @@ const pageDescription = selectedType
         <div class="grid gap-m md:grid-cols-2 lg:grid-cols-3">
           {featuredWorks.map((work) => (
             <WorkCard
-              slug={work.slug}
+              slug={work.id}
               title={work.data.title}
               description={work.data.description}
               type={work.data.type}
@@ -154,7 +154,7 @@ const pageDescription = selectedType
         <div class="grid gap-m md:grid-cols-2 lg:grid-cols-3">
           {regularWorks.map((work) => (
             <WorkCard
-              slug={work.slug}
+              slug={work.id}
               title={work.data.title}
               description={work.data.description}
               type={work.data.type}

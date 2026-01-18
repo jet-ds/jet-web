@@ -38,6 +38,10 @@ export const worksSchema = z.object({
   date: z.coerce.date(),
   tags: z.array(z.string()).default([]),
   featured: z.boolean().default(false),
+  image: z.object({
+    url: z.string(),
+    alt: z.string(),
+  }).optional(),
   links: z.array(z.object({
     label: z.string(),
     url: z.string(),
