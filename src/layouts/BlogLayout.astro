@@ -4,6 +4,7 @@ import PageWrapper from '../components/layout/PageWrapper.astro';
 import Container from '../components/ui/Container.astro';
 import Tag from '../components/ui/Tag.astro';
 import Link from '../components/ui/Link.astro';
+import OptimizedImage from '../components/ui/OptimizedImage.astro';
 
 export interface Props {
   title: string;
@@ -12,7 +13,10 @@ export interface Props {
   updatedDate?: Date;
   author: string;
   tags?: string[];
-  image?: string;
+  image?: {
+    url: string;
+    alt: string;
+  };
   readingTime?: number;
 }
 
@@ -42,7 +46,17 @@ const formattedUpdatedDate = updatedDate
   : null;
 ---
 
-<BaseLayout title={title} description={description} image={image}>
+<BaseLayout
+  title={title}
+  description={description}
+  image={image?.url}
+  imageAlt={image?.alt}
+  type="article"
+  publishedTime={pubDate.toISOString()}
+  modifiedTime={updatedDate?.toISOString()}
+  author={author}
+  tags={tags}
+>
   <PageWrapper spacing="compact">
     <Container size="md">
       <article>
@@ -95,6 +109,21 @@ const formattedUpdatedDate = updatedDate
           </div>
         )}
         </header>
+
+        <!-- Featured Image -->
+        {image && (
+          <div class="aspect-video overflow-hidden rounded-lg mb-l">
+            <OptimizedImage
+              src={image.url}
+              alt={image.alt}
+              width={1920}
+              height={1080}
+              class="w-full h-full object-cover"
+              loading="eager"
+              sizes="(max-width: 768px) 100vw, 800px"
+            />
+          </div>
+        )}
 
         <!-- Article Content -->
         <div class="prose prose-lg dark:prose-invert max-w-none">

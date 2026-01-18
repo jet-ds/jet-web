@@ -1,5 +1,5 @@
 ---
-import { getCollection, type CollectionEntry } from 'astro:content';
+import { getCollection, render, type CollectionEntry } from 'astro:content';
 import WorkLayout from '../../layouts/WorkLayout.astro';
 
 // Generate static paths for all works
@@ -7,7 +7,7 @@ export async function getStaticPaths() {
   const works = await getCollection('works');
 
   return works.map((work) => ({
-    params: { slug: work.slug },
+    params: { slug: work.id },
     props: { work },
   }));
 }
@@ -17,7 +17,7 @@ interface Props {
 }
 
 const { work } = Astro.props;
-const { Content } = await work.render();
+const { Content } = await render(work);
 ---
 
 <WorkLayout
@@ -26,6 +26,7 @@ const { Content } = await work.render();
   type={work.data.type}
   date={work.data.date}
   tags={work.data.tags}
+  image={work.data.image}
   links={work.data.links}
   venue={work.data.venue}
   technologies={work.data.technologies}

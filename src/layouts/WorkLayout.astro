@@ -5,6 +5,7 @@ import Container from '../components/ui/Container.astro';
 import Tag from '../components/ui/Tag.astro';
 import Link from '../components/ui/Link.astro';
 import Button from '../components/ui/Button.astro';
+import OptimizedImage from '../components/ui/OptimizedImage.astro';
 
 export interface Props {
   title: string;
@@ -12,6 +13,10 @@ export interface Props {
   type: 'research' | 'project' | 'other';
   date: Date;
   tags?: string[];
+  image?: {
+    url: string;
+    alt: string;
+  };
   links?: { label: string; url: string }[];
   // For research
   venue?: string;
@@ -27,6 +32,7 @@ const {
   type,
   date,
   tags = [],
+  image,
   links = [],
   venue,
   technologies = [],
@@ -52,7 +58,7 @@ const typeColor = {
 }[type];
 ---
 
-<BaseLayout title={title} description={description}>
+<BaseLayout title={title} description={description} image={image?.url} imageAlt={image?.alt}>
   <PageWrapper spacing="compact">
     <Container size="md">
       <article>
@@ -148,6 +154,21 @@ const typeColor = {
           </div>
         )}
         </header>
+
+        <!-- Featured Image -->
+        {image && (
+          <div class="aspect-video overflow-hidden rounded-lg mb-l">
+            <OptimizedImage
+              src={image.url}
+              alt={image.alt}
+              width={1920}
+              height={1080}
+              class="w-full h-full object-cover"
+              loading="eager"
+              sizes="(max-width: 768px) 100vw, 800px"
+            />
+          </div>
+        )}
 
         <!-- Work Content -->
         <div class="prose prose-lg dark:prose-invert max-w-none">

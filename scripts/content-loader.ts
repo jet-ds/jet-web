@@ -32,7 +32,7 @@ async function loadCollection(
   collectionName: 'blog' | 'works',
   schema: z.ZodSchema
 ): Promise<ContentItem[]> {
-  const contentDir = path.join(process.cwd(), 'src/content', collectionName);
+  const contentDir = path.join(process.cwd(), 'src/data', collectionName);
 
   let files: string[];
   try {

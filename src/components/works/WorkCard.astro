@@ -2,6 +2,7 @@
 import { formatDate } from '../../utils/formatDate';
 import Tag from '../ui/Tag.astro';
 import Card from '../ui/Card.astro';
+import OptimizedImage from '../ui/OptimizedImage.astro';
 
 interface Props {
   slug: string;
@@ -11,6 +12,10 @@ interface Props {
   date: Date;
   tags: string[];
   featured?: boolean;
+  image?: {
+    url: string;
+    alt: string;
+  };
   // For research papers
   venue?: string;
   // For projects
@@ -27,6 +32,7 @@ const {
   date,
   tags,
   featured,
+  image,
   venue,
   technologies,
   links,
@@ -49,8 +55,23 @@ const typeLabel = {
 };
 ---
 
-<Card hover padding="lg" class="h-full flex flex-col">
-  <a href={workUrl} class="block group flex-1 flex flex-col">
+<Card hover padding="none">
+  <a href={workUrl} class="block group">
+    {image && (
+      <div class="aspect-video overflow-hidden">
+        <OptimizedImage
+          src={image.url}
+          alt={image.alt}
+          width={800}
+          height={450}
+          class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          loading="lazy"
+          sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+        />
+      </div>
+    )}
+
+    <div class="p-card flex-1 flex flex-col">
     {/* Header with type badge and featured indicator */}
     <div class="flex items-center justify-between mb-xs">
       <Tag variant={typeVariant[type]} size="sm">
@@ -118,6 +139,7 @@ const typeLabel = {
         )}
       </div>
     )}
+    </div>
   </a>
 
   {/* Links (outside of main link to prevent nested links) */}

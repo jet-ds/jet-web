@@ -70,7 +70,7 @@ if (type === 'website') {
     '@type': 'Article',
     headline: headline || name,
     description: description,
-    image: image,
+    ...(image && { image }),
     datePublished: datePublished,
     dateModified: dateModified || datePublished,
     author: {

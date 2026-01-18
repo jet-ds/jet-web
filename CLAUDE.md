@@ -23,6 +23,12 @@ npm run lint             # Run ESLint (if configured)
 # Content
 # Blog posts: src/content/blog/*.mdx
 # Works: src/content/works/*.mdx
+
+# Image Management
+npm run upload-image blog/image.jpg   # Upload blog image to Vercel Blob
+npm run upload-image works/image.png  # Upload works image to Vercel Blob
+# Images: public/images-staging/{blog,works}/*.{jpg,png,webp,avif}
+# See docs/image-workflow.md for detailed guide
 ```
 
 ## Tech Stack
@@ -71,8 +77,9 @@ npm run lint             # Run ESLint (if configured)
 
 ### Content Collections
 - **Type-safe**: All content must follow schemas defined in `src/content/config.ts`
-- **Blog schema**: title, description, pubDate, tags, author, draft (optional)
-- **Works schema**: title, description, type ('research' | 'project' | 'other'), date, tags, links
+- **Blog schema**: title, description, pubDate, tags, author, draft (optional), image (optional)
+- **Works schema**: title, description, type ('research' | 'project' | 'other'), date, tags, links, image (optional)
+- **Image field**: `{ url: string, alt: string }` - URL from Vercel Blob, descriptive alt text required
 - **Frontmatter**: Use YAML frontmatter at top of MDX files
 
 ## Project Architecture
@@ -110,7 +117,15 @@ npm run lint             # Run ESLint (if configured)
 │   ├── utils/           # Helper functions
 │   └── config/          # Site configuration (metadata, social links)
 ├── docs/                # Project documentation
-│   └── project-spec.md          # Technical specification
+│   ├── project-spec.md          # Technical specification
+│   └── image-workflow.md        # Image upload and management guide
+├── public/              # Public static assets
+│   └── images-staging/  # Image staging before Blob upload
+│       ├── blog/        # Blog post images
+│       ├── works/       # Works images
+│       └── README.md    # Staging directory usage guide
+├── scripts/             # Build and utility scripts
+│   └── upload-image.ts  # Upload images to Vercel Blob
 ├── astro.config.mjs     # Astro configuration
 ├── tailwind.config.mjs  # Tailwind v3.x configuration
 ├── tsconfig.json        # TypeScript configuration
