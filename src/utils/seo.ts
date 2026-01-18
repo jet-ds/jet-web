@@ -4,6 +4,7 @@ export interface SEOProps {
   title: string;
   description: string;
   image?: string;
+  imageAlt?: string;
   canonicalURL?: string;
   type?: 'website' | 'article' | 'profile';
   publishedTime?: string;
@@ -39,6 +40,7 @@ export function generateSEOProps(props: Partial<SEOProps>): SEOProps {
     title: props.title || SITE.title,
     description: props.description || SITE.description,
     image: props.image || `${SITE.siteUrl}/images/og-default.jpg`,
+    imageAlt: props.imageAlt,
     canonicalURL,
     type: props.type || 'website',
     publishedTime: props.publishedTime,
