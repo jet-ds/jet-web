@@ -46,7 +46,16 @@ const formattedUpdatedDate = updatedDate
   : null;
 ---
 
-<BaseLayout title={title} description={description} image={image?.url}>
+<BaseLayout
+  title={title}
+  description={description}
+  image={image?.url}
+  type="article"
+  publishedTime={pubDate.toISOString()}
+  modifiedTime={updatedDate?.toISOString()}
+  author={author}
+  tags={tags}
+>
   <PageWrapper spacing="compact">
     <Container size="md">
       <article>
