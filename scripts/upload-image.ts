@@ -1,7 +1,7 @@
 /**
  * Image Upload Script for Vercel Blob Storage
  *
- * Uploads images from images-staging/ to Vercel Blob with content hashing
+ * Uploads images from public/images-staging/ to Vercel Blob with content hashing
  * for cache busting and immutable URLs.
  *
  * Usage:
@@ -41,7 +41,7 @@ function parseArgs(): string {
     console.error('  npm run upload-image blog/my-post.jpg');
     console.error('  npm run upload-image works/my-work.png');
     console.error('');
-    console.error('The file should exist in images-staging/ directory.');
+    console.error('The file should exist in public/images-staging/ directory.');
     process.exit(1);
   }
 
@@ -99,7 +99,7 @@ async function main() {
   const { type, slug, ext } = validatePath(relativePath);
 
   // Construct file path
-  const stagingPath = path.join(process.cwd(), 'images-staging', relativePath);
+  const stagingPath = path.join(process.cwd(), 'public', 'images-staging', relativePath);
 
   console.log('📤 Vercel Blob Image Upload');
   console.log('');
@@ -115,7 +115,7 @@ async function main() {
   } catch (error) {
     console.error(`❌ Error: Could not read file at ${stagingPath}`);
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      console.error('   File does not exist. Make sure the file is in images-staging/');
+      console.error('   File does not exist. Make sure the file is in public/images-staging/');
     }
     process.exit(1);
   }

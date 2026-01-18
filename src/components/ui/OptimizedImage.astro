@@ -2,10 +2,10 @@
 import { Image } from 'astro:assets';
 
 interface Props {
-  src: string | ImageMetadata;
+  src: string;
   alt: string;
-  width?: number;
-  height?: number;
+  width: number;
+  height: number;
   class?: string;
   loading?: 'lazy' | 'eager';
   sizes?: string;
@@ -33,7 +33,7 @@ const {
   height={height}
   class={className}
   loading={loading}
-  sizes={sizes}
+  {...(sizes && { sizes })}
   quality={quality}
   {...(aspectRatio && { 'data-aspect': aspectRatio })}
 />

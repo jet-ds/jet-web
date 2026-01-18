@@ -39,7 +39,7 @@ const fullImageURL = image?.startsWith('http') ? image : `${SITE.siteUrl}${image
 <meta property="og:url" content={canonicalURL} />
 <meta property="og:title" content={formattedTitle} />
 <meta property="og:description" content={truncatedDescription} />
-<meta property="og:image" content={fullImageURL} />
+{image && <meta property="og:image" content={fullImageURL} />}
 <meta property="og:site_name" content={SITE.title} />
 <meta property="og:locale" content="en_US" />
 
@@ -62,7 +62,7 @@ const fullImageURL = image?.startsWith('http') ? image : `${SITE.siteUrl}${image
 <meta name="twitter:url" content={canonicalURL} />
 <meta name="twitter:title" content={formattedTitle} />
 <meta name="twitter:description" content={truncatedDescription} />
-<meta name="twitter:image" content={fullImageURL} />
+{image && <meta name="twitter:image" content={fullImageURL} />}
 {SITE.author && <meta name="twitter:creator" content={`@${SITE.author}`} />}
 
 <!-- Additional Meta Tags -->

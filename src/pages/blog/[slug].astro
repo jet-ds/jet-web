@@ -23,7 +23,7 @@ interface Props {
 const { post } = Astro.props;
 const { Content, headings } = await render(post);
 
-const readingTime = getReadingTime(post.body);
+const readingTime = getReadingTime(post.body || '');
 
 // Get previous and next posts (optional navigation)
 const allPosts = await getCollection('blog', ({ data }) => data.draft !== true);

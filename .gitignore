@@ -28,3 +28,12 @@ test-config.json
 # jetbrains setting folder
 .idea/
 .vercel
+
+# image staging (keep structure, ignore uploaded images)
+public/images-staging/**/*.jpg
+public/images-staging/**/*.jpeg
+public/images-staging/**/*.png
+public/images-staging/**/*.webp
+public/images-staging/**/*.avif
+public/images-staging/**/*.gif
+!public/images-staging/README.md

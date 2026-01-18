@@ -6,7 +6,7 @@ import Container from '../components/ui/Container.astro';
 import Card from '../components/ui/Card.astro';
 import Button from '../components/ui/Button.astro';
 import Tag from '../components/ui/Tag.astro';
-import { SITE } from '../config/site';
+import OptimizedImage from '../components/ui/OptimizedImage.astro';
 
 // Fetch latest blog posts (limit to 3)
 const allBlogPosts = await getCollection('blog', ({ data }) => data.draft !== true);
@@ -71,6 +71,19 @@ const typeLabel: Record<string, string> = {
                     {post.data.title}
                   </a>
                 </h3>
+                {post.data.image && (
+                  <div class="aspect-video overflow-hidden rounded-lg mb-2xs">
+                    <OptimizedImage
+                      src={post.data.image.url}
+                      alt={post.data.image.alt}
+                      width={800}
+                      height={450}
+                      class="w-full h-full object-cover"
+                      loading="lazy"
+                      sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                    />
+                  </div>
+                )}
                 <p class="text-text-tertiary mb-s">
                   {post.data.description}
                 </p>
@@ -124,6 +137,19 @@ const typeLabel: Record<string, string> = {
                     {work.data.title}
                   </a>
                 </h3>
+                {work.data.image && (
+                  <div class="aspect-video overflow-hidden rounded-lg mb-2xs">
+                    <OptimizedImage
+                      src={work.data.image.url}
+                      alt={work.data.image.alt}
+                      width={800}
+                      height={450}
+                      class="w-full h-full object-cover"
+                      loading="lazy"
+                      sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+                    />
+                  </div>
+                )}
                 <p class="text-text-tertiary mb-s">
                   {work.data.description}
                 </p>
