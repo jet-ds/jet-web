@@ -43,7 +43,7 @@ const activeSocialLinks = Object.entries(SOCIAL_LINKS)
   />
 
   <PageWrapper spacing="default">
-    <Container size="md">
+    <Container size="lg">
       <!-- Header -->
       <div class="mb-xl">
         <h1 class="text-5xl font-bold leading-tight mb-s text-text-primary">
@@ -54,27 +54,39 @@ const activeSocialLinks = Object.entries(SOCIAL_LINKS)
         </p>
       </div>
 
-      <!-- Bio Section -->
-      <Card class="mb-l">
-      <div class="prose prose-lg dark:prose-invert max-w-none">
-        <h2 class="text-2xl font-bold leading-tight mb-s">Background</h2>
-        <p>
-          I am a marketing engineer working at the intersection of AI research, applied AI, and systems design.
-        </p>
-        <p>
-          At Digital Squad, I lead AI research & development and drive content strategy and SEO, building internal AI maturity, designing practical AI-enabled workflows, and translating complex technical ideas into execution that drives results.
-        </p>
-        <p>
-          Alongside that work, I write and publish research exploring long-term trajectories in advanced AI, especially where capability, governance, and ethics collide.
-        </p>
-        <p>
-          This site is my public workspace: papers, essays, and experiments in thinking, plus the systems that ship them.
-        </p>
-      </div>
-    </Card>
+      <!-- Bio Section with Image -->
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-m-l mb-l items-stretch">
+        <!-- Background Card -->
+        <Card>
+          <div class="prose prose-lg dark:prose-invert max-w-none">
+            <h2 class="text-2xl font-bold leading-tight mb-s">Background</h2>
+            <p>
+              I am a marketing engineer working at the intersection of AI research, applied AI, and systems design.
+            </p>
+            <p>
+              At Digital Squad, I lead AI research & development and drive content strategy and SEO, building internal AI maturity, designing practical AI-enabled workflows, and translating complex technical ideas into execution that drives results.
+            </p>
+            <p>
+              Alongside that work, I write and publish research exploring long-term trajectories in advanced AI, especially where capability, governance, and ethics collide.
+            </p>
+            <p>
+              This site is my public workspace: papers, essays, and experiments in thinking, plus the systems that ship them.
+            </p>
+          </div>
+        </Card>
 
-    <!-- Interests & Expertise -->
-    <Card class="mb-l">
+        <!-- Image Card -->
+        <Card padding="none" class="overflow-hidden">
+          <img
+            src="https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/about/about-hero-b0ab33a5.jpg"
+            alt="Jet Sanchez"
+            class="w-full h-full object-cover"
+          />
+        </Card>
+      </div>
+
+      <!-- Interests & Expertise -->
+      <Card class="mb-l">
       <h2 class="text-2xl font-bold mb-m text-text-primary">
         Interests & Expertise
       </h2>

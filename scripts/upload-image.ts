@@ -63,9 +63,9 @@ function validatePath(relativePath: string): { type: string; slug: string; ext: 
 
   const [type, filename] = parts;
 
-  if (!['blog', 'works'].includes(type)) {
+  if (!['blog', 'works', 'about'].includes(type)) {
     console.error(`❌ Error: Invalid type "${type}"`);
-    console.error('   Must be either "blog" or "works"');
+    console.error('   Must be either "blog", "works", or "about"');
     process.exit(1);
   }
 
