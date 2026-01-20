@@ -176,15 +176,5 @@ export default {
   },
   plugins: [
     require('@tailwindcss/typography'),
-    require('tailwind-utopia')({
-      minScreen: '320px',
-      maxScreen: '1440px',
-      minSize: 16,
-      maxSize: 17,
-      minScale: 1.125,
-      maxScale: 1.2,
-      prefix: 'space',
-      useClamp: true,
-    }),
   ],
 };
