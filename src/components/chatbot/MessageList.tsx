@@ -33,7 +33,7 @@ export function MessageList({ messages }: MessageListProps) {
   }
 
   return (
-    <div className="flex flex-col space-y-4 p-4 overflow-y-auto">
+    <div className="flex flex-col space-y-m px-gutter py-s overflow-y-auto">
       {messages.map((message) => (
         <div
           key={message.id}
@@ -42,18 +42,18 @@ export function MessageList({ messages }: MessageListProps) {
           }`}
         >
           <div
-            className={`max-w-[80%] rounded-lg px-4 py-2 ${
+            className={`max-w-[80%] rounded-lg px-s py-s ${
               message.role === 'user'
                 ? 'bg-brand-base text-brand-contrast'
                 : 'bg-bg-subtle text-text-primary'
             }`}
           >
-            <div className="whitespace-pre-wrap break-words">
-              {message.content}
+            <div className="whitespace-pre-line break-words">
+              {message.content.trim()}
             </div>
             {message.timestamp && (
               <div
-                className={`text-xs mt-1 ${
+                className={`text-xs mt-2xs ${
                   message.role === 'user'
                     ? 'text-brand-contrast opacity-80'
                     : 'text-text-tertiary'

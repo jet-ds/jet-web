@@ -23,15 +23,15 @@ interface WelcomeScreenProps {
 export function WelcomeScreen({ onStartChat }: WelcomeScreenProps) {
   return (
     <div className="flex items-center justify-center min-h-[600px]">
-      <div className="max-w-md text-center space-y-6">
-        <div className="text-6xl mb-4">👻</div>
+      <div className="max-w-md text-center space-y-l">
+        <div className="text-6xl mb-m">👻</div>
         <h1 className="text-3xl font-bold leading-tight text-text-primary">
           Jet's Ghost
         </h1>
         <p className="text-lg text-text-tertiary">
           Chat with my blog content using AI-powered semantic search
         </p>
-        <ul className="text-left text-text-secondary space-y-2">
+        <ul className="text-left text-text-secondary space-y-s">
           <li className="flex items-start">
             <span className="mr-2">🔍</span>
             <span>Ask questions about blog posts, research papers, and projects</span>
@@ -47,11 +47,11 @@ export function WelcomeScreen({ onStartChat }: WelcomeScreenProps) {
         </ul>
         <button
           onClick={onStartChat}
-          className="mt-8 px-8 py-3 bg-brand-base text-brand-contrast rounded-lg hover:bg-brand-hover transition-colors font-semibold text-lg shadow-lg hover:shadow-xl"
+          className="mt-l px-l py-m bg-brand-base text-brand-contrast rounded-lg hover:bg-brand-hover transition-colors font-semibold text-lg shadow-lg hover:shadow-xl"
         >
           Start Chat
         </button>
-        <p className="text-sm text-text-tertiary mt-4">
+        <p className="text-sm text-text-tertiary mt-m">
           First load may take 10-30 seconds while the AI model downloads
         </p>
       </div>

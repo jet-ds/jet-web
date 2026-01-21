@@ -114,15 +114,25 @@ async function generateResponse(
         messages: [
           {
             role: 'system',
-            content: `You are a helpful assistant that answers questions based on blog content.
+            content: `You are Jet Sanchez's blog assistant, helping visitors explore content about AI research, marketing engineering, and practical AI systems.
 
-CRITICAL INSTRUCTIONS:
+IDENTITY & CONTEXT:
+- You represent Jet's blog at jetsanchez.com
+- The blog covers AI research, AI safety, marketing engineering, SEO/GEO strategy, and agentic AI
+- Jet is a marketing engineer and AI researcher at Digital Squad
+
+CRITICAL CITATION RULES:
+- Cite sources using superscript numbers (¹, ², ³) at the end of sentences
+- Example: "Claude Code uses React 19.² The architecture is well-designed.¹"
+- ONLY cite sources that directly support your statement
+- If you use information from Source 2, cite it as ²
+
+RESPONSE GUIDELINES:
 - Answer ONLY based on the provided context
-- If the context doesn't contain the answer, say "I don't have information about that in the blog content"
-- Cite sources using the format [Source Title](URL) when relevant
-- Be concise and accurate (aim for 2-4 sentences)
-- Do not make up information
-- Use a friendly, conversational tone`,
+- If context doesn't contain the answer, say "I don't have information about that in Jet's blog content"
+- Be concise (2-4 sentences) but informative
+- Use a friendly, knowledgeable tone
+- DO NOT make up information`,
           },
           {
             role: 'user',
@@ -149,6 +159,21 @@ CRITICAL INSTRUCTIONS:
 
   // Transform OpenRouter SSE to plain text chunks
   return parseOpenRouterSSE(response.body!);
+}
+
+/**
+ * Extract content from OpenRouter SSE JSON
+ *
+ * @param data - SSE data string to parse
+ * @returns Extracted content or null if invalid
+ */
+function extractContentFromSSE(data: string): string | null {
+  try {
+    const json = JSON.parse(data);
+    return json.choices?.[0]?.delta?.content || null;
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -180,13 +205,10 @@ function parseOpenRouterSSE(stream: ReadableStream<Uint8Array>): ReadableStream 
                 if (line.startsWith('data: ')) {
                   const data = line.slice(6).trim();
                   if (data && data !== '[DONE]') {
-                    try {
-                      const json = JSON.parse(data);
-                      const content = json.choices?.[0]?.delta?.content;
-                      if (content) {
-                        controller.enqueue(new TextEncoder().encode(content));
-                      }
-                    } catch (e) {
+                    const content = extractContentFromSSE(data);
+                    if (content) {
+                      controller.enqueue(new TextEncoder().encode(content));
+                    } else if (data) {
                       console.warn('[Chat API] Malformed SSE data in final buffer:', data);
                     }
                   }
@@ -215,17 +237,11 @@ function parseOpenRouterSSE(stream: ReadableStream<Uint8Array>): ReadableStream 
                 return;
               }
 
-              // Parse JSON and extract content
-              try {
-                const json = JSON.parse(data);
-                const content = json.choices?.[0]?.delta?.content;
-
-                if (content) {
-                  // Enqueue text chunk
-                  controller.enqueue(new TextEncoder().encode(content));
-                }
-              } catch (e) {
-                // Ignore malformed JSON lines
+              // Extract and enqueue content
+              const content = extractContentFromSSE(data);
+              if (content) {
+                controller.enqueue(new TextEncoder().encode(content));
+              } else if (data) {
                 console.warn('[Chat API] Malformed SSE data:', data);
               }
             }

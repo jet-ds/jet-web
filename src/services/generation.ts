@@ -62,7 +62,7 @@ function formatContext(chunks: RetrievedChunk[]): string {
   return chunks
     .map(
       (chunk, idx) =>
-        `[Source ${idx + 1}] ${chunk.title}${chunk.section ? ` - ${chunk.section}` : ''}\n${chunk.text}\nURL: ${chunk.url}\n`
+        `Source ${idx + 1}: ${chunk.title}${chunk.section ? ` - ${chunk.section}` : ''}\nURL: ${chunk.url}\nContent: ${chunk.text}\n`
     )
     .join('\n---\n\n');
 }
@@ -94,7 +94,8 @@ export async function retrieveAndGenerate(
 
   let chunks;
   try {
-    chunks = await retrieve(context, query, maxTokens);
+    const allChunks = await retrieve(context, query, maxTokens);
+    chunks = allChunks.slice(0, 3); // Limit to top 3 sources
 
     if (chunks.length === 0) {
       throw new ChatbotError(
@@ -137,6 +138,7 @@ export async function retrieveAndGenerate(
       body: JSON.stringify({
         query,
         context: formattedContext,
+        sources,
       }),
     });
 

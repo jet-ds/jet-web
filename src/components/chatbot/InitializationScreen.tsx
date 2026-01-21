@@ -51,11 +51,11 @@ export function InitializationScreen({
 }: InitializationScreenProps) {
   return (
     <div className="flex items-center justify-center min-h-[600px]">
-      <div className="max-w-md w-full space-y-8 px-4">
+      <div className="max-w-md w-full space-y-xl px-gutter">
         {/* Ghost Icon with animation */}
         <div className="text-center">
-          <div className="text-6xl mb-4 animate-bounce">👻</div>
-          <h2 className="text-2xl font-bold leading-tight text-text-primary mb-2">
+          <div className="text-6xl mb-m animate-bounce">👻</div>
+          <h2 className="text-2xl font-bold leading-tight text-text-primary mb-s">
             Waking up Jet's Ghost...
           </h2>
           <p className="text-text-tertiary">
@@ -80,7 +80,7 @@ export function InitializationScreen({
         </div>
 
         {/* Substep indicator */}
-        <div className="flex justify-center gap-2">
+        <div className="flex justify-center gap-s">
           {(['checking-cache', 'loading-model', 'fetching-artifacts', 'initializing-search', 'spawning-worker'] as const).map(
             (step) => (
               <div

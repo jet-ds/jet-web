@@ -73,16 +73,16 @@ export function ChatInterface({
   return (
     <div className="flex flex-col h-full bg-surface-base">
       {/* Header */}
-      <div className="flex items-center justify-between px-6 py-4 border-b border-border-default">
+      <div className="flex items-center justify-between px-card py-m border-b border-border-default">
         <h2 className="text-xl font-semibold text-text-primary">
           Chat with Blog Content
         </h2>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-2xs">
           {/* New Chat Button */}
           <button
             onClick={() => setShowNewChatConfirm(true)}
             disabled={messages.length === 0}
-            className="px-3 py-1 text-sm text-text-secondary hover:bg-bg-hover rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+            className="px-s py-2xs text-sm text-text-secondary hover:bg-bg-hover rounded disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
             title="Start a new conversation"
           >
             New Chat
@@ -98,20 +98,19 @@ export function ChatInterface({
         </div>
       </div>
 
-      {/* Chat Body */}
-      <div className="flex-1 overflow-hidden flex flex-col">
-        {/* Messages */}
-        <div className="flex-1 overflow-y-auto">
+      {/* Chat Body (messages only, scrollable) */}
+      <div className="flex-1 overflow-hidden">
+        <div className="h-full overflow-y-auto">
           <MessageList messages={messages} />
         </div>
-
-        {/* Sources Panel */}
-        {showSources && (
-          <div className="px-4 pb-4">
-            <SourcesPanel sources={lastMessage.sources!} />
-          </div>
-        )}
       </div>
+
+      {/* Sources Panel (fixed above input) */}
+      {showSources && (
+        <div className="px-s py-2xs border-t border-border-default bg-surface-base">
+          <SourcesPanel sources={lastMessage.sources!} />
+        </div>
+      )}
 
       {/* Input Bar */}
       <InputBar
@@ -122,24 +121,24 @@ export function ChatInterface({
 
       {/* New Chat Confirmation Dialog */}
       {showNewChatConfirm && (
-        <div className="absolute inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50">
-          <div className="bg-surface-base rounded-lg p-6 max-w-sm mx-4 shadow-xl">
-            <h3 className="text-lg font-semibold text-text-primary mb-2">
+        <div className="absolute inset-0 bg-black/50 flex items-center justify-center z-50">
+          <div className="bg-surface-base rounded-lg px-card py-m max-w-sm mx-4 shadow-xl">
+            <h3 className="text-lg font-semibold text-text-primary mb-s">
               Start New Chat?
             </h3>
-            <p className="text-text-tertiary mb-6">
+            <p className="text-text-tertiary mb-l">
               This will clear the current conversation. This action cannot be undone.
             </p>
-            <div className="flex gap-3 justify-end">
+            <div className="flex gap-m justify-end">
               <button
                 onClick={() => setShowNewChatConfirm(false)}
-                className="px-4 py-2 text-text-secondary hover:bg-bg-hover rounded transition-colors"
+                className="px-s py-2xs text-text-secondary hover:bg-bg-hover rounded transition-colors"
               >
                 Cancel
               </button>
               <button
                 onClick={handleNewChat}
-                className="px-4 py-2 bg-brand-base text-brand-contrast rounded hover:bg-brand-hover transition-colors"
+                className="px-s py-2xs bg-brand-base text-brand-contrast rounded hover:bg-brand-hover transition-colors"
               >
                 New Chat
               </button>

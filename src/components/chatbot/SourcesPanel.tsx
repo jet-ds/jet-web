@@ -4,14 +4,13 @@
  * Based on: /docs/rag-chatbot-implementation-plan.md v1.7
  * Spec: Phase 4 - LLM Integration (UI Components)
  *
- * Displays retrieved chunks with relevance scores and links to source content.
+ * Displays retrieved chunks with superscript citations and links to source content.
  * Provides transparency and allows users to verify information.
  */
 
 interface Source {
   title: string;
   url: string;
-  score?: number; // RRF score (optional)
   section?: string; // Section within the page (optional)
 }
 
@@ -20,11 +19,21 @@ interface SourcesPanelProps {
 }
 
 /**
+ * Convert number to superscript representation
+ * @param num - Number to convert (0-9)
+ * @returns Superscript string (⁰-⁹)
+ */
+function getSuperscript(num: number): string {
+  const superscripts = ['⁰', '¹', '²', '³', '⁴', '⁵', '⁶', '⁷', '⁸', '⁹'];
+  return num.toString().split('').map(d => superscripts[parseInt(d)]).join('');
+}
+
+/**
  * SourcesPanel - Displays attributed sources for assistant responses
  *
  * Features:
+ * - Superscript citations (¹, ², ³)
  * - Links to source content
- * - Relevance scores (if available)
  * - Section information (if available)
  * - Opens links in new tab with security attributes
  */
@@ -34,35 +43,33 @@ export function SourcesPanel({ sources }: SourcesPanelProps) {
   }
 
   return (
-    <aside className="mt-4 rounded-lg border border-border-default bg-bg-subtle p-4">
-      <h3 className="text-sm font-semibold text-text-secondary mb-3">
+    <aside className="space-y-3xs">
+      <h3 className="text-xs font-semibold text-text-secondary">
         Sources
       </h3>
-      <ul className="space-y-2">
+      <div className="space-y-3xs">
         {sources.map((source, idx) => (
-          <li key={idx} className="text-sm">
+          <div key={idx} className="text-xs">
+            <span className="text-brand-base font-semibold mr-2xs">
+              {getSuperscript(idx + 1)}
+            </span>
             <a
               href={source.url}
               target="_blank"
               rel="noopener noreferrer"
-              className="text-brand-base hover:underline font-medium"
+              className="text-brand-base hover:underline"
             >
               {source.title}
               {source.section && (
-                <span className="text-text-tertiary font-normal">
+                <span className="text-text-tertiary">
                   {' '}
                   → {source.section}
                 </span>
               )}
             </a>
-            {source.score !== undefined && (
-              <span className="ml-2 text-xs text-text-tertiary">
-                ({(source.score * 100).toFixed(0)}% relevance)
-              </span>
-            )}
-          </li>
+          </div>
         ))}
-      </ul>
+      </div>
     </aside>
   );
 }

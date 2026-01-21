@@ -51,8 +51,7 @@ export function ChatbotPage() {
   // Handle modal close
   const handleClose = () => {
     setIsModalOpen(false);
-    // Note: We don't cleanup resources on close - they stay in memory
-    // for faster re-opening. Cleanup happens on page unmount.
+    newChat(); // Clear conversation and return to fresh state
   };
 
   // Cleanup on unmount
@@ -85,24 +84,24 @@ export function ChatbotPage() {
 
     return (
       <div className="flex items-center justify-center min-h-[600px]">
-        <div className="max-w-md text-center space-y-6">
-          <div className="text-6xl mb-4">⚠️</div>
+        <div className="max-w-md text-center space-y-l">
+          <div className="text-6xl mb-m">⚠️</div>
           <h2 className="text-2xl font-bold leading-tight text-text-primary">
             {canRetry ? 'Temporary Error' : 'Initialization Failed'}
           </h2>
           <p className="text-text-tertiary">{errorMessage}</p>
-          <div className="flex gap-3 justify-center">
+          <div className="flex gap-m justify-center">
             {canRetry && (
               <button
                 onClick={handleStartChat}
-                className="px-6 py-2 bg-brand-base text-brand-contrast rounded-lg hover:bg-brand-hover transition-colors"
+                className="px-m py-s bg-brand-base text-brand-contrast rounded-lg hover:bg-brand-hover transition-colors"
               >
                 Retry
               </button>
             )}
             <button
               onClick={() => window.location.reload()}
-              className="px-6 py-2 bg-neutral-8 text-white rounded-lg hover:bg-neutral-9 transition-colors"
+              className="px-m py-s bg-text-secondary text-surface-base rounded-lg hover:bg-text-tertiary transition-colors"
             >
               Reload Page
             </button>
@@ -115,10 +114,10 @@ export function ChatbotPage() {
   // ready, retrieving, generating, streaming states - show chat modal
   return (
     <>
-      {/* Modal Overlay */}
+      {/* Modal - Full screen on mobile, centered on desktop */}
       {isModalOpen && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-50 p-4">
-          <div className="bg-surface-base rounded-lg shadow-2xl w-full max-w-4xl h-[80vh] flex flex-col">
+        <div className="fixed inset-0 z-50 bg-surface-base md:bg-black/30 md:backdrop-blur-sm md:flex md:items-center md:justify-center md:px-gutter md:py-m">
+          <div className="bg-surface-base h-full w-full md:rounded-lg md:shadow-2xl md:max-w-4xl md:h-[80vh] flex flex-col">
             <ChatInterface
               messages={messages}
               state={state}
@@ -130,26 +129,8 @@ export function ChatbotPage() {
         </div>
       )}
 
-      {/* Background content when modal is open */}
-      {isModalOpen && (
-        <div className="flex items-center justify-center min-h-[600px]">
-          <div className="text-center text-text-tertiary">
-            <p>Chat is open</p>
-          </div>
-        </div>
-      )}
-
-      {/* Show button to re-open modal if closed */}
-      {!isModalOpen && (
-        <div className="flex items-center justify-center min-h-[600px]">
-          <button
-            onClick={() => setIsModalOpen(true)}
-            className="px-8 py-3 bg-brand-base text-brand-contrast rounded-lg hover:bg-brand-hover transition-colors font-semibold text-lg shadow-lg"
-          >
-            Open Chat
-          </button>
-        </div>
-      )}
+      {/* Show WelcomeScreen when modal is closed */}
+      {!isModalOpen && <WelcomeScreen onStartChat={handleStartChat} />}
     </>
   );
 }
