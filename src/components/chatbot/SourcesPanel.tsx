@@ -42,13 +42,16 @@ export function SourcesPanel({ sources }: SourcesPanelProps) {
     return null;
   }
 
+  // Display only top 3 sources in UI (LLM receives all for better context)
+  const displayedSources = sources.slice(0, 3);
+
   return (
     <aside className="space-y-3xs">
       <h3 className="text-xs font-semibold text-text-secondary">
         Sources
       </h3>
       <div className="space-y-3xs">
-        {sources.map((source, idx) => (
+        {displayedSources.map((source, idx) => (
           <div key={idx} className="text-xs">
             <span className="text-brand-base font-semibold mr-2xs">
               {getSuperscript(idx + 1)}

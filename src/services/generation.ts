@@ -94,8 +94,7 @@ export async function retrieveAndGenerate(
 
   let chunks;
   try {
-    const allChunks = await retrieve(context, query, maxTokens);
-    chunks = allChunks.slice(0, 3); // Limit to top 3 sources
+    chunks = await retrieve(context, query, maxTokens);
 
     if (chunks.length === 0) {
       throw new ChatbotError(
