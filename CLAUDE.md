@@ -21,8 +21,8 @@ npm run astro check      # Type-check Astro files
 npm run lint             # Run ESLint (if configured)
 
 # Content
-# Blog posts: src/content/blog/*.mdx
-# Works: src/content/works/*.mdx
+# Blog posts: src/data/blog/*.mdx
+# Works: src/data/works/*.mdx
 
 # Image Management
 npm run upload-image blog/image.jpg   # Upload blog image to Vercel Blob
@@ -75,10 +75,11 @@ npm run upload-image works/image.png  # Upload works image to Vercel Blob
 - Custom colors: Define in `theme.extend.colors` in config
 - Custom utilities: Use `@layer components` or `@layer utilities` in global.css
 
-### Content Collections
-- **Type-safe**: All content must follow schemas defined in `src/content/config.ts`
+### Content Collections (Astro Loader API)
+- **Type-safe**: All content must follow schemas defined in `src/schemas/content.ts` and loaded via `src/content/config.ts`
+- **Content location**: `src/data/blog/` and `src/data/works/` (loaded via glob loader)
 - **Blog schema**: title, description, pubDate, tags, author, draft (optional), image (optional)
-- **Works schema**: title, description, type ('research' | 'project' | 'other'), date, tags, links, image (optional)
+- **Works schema**: title, description, type ('research' | 'project' | 'other'), date, tags, links, image (optional), venue (research), abstract (research)
 - **Image field**: `{ url: string, alt: string }` - URL from Vercel Blob, descriptive alt text required
 - **Frontmatter**: Use YAML frontmatter at top of MDX files
 
@@ -96,10 +97,13 @@ npm run upload-image works/image.png  # Upload works image to Vercel Blob
 │   │   ├── blog/        # Blog-specific components
 │   │   ├── works/       # Works-specific components
 │   │   └── navigation/  # Dock and mobile menu components
-│   ├── content/         # Content Collections (type-safe)
-│   │   ├── config.ts    # Schema definitions
+│   ├── content/
+│   │   └── config.ts    # Content loader configuration (Astro Loader API)
+│   ├── data/            # Content source files
 │   │   ├── blog/        # Blog posts (.mdx)
 │   │   └── works/       # Work items (.mdx)
+│   ├── schemas/
+│   │   └── content.ts   # Shared content schemas (blog, works)
 │   ├── hooks/           # Custom React hooks
 │   ├── layouts/         # Page layouts (alternative to components/layout)
 │   ├── pages/           # File-based routing
@@ -138,6 +142,11 @@ npm run upload-image works/image.png  # Upload works image to Vercel Blob
 - **Islands Architecture**: Use React only for interactive components (theme toggle, forms). Keep most components as Astro for performance
 - **Content Collections**: Always use `getCollection()` and `getEntry()` for type-safe content access
 - **SEO Component**: Reusable `<SEO />` component for all pages with meta tags, OpenGraph, Twitter Cards
+- **Structured Data Architecture**:
+  - BaseLayout owns WebPage schema generation (single source of truth)
+  - Content pages provide specific schemas: BlogPosting (blog), ScholarlyArticle (research), SoftwareApplication (chatbot), CreativeWork (projects)
+  - Entity linking: Use @id with fragment identifiers (`${url}#webpage`, `${url}#blogposting`, etc.)
+  - Homepage uses WebSite + Person schemas (no WebPage) via `suppressWebPage={true}` prop
 - **Layouts**: Use layout components for consistent structure across pages
 
 ## Design System
@@ -293,10 +302,11 @@ Hero sections:
 - Twitter Card tags
 
 ### Content Pages (Blog, Works)
-- JSON-LD structured data (Article schema for blog posts)
+- JSON-LD structured data (BlogPosting for blog posts, ScholarlyArticle for research papers)
 - Proper heading hierarchy (single h1, nested h2-h6)
 - Alt text for all images
 - Reading time for blog posts
+- Research papers: Include `abstract` and `venue` fields in frontmatter
 
 ### Automated
 - Sitemap generation (via @astrojs/sitemap)
@@ -314,17 +324,17 @@ Hero sections:
 6. Verify responsive design (mobile, tablet, desktop)
 
 ### Adding Blog Content
-1. Create new `.mdx` file in `src/content/blog/`
+1. Create new `.mdx` file in `src/data/blog/`
 2. Add required frontmatter (title, description, pubDate, tags, author)
 3. Write content using MDX (can embed React components)
 4. Build to verify content collection validation
 5. Check reading time calculation and metadata display
 
 ### Adding Work Items
-1. Create new `.mdx` file in `src/content/works/`
+1. Create new `.mdx` file in `src/data/works/`
 2. Add required frontmatter (title, description, type, date)
-3. For research papers: Include venue, abstract, links (SSRN, PDF)
-4. For projects: Include technologies, repository, demo links
+3. For research papers: Include `type: "research"`, `venue`, `abstract`, and links (SSRN, PDF) - generates ScholarlyArticle schema
+4. For projects: Include `type: "project"`, `technologies`, `repository`, `demo` - generates CreativeWork schema
 5. Verify display in works list and detail pages
 
 ### Pre-Deployment Checklist
@@ -365,9 +375,10 @@ Hero sections:
 - Restart dev server after config changes
 
 ### Content Collection Errors
-- Verify frontmatter matches schema in `src/content/config.ts`
+- Verify frontmatter matches schema in `src/schemas/content.ts`
 - Check date formats (use ISO 8601: YYYY-MM-DD)
 - Ensure required fields are present
+- Content files are in `src/data/` not `src/content/`
 
 ### Dark Mode Flash (FOUC)
 - Inline script must run before body renders
@@ -398,5 +409,5 @@ Hero sections:
 
 ---
 
-**Last Updated**: 2025-12-22
+**Last Updated**: 2026-01-28
 **Spec Version**: 1.5
