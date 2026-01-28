@@ -21,6 +21,8 @@ export interface Props {
   modifiedTime?: string;
   author?: string;
   tags?: string[];
+  mainEntityId?: string; // @id of the content entity (BlogPosting, ScholarlyArticle, etc.)
+  suppressWebPage?: boolean; // Set to true for homepage (which uses WebSite instead)
 }
 
 const {
@@ -34,6 +36,8 @@ const {
   modifiedTime,
   author,
   tags,
+  mainEntityId,
+  suppressWebPage = false,
 } = Astro.props;
 
 // Generate SEO props with defaults
@@ -61,19 +65,21 @@ const seoProps = generateSEOProps({
     <!-- Search Engine Optimization -->
     <SEO {...seoProps} />
 
-    <!-- Structured Data -->
-    <StructuredData
-      type={type === 'article' ? 'article' : 'website'}
-      url={seoProps.canonicalURL}
-      name={type === 'article' ? seoProps.title : SITE.title}
-      description={seoProps.description}
-      headline={type === 'article' ? seoProps.title : undefined}
-      image={seoProps.image}
-      datePublished={publishedTime}
-      dateModified={modifiedTime}
-      author={seoProps.author}
-      tags={tags}
-    />
+    <!-- WebPage Schema -->
+    {!suppressWebPage && (
+      <StructuredData
+        type="webpage"
+        id={`${seoProps.canonicalURL}#webpage`}
+        url={seoProps.canonicalURL}
+        name={seoProps.title}
+        description={seoProps.description}
+        image={seoProps.image}
+        mainEntityId={mainEntityId}
+      />
+    )}
+
+    <!-- Content Schema -->
+    <slot name="structured-data" />
 
     <!-- Site Navigation -->
     <StructuredData

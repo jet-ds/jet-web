@@ -28,9 +28,10 @@ const activeSocialLinks = Object.entries(SOCIAL_LINKS)
   title="AI Research & Marketing Engineering"
   description="Jet Sanchez works at the intersection of frontier AI research, marketing engineering, systems design, agentic AI orchestration, and next-gen SEO & GEO strategy."
   type="profile"
+  mainEntityId={`${SITE.siteUrl}/#person`}
 >
-  <!-- Author Information -->
   <StructuredData
+    slot="structured-data"
     type="person"
     id={`${SITE.siteUrl}/#person`}
     name={SITE.author}
@@ -40,6 +41,7 @@ const activeSocialLinks = Object.entries(SOCIAL_LINKS)
     jobTitle={SITE.jobTitle}
     email={SITE.email}
     url={SITE.siteUrl}
+    pageUrl={`${SITE.siteUrl}/about/`}
     sameAs={Object.values(SOCIAL_LINKS).filter(url => url)}
   />
 

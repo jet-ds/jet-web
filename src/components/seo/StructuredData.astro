@@ -2,20 +2,25 @@
 import { SITE } from '../../config/site';
 
 export interface Props {
-  type: 'website' | 'article' | 'person' | 'navigation';
+  type: 'website' | 'blogposting' | 'person' | 'navigation' | 'webpage' | 'software' | 'scholarlyarticle' | 'creativework';
   // Common fields
   url?: string;
   id?: string; // @id for entity linking
-  // Website fields
+  mainEntityId?: string; // @id reference for mainEntity
+  pageUrl?: string; // URL of the page (for Person mainEntityOfPage)
+  // Website/WebPage fields
   name?: string;
   description?: string;
-  // Article fields
+  // Article/ScholarlyArticle fields
   headline?: string;
   image?: string;
   datePublished?: string;
   dateModified?: string;
   author?: string;
   tags?: string[];
+  // ScholarlyArticle specific
+  abstract?: string;
+  venue?: string;
   // Person fields
   givenName?: string;
   familyName?: string;
@@ -25,12 +30,22 @@ export interface Props {
   sameAs?: string[];
   // Navigation fields
   navigationElements?: Array<{ name: string; url: string; }>;
+  // SoftwareApplication fields
+  applicationCategory?: string;
+  operatingSystem?: string;
+  price?: string;
+  priceCurrency?: string;
+  // CreativeWork fields
+  creator?: string;
+  dateCreated?: string;
 }
 
 const {
   type,
   url = SITE.siteUrl,
   id,
+  mainEntityId,
+  pageUrl,
   name,
   description,
   headline,
@@ -39,6 +54,8 @@ const {
   dateModified,
   author,
   tags = [],
+  abstract,
+  venue,
   givenName,
   familyName,
   alternateName = [],
@@ -46,6 +63,12 @@ const {
   jobTitle,
   sameAs = [],
   navigationElements = [],
+  applicationCategory,
+  operatingSystem,
+  price = '0',
+  priceCurrency = 'USD',
+  creator,
+  dateCreated,
 } = Astro.props;
 
 let schema: any;
@@ -54,6 +77,7 @@ if (type === 'website') {
   schema = {
     '@context': 'https://schema.org',
     '@type': 'WebSite',
+    '@id': `${SITE.siteUrl}/#website`,
     name: name || SITE.title,
     description: description || SITE.description,
     url: url,
@@ -64,10 +88,11 @@ if (type === 'website') {
       name: SITE.author,
     },
   };
-} else if (type === 'article') {
+} else if (type === 'blogposting') {
   schema = {
     '@context': 'https://schema.org',
-    '@type': 'Article',
+    '@type': 'BlogPosting',
+    ...(id && { '@id': id }),
     headline: headline || name,
     description: description,
     ...(image && { image }),
@@ -85,7 +110,7 @@ if (type === 'website') {
     },
     mainEntityOfPage: {
       '@type': 'WebPage',
-      '@id': url,
+      '@id': `${url}#webpage`,
     },
     keywords: tags.join(', '),
   };
@@ -102,6 +127,12 @@ if (type === 'website') {
     url: url,
     ...(jobTitle && { jobTitle }),
     ...(sameAs.length > 0 && { sameAs }),
+    ...(pageUrl && {
+      mainEntityOfPage: {
+        '@type': 'WebPage',
+        '@id': `${pageUrl}#webpage`,
+      },
+    }),
   };
 } else if (type === 'navigation') {
   schema = {
@@ -113,6 +144,105 @@ if (type === 'website') {
       name: element.name,
       url: element.url,
     })),
+  };
+} else if (type === 'webpage') {
+  schema = {
+    '@context': 'https://schema.org',
+    '@type': 'WebPage',
+    ...(id && { '@id': id }),
+    name: name || SITE.title,
+    description: description || SITE.description,
+    url: url,
+    inLanguage: 'en-US',
+    isPartOf: {
+      '@type': 'WebSite',
+      '@id': `${SITE.siteUrl}/#website`,
+      url: SITE.siteUrl,
+      name: SITE.title,
+    },
+    ...(mainEntityId && { mainEntity: { '@id': mainEntityId } }),
+    ...(image && { image }),
+  };
+} else if (type === 'software') {
+  schema = {
+    '@context': 'https://schema.org',
+    '@type': 'SoftwareApplication',
+    ...(id && { '@id': id }),
+    name: name,
+    description: description,
+    url: url,
+    applicationCategory: applicationCategory || 'ChatApplication',
+    operatingSystem: operatingSystem || 'Web Browser',
+    offers: {
+      '@type': 'Offer',
+      price: price,
+      priceCurrency: priceCurrency,
+    },
+    creator: creator ? {
+      '@type': 'Person',
+      name: creator,
+    } : {
+      '@type': 'Person',
+      '@id': `${SITE.siteUrl}/#person`,
+      name: SITE.author,
+    },
+  };
+} else if (type === 'scholarlyarticle') {
+  schema = {
+    '@context': 'https://schema.org',
+    '@type': 'ScholarlyArticle',
+    ...(id && { '@id': id }),
+    headline: headline || name,
+    description: description,
+    ...(abstract && { abstract }),
+    ...(image && { image }),
+    datePublished: datePublished,
+    dateModified: dateModified || datePublished,
+    author: {
+      '@type': 'Person',
+      '@id': `${SITE.siteUrl}/#person`,
+      name: author || SITE.author,
+    },
+    publisher: {
+      '@type': 'Person',
+      '@id': `${SITE.siteUrl}/#person`,
+      name: SITE.author,
+    },
+    ...(venue && {
+      publication: {
+        '@type': 'Periodical',
+        name: venue,
+      },
+    }),
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': `${url}#webpage`,
+    },
+    keywords: tags.join(', '),
+  };
+} else if (type === 'creativework') {
+  schema = {
+    '@context': 'https://schema.org',
+    '@type': 'CreativeWork',
+    ...(id && { '@id': id }),
+    name: name,
+    description: description,
+    ...(image && { image }),
+    datePublished: datePublished || dateCreated,
+    creator: creator ? {
+      '@type': 'Person',
+      name: creator,
+    } : {
+      '@type': 'Person',
+      '@id': `${SITE.siteUrl}/#person`,
+      name: SITE.author,
+    },
+    mainEntityOfPage: {
+      '@type': 'WebPage',
+      '@id': `${url}#webpage`,
+    },
+    url: url,
+    keywords: tags.join(', '),
   };
 }
 ---

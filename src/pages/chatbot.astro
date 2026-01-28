@@ -8,15 +8,32 @@
  * Activation Boundary: No resources loaded until user clicks "Start Chat"
  */
 import BaseLayout from '../components/layout/BaseLayout.astro';
+import StructuredData from '../components/seo/StructuredData.astro';
 import PageWrapper from '../components/layout/PageWrapper.astro';
 import Container from '../components/ui/Container.astro';
 import { ChatbotPage } from '../components/chatbot/ChatbotPage';
+import { SITE } from '../config/site';
 
 const title = "Jet's Ghost - AI Chat Assistant";
 const description = "Ask questions about my blog posts, research papers, and projects. Powered by AI with semantic search and grounded responses.";
 ---
 
-<BaseLayout title={title} description={description}>
+<BaseLayout
+  title={title}
+  description={description}
+  mainEntityId={`${SITE.siteUrl}/chatbot/#software`}
+>
+  <StructuredData
+    slot="structured-data"
+    type="software"
+    id={`${SITE.siteUrl}/chatbot/#software`}
+    url={`${SITE.siteUrl}/chatbot/`}
+    name="Jet's Ghost"
+    description={description}
+    applicationCategory="ChatApplication"
+    operatingSystem="Web Browser"
+  />
+
   <PageWrapper spacing="compact">
     <Container size="lg">
       <ChatbotPage client:load />

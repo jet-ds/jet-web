@@ -1,12 +1,14 @@
 ---
 import { getCollection } from 'astro:content';
 import BaseLayout from '../components/layout/BaseLayout.astro';
+import StructuredData from '../components/seo/StructuredData.astro';
 import Section from '../components/layout/Section.astro';
 import Container from '../components/ui/Container.astro';
 import Card from '../components/ui/Card.astro';
 import Button from '../components/ui/Button.astro';
 import Tag from '../components/ui/Tag.astro';
 import OptimizedImage from '../components/ui/OptimizedImage.astro';
+import { SITE, SOCIAL_LINKS } from '../config/site';
 
 // Fetch latest blog posts (limit to 3)
 const allBlogPosts = await getCollection('blog', ({ data }) => data.draft !== true);
@@ -32,7 +34,30 @@ const typeLabel: Record<string, string> = {
 <BaseLayout
   title="Research, Systems & Applied AI"
   description="Jet Sanchez produces research, systems, and tools for thinking clearly in an AI-driven world, with a focus on applied AI and emerging technologies."
+  suppressWebPage={true}
 >
+  <StructuredData
+    slot="structured-data"
+    type="website"
+    url={SITE.siteUrl}
+    name={SITE.title}
+    description={SITE.description}
+  />
+
+  <StructuredData
+    slot="structured-data"
+    type="person"
+    id={`${SITE.siteUrl}/#person`}
+    name={SITE.author}
+    givenName={SITE.givenName}
+    familyName={SITE.familyName}
+    alternateName={SITE.alternateNames}
+    jobTitle={SITE.jobTitle}
+    email={SITE.email}
+    url={SITE.siteUrl}
+    sameAs={Object.values(SOCIAL_LINKS).filter(url => url)}
+  />
+
   <!-- Hero Section -->
   <Section spacing="none" class="min-h-[75svh] flex items-center">
     <Container size="lg">
