@@ -1,6 +1,6 @@
-# Personal Website & Blog - Claude Code Memory
+# jetsanchez.com - Agent Memory
 
-> Project memory file for Claude Code. See @docs/project-spec.md for complete technical specification and implementation plan.
+> Project memory file for agentic coding tools.
 
 ## Project Overview
 
