@@ -1,0 +1,42 @@
+---
+import BaseLayout from '../../components/layout/BaseLayout.astro';
+import PageWrapper from '../../components/layout/PageWrapper.astro';
+import Container from '../../components/ui/Container.astro';
+import Card from '../../components/ui/Card.astro';
+import Button from '../../components/ui/Button.astro';
+
+const title = "Jet's Ghost - AI Chat Assistant";
+const description = "Ask questions about my blog posts, research papers, and projects. Powered by AI with semantic search and grounded responses.";
+---
+
+<BaseLayout title={title} description={description}>
+  <PageWrapper spacing="default">
+    <Container size="md">
+      <div class="mb-xl text-center">
+        <h1 class="text-5xl font-bold leading-tight mb-s text-text-primary">
+          Jet's Ghost
+        </h1>
+        <p class="text-xl text-text-tertiary">
+          AI chat assistant grounded in this site's content.
+        </p>
+      </div>
+
+      <Card>
+        <div class="text-center py-l">
+          <p class="text-text-secondary mb-m">
+            Jet's Ghost is being rebuilt from the ground up as part of the site's v2 platform migration. The new version will have the same content-grounded, citation-aware responses — rebuilt on a cleaner foundation.
+          </p>
+          <p class="text-text-tertiary text-sm">
+            Check back soon.
+          </p>
+        </div>
+      </Card>
+
+      <div class="mt-m text-center">
+        <Button href="/tools" variant="ghost">
+          ← Back to Tools
+        </Button>
+      </div>
+    </Container>
+  </PageWrapper>
+</BaseLayout>

@@ -1,4 +1,4 @@
-import { Home, User, FileText, Briefcase, Mail, type LucideIcon } from 'lucide-react';
+import { Home, User, FileText, Briefcase, Wrench, Mail, type LucideIcon } from 'lucide-react';
 
 export const SITE = {
   title: 'Jet Sanchez',
@@ -29,6 +29,7 @@ export const NAV_ITEMS = [
   { id: 'about', label: 'About', href: '/about', icon: User },
   { id: 'blog', label: 'Blog', href: '/blog', icon: FileText },
   { id: 'works', label: 'Works', href: '/works', icon: Briefcase },
+  { id: 'tools', label: 'Tools', href: '/tools', icon: Wrench },
   { id: 'contact', label: 'Contact', href: '/contact', icon: Mail },
 ] as const;
 
