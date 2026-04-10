@@ -18,7 +18,9 @@ export default defineConfig({
     tailwind({
       applyBaseStyles: false, // We'll use our own global.css
     }),
-    sitemap(),
+    sitemap({
+      filter: (page) => !page.includes('/chatbot'),
+    }),
     partytown({
       config: {
         forward: ['dataLayer.push', 'gtag'], // Forward GA4 events to web worker
