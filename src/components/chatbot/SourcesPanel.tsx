@@ -66,7 +66,7 @@ export function SourcesPanel({ sources }: SourcesPanelProps) {
               {source.section && (
                 <span className="text-text-tertiary">
                   {' '}
-                  → {source.section}
+                  <span className="text-accent-base">→</span> {source.section}
                 </span>
               )}
             </a>

@@ -43,6 +43,6 @@ const externalProps = isExternal
 <a href={href} class={classes} {...externalProps} {...rest}>
   <slot />
   {isExternal && (
-    <span class="inline-block ml-1 text-xs" aria-label="External link">↗</span>
+    <span class="inline-block ml-1 text-xs text-accent-base" aria-label="External link">↗</span>
   )}
 </a>
