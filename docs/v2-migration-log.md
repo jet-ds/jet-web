@@ -74,5 +74,6 @@ Completed the pre-phase tasks specified in the v2 spec before beginning reposito
 
 Two regressions identified by automated review of commit `05d0dd7`:
 
-- **P1 — Redirect was prerendered**: `src/pages/chatbot.astro` was being emitted as a static HTML meta-refresh page rather than an HTTP 301. Fixed by adding `export const prerender = false`, forcing server-side execution. Side effect: route no longer appears in the generated sitemap.
+- **P1 — Redirect was prerendered**: `src/pages/chatbot.astro` was being emitted as a static HTML meta-refresh page rather than an HTTP 301. Fixed by adding `export const prerender = false`, forcing server-side execution.
+- **P1 follow-up — `/chatbot` persisted in sitemap**: `@astrojs/sitemap` crawls all known routes at build time regardless of prerender status, so `/chatbot/` remained in the generated sitemap after the prerender fix. Fixed by adding an explicit `filter` to the sitemap integration in `astro.config.mjs`.
 - **P2 — Under-construction page was indexed as live assistant**: `src/pages/tools/chatbot.astro` retained the original chatbot title/description and was set to `index, follow`. Fixed by adding `noindex` prop support to `SEO.astro` and `BaseLayout.astro`, marking the page noindex, and updating its title/description to accurately reflect its temporary state.
