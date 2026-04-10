@@ -5,6 +5,7 @@ import { SITE } from '../../config/site';
 
 export interface Props extends SEOProps {
   includeSiteName?: boolean;
+  noindex?: boolean;
 }
 
 const {
@@ -19,6 +20,7 @@ const {
   author = SITE.author,
   tags = [],
   includeSiteName = true,
+  noindex = false,
 } = Astro.props;
 
 const formattedTitle = formatTitle(title, includeSiteName);
@@ -78,6 +80,6 @@ const fullImageURL = image?.startsWith('http') ? image : `${SITE.siteUrl}${image
 {SITE.author && <meta name="twitter:creator" content={`@${SITE.author}`} />}
 
 <!-- Search Engine -->
-<meta name="robots" content="index, follow" />
-<meta name="googlebot" content="index, follow" />
+<meta name="robots" content={noindex ? 'noindex, nofollow' : 'index, follow'} />
+<meta name="googlebot" content={noindex ? 'noindex, nofollow' : 'index, follow'} />
 <meta name="language" content="English" />

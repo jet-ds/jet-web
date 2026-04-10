@@ -23,6 +23,7 @@ export interface Props {
   tags?: string[];
   mainEntityId?: string; // @id of the content entity (BlogPosting, ScholarlyArticle, etc.)
   suppressWebPage?: boolean; // Set to true for homepage (which uses WebSite instead)
+  noindex?: boolean; // Set to true for pages that should not be indexed (e.g. under-construction)
 }
 
 const {
@@ -38,6 +39,7 @@ const {
   tags,
   mainEntityId,
   suppressWebPage = false,
+  noindex = false,
 } = Astro.props;
 
 // Generate SEO props with defaults
@@ -63,7 +65,7 @@ const seoProps = generateSEOProps({
     <meta name="generator" content={Astro.generator} />
 
     <!-- Search Engine Optimization -->
-    <SEO {...seoProps} />
+    <SEO {...seoProps} noindex={noindex} />
 
     <!-- WebPage Schema -->
     {!suppressWebPage && (
