@@ -69,3 +69,10 @@ Completed the pre-phase tasks specified in the v2 spec before beginning reposito
 - `src/components/layout/BaseLayout.astro` — Tools added to noscript fallback nav
 
 **Note**: The dock, `NAV_ITEMS` in `site.ts`, the structured data in BaseLayout, and the noscript fallback are four independent navigation definitions with no shared source of truth. Consolidation is a v2 task.
+
+### Fixes (same day, post-review)
+
+Two regressions identified by automated review of commit `05d0dd7`:
+
+- **P1 — Redirect was prerendered**: `src/pages/chatbot.astro` was being emitted as a static HTML meta-refresh page rather than an HTTP 301. Fixed by adding `export const prerender = false`, forcing server-side execution. Side effect: route no longer appears in the generated sitemap.
+- **P2 — Under-construction page was indexed as live assistant**: `src/pages/tools/chatbot.astro` retained the original chatbot title/description and was set to `index, follow`. Fixed by adding `noindex` prop support to `SEO.astro` and `BaseLayout.astro`, marking the page noindex, and updating its title/description to accurately reflect its temporary state.
