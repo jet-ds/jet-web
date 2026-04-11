@@ -41,7 +41,7 @@
     --color-accent-hover: oklch(0.6834 0.1451 73.6);     /* accent.7 */
     --color-accent-subtle: oklch(0.9455 0.1274 101.26);  /* accent.3 */
     --color-accent-text: oklch(0.4766 0.1078 59.07);     /* accent.9 */
-    --color-accent-contrast: oklch(0 0 0);               /* Black */
+    --color-accent-contrast: oklch(0.2852 0.0664 52.21);  /* accent.11 — deep brown */
 
     /* === UTOPIA FLUID TYPOGRAPHY === */
     /* @link https://utopia.fyi/type/calculator?c=320,16,1.125,1440,17,1.2,7,2,&s=0.75|0.5|0.25|0.25|0.25,1.5|2|3|4|6|6|6,s-l&g=s,l,xl,12 */
@@ -141,9 +141,9 @@
     /* Accent */
     --color-accent-base: oklch(0.8695 0.1736 90.79);    /* accent.5 */
     --color-accent-hover: oklch(0.9068 0.1681 97.52);   /* accent.4 */
-    --color-accent-subtle: oklch(0.5558 0.1239 64.52);  /* accent.8 */
+    --color-accent-subtle: oklch(0.2852 0.0664 52.21);  /* accent.11 — deep warm tint */
     --color-accent-text: oklch(0.9455 0.1274 101.26);   /* accent.3 */
-    --color-accent-contrast: oklch(0 0 0);              /* Black */
+    --color-accent-contrast: oklch(0.2852 0.0664 52.21); /* accent.11 — deep brown */
   }
 
   body {

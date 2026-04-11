@@ -65,12 +65,12 @@ const typeLabel: Record<string, string> = {
         <h1 class="text-7xl font-bold leading-tight mb-m text-text-primary">
           Hi,<br class="md:hidden"> I'm Jet Sanchez.
         </h1>
-        <p class="text-base text-text-tertiary mb-l">
+        <p class="text-base text-text-secondary mb-l">
           Research, systems & tools for thinking clearly in an AI-driven world
         </p>
         <div class="flex flex-wrap gap-s justify-center">
           <Button href="/about" variant="primary" size="lg">About Me</Button>
-          <Button href="/contact" variant="outline" size="lg">Get in Touch</Button>
+          <Button href="/contact" variant="accent" size="lg">Get in Touch</Button>
         </div>
       </div>
     </Container>
@@ -83,7 +83,7 @@ const typeLabel: Record<string, string> = {
         <h2 class="text-3xl font-bold leading-tight text-text-primary">
           Latest Articles
         </h2>
-        <Button href="/blog" variant="ghost">View All →</Button>
+        <Button href="/blog" variant="ghost"><span>View All <span class="text-accent-base">→</span></span></Button>
       </div>
 
       {latestPosts.length > 0 ? (
@@ -109,7 +109,7 @@ const typeLabel: Record<string, string> = {
                     />
                   </div>
                 )}
-                <p class="text-text-tertiary mb-s">
+                <p class="text-text-secondary mb-s">
                   {post.data.description}
                 </p>
                 <div class="flex flex-wrap gap-2xs mb-s">
@@ -141,7 +141,7 @@ const typeLabel: Record<string, string> = {
         <h2 class="text-3xl font-bold leading-tight text-text-primary">
           Featured Works
         </h2>
-        <Button href="/works" variant="ghost">View All →</Button>
+        <Button href="/works" variant="ghost"><span>View All <span class="text-accent-base">→</span></span></Button>
       </div>
 
       {featuredWorks.length > 0 ? (
@@ -175,7 +175,7 @@ const typeLabel: Record<string, string> = {
                     />
                   </div>
                 )}
-                <p class="text-text-tertiary mb-s">
+                <p class="text-text-secondary mb-s">
                   {work.data.description}
                 </p>
                 <div class="flex flex-wrap gap-2xs mb-s">
@@ -201,7 +201,7 @@ const typeLabel: Record<string, string> = {
   </Section>
 
   <!-- Call to Action -->
-  <Section spacing="default" background="brand">
+  <Section spacing="default" background="accent">
     <Container size="md">
       <div class="text-center">
         <h2 class="text-3xl font-bold mb-s text-text-primary">
@@ -211,8 +211,8 @@ const typeLabel: Record<string, string> = {
           Interested in collaborating or have questions? Feel free to reach out!
         </p>
         <div class="flex flex-wrap justify-center gap-s">
-          <Button href="/contact" variant="primary" size="lg">Contact Me</Button>
-          <Button href="/about" variant="outline" size="lg">Learn More</Button>
+          <Button href="/contact" variant="accent" size="lg">Contact Me</Button>
+          <Button href="/about" variant="brand" size="lg">Learn More</Button>
         </div>
       </div>
     </Container>

@@ -53,7 +53,7 @@ const professionalLinks = [
               <h2 class="text-xl font-semibold mb-2xs text-text-primary">
                 Email
               </h2>
-              <p class="text-text-tertiary mb-xs">
+              <p class="text-text-secondary mb-xs">
                 The best way to reach me for inquiries, collaborations, or just to say hello.
               </p>
             <a
@@ -63,7 +63,7 @@ const professionalLinks = [
               {SITE.email}
             </a>
           </div>
-          <Button href={`mailto:${SITE.email}`} variant="primary">
+          <Button href={`mailto:${SITE.email}`} variant="accent">
             Send Email
           </Button>
         </div>
@@ -75,7 +75,7 @@ const professionalLinks = [
           <h2 class="text-xl font-semibold mb-s text-text-primary">
             Social Media
           </h2>
-          <p class="text-text-tertiary mb-m">
+          <p class="text-text-secondary mb-m">
             Connect with me on social platforms
           </p>
           <div class="grid grid-cols-1 sm:grid-cols-2 gap-s">
@@ -89,7 +89,7 @@ const professionalLinks = [
                 <span class="font-medium text-text-primary group-hover:text-brand-base">
                   {social.platform}
                 </span>
-                <span class="text-text-tertiary group-hover:text-brand-base">
+                <span class="text-accent-base">
                   →
                 </span>
               </a>
@@ -104,7 +104,7 @@ const professionalLinks = [
           <h2 class="text-xl font-semibold mb-s text-text-primary">
             Professional Links
           </h2>
-          <p class="text-text-tertiary mb-m">
+          <p class="text-text-secondary mb-m">
             Find my research and professional profiles
           </p>
           <div class="space-y-s">
@@ -123,7 +123,7 @@ const professionalLinks = [
                     {link.description}
                   </div>
                 </div>
-                <span class="text-text-tertiary group-hover:text-brand-base flex-shrink-0 ml-s">
+                <span class="text-accent-base flex-shrink-0 ml-s">
                   ↗
                 </span>
               </a>
@@ -133,7 +133,7 @@ const professionalLinks = [
       )}
 
       <!-- Response Time Notice -->
-      <Card class="bg-brand-subtle border-brand-base/20">
+      <Card class="bg-accent-subtle border-accent-base/20">
         <div class="flex items-start gap-xs">
           <span class="text-2xl">💡</span>
           <div>

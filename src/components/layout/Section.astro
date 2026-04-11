@@ -1,7 +1,7 @@
 ---
 export interface Props {
   spacing?: 'none' | 'compact' | 'default' | 'spacious';
-  background?: 'base' | 'subtle' | 'brand';
+  background?: 'base' | 'subtle' | 'brand' | 'accent';
   class?: string;
 }
 
@@ -23,6 +23,7 @@ const backgroundClasses = {
   base: 'bg-bg-base',
   subtle: 'bg-bg-subtle',
   brand: 'bg-brand-subtle',
+  accent: 'bg-accent-subtle',
 };
 
 const classes = `${spacingClasses[spacing]} ${backgroundClasses[background]} ${className}`;
