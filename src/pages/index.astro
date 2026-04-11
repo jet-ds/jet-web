@@ -8,6 +8,7 @@ import Card from '../components/ui/Card.astro';
 import Button from '../components/ui/Button.astro';
 import Tag from '../components/ui/Tag.astro';
 import OptimizedImage from '../components/ui/OptimizedImage.astro';
+import Grainient from '../components/ui/Grainient';
 import { SITE, SOCIAL_LINKS } from '../config/site';
 
 // Fetch latest blog posts (limit to 3)
@@ -59,8 +60,39 @@ const typeLabel: Record<string, string> = {
   />
 
   <!-- Hero Section -->
-  <Section spacing="none" class="min-h-[75svh] flex items-center">
-    <Container size="lg">
+  <Section spacing="none" class="relative min-h-screen md:-mt-24 md:pt-24 flex items-center overflow-hidden">
+    <div class="absolute inset-0 pointer-events-none" aria-hidden="true">
+      <Grainient
+        client:load
+        color1="var(--color-brand-200-hex)"
+        darkColor1="var(--color-brand-700-hex)"
+        color2="var(--color-brand-500-hex)"
+        darkColor2="var(--color-brand-800-hex)"
+        color3="var(--color-accent-400-hex)"
+        timeSpeed={1.0}
+        colorBalance={0.0}
+        warpStrength={1.0}
+        warpFrequency={5.0}
+        warpSpeed={2.0}
+        warpAmplitude={50.0}
+        blendAngle={0.0}
+        blendSoftness={0.05}
+        rotationAmount={500.0}
+        noiseScale={2.0}
+        grainAmount={0.1}
+        grainScale={2.0}
+        grainAnimated={true}
+        contrast={1.5}
+        gamma={1.0}
+        saturation={1.0}
+        centerX={0.0}
+        centerY={0.0}
+        zoom={1.75}
+        overlayClassName="bg-bg-base/18 dark:bg-bg-base/24"
+      />
+    </div>
+
+    <Container size="lg" class="relative z-10">
       <div class="max-w-4xl mx-auto text-center">
         <h1 class="text-7xl font-bold leading-tight mb-m text-text-primary">
           Hi,<br class="md:hidden"> I'm Jet Sanchez.
