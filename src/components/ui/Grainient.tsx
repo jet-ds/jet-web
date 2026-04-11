@@ -232,9 +232,18 @@ const Grainient: React.FC<GrainientProps> = ({
 
     let renderer: Renderer | null = null;
     let ro: ResizeObserver | null = null;
+    let io: IntersectionObserver | null = null;
+    let handleVisibilityChange: (() => void) | null = null;
     let raf = 0;
     let canvas: HTMLCanvasElement | null = null;
     const container = containerRef.current;
+    const targetFps = 24;
+    const frameInterval = 1000 / targetFps;
+    let isInViewport = true;
+    let running = false;
+    let elapsedSeconds = 0;
+    let lastTickTime = 0;
+    let lastRenderTime = 0;
 
     try {
       renderer = new Renderer({
@@ -298,13 +307,67 @@ const Grainient: React.FC<GrainientProps> = ({
       ro.observe(container);
       setSize();
 
-      const t0 = performance.now();
+      const canRun = () => !document.hidden && isInViewport;
+
+      const stopLoop = () => {
+        running = false;
+        cancelAnimationFrame(raf);
+      };
+
       const loop = (t: number) => {
-        (program.uniforms.iTime as { value: number }).value = (t - t0) * 0.001;
-        renderer?.render({ scene: mesh });
+        if (!running) return;
+
+        if (lastTickTime === 0) {
+          lastTickTime = t;
+        }
+
+        const dt = t - lastTickTime;
+        lastTickTime = t;
+        elapsedSeconds += dt * 0.001;
+
+        if (lastRenderTime === 0 || t - lastRenderTime >= frameInterval) {
+          lastRenderTime = t;
+          (program.uniforms.iTime as { value: number }).value = elapsedSeconds;
+          renderer?.render({ scene: mesh });
+        }
+
         raf = requestAnimationFrame(loop);
       };
-      raf = requestAnimationFrame(loop);
+
+      const startLoop = () => {
+        if (running) return;
+        running = true;
+        lastTickTime = 0;
+        lastRenderTime = 0;
+        raf = requestAnimationFrame(loop);
+      };
+
+      const updateLoopState = () => {
+        if (canRun()) {
+          startLoop();
+          return;
+        }
+        stopLoop();
+      };
+
+      io = new IntersectionObserver(
+        ([entry]) => {
+          isInViewport = entry.isIntersecting;
+          updateLoopState();
+        },
+        {
+          root: null,
+          threshold: 0.01,
+        },
+      );
+      io.observe(container);
+
+      handleVisibilityChange = () => {
+        updateLoopState();
+      };
+      document.addEventListener('visibilitychange', handleVisibilityChange);
+
+      updateLoopState();
       setIsWebglAvailable(true);
     } catch {
       // Revert to the previous plain hero look if WebGL2 is unavailable.
@@ -312,8 +375,13 @@ const Grainient: React.FC<GrainientProps> = ({
     }
 
     return () => {
+      running = false;
       cancelAnimationFrame(raf);
+      if (handleVisibilityChange) {
+        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      }
       ro?.disconnect();
+      io?.disconnect();
       if (canvas) {
         try {
           container.removeChild(canvas);
