@@ -12,6 +12,7 @@
  */
 
 import type { APIRoute } from 'astro';
+import { SITE } from '../../config/site';
 
 // Mark this endpoint as server-rendered (not static)
 export const prerender = false;
@@ -31,7 +32,7 @@ interface ChatRequest {
 /**
  * POST /api/chat - Generate streaming response from retrieved context
  */
-export const POST: APIRoute = async ({ request }) => {
+export const POST: APIRoute = async ({ request, clientAddress }) => {
   try {
     const { query, context } = (await request.json()) as ChatRequest;
 
@@ -40,9 +41,13 @@ export const POST: APIRoute = async ({ request }) => {
       return new Response('Missing query or context', { status: 400 });
     }
 
+    // Enforce same-origin requests to prevent unauthenticated third-party abuse
+    if (!isAllowedOrigin(request)) {
+      return new Response('Forbidden', { status: 403 });
+    }
+
     // Rate limiting (best-effort)
-    const ip = request.headers.get('x-forwarded-for') || 'unknown';
-    if (await isRateLimited(ip)) {
+    if (await isRateLimited(clientAddress)) {
       return new Response('Rate limit exceeded. Please try again in a minute.', {
         status: 429,
       });
@@ -253,6 +258,28 @@ function parseOpenRouterSSE(stream: ReadableStream<Uint8Array>): ReadableStream 
       }
     },
   });
+}
+
+
+function getAllowedOrigins(request: Request): Set<string> {
+  const allowedFromEnv = import.meta.env.CHAT_ALLOWED_ORIGINS
+    ?.split(',')
+    .map((origin: string) => origin.trim())
+    .filter(Boolean) ?? [];
+
+  const requestOrigin = new URL(request.url).origin;
+
+  return new Set([SITE.siteUrl, requestOrigin, ...allowedFromEnv]);
+}
+
+function isAllowedOrigin(request: Request): boolean {
+  const origin = request.headers.get('origin');
+
+  if (!origin) {
+    return false;
+  }
+
+  return getAllowedOrigins(request).has(origin);
 }
 
 /**
