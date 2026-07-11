@@ -1,12 +1,14 @@
 # Jet Web v1 Modernization Design
 
-**Status:** Review draft
+**Status:** Approved for planning
 
 **Date:** 2026-07-11
 
 **Canonical target:** Existing Astro, MDX, and Vercel application
 
 **Companion design:** [Jet's Ghost Local Assistant](./2026-07-11-jets-ghost-local-assistant-design.md)
+
+**Implementation plan:** [Jet Web v1 Modernization](../plans/2026-07-11-v1-modernization.md)
 
 ## Executive decision
 
@@ -37,6 +39,7 @@ The core site can ship without Jet's Ghost. Jet's Ghost depends on the core cont
 8. Preserve the deployed Grainient performance improvements and add reduced-motion behavior.
 9. Make documentation describe the architecture that actually governs future work.
 10. Provide the stable content and deployment boundary required by the Jet's Ghost companion design.
+11. Establish explicit repository governance through Semantic Versioning 2.0.0, Conventional Commits 1.0.0, and one canonical agent-instruction file.
 
 ## Non-goals
 
@@ -207,6 +210,57 @@ Downloading external model or font assets during a browser session is runtime be
 - The production deployment consumes only a commit that passed the same verification command.
 - A build failure must not leave uploaded artifacts or modify tracked source files.
 
+## Repository governance and public documentation
+
+### Canonical agent instructions
+
+`AGENTS.md` becomes the regular, canonical instruction file. `CLAUDE.md` becomes a relative symbolic link to `AGENTS.md` for compatibility with tools that look for the older filename.
+
+The current direction is inverted:
+
+```text
+AGENTS.md    regular canonical file
+CLAUDE.md -> AGENTS.md
+```
+
+No instruction is maintained independently in both files.
+
+### Semantic Versioning 2.0.0
+
+- Set the application version in `package.json` and `package-lock.json` to `1.0.0` as the current product baseline.
+- Treat `package.json` as the authoritative application version.
+- Apply [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html) to tagged application releases.
+- Increment `MAJOR` for an intentionally incompatible public route, content contract, knowledge-package schema, or supported integration contract.
+- Increment `MINOR` for a backward-compatible public feature, route, tool, content type, or assistant capability.
+- Increment `PATCH` for backward-compatible fixes, accessibility improvements, performance work, internal refactors, and operational corrections included in a release.
+- Content-only and documentation-only deployments do not require a version change unless they accompany a versioned application release.
+- Use `v<major>.<minor>.<patch>` for Git release tags.
+
+### Conventional Commits 1.0.0
+
+- All non-merge commits follow [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/).
+- Use the form `type(optional-scope)!: description`.
+- Supported common types are `feat`, `fix`, `docs`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, and `revert`.
+- Use `!` and a `BREAKING CHANGE:` footer for incompatible changes.
+- Keep commit bodies focused on intent, relevant constraints, and verification.
+- Do not require Claude, Codex, agent, co-author, or generated-by attribution in commit messages.
+
+### README
+
+Rewrite `README.md` as concise professional project documentation after the implementation commands and architecture are true. Remove decorative emoji, launch-era marketing language, unsupported Lighthouse and bundle claims, stale `src/content` paths, and generic tutorial material.
+
+The README contains only:
+
+- project purpose and production URL;
+- architecture summary;
+- Node 22 setup;
+- authoritative commands;
+- content authoring and explicit publication/assistant policy;
+- image workflow;
+- Jet's Ghost local-first status and model disclosure;
+- verification and deployment expectations;
+- links to the canonical Superpowers designs and maintained operational docs.
+
 ## Core modernization workstreams
 
 ### 1. Canonical documentation
@@ -214,7 +268,7 @@ Downloading external model or font assets during a browser session is runtime be
 - This design and its companion become the active target specifications.
 - Add a superseded banner and links to `docs/project-spec-v2.md` and `docs/v2-migration-log.md`.
 - Mark the old RAG architecture, implementation plan, implementation log, and v1.5 enhancement spec as historical implementation records.
-- Update `README.md` to describe `src/data`, actual commands, current deployment, content status, and measured—not asserted—quality claims.
+- Replace `README.md` with the professional structure defined in the repository-governance section.
 - Update repository instructions after implementation so future agents use the new content and verification contracts.
 
 ### 2. Navigation and shared configuration
@@ -321,13 +375,15 @@ Real-model Jet's Ghost evaluation is kept out of the routine CI path because it 
 The later implementation plan must respect these dependencies:
 
 1. Begin from the fetched `origin/main` baseline while preserving all user-owned untracked files.
-2. Perform credential/artifact containment before deploying any unchanged build.
-3. Introduce the explicit content contract and migrate tracked entries before replacing filters.
-4. Make the build pure before adding the new knowledge package.
-5. Establish automated verification before broad component or accessibility changes.
-6. Complete the core modernization release independently of Jet's Ghost.
-7. Implement and release Jet's Ghost through its separate plan.
-8. Remove historical runtime dependencies only after no active code imports them.
+2. Establish canonical `AGENTS.md`, version `1.0.0`, Conventional Commits, and the no-attribution rule before subsequent commits.
+3. Perform credential/artifact containment before deploying any unchanged build.
+4. Introduce the explicit content contract and migrate tracked entries before replacing filters.
+5. Make the build pure before adding the new knowledge package.
+6. Establish automated verification before broad component or accessibility changes.
+7. Complete the core modernization release independently of Jet's Ghost.
+8. Implement and release Jet's Ghost through its separate plan.
+9. Remove historical runtime dependencies only after no active code imports them.
+10. Rewrite the README after its documented commands and architecture are implemented.
 
 ## Release criteria
 
@@ -345,6 +401,8 @@ The core modernization is complete when:
 - `origin/main` Grainient performance behavior is preserved and reduced motion is supported;
 - representative routes pass browser smoke and automated accessibility checks;
 - active documentation identifies modernized v1 as canonical and v2 as superseded;
+- `AGENTS.md` is canonical, `CLAUDE.md` points to it, the application baseline is `1.0.0`, and commit instructions require Conventional Commits without agent attribution;
+- the README is concise, professional, and accurate to the implemented system;
 - the visual and editorial character remains materially unchanged.
 
 ## Risks and mitigations
@@ -376,3 +434,5 @@ Every historical document receives a visible status and canonical successor link
 - Historical RAG architecture: `docs/rag-chatbot-architecture.md`
 - Jet's Ghost companion design: `docs/superpowers/specs/2026-07-11-jets-ghost-local-assistant-design.md`
 - Timesheet local-assistant research rollout: `019f1533-9ec8-7b32-b80c-fe27b684a5f6`
+- [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html)
+- [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/)

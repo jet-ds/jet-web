@@ -1,12 +1,14 @@
 # Jet's Ghost Local Assistant Design
 
-**Status:** Review draft
+**Status:** Approved for planning
 
 **Date:** 2026-07-11
 
 **Parent design:** [Jet Web v1 Modernization](./2026-07-11-v1-modernization-design.md)
 
 **Initial model:** Gemma 4 E2B for Web through LiteRT-LM
+
+**Implementation plan:** [Jet's Ghost Local Assistant](../plans/2026-07-11-jets-ghost-local-assistant.md)
 
 ## Product definition
 
@@ -496,10 +498,11 @@ Rules:
 - Use `sendMessageStreaming()` for response delivery.
 - Use `conversation.cancel()` when the visitor stops generation.
 - Ignore late stream events after cancellation or unmount.
-- Call `engine.delete()` on unload and route unmount.
+- Call `conversation.delete()` before replacing a session, unloading, or handling route unmount.
+- Call `engine.delete()` after conversation cleanup on unload and route unmount.
 - A failed load leaves no runtime marked ready.
 - Cancellation returns to `ready` without duplicating the partial assistant response.
-- Reset starts a fresh session and clears visible conversation history while retaining the loaded engine when the API safely permits it.
+- Reset calls `conversation.delete()`, clears visible history, and leaves the engine loaded; the next question creates a fresh conversation from that engine.
 - Never expose E4B or a second engine in the first release.
 
 The implementation must test Astro ClientRouter navigation explicitly so route transitions do not orphan a WebGPU engine.
@@ -510,7 +513,7 @@ Before activation, show this meaning in the site's voice:
 
 > Jet's Ghost runs Gemma 4 E2B in this browser. Starting it downloads about 2 GB and may use substantial GPU memory. Your prompts and responses stay on this device.
 
-If LiteRT-LM does not expose trustworthy byte progress, show an indeterminate loading state with elapsed time and model size. Do not invent a percentage. Cancellation during `Engine.create()` is supported only if the SDK exposes a safe abort path; otherwise the UI truthfully distinguishes “stop after loading” from generation cancellation.
+LiteRT-LM 0.14.0 does not expose an abort signal or trustworthy byte progress for `Engine.create()`. Show an indeterminate loading state with elapsed time and model size; do not invent a percentage. If the visitor asks to stop during model creation, mark the request and delete the engine immediately after creation completes. Generation cancellation remains immediate through `conversation.cancel()`.
 
 ## Prompt and citation assembly
 
