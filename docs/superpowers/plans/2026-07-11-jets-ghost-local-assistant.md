@@ -24,7 +24,7 @@
 - Keep prompts, selected context, history, and responses out of network requests, storage, and analytics.
 - Delete the active LiteRT conversation before replacement and before deleting the engine.
 - Use Conventional Commits 1.0.0 without agent attribution.
-- Release Jet's Ghost as backward-compatible feature version `1.1.0` only after real-model qualification.
+- Release Jet's Ghost as backward-compatible feature version `2.1.0` on the modernized `2.0.0` core only after real-model qualification.
 
 ---
 
@@ -33,6 +33,7 @@
 ```text
 src/features/jets-ghost/
 ├── config.ts
+├── errors.ts
 ├── corpus/
 │   ├── types.ts
 │   ├── normalize.ts
@@ -64,9 +65,12 @@ src/pages/assistant/corpus/manifest.json.ts
 src/pages/assistant/corpus/content.json.ts
 tests/unit/jets-ghost/
 tests/e2e/jets-ghost.spec.ts
+playwright.real-model.config.ts
 tests/manual/jets-ghost-real-model.spec.ts
 tests/fixtures/jets-ghost/evaluation.json
-docs/verification/jets-ghost-1.1.0.md
+tests/unit/jets-ghost/evaluation.test.ts
+docs/verification/jets-ghost-licenses.md
+docs/verification/jets-ghost-2.1.0.md
 ```
 
 ---
@@ -89,8 +93,8 @@ docs/verification/jets-ghost-1.1.0.md
 Run:
 
 ```bash
-npm install --save-exact @litert-lm/core@0.14.0 unified remark-parse remark-mdx mdast-util-to-string
-npm install --save-dev @types/mdast @webgpu/types
+npm install --save-exact @litert-lm/core@0.14.0 unified@11.0.5 remark-parse@11.0.0 remark-mdx@3.1.1 remark-gfm@4.0.1 mdast-util-to-string@4.0.0
+npm install --save-dev --save-exact @types/mdast@4.0.4 @webgpu/types@0.1.71 cross-env@10.1.0
 ```
 
 Add `@webgpu/types` to `compilerOptions.types` in `tsconfig.json` while retaining Astro's generated types.
@@ -118,6 +122,9 @@ describe("Jet's Ghost configuration", () => {
   it('reserves context headroom', () => {
     expect(JETS_GHOST_CONTEXT.knowledgeLimit).toBe(9_011);
     expect(JETS_GHOST_CONTEXT.maxContextTokens).toBe(16_384);
+    expect(Object.entries(JETS_GHOST_CONTEXT)
+      .filter(([key]) => key !== 'maxContextTokens')
+      .reduce((sum, [, value]) => sum + value, 0)).toBe(16_384);
   });
 
   it('uses same-origin corpus paths', () => {
@@ -145,10 +152,12 @@ export const JETS_GHOST_MODEL = {
 
 export const JETS_GHOST_CONTEXT = {
   maxContextTokens: 16_384,
-  systemReserve: 1_024,
-  conversationReserve: 2_048,
+  systemLimit: 640,
+  questionLimit: 384,
+  conversationLimit: 2_048,
   responseReserve: 1_024,
   knowledgeLimit: 9_011,
+  estimatorHeadroom: 3_277,
 } as const;
 
 export const JETS_GHOST_PATHS = {
@@ -170,6 +179,7 @@ git commit -m "build(chatbot): pin LiteRT-LM and Gemma E2B"
 
 **Files:**
 - Create: `src/features/jets-ghost/corpus/types.ts`
+- Create: `src/features/jets-ghost/errors.ts`
 - Create: `src/features/jets-ghost/corpus/normalize.ts`
 - Create: `src/features/jets-ghost/corpus/segment.ts`
 - Create: `tests/unit/jets-ghost/normalize.test.ts`
@@ -187,7 +197,7 @@ Create `corpus/types.ts` with the interfaces from the approved design and these 
 export type CollectionName = 'blog' | 'works';
 export type DocumentId = `${CollectionName}:${string}`;
 export type SectionId = `${DocumentId}#${string}`;
-export type ChunkId = `${SectionId}:${string}`;
+export type ChunkId = `${SectionId}:${string}:${number}`;
 
 export interface NormalizedSection {
   heading: string;
@@ -206,7 +216,9 @@ export interface CorpusManifest {
 }
 ```
 
-Do not add a build timestamp.
+The complete `KnowledgeDocument` type also includes explicit `order`, `sourcePath`, and `sourceHash`; `KnowledgeChunk` includes `sameTextOccurrence` and the full `contentHash`. Do not add a build timestamp.
+
+Create `src/features/jets-ghost/errors.ts` now so selectors and prompt assembly do not depend on a later runtime task. Export the approved `JetsGhostErrorCode` union, including `question-too-long` and `context-budget-exceeded`, plus a typed `JetsGhostError` carrying safe message, recoverability, and non-content diagnostic cause. Runtime Task 6 imports and extends behavior around this shared type rather than redefining it.
 
 - [ ] **Step 2: Write normalization fixtures first**
 
@@ -231,25 +243,43 @@ Run the command.
 npm install example
 \`\`\`
 
-<Widget label="decorative" />
+<Callout title="Important">Read the warning.</Callout>
+
+| Item | Value |
+| --- | --- |
+| Mode | Local |
+
+<Widget label="decorative"><span>Nested prose survives.</span></Widget>
 `);
 
-    expect(sections).toEqual([
-      { heading: 'Introduction', headingPath: ['Introduction'], text: 'Intro paragraph.', order: 0 },
-      { heading: 'Install', headingPath: ['Install'], text: 'Run the command.\n\nnpm install example', order: 1 },
-    ]);
+    expect(sections[0]).toMatchObject({
+      heading: 'Introduction',
+      headingPath: ['Introduction'],
+      text: 'Intro paragraph.',
+      order: 0,
+    });
+    expect(sections[1].text).toContain('```bash\nnpm install example\n```');
+    expect(sections[1].text).toContain('Important\n\nRead the warning.');
+    expect(sections[1].text).toContain('| Item | Value |');
+    expect(sections[1].text).toContain('Nested prose survives.');
+    expect(sections[1].text).not.toContain('decorative');
   });
 });
 ```
 
 - [ ] **Step 3: Implement AST-aware normalization**
 
-Create `normalize.ts` using `unified().use(remarkParse).use(remarkMdx).parse(source)`. Iterate root children and:
+Create `normalize.ts` using `unified().use(remarkParse).use(remarkMdx).use(remarkGfm).parse(source)`. Implement a deterministic node serializer and:
 
-- skip `mdxjsEsm`, `mdxFlowExpression`, `mdxTextExpression`, `mdxJsxFlowElement`, and `mdxJsxTextElement` nodes;
+- skip `mdxjsEsm`, `mdxFlowExpression`, and `mdxTextExpression` nodes;
+- traverse ordinary Markdown children inside MDX JSX elements even when the wrapper is unknown;
+- define `APPROVED_MDX_COMPONENT_EXTRACTORS` as a deny-by-default map whose entries may retain only explicitly named static string/number props plus normalized children; the fixture registers `Callout` with `title` as its only text prop;
+- ignore event/expression/class/decorative props and never evaluate JSX;
 - start a new section on headings of depth 2 through 4;
 - maintain a heading stack by depth;
-- convert other nodes with `toString(node)`;
+- serialize paragraphs, lists, blockquotes, links, inline code, and emphasis deterministically;
+- serialize GFM tables with stable cell/row boundaries;
+- serialize code as a fenced block including `node.lang` when present;
 - join non-empty blocks with two newlines;
 - normalize CRLF and runs of more than two blank lines;
 - emit `Introduction` before the first qualifying heading.
@@ -275,7 +305,7 @@ describe('knowledge segmentation', () => {
       sections: [{ heading: 'Install', headingPath: ['Install'], text: 'Run the installer.', order: 0 }],
     });
     expect(result.sections[0].id).toBe('blog:example#install');
-    expect(result.chunks[0].id).toMatch(/^blog:example#install:[a-f0-9]{12}$/);
+    expect(result.chunks[0].id).toMatch(/^blog:example#install:[a-f0-9]{64}:0$/);
   });
 
   it('never exceeds the 512-token hard limit', () => {
@@ -285,6 +315,17 @@ describe('knowledge segmentation', () => {
       sections: [{ heading: 'Large', headingPath: ['Large'], text, order: 0 }],
     });
     expect(result.chunks.every((chunk) => chunk.estimatedTokens <= 512)).toBe(true);
+  });
+
+  it('gives repeated identical chunks distinct deterministic ids', () => {
+    const result = segmentDocument(repeatedChunkFixture);
+    expect(new Set(result.chunks.map((chunk) => chunk.id)).size).toBe(result.chunks.length);
+    expect(result.chunks.map((chunk) => chunk.sameTextOccurrence)).toEqual([0, 1]);
+  });
+
+  it('fails closed when the digest provider produces a final id collision', () => {
+    expect(() => segmentDocument(collisionFixture, { digest: () => '0'.repeat(64) }))
+      .toThrow(/duplicate chunk id/i);
   });
 });
 ```
@@ -306,14 +347,14 @@ export function estimateTokens(text: string): number {
 }
 ```
 
-Use paragraph/list boundaries, keep code blocks intact when they fit, never cross document boundaries, slugify heading paths, append deterministic ordinals for duplicate paths, and use the first 12 hexadecimal characters of SHA-256 normalized text for each chunk ID.
+Use paragraph/list boundaries, keep code blocks intact when they fit, never cross document boundaries, slugify heading paths, append deterministic ordinals for duplicate paths, and build each chunk ID from the full SHA-256 normalized-text digest plus its same-text occurrence ordinal in the section. Inject the digest function for the collision test, maintain a final-ID set, and fail rather than overwrite on any duplicate.
 
 - [ ] **Step 6: Run and commit**
 
 ```bash
 npm run test -- tests/unit/jets-ghost/normalize.test.ts tests/unit/jets-ghost/segment.test.ts
 npm run check
-git add src/features/jets-ghost/corpus tests/unit/jets-ghost/normalize.test.ts tests/unit/jets-ghost/segment.test.ts
+git add src/features/jets-ghost/errors.ts src/features/jets-ghost/corpus/types.ts src/features/jets-ghost/corpus/normalize.ts src/features/jets-ghost/corpus/segment.ts tests/unit/jets-ghost/normalize.test.ts tests/unit/jets-ghost/segment.test.ts
 git commit -m "feat(chatbot): add normalized knowledge primitives"
 ```
 
@@ -352,6 +393,8 @@ Define input independent of Astro internals:
 export interface AssistantSourceEntry {
   collection: 'blog' | 'works';
   slug: string;
+  sourcePath: string;
+  tracked: boolean;
   body: string;
   data: {
     title: string;
@@ -376,27 +419,35 @@ export function buildKnowledgePackage(
 ): { manifest: CorpusManifest; content: KnowledgePackage };
 ```
 
-Sort by collection and slug, normalize and segment only eligible entries, construct canonical URLs from `SITE.siteUrl`, calculate `contentSha256`, then calculate `corpusVersion` from schema version plus canonical content. Use canonical key ordering before hashing.
+Validate every input before filtering. Fail if an assistant-enabled entry is not published or if any eligible entry is untracked. Sort by collection and slug; assign explicit document order; normalize and segment only eligible entries; propagate `sourcePath`; compute `sourceHash` from canonical validated entry data plus MDX body without rereading the filesystem; construct canonical URLs from `SITE.siteUrl`; and fail on duplicate document, section, chunk, or canonical URL identities.
+
+Implement one recursive canonical serializer that sorts every object key lexicographically, preserves explicitly sorted array order, uses normalized UTF-8 JSON without whitespace, and rejects non-JSON values. Calculate `corpusVersion` from exactly schema version, segmentation version, documents, sections, and chunks; exclude `sourceCommit`, statistics, and delivery metadata. Then serialize the complete content payload and calculate `contentSha256` from those exact bytes.
 
 - [ ] **Step 3: Create a shared Astro package loader**
 
-In both static endpoint files, call a shared local function that:
+In both static endpoint files, call one memoized shared builder. It must load all entries, not prefilter away policy violations:
 
 ```ts
 const [blog, works] = await Promise.all([
-  getCollection('blog', ({ data }) => isAssistantEligible(data)),
-  getCollection('works', ({ data }) => isAssistantEligible(data)),
+  getCollection('blog'),
+  getCollection('works'),
 ]);
 ```
 
-Map entries to `AssistantSourceEntry`, build with:
+Map entries to `AssistantSourceEntry` with Astro Loader API `filePath` normalized to a repository-relative POSIX source path; fail if an eligible entry has no file path. Use `loadTrackedContentPaths()` from the core content policy to assign `tracked`; call `assertGeneratedAssistantSources()` with the final included IDs; and fail if Git tracking cannot be established.
+
+Resolve provenance with a pure helper plus a no-shell Git adapter:
 
 ```ts
-const sourceCommit =
-  process.env.VERCEL_GIT_COMMIT_SHA ??
-  process.env.GITHUB_SHA ??
-  'local';
+const gitHead = await readGitHead(); // git rev-parse HEAD
+const sourceCommit = resolveSourceCommit({
+  gitHead,
+  vercelSha: process.env.VERCEL_GIT_COMMIT_SHA,
+  githubSha: process.env.GITHUB_SHA,
+});
 ```
+
+`resolveSourceCommit()` returns `gitHead` only when every supplied CI/Vercel SHA equals it; any mismatch fails. A production build has no `'local'` fallback.
 
 Return JSON with:
 
@@ -409,7 +460,17 @@ headers: {
 
 - [ ] **Step 4: Write repository tests**
 
-Create `tests/unit/jets-ghost/repository.test.ts` with mocked `fetch`. Test successful version matching and rejection when `manifest.corpusVersion !== content.corpusVersion` or `manifest.contentSha256` does not match canonical content.
+Create `tests/unit/jets-ghost/repository.test.ts` with mocked `fetch`. Test successful version matching and rejection when `manifest.corpusVersion !== content.corpusVersion` or `manifest.contentSha256` does not match the exact fetched content bytes.
+
+Expand `corpusBuild.test.ts` to prove:
+
+- input order and object-key order do not affect canonical bytes;
+- the same Git SHA supplied through different matching environment combinations produces byte-identical output;
+- differing `sourceCommit` values do not change `corpusVersion` but do change provenance/content bytes;
+- a mismatched environment SHA fails;
+- untracked `published + assistant:true` content fails inside the generator even when the outer build gate is bypassed;
+- duplicate canonical URLs and final IDs fail;
+- source path/hash/order propagate to every selected-source precursor.
 
 - [ ] **Step 5: Implement `StaticCorpusRepository`**
 
@@ -432,6 +493,7 @@ npm run build
 jq '{schemaVersion,corpusVersion,statistics}' dist/assistant/corpus/manifest.json
 jq '[.documents[].id]' dist/assistant/corpus/content.json
 if rg -n "how-to-install-and-get-started-with-codex-cli-2026" dist/assistant/corpus; then exit 1; fi
+npm run verify:build-purity
 ```
 
 Expected: only explicitly eligible tracked sources are listed; the active draft is absent.
@@ -439,7 +501,7 @@ Expected: only explicitly eligible tracked sources are listed; the active draft 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/features/jets-ghost/corpus src/pages/assistant tests/unit/jets-ghost/corpusBuild.test.ts tests/unit/jets-ghost/repository.test.ts
+git add src/features/jets-ghost/corpus/build.ts src/features/jets-ghost/corpus/repository.ts src/pages/assistant/corpus/manifest.json.ts src/pages/assistant/corpus/content.json.ts tests/unit/jets-ghost/corpusBuild.test.ts tests/unit/jets-ghost/repository.test.ts
 git commit -m "feat(chatbot): generate versioned knowledge package"
 ```
 
@@ -464,17 +526,27 @@ export type SelectionStrategy = 'full-corpus' | 'metadata-lexical' | 'semantic-h
 export interface SelectedSource {
   citationId: `S${number}`;
   documentId: DocumentId;
+  documentOrder: number;
   sectionId: SectionId;
+  sectionOrder: number;
   chunkId: ChunkId;
+  chunkOrder: number;
   title: string;
   canonicalUrl: string;
   heading: string;
   text: string;
   estimatedTokens: number;
+  provenance: {
+    sourcePath: string;
+    sourceHash: string;
+    chunkContentHash: string;
+    sourceCommit: string;
+    corpusVersion: string;
+  };
 }
 ```
 
-Define `ContextBudget`, `SelectionInput`, `SelectionDiagnostics`, `SelectionResult`, and `ContextSelector` exactly as the spec requires.
+Define `ContextBudget`, `SelectionInput`, `SelectionDiagnostics`, `SelectionResult`, and `ContextSelector` exactly as the spec requires. Import `JetsGhostError` from the shared Task 2 error module; do not introduce a selector-local error shape.
 
 Define a selector-owned history shape to avoid coupling selection to React state:
 
@@ -502,12 +574,13 @@ await expect(selector.select({
 
 The selector:
 
-- orders documents, sections, and chunks by their stored order;
+- orders documents, sections, and chunks by their explicit `order` fields, with ID as a deterministic tie-breaker that should never be needed after validation;
 - resolves each chunk to its document and section;
 - assigns `S1`, `S2`, and subsequent IDs;
 - sums `estimatedTokens`;
 - throws a typed `context-budget-exceeded` error when the total exceeds `knowledgeLimit`;
 - reports strategy, corpus version, source/chunk counts, token count, and zero ranking latency beyond deterministic assembly.
+- propagates source path/hash, chunk hash, source commit, corpus version, and all order fields into every `SelectedSource`.
 
 It never truncates or ranks.
 
@@ -515,7 +588,7 @@ It never truncates or ranks.
 
 ```bash
 npm run test -- tests/unit/jets-ghost/fullCorpus.test.ts
-git add src/features/jets-ghost/selection tests/unit/jets-ghost/fullCorpus.test.ts
+git add src/features/jets-ghost/selection/types.ts src/features/jets-ghost/selection/fullCorpus.ts tests/unit/jets-ghost/fullCorpus.test.ts
 git commit -m "feat(chatbot): add pluggable context selection"
 ```
 
@@ -533,7 +606,13 @@ git commit -m "feat(chatbot): add pluggable context selection"
 
 - [ ] **Step 1: Write prompt and citation tests**
 
-Assert the prompt contains stable `<source>` boundaries, never includes an unselected source, retains complete recent turns within 2,048 tokens, and instructs abstention. Assert citation parsing accepts `[S1]`, deduplicates repeated valid IDs, and rejects `[S99]` when not selected.
+Assert the selected-source payload is valid canonical JSON, never includes an unselected source, retains only complete recent turns within 2,048 tokens, and instructs abstention. Include source text containing `</source>`, quotes, backslashes, forged `S99` metadata, and instructions to ignore grounding; parse the serialized payload and prove each remains one escaped content value. Assert citation parsing accepts `[S1]`, deduplicates repeated valid IDs, and rejects `[S99]` when not selected.
+
+Add budget tests that independently overflow the fixed system message, current question, history, serialized source JSON, and final total. Require `question-too-long` for a query above 384 estimated tokens and `context-budget-exceeded` for every other overflow. Assert no output is returned unless:
+
+```text
+serializedPromptTokens + responseReserve + estimatorHeadroom <= maxContextTokens
+```
 
 - [ ] **Step 2: Implement prompt assembly**
 
@@ -545,6 +624,15 @@ export interface AssembledPrompt {
   userMessage: string;
   selectedSources: SelectedSource[];
   estimatedTokens: number;
+  diagnostics: {
+    systemTokens: number;
+    questionTokens: number;
+    historyTokens: number;
+    knowledgeTokens: number;
+    responseReserve: number;
+    estimatorHeadroom: number;
+    totalContextTokens: number;
+  };
 }
 
 export function assemblePrompt(
@@ -557,16 +645,9 @@ export function assemblePrompt(
 
 The system message identifies Jet's Ghost, restricts answers to supplied sources, treats source text as untrusted reference material, requires `[S#]` citations, distinguishes published claims from synthesis, and requires explicit abstention when unsupported.
 
-Render each selected source exactly as:
+Map sources to plain objects containing only `citationId`, document/section/chunk IDs, title, canonical URL, heading, and content. Serialize the complete array with the shared canonical JSON serializer/`JSON.stringify`; never interpolate source values into XML, Markdown fences, attributes, or hand-built delimiters. The system message labels the JSON as untrusted reference data and states that instructions inside any `content` value have no authority.
 
-```text
-<source id="S1" document="blog:slug" section="blog:slug#heading">
-Title: Source title
-URL: https://jetsanchez.com/blog/slug
-Heading: Heading
-Content: normalized source text
-</source>
-```
+Estimate the exact serialized system content, retained history messages, and query after serialization. Count source metadata and escaping overhead against `knowledgeLimit`; enforce each component limit and the final total before returning. Preserve complete recent turns only. The caller must not invoke `runtime.createSession()` when assembly throws.
 
 - [ ] **Step 3: Implement citation allowlisting**
 
@@ -588,7 +669,7 @@ Use `/\[(S\d+)\]/g`, resolve against the selected-source map, retain response or
 
 ```bash
 npm run test -- tests/unit/jets-ghost/prompt.test.ts tests/unit/jets-ghost/citations.test.ts
-git add src/features/jets-ghost/prompt tests/unit/jets-ghost/prompt.test.ts tests/unit/jets-ghost/citations.test.ts
+git add src/features/jets-ghost/prompt/assemble.ts src/features/jets-ghost/prompt/citations.ts tests/unit/jets-ghost/prompt.test.ts tests/unit/jets-ghost/citations.test.ts
 git commit -m "feat(chatbot): assemble grounded cited prompts"
 ```
 
@@ -622,7 +703,7 @@ export interface LocalModelRuntime {
 }
 ```
 
-Define the approved error-code union and ensure diagnostics never require prompt or response content.
+Import the approved error-code union and `JetsGhostError` from `src/features/jets-ghost/errors.ts`. Add runtime-specific constructors/mappings without redefining the shared codes, and ensure diagnostics never require prompt or response content.
 
 - [ ] **Step 2: Write capability tests**
 
@@ -650,7 +731,7 @@ The fake runtime streams deterministic chunks, records calls, supports cancellat
 
 ```bash
 npm run test -- tests/unit/jets-ghost/capabilities.test.ts tests/unit/jets-ghost/lifecycle.test.ts
-git add src/features/jets-ghost/runtime tests/unit/jets-ghost/capabilities.test.ts tests/unit/jets-ghost/lifecycle.test.ts
+git add src/features/jets-ghost/runtime/types.ts src/features/jets-ghost/runtime/capabilities.ts src/features/jets-ghost/runtime/lifecycle.ts src/features/jets-ghost/runtime/fakeRuntime.ts tests/unit/jets-ghost/capabilities.test.ts tests/unit/jets-ghost/lifecycle.test.ts
 git commit -m "feat(chatbot): define local runtime lifecycle"
 ```
 
@@ -759,6 +840,7 @@ git commit -m "feat(chatbot): run Gemma E2B with LiteRT-LM"
 - Create: `src/features/jets-ghost/ui/SourcePanel.tsx`
 - Create: `tests/unit/jets-ghost/useJetsGhost.test.tsx`
 - Create: `tests/unit/jets-ghost/ui.test.tsx`
+- Modify: `playwright.config.ts`
 
 **Interfaces:**
 - Produces: visitor activation, streaming chat, Stop, Reset, Unload, errors, sources.
@@ -829,16 +911,18 @@ Requirements:
 - focus moves to the input after load/reset and to the error action after failure;
 - reduced motion disables nonessential transitions.
 
-- [ ] **Step 6: Add a development-only fake runtime seam**
+- [ ] **Step 6: Add a test-build-only fake runtime seam**
 
-In `JetsGhostApp`, allow `?runtime=fake` only when `import.meta.env.DEV` is true. Production always constructs `LiteRtGemmaRuntime`. This powers E2E without downloading the model.
+Routine browser tests run against `astro preview`, so `import.meta.env.DEV` is false. Set Playwright's web-server command to `cross-env PUBLIC_JETS_GHOST_E2E=1 npm run build && npm run preview -- --host 127.0.0.1`. In `JetsGhostApp`, allow `?runtime=fake` only when that build flag is exactly `1` **and** `location.hostname` is `127.0.0.1` or `localhost`. Ordinary builds omit the flag and always construct `LiteRtGemmaRuntime`; add a static-boundary test proving the production build metadata has no fake-runtime enablement.
+
+Only in the test build, expose a minimal `window.__JETS_GHOST_E2E__` call log from `FakeRuntime` containing lifecycle method names and operation IDs—never prompts, responses, or source text. This supports route-transition cleanup assertions without weakening production privacy.
 
 - [ ] **Step 7: Verify and commit**
 
 ```bash
 npm run test -- tests/unit/jets-ghost/useJetsGhost.test.tsx tests/unit/jets-ghost/ui.test.tsx
 npm run check
-git add src/features/jets-ghost/state src/features/jets-ghost/ui tests/unit/jets-ghost/useJetsGhost.test.tsx tests/unit/jets-ghost/ui.test.tsx
+git add src/features/jets-ghost/state/types.ts src/features/jets-ghost/state/useJetsGhost.ts src/features/jets-ghost/ui/JetsGhostApp.tsx src/features/jets-ghost/ui/ActivationPanel.tsx src/features/jets-ghost/ui/ChatPanel.tsx src/features/jets-ghost/ui/SourcePanel.tsx tests/unit/jets-ghost/useJetsGhost.test.tsx tests/unit/jets-ghost/ui.test.tsx playwright.config.ts
 git commit -m "feat(chatbot): add local assistant experience"
 ```
 
@@ -904,13 +988,13 @@ git commit -m "feat(tools): integrate local Jet's Ghost"
 - Produces: browser proof without the real model download.
 - Consumes: development-only fake runtime.
 
-- [ ] **Step 1: Test explicit activation and no eager model request**
+- [ ] **Step 1: Test the default production runtime path before activation**
 
-In `jets-ghost.spec.ts`, record all requests, open `/tools/chatbot?runtime=fake`, and assert no URL includes `litert`, `huggingface`, or `.litertlm` before activation.
+In `jets-ghost.spec.ts`, record all requests and open `/tools/chatbot` with no fake query. Do not click compatibility or Load. Assert no URL includes `litert`, `huggingface`, or `.litertlm`, and no request matches the model URL. This exercises default `LiteRtGemmaRuntime` construction in a production-mode build rather than bypassing it with the fake.
 
 - [ ] **Step 2: Test supported flow**
 
-Use the fake capability report to:
+Open `/tools/chatbot?runtime=fake` in the test-only build and use the fake capability report to:
 
 - check compatibility;
 - load the assistant;
@@ -932,13 +1016,24 @@ Cover no WebGPU, model load failure, corpus version mismatch, generation failure
 
 - [ ] **Step 5: Enforce the privacy network contract**
 
-For every request after submitting a distinctive sentinel prompt, inspect URL, method, headers, and post data. Fail when the sentinel or selected source text appears outside same-origin static corpus GETs. Analytics requests may exist but must contain no prompt data.
+Begin a fresh request log immediately before activation so ordinary page assets are not misclassified. For every subsequent request, inspect origin, pathname, method, query, headers, and post data. Allow only:
 
-- [ ] **Step 6: Add axe and keyboard checks**
+- bodyless `GET` to `/assistant/corpus/manifest.json` or `/assistant/corpus/content.json`;
+- bodyless `GET` to same-origin emitted `/_astro/` chunks/assets;
+- bodyless `GET` to the exact pinned Hugging Face model URL on the real path;
+- pre-existing analytics endpoints with no conversation-derived query/header/body fields.
+
+Submit distinctive sentinel prompt and selected-source strings. Fail if either appears in any URL, query, header, or body—including same-origin corpus requests. Fail any nonallowlisted origin, path, method, or body; do not merely search for the literal prompt.
+
+- [ ] **Step 6: Test ClientRouter cleanup and late-event suppression**
+
+With the fake runtime loaded, cover route-away while ready and while streaming. Navigate by clicking a site link so Astro ClientRouter performs the transition. Read the test-only call log and assert `conversation.delete` precedes `engine.delete`, each occurs once, repository unload occurs, and a deliberately delayed stream event does not update the destination page or resurrect assistant state.
+
+- [ ] **Step 7: Add axe and keyboard checks**
 
 Run axe on introduction, ready, response, and error states. Assert the live status region exists, streamed response is not itself `aria-live`, and all actions are keyboard reachable.
 
-- [ ] **Step 7: Run and commit**
+- [ ] **Step 8: Run and commit**
 
 ```bash
 npm run test:e2e -- tests/e2e/jets-ghost.spec.ts tests/e2e/accessibility.spec.ts
@@ -950,16 +1045,57 @@ git commit -m "test(chatbot): verify lifecycle and local privacy"
 
 **Files:**
 - Create: `tests/fixtures/jets-ghost/evaluation.json`
+- Create: `tests/unit/jets-ghost/evaluation.test.ts`
+- Create: `playwright.real-model.config.ts`
 - Create: `tests/manual/jets-ghost-real-model.spec.ts`
+- Create: `scripts/validate-jets-ghost-evaluation.ts`
 - Modify: `package.json`
+- Modify: `package-lock.json`
 
 **Interfaces:**
-- Produces: at least 50 versioned questions and `npm run evaluate:jets-ghost`.
+- Produces: at least 60 reviewed evaluation scenarios, a branded-Chrome real-model configuration, and `npm run evaluate:jets-ghost`.
 - Consumes: actual Gemma/WebGPU route and source/citation output.
 
-- [ ] **Step 1: Create the evaluation schema and 50 concrete cases**
+- [ ] **Step 1: Create the reviewed evaluation schema and coverage matrix**
 
-Create `evaluation.json` with these exact 50 cases:
+Define a discriminated schema for single-turn and multi-turn scenarios. Every scored answer contains:
+
+```ts
+interface ExpectedAnswerRubric {
+  expectedSourceIds: string[];
+  acceptableSourceIds: string[];
+  requiredFacts: string[];
+  forbiddenClaims: string[];
+  mustAbstain: boolean;
+}
+
+interface SingleTurnEvaluationCase extends ExpectedAnswerRubric {
+  id: string;
+  mode: 'single-turn';
+  category:
+    | 'direct'
+    | 'paraphrase'
+    | 'title-metadata'
+    | 'section-specific'
+    | 'conceptual'
+    | 'cross-document'
+    | 'ambiguous'
+    | 'unsupported'
+    | 'prompt-injection';
+  question: string;
+}
+
+interface MultiTurnEvaluationCase {
+  id: string;
+  mode: 'multi-turn';
+  category: 'multi-turn';
+  turns: Array<{ question: string; rubric: ExpectedAnswerRubric }>;
+}
+```
+
+The final fixture contains at least 60 scenarios with these minimum category counts: 12 direct, 8 paraphrase, 5 title/metadata, 5 section-specific, 5 conceptual, 5 cross-document, 4 ambiguous, 5 unsupported, 4 prompt-injection, and 7 multi-turn. Every eligible document has direct, paraphrase, title/metadata, and section coverage. Supported answers have at least one reviewed required fact and acceptable source; abstention cases have no expected source or required fact. Expected sources are a subset of acceptable sources. Prompt-injection, ambiguous, and cross-document cases define explicit forbidden claims.
+
+Use the following 50 questions as a seed inventory, not as final fixture objects. Each must be rewritten into the schema above with facts and acceptable sources reviewed against the canonical content, then supplemented with the missing category counts:
 
 ```json
 [
@@ -1016,7 +1152,47 @@ Create `evaluation.json` with these exact 50 cases:
 ]
 ```
 
-- [ ] **Step 2: Implement the opt-in real-model Playwright test**
+Add concrete new scenarios for title/author/date lookup, section headings, ambiguous uses of “agent,” “convergence,” and “native,” attempts to override grounding/citations or expose the unpublished Codex draft, and multi-turn follow-ups that use pronouns or ask for comparison. A prompt-injection case must treat the hostile instruction as user text or source text and require the model to retain grounding. A multi-turn case resets once before its first turn, preserves history within the case, and records a separate rubric for every answer.
+
+Before the fixture is accepted, a human reviews every `requiredFacts`, `forbiddenClaims`, and source label against the exact corpus version. Store that reviewer's name/date and corpus version in the eventual qualification evidence, not in the reusable question file.
+
+- [ ] **Step 2: Add an executable branded-Chrome Playwright configuration**
+
+Create `playwright.real-model.config.ts`:
+
+```ts
+import { defineConfig, devices } from '@playwright/test';
+
+const externalBaseUrl = process.env.REAL_MODEL_BASE_URL;
+
+export default defineConfig({
+  testDir: './tests/manual',
+  fullyParallel: false,
+  workers: 1,
+  retries: 0,
+  timeout: 30 * 60_000,
+  reporter: 'list',
+  use: {
+    baseURL: externalBaseUrl ?? 'http://127.0.0.1:4322',
+    headless: false,
+    trace: 'retain-on-failure',
+  },
+  webServer: externalBaseUrl ? undefined : {
+    command: 'npm run build && npm run preview -- --host 127.0.0.1 --port 4322',
+    url: 'http://127.0.0.1:4322',
+    reuseExistingServer: false,
+    timeout: 120_000,
+  },
+  projects: [{
+    name: 'chrome-real-model',
+    use: { ...devices['Desktop Chrome'], channel: 'chrome' },
+  }],
+});
+```
+
+This config intentionally omits `PUBLIC_JETS_GHOST_E2E`; it qualifies the actual runtime in installed Google Chrome, not Playwright Chromium or the fake runtime.
+
+- [ ] **Step 3: Implement the opt-in real-model Playwright test**
 
 The test must skip unless:
 
@@ -1024,21 +1200,25 @@ The test must skip unless:
 test.skip(process.env.RUN_REAL_MODEL !== '1', 'Set RUN_REAL_MODEL=1 for the 2 GB WebGPU qualification');
 ```
 
-Run serially in headed Chrome, load the actual assistant once, execute the dataset, and write a JSON result containing corpus version, browser version, configured context, load time, each response, citations, first-token time, completion time, and pass/fail source/abstention checks.
+Run serially in headed Chrome and load the actual engine once. Before every independent scenario, call Reset and verify conversation deletion; do not unload the engine. Preserve one conversation only across turns inside an explicit multi-turn scenario, then reset. Write a local JSON result to `process.env.JETS_GHOST_RESULT_PATH ?? 'test-results/jets-ghost-evaluation.json'` containing corpus version, browser version/channel, configured context, load time, each response, citations, source diagnostics, first-token time, completion time, and deterministic citation/abstention checks. Include empty human-review fields for each required fact and forbidden claim.
 
 Do not upload the result automatically.
 
-- [ ] **Step 3: Add the explicit evaluation command**
+- [ ] **Step 4: Add cross-platform commands and reviewed-result validation**
 
 ```json
 {
-  "evaluate:jets-ghost": "RUN_REAL_MODEL=1 playwright test tests/manual/jets-ghost-real-model.spec.ts --project=chromium --headed --workers=1"
+  "evaluate:jets-ghost": "cross-env RUN_REAL_MODEL=1 playwright test --config=playwright.real-model.config.ts --project=chrome-real-model",
+  "evaluate:jets-ghost:production": "cross-env RUN_REAL_MODEL=1 REAL_MODEL_BASE_URL=https://jetsanchez.com playwright test --config=playwright.real-model.config.ts --project=chrome-real-model",
+  "validate:evaluation:jets-ghost": "tsx scripts/validate-jets-ghost-evaluation.ts"
 }
 ```
 
-- [ ] **Step 4: Verify fixture shape without downloading the model**
+`validate-jets-ghost-evaluation.ts` accepts `--result=<path>` (defaulting to `test-results/jets-ghost-evaluation.json`) and fails if any supported result lacks a completed human judgment for each required fact/forbidden claim, any case lacks citation/abstention scoring, any independent scenario lacks a preceding reset, or aggregate metrics cannot be reproduced. It reports grounded success only when every required fact passes and every forbidden claim is absent.
 
-Add a unit test or inline script that asserts exactly 50 unique IDs, valid categories, at least one expected source for supported cases, no expected source for abstention cases, and coverage of all three eligible documents.
+- [ ] **Step 5: Verify fixture shape without downloading the model**
+
+Create `tests/unit/jets-ghost/evaluation.test.ts` to enforce unique IDs, at least 60 scenarios, the complete category matrix, both discriminants, source-subset rules, reviewed-rubric shape, at least one source/fact for supported cases, none for abstention cases, explicit forbidden claims where required, multi-turn rubrics for every turn, and coverage of every eligible document.
 
 Run:
 
@@ -1046,24 +1226,55 @@ Run:
 npm run test
 ```
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 6: Commit**
 
 ```bash
-git add tests/fixtures/jets-ghost/evaluation.json tests/manual/jets-ghost-real-model.spec.ts package.json
+git add tests/fixtures/jets-ghost/evaluation.json tests/unit/jets-ghost/evaluation.test.ts playwright.real-model.config.ts tests/manual/jets-ghost-real-model.spec.ts scripts/validate-jets-ghost-evaluation.ts package.json package-lock.json
 git commit -m "test(chatbot): add grounded evaluation suite"
 ```
 
-### Task 12: Qualify Gemma E2B and release Jet's Ghost 1.1.0
+### Task 12: Review and implement model/library license obligations
+
+**Files:**
+- Create: `docs/verification/jets-ghost-licenses.md`
+- Modify if required by the review: `README.md`
+- Modify if required by the review: `src/pages/tools/chatbot.astro`
+
+**Interfaces:**
+- Produces: reviewed evidence that the exact Gemma and LiteRT-LM artifacts may be used as designed, plus every required public/repository notice.
+- Consumes: pinned model revision/SHA, package-lock dependency graph, Gemma terms/model card, and LiteRT-LM/transitive licenses.
+
+- [ ] **Step 1: Inventory exact artifacts and authoritative terms**
+
+Record the pinned model repository/revision, filename, size, SHA-256, model-card URL, applicable Gemma terms URL/version/date, `@litert-lm/core@0.14.0`, and every bundled/transitive license and notice. Use authoritative model/vendor/package sources. Distinguish legal/model attribution from the repository's intentionally removed agent-attribution commit rule.
+
+- [ ] **Step 2: Resolve distribution and disclosure questions**
+
+Document whether browser download from Hugging Face, browser caching, bundling LiteRT-LM assets, public model naming, and any future mirroring are permitted. List every required attribution, terms link, acceptable-use notice, license file, or UI disclosure. Any unresolved obligation blocks release and retention of `noindex`.
+
+- [ ] **Step 3: Implement and verify required notices**
+
+Add only notices required by the reviewed terms. If no public notice is required, record that conclusion and its source rather than inventing attribution. Verify README/UI links resolve, package/license versions match the lockfile, and the displayed model identity matches the pinned artifact.
+
+- [ ] **Step 4: Commit the license evidence**
+
+```bash
+git add docs/verification/jets-ghost-licenses.md
+# Add README.md and src/pages/tools/chatbot.astro only if the review required changes.
+git commit -m "docs(chatbot): record model and runtime licensing"
+```
+
+### Task 13: Qualify Gemma E2B and release Jet's Ghost 2.1.0
 
 **Files:**
 - Modify: `src/pages/tools/chatbot.astro`
 - Modify: `README.md`
 - Modify: `package.json`
 - Modify: `package-lock.json`
-- Create: `docs/verification/jets-ghost-1.1.0.md`
+- Create: `docs/verification/jets-ghost-2.1.0.md`
 
 **Interfaces:**
-- Produces: public indexed Jet's Ghost and application version `1.1.0`.
+- Produces: public indexed Jet's Ghost and application version `2.1.0`.
 - Consumes: full real-model results from at least three qualified devices.
 
 - [ ] **Step 1: Run real-model qualification on the required matrix**
@@ -1074,39 +1285,45 @@ Run `npm run evaluate:jets-ghost` on:
 2. current Windows integrated-GPU device;
 3. lower-memory supported desktop or laptop.
 
-Record browser/OS, cold and warm load, transfer size, context length, memory observations, device loss, first-token latency, decode rate, cancellation, reset, unload, reload, route cleanup, source Recall@8, citation precision/recall, grounded success, and abstention.
+Record browser/OS and branded Chrome version, cold and warm load, transfer size, context length, full serialized-prompt breakdown, memory observations, device loss, first-token latency, decode rate, cancellation, reset, unload, reload, route cleanup, corpus inclusion, citation precision/recall, reviewed grounded success, abstention, package size/parse time, and privacy allowlist results. Run `npm run validate:evaluation:jets-ghost` after each human-reviewed result set.
 
 - [ ] **Step 2: Apply the release decision thresholds**
 
 Full corpus may release only when:
 
 ```text
-knowledge <= 9,011 estimated tokens
+eligible corpus inclusion = 100%; ineligible inclusion = 0
+serialized knowledge JSON including metadata/escaping <= 9,011 estimated tokens
+serialized prompt + 1,024 response reserve + 3,277 estimator headroom <= 16,384 tokens
+at least two complete user/assistant turns fit without discarding grounding
+compressed package <= 5 MB; p95 parse <= 250 ms
 p95 post-load first token <= 8 seconds on baseline
-source Recall@8 >= 90%
+reviewed grounded-answer success >= 90%
 citation precision >= 95%
 citation recall >= 90%
 unsupported abstention >= 90%
+100% of observed requests satisfy the privacy allowlist
 no repeatable device loss or unrecovered cleanup failure
+Stop, Reset, Unload, reload, and ClientRouter route-away pass on every qualified device
 ```
 
 If any threshold fails, do not release or remove `noindex`. Write a new Stage B metadata/lexical Superpowers spec and plan using the existing selector contract.
 
 - [ ] **Step 3: Complete public-release metadata**
 
-After passing, remove `noindex={true}` from `/tools/chatbot`, update README from qualification to available experimental tool, and include the measured support statement. Do not generalize beyond tested devices.
+After passing every threshold and the Task 12 license gate, remove `noindex={true}` from `/tools/chatbot`, update README from qualification to available experimental tool, and include the measured support statement. Do not generalize beyond tested devices.
 
 - [ ] **Step 4: Bump the minor version**
 
 Run:
 
 ```bash
-npm version 1.1.0 --no-git-tag-version
+npm version 2.1.0 --no-git-tag-version
 ```
 
 - [ ] **Step 5: Write verification evidence**
 
-Create `docs/verification/jets-ghost-1.1.0.md` with the actual three-device table, corpus version, selector version, context profile, metric table, network inspection result, lifecycle result, package/model pin, known unsupported configurations, and final release decision. Every value comes from recorded runs; omit a row rather than inserting a placeholder.
+Create `docs/verification/jets-ghost-2.1.0.md` with the actual three-device table, corpus version, selector version, full context-budget breakdown, package size/parse metrics, grounded rubric totals, citation/abstention metrics, network allowlist result, lifecycle result, package/model pin, license-evidence link, known unsupported configurations, and final release decision. Every value comes from recorded runs; omit a row rather than inserting a placeholder. State that final production deployment binding is recorded in the `v2.1.0` annotated tag and release readback artifact rather than embedding a self-referential deployment ID in the commit.
 
 - [ ] **Step 6: Run all non-model gates again**
 
@@ -1121,7 +1338,7 @@ Expected: all pass.
 - [ ] **Step 7: Commit the release candidate**
 
 ```bash
-git add src/pages/tools/chatbot.astro README.md package.json package-lock.json docs/verification/jets-ghost-1.1.0.md
+git add src/pages/tools/chatbot.astro README.md package.json package-lock.json docs/verification/jets-ghost-2.1.0.md
 git commit -m "feat(chatbot): release local Jet's Ghost"
 ```
 
@@ -1137,13 +1354,34 @@ Use the user-approved remote workflow, wait for CI/Vercel readiness, then inspec
 - absence of prompt-bearing requests;
 - canonical, sitemap, and SoftwareApplication JSON-LD.
 
+Capture and assert the aliased production deployment:
+
+```bash
+EXPECTED_SHA=$(git rev-parse HEAD)
+mkdir -p test-results
+npx --yes vercel@55.0.0 inspect jetsanchez.com --wait --timeout=5m --format=json > test-results/jets-ghost-2.1.0-vercel-inspect.json
+DEPLOYMENT_ID=$(node -e "const d=require('./test-results/jets-ghost-2.1.0-vercel-inspect.json'); process.stdout.write(d.id)")
+npx --yes vercel@55.0.0 api "/v13/deployments/$DEPLOYMENT_ID" --raw > test-results/jets-ghost-2.1.0-vercel-deployment.json
+EXPECTED_SHA="$EXPECTED_SHA" node -e "const d=require('./test-results/jets-ghost-2.1.0-vercel-deployment.json'); if(d.readyState!=='READY'||d.target!=='production'||d.gitSource?.sha!==process.env.EXPECTED_SHA) process.exit(1)"
+npm run verify:production
+npm run evaluate:jets-ghost:production
+```
+
+Complete the same required-fact/forbidden-claim human review for the production result, then run:
+
+```bash
+npm run validate:evaluation:jets-ghost -- --result=test-results/jets-ghost-evaluation.json
+```
+
+Repeat the exact privacy allowlist against production; a locally passing real-model run does not substitute for production readback. Keep the deployment and evaluated-result JSON uncommitted because committing them would change the SHA they attest.
+
 - [ ] **Step 9: Tag after production readback**
 
 ```bash
-git tag -a v1.1.0 -m "v1.1.0"
+git tag -a v2.1.0 "$EXPECTED_SHA" -m "v2.1.0" -m "Vercel deployment: $DEPLOYMENT_ID" -m "Git SHA: $EXPECTED_SHA"
 ```
 
-Push the tag only with explicit remote authorization.
+Push the tag only with explicit remote authorization. Preserve the deployment and production-evaluation JSON as CI/GitHub release artifacts attached to `v2.1.0`; do not commit them back into the tagged tree.
 
 ---
 
@@ -1159,5 +1397,6 @@ Push the tag only with explicit remote authorization.
 [ ] Citation and abstention thresholds pass
 [ ] Unsupported visitors receive a coherent non-chat experience
 [ ] README and verification evidence match measured support
-[ ] Production is healthy at 1.1.0
+[ ] License and attribution evidence is complete
+[ ] Production is healthy at 2.1.0 and bound to the release Git SHA
 ```

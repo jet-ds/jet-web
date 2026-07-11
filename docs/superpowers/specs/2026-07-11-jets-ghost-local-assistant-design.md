@@ -154,7 +154,9 @@ MDX is parsed through an AST-aware normalizer rather than stripped with regular 
 - retains code-language metadata where present;
 - records the source file and source content hash for provenance.
 
-Normalization is a pure function with fixture tests for blog and works content.
+MDX component extraction is deny-by-default and registry-driven. Ordinary Markdown children nested inside an MDX component are traversed and retained even when the wrapper itself is ignored. An `APPROVED_MDX_COMPONENT_EXTRACTORS` registry may additionally retain explicitly named, human-readable string or number props for components used as content; event handlers, expressions, URLs not rendered as prose, class names, and decorative props are never ingested. Unknown components contribute only recursively normalized prose children. Tables retain cell structure, and fenced code retains its language plus text.
+
+Normalization is a pure function with blog and works fixtures covering approved and unknown components, nested prose, tables, fenced-code language, imports/exports, and expressions.
 
 ### Stable identity
 
@@ -166,14 +168,17 @@ type ChunkId = `${SectionId}:${string}`;
 
 - `DocumentId` derives from collection and canonical slug.
 - `SectionId` derives from the document ID and normalized heading path. Duplicate headings receive a deterministic ordinal.
-- `ChunkId` combines the section ID with a short hash of normalized chunk text. Unchanged chunks retain identity when unrelated sections move.
+- `ChunkId` combines the section ID, the full SHA-256 hash of normalized chunk text, and a deterministic same-text occurrence ordinal within that section. Exact duplicate chunks cannot collide, and unchanged chunks retain identity when unrelated sections move.
 - Renaming a slug or heading intentionally changes the corresponding public identity and is detected in the package diff.
+
+Tests cover repeated identical chunks and an injected digest-collision fixture. The implementation either uses the full digest or fails closed on a duplicate final ID; it never silently overwrites a chunk in a map.
 
 ### Package schema
 
 ```ts
 interface KnowledgePackage {
   schemaVersion: '1.0.0';
+  segmentationVersion: '1.0.0';
   corpusVersion: string;
   sourceCommit: string;
   documents: KnowledgeDocument[];
@@ -184,6 +189,7 @@ interface KnowledgePackage {
 
 interface KnowledgeDocument {
   id: DocumentId;
+  order: number;
   collection: 'blog' | 'works';
   slug: string;
   title: string;
@@ -193,6 +199,7 @@ interface KnowledgeDocument {
   author: string;
   publishedAt: string;
   updatedAt?: string;
+  sourcePath: string;
   sourceHash: string;
 }
 
@@ -212,10 +219,13 @@ interface KnowledgeChunk {
   estimatedTokens: number;
   order: number;
   contentHash: string;
+  sameTextOccurrence: number;
 }
 ```
 
-`corpusVersion` is a SHA-256 digest of the schema version plus the canonical serialization of sorted eligible documents, sections, and chunks. The package contains no wall-clock build timestamp, so the same source commit and content produce byte-identical output.
+`corpusVersion` is a SHA-256 digest of exactly `schemaVersion`, `segmentationVersion`, and the recursively canonical serialization of sorted documents, sections, and chunks. Canonical serialization sorts every object key lexicographically, preserves the explicitly sorted array order, uses UTF-8 JSON without insignificant whitespace, and normalizes dates and newlines before hashing. `sourceCommit`, derived statistics, and delivery metadata are excluded from the content digest.
+
+`sourceHash` is the SHA-256 digest of the canonical validated collection data plus MDX body received from Astro, not a second raw-filesystem parse. `sourceCommit` is still required provenance. A clean build resolves it from `git rev-parse HEAD`; CI/Vercel-provided commit variables must equal that value or the build fails. There is no `'local'` fallback in a production package. The same checked-out commit and content therefore produce byte-identical manifest and content bytes regardless of which matching environment variable is present. The package contains no wall-clock build timestamp.
 
 ### Packaging and delivery
 
@@ -286,13 +296,35 @@ interface SelectionResult {
   diagnostics: SelectionDiagnostics;
 }
 
+interface SelectedSource {
+  citationId: `S${number}`;
+  documentId: DocumentId;
+  documentOrder: number;
+  sectionId: SectionId;
+  sectionOrder: number;
+  chunkId: ChunkId;
+  chunkOrder: number;
+  title: string;
+  heading: string;
+  canonicalUrl: string;
+  text: string;
+  estimatedTokens: number;
+  provenance: {
+    sourcePath: string;
+    sourceHash: string;
+    chunkContentHash: string;
+    sourceCommit: string;
+    corpusVersion: string;
+  };
+}
+
 interface ContextSelector {
   readonly strategy: SelectionStrategy;
   select(input: SelectionInput): Promise<SelectionResult>;
 }
 ```
 
-`SelectedSource` always carries document, section, chunk, canonical URL, text, token estimate, and provenance. Prompt construction and citation rendering do not know how sources were selected.
+Array order is canonical only after the builder assigns explicit document, section, and chunk order fields. `SelectedSource` carries those fields plus complete provenance, so prompt construction and citation rendering do not know how sources were selected and never depend on incidental map or filesystem iteration order.
 
 The active strategy is an explicit, version-controlled release profile chosen from evaluation evidence. The first release does not silently vary strategy between visitors or queries.
 
@@ -347,23 +379,33 @@ The release profile owns:
 ```ts
 interface ContextBudget {
   maxContextTokens: number;
-  systemReserve: number;
-  conversationReserve: number;
+  systemLimit: number;
+  questionLimit: number;
+  conversationLimit: number;
   responseReserve: number;
   knowledgeLimit: number;
+  estimatorHeadroom: number;
 }
 ```
 
 The initial candidate profile configures LiteRT-LM with `maxNumTokens: 16384` and reserves:
 
-- 1,024 tokens for system instructions, the current question, and formatting;
+- 640 tokens for system instructions and fixed formatting;
+- 384 tokens for the current question;
 - 2,048 tokens for bounded conversation history;
 - 1,024 tokens for the response;
-- no more than 9,011 tokens, or 55% of the total context, for knowledge.
+- no more than 9,011 tokens, including serialized source metadata and boundaries, or 55% of the total context, for knowledge;
+- 3,277 tokens of estimator and SDK/model-formatting headroom.
 
-The remaining headroom absorbs token-estimation error and SDK/model formatting. These are release constraints, not claims that every browser can operate comfortably at 16K. Real-device qualification may reduce the context profile; if that makes the corpus exceed the knowledge limit, Stage B becomes the release strategy.
+The limits sum to the configured maximum. Before `createSession()`, the application serializes the actual system message, selected sources, retained complete history turns, and current question, estimates that exact serialized prompt, and proves:
 
-Every selector enforces the same budget before the prompt reaches the runtime. Overflow is an application error, never silent truncation by the model engine.
+```text
+serializedPromptTokens + responseReserve + estimatorHeadroom <= maxContextTokens
+```
+
+It also proves each component is within its own limit. Source metadata and escaping overhead count against `knowledgeLimit`. A question over `questionLimit` is rejected locally with a typed error; history is retained only as complete turns; and selector output that cannot fit is rejected rather than truncated. These are release constraints, not claims that every browser can operate comfortably at 16K. Real-device qualification may reduce the profile; if that makes the corpus exceed the knowledge limit, Stage B becomes the release strategy.
+
+Selectors enforce their knowledge allowance, and the prompt assembler enforces the final serialized total. Overflow is an application error, never silent truncation by the model engine.
 
 ## Strategy transition signals
 
@@ -419,9 +461,12 @@ Maintain a versioned evaluation dataset with at least 50 questions and coverage 
 - multi-turn follow-ups;
 - exact expected-source and acceptable-source labels.
 
+Each case is an independently reset scenario unless it explicitly declares a multi-turn sequence. The fixture records `expectedSourceIds`, `acceptableSourceIds`, reviewed `requiredFacts`, `forbiddenClaims`, abstention expectation, and a category-specific grounding rubric. Multi-turn cases store ordered user turns and the expected facts/sources for each answer. This makes factual grounding reviewable instead of treating any answer with a citation as correct.
+
 Metrics:
 
-- source Recall@K;
+- corpus inclusion recall for unranked full-corpus selection;
+- expected-source Recall@K for ranked lexical, semantic, and hybrid selectors;
 - citation precision and recall;
 - grounded-answer success;
 - unsupported-question abstention;
@@ -435,6 +480,8 @@ Metrics:
 - package and optional sidecar sizes.
 
 Automated scoring can shortlist regressions, but grounded-answer and citation judgments retain a reviewed fixture set rather than relying solely on another model.
+
+For `FullCorpusSelector`, corpus inclusion recall must be 100% as a build invariant and `Recall@K` is not reported because the selector has no ranking. Expected/acceptable source labels still score citations and reviewed answer grounding. `Recall@K` begins only when a ranked selector is evaluated.
 
 ## Local model runtime
 
@@ -517,17 +564,23 @@ LiteRT-LM 0.14.0 does not expose an abort signal or trustworthy byte progress fo
 
 ## Prompt and citation assembly
 
-The prompt assembler receives a `SelectionResult`, never a search implementation.
+The prompt assembler receives a `SelectionResult`, never a search implementation. It serializes selected sources as one canonical JSON array using `JSON.stringify`; every metadata and content field is a JSON string value, never raw template interpolation. Stable local citation keys remain `S1`, `S2`, and so on:
 
-Each source is delimited with a stable local citation key:
-
-```text
-<source id="S1" document="blog:example" section="blog:example#heading">
-Title: Example
-URL: https://jetsanchez.com/blog/example
-Content: [normalized source text]
-</source>
+```json
+[
+  {
+    "citationId": "S1",
+    "documentId": "blog:example",
+    "sectionId": "blog:example#heading",
+    "title": "Example",
+    "url": "https://jetsanchez.com/blog/example",
+    "heading": "Heading",
+    "content": "Normalized source text"
+  }
+]
 ```
+
+The system message identifies the array as untrusted reference data. JSON escaping prevents source text such as `</source>`, quotation marks, backslashes, or source-like markup from terminating or forging a structural boundary. Tests include these adversarial delimiters plus source-embedded prompt-injection instructions.
 
 System behavior:
 
@@ -540,6 +593,8 @@ System behavior:
 - avoid implying access to private files, live systems, or unpublished drafts.
 
 The response parser accepts citations only from the selected-source allowlist. Unknown citation IDs are not rendered as links. The UI always retains a selected-sources panel so visitors can inspect provenance even when the model omits an inline citation.
+
+Prompt assembly rejects an oversized current question, source serialization, fixed system message, or final prompt before session creation. Its returned diagnostics report estimated tokens for system, question, history, serialized knowledge, response reserve, estimator headroom, and total configured context.
 
 ## Conversation policy
 
@@ -578,12 +633,12 @@ Accessibility requirements:
 
 After activation, allowed network requests are limited to:
 
-- the same-origin knowledge package;
-- the pinned LiteRT-LM JavaScript chunks and runtime assets emitted by the site build;
-- the pinned Gemma model URL;
+- bodyless `GET` requests to the two fixed same-origin knowledge-package paths;
+- bodyless `GET` requests to same-origin pinned LiteRT-LM JavaScript chunks and runtime assets emitted by the site build;
+- a bodyless `GET` request to the exact revision-pinned Gemma model URL;
 - existing page-view analytics, which receive no prompt-derived fields.
 
-No request body contains a visitor prompt, selected source text, response, or conversation history. Browser verification treats such a request as a release blocker.
+The assistant initiates no other origin, path, method, request body, query parameter, or custom header. In particular, same-origin corpus requests cannot be used as an exception for prompt leakage: they are fixed bodyless GETs. Browser verification applies this allowlist to every request and treats any prompt, selected source text, response, or history in a URL, headers, or body as a release blocker.
 
 The UI does not claim that model files are served by Jet or that the experience is guaranteed offline. It does claim local inference and local conversation handling after required assets are available.
 
@@ -600,6 +655,7 @@ type JetsGhostErrorCode =
   | 'model-load-failed'
   | 'generation-failed'
   | 'generation-cancelled'
+  | 'question-too-long'
   | 'context-budget-exceeded'
   | 'engine-cleanup-failed';
 ```
@@ -629,6 +685,7 @@ Unit tests cover:
 - stable IDs and corpus hash determinism;
 - manifest/content version validation;
 - context-budget calculations;
+- final serialized-prompt budgeting, oversized-question rejection, and adversarial source escaping;
 - all selector contracts;
 - full-corpus overflow behavior;
 - citation allowlisting;
@@ -649,6 +706,8 @@ Browser tests with the fake runtime cover:
 - zero prompt-bearing network requests;
 - source-panel links and invalid-citation handling.
 
+One production-path browser test loads `/tools/chatbot` without the fake-runtime query seam, does not activate it, and proves the default runtime module/model is not requested. Fake-runtime tests then enforce the complete origin/path/method/body allowlist. A ClientRouter test navigates away while ready, generating, and unloading, and asserts conversation-before-engine deletion plus suppression of late stream events.
+
 Build integration tests verify:
 
 - no draft or non-assistant entry appears in either artifact;
@@ -659,7 +718,7 @@ Build integration tests verify:
 
 ### Real-model qualification
 
-Run a separate, documented Chrome WebGPU qualification on at least:
+Run a separate, documented Playwright configuration whose `testDir` is `tests/manual`, whose sole project uses the installed branded Chrome channel (`channel: 'chrome'`), and whose server is the built `astro preview` output. Run that Chrome WebGPU qualification on at least:
 
 - a current Apple Silicon Mac;
 - a current Windows device with integrated GPU;
@@ -678,9 +737,29 @@ For each device record:
 - reset, unload, reload, and route-navigation recovery;
 - evaluation-set metrics.
 
+Reset the LiteRT conversation between independent evaluation cases so history cannot contaminate results or exhaust the reserve. Only fixtures explicitly typed as multi-turn reuse one conversation, and each such fixture begins from a fresh reset.
+
 Mobile is unsupported until a measured device passes the same gates. The UI may explain that desktop Chrome-class WebGPU is the initial target without relying solely on user-agent blocking.
 
 ## Release gates
+
+Jet's Ghost is a backward-compatible feature on the `2.0.0` modernized core and targets application release `2.1.0`. `FullCorpusSelector` is releasable only when every applicable threshold below passes on the recorded corpus/profile and required device matrix:
+
+| Signal | Full-corpus release threshold |
+| --- | --- |
+| Corpus inclusion | 100% of tracked, published, assistant-enabled chunks; 0 ineligible chunks |
+| Knowledge budget | Serialized source JSON, including metadata and escaping, is at most 9,011 estimated tokens |
+| Total context | Serialized prompt + 1,024 response reserve + 3,277 estimator headroom is at most 16,384 tokens |
+| Conversation headroom | At least two complete user/assistant turns fit without discarding grounding |
+| Corpus delivery | Compressed package at most 5 MB and p95 parse at most 250 ms |
+| Post-load response | p95 time to first token at most 8 seconds on the reference baseline device |
+| Grounded answers | At least 90% of reviewed supported cases satisfy every required fact and contain no forbidden claim |
+| Citations | Precision at least 95% against acceptable-source labels; recall at least 90% for required expected sources/claims |
+| Unsupported questions | Abstention at least 90% |
+| Lifecycle | Stop, reset, unload, reload, and route-away recovery pass; no repeatable device loss or unrecovered cleanup failure |
+| Privacy | 100% of observed requests satisfy the exact allowlist and contain no conversation-derived data |
+
+`Recall@K` is intentionally absent for full corpus. If any full-corpus transition threshold or release threshold fails, the placeholder remains noindexed and a separately reviewed Stage B plan implements `MetadataLexicalSelector` through the existing contracts.
 
 Jet's Ghost is ready to replace the placeholder when:
 
@@ -693,10 +772,12 @@ Jet's Ghost is ready to replace the placeholder when:
 - the chosen selector passes its context and evaluation thresholds;
 - no prompt-derived network request occurs;
 - cancellation, reset, unload, route cleanup, and recovery pass automated and real-model checks;
-- source Recall@K, citation precision/recall, grounded-answer success, and abstention meet the strategy thresholds;
+- corpus inclusion, citation precision/recall, reviewed grounded-answer success, and abstention meet the full-corpus thresholds;
 - the tool passes keyboard, reduced-motion, live-region, and responsive checks;
 - the tool page has accurate metadata and may be removed from `noindex`;
-- model/library license and attribution requirements are documented.
+- model/library license and attribution requirements are reviewed, implemented, and documented.
+
+The license gate inventories the exact Gemma model revision, its model card and Gemma terms, `@litert-lm/core` and transitive notices, redistribution/caching implications, and any attribution or acceptable-use disclosure required in the repository or public UI. Evidence records the reviewed URLs, versions, hashes, review date, and where each required notice is rendered. `noindex` is not removed while any required notice or permission remains unresolved.
 
 ## Future evolution without rewrite
 
@@ -748,6 +829,6 @@ Own engine lifecycle inside one runtime service, call `engine.delete()` on unmou
 - [LiteRT-LM API overview](https://developers.google.com/edge/litert-lm/api_overview)
 - [Gemma 4 on LiteRT-LM](https://developers.google.com/edge/litert-lm/models/gemma-4)
 - [Gemma 4 E2B LiteRT-LM model card](https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm)
-- Historical local RAG design: `docs/rag-chatbot-architecture.md`
-- Historical RAG implementation review: `docs/rag-chatbot-implementation-review.md`
+- Archived local RAG design: `docs/archive/jets-ghost/legacy-rag/rag-chatbot-architecture.md`
+- Archived RAG implementation review: `docs/archive/jets-ghost/legacy-rag/rag-chatbot-implementation-review.md`
 - Timesheet local-assistant research rollout: `019f1533-9ec8-7b32-b80c-fe27b684a5f6`

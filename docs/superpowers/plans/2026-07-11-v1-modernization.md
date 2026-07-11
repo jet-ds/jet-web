@@ -19,8 +19,11 @@
 - Ordinary builds must make no remote writes and modify no source file.
 - `AGENTS.md` is canonical; `CLAUDE.md` is a relative symlink to it.
 - Application versioning follows Semantic Versioning 2.0.0 from baseline `1.0.0`.
+- The intentionally incompatible modernization releases as `2.0.0`; Jet's Ghost later targets `2.1.0`.
 - Non-merge commits follow Conventional Commits 1.0.0 and require no agent attribution.
 - Never stage or rewrite unrelated user-owned untracked files.
+- Perform all implementation in a clean worktree created from the reviewer-approved documentation commit; leave the original checkout untouched.
+- Stage only explicit file paths. Broad directory staging and `git add -u` without exact paths are prohibited.
 - Production mutation steps require readback verification before completion.
 
 ---
@@ -31,6 +34,7 @@
 
 - `AGENTS.md` — canonical repository instructions.
 - `CLAUDE.md` — relative symlink to `AGENTS.md`.
+- `docs/archive/` — indexed historical specifications, research, and completed implementation logs.
 - `.nvmrc` — Node 22 selection.
 - `package.json` / `package-lock.json` — application version, engines, commands, and dependencies.
 
@@ -50,6 +54,7 @@
 - `tests/e2e/site.spec.ts` — route, metadata, redirect, theme, and SSRN checks.
 - `tests/e2e/accessibility.spec.ts` — axe and keyboard checks.
 - `.github/workflows/verify.yml` — Node 22 CI.
+- `docs/verification/baselines/core-1.0.0/` — immutable pre-modernization production screenshots and metadata manifest.
 
 ### Shared UI and metadata
 
@@ -64,12 +69,61 @@
 
 ---
 
+### Task 0: Isolate implementation from the dirty original checkout
+
+**Files:**
+- Create outside the original checkout: clean Git worktree and branch.
+- Record in the clean worktree: `docs/verification/baselines/core-1.0.0/original-worktree-status.txt`.
+- Record in the clean worktree: `docs/verification/baselines/core-1.0.0/authorized-archive-source-hashes.txt`.
+
+**Interfaces:**
+- Produces: an isolated implementation checkout at the exact reviewer-approved commit.
+- Preserves: every user-owned untracked file in the original checkout, including the active Codex draft.
+
+- [ ] **Step 1: Invoke the worktree workflow and inventory the original checkout**
+
+Use `superpowers:using-git-worktrees`. From the original checkout run:
+
+```bash
+ORIGINAL_ROOT=$(git rev-parse --show-toplevel)
+APPROVED_SHA=$(git rev-parse HEAD)
+export ORIGINAL_ROOT APPROVED_SHA
+git diff --exit-code
+git diff --cached --exit-code
+git status --porcelain=v1 -uall
+shasum -a 256 EMBEDDING_STORAGE_RESEARCH.md docs/jets-ghost-v1.5-spec.md docs/rag-chatbot-implementation-review.md docs/liquid-glass-dock-v2-log.md
+```
+
+Expected: tracked and staged diffs are empty; untracked user files may be listed. Save the exact porcelain output and four archival-candidate hashes outside the repository temporarily. Do not add, edit, move, or delete any listed file.
+
+- [ ] **Step 2: Create and verify the clean worktree**
+
+Let the worktree skill select a safe sibling path, then create branch `codex/v1-modernization` from `APPROVED_SHA`. In the new worktree run:
+
+```bash
+test "$(git rev-parse HEAD)" = "$APPROVED_SHA"
+test "$(git branch --show-current)" = "codex/v1-modernization"
+test -z "$(git status --porcelain=v1 -uall)"
+```
+
+Expected: all checks pass. Every remaining task runs only in this clean worktree. If the branch already exists, stop and reconcile it rather than resetting or overwriting it.
+
+- [ ] **Step 3: Record but do not import the original inventory**
+
+Create `original-worktree-status.txt` with the original path, `APPROVED_SHA`, and saved porcelain inventory, and create `authorized-archive-source-hashes.txt` with the four saved SHA-256 records. These files are evidence only. No listed user file is copied into the worktree except the specific superseded documents explicitly authorized for archival in Task 11. At the end of every task, compare the original checkout's status with this inventory and stop if any entry changed before the controlled post-archive cleanup.
+
+No commit occurs in Task 0; Task 1 establishes the commit policy and commits this evidence explicitly.
+
+---
+
 ### Task 1: Establish repository governance and version baseline
 
 **Files:**
 - Replace symlink with file: `AGENTS.md`
 - Replace file with symlink: `CLAUDE.md`
 - Create: `.nvmrc`
+- Create: `docs/verification/baselines/core-1.0.0/original-worktree-status.txt`
+- Create: `docs/verification/baselines/core-1.0.0/authorized-archive-source-hashes.txt`
 - Modify: `package.json`
 - Modify: `package-lock.json`
 
@@ -115,7 +169,7 @@ Replace the existing `Commits` bullet with:
 ```markdown
 - **Versioning**: Follow [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
   - `package.json` is the authoritative application version.
-  - The current product baseline is `1.0.0`.
+  - The Semantic Versioning starting point is `1.0.0`.
   - Use `v<major>.<minor>.<patch>` release tags.
   - Content-only and documentation-only deployments do not require a version change unless they accompany an application release.
 - **Commits**: Follow [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/).
@@ -180,7 +234,7 @@ Expected: all checks pass and the three governance phrases are printed.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add AGENTS.md CLAUDE.md .nvmrc package.json package-lock.json
+git add AGENTS.md CLAUDE.md .nvmrc package.json package-lock.json docs/verification/baselines/core-1.0.0/original-worktree-status.txt docs/verification/baselines/core-1.0.0/authorized-archive-source-hashes.txt
 git commit -m "chore(governance): establish repository conventions"
 ```
 
@@ -191,6 +245,11 @@ git commit -m "chore(governance): establish repository conventions"
 - Create: `playwright.config.ts`
 - Create: `tests/setup.ts`
 - Create: `tests/unit/config/site.test.ts`
+- Create: `scripts/capture-production-baseline.ts`
+- Create: `docs/verification/baselines/core-1.0.0/manifest.json`
+- Create: `docs/verification/baselines/core-1.0.0/vercel-inspect.json`
+- Create: `docs/verification/baselines/core-1.0.0/vercel-deployment.json`
+- Create: `docs/verification/baselines/core-1.0.0/screenshots/*.png`
 - Modify: `package.json`
 - Modify: `package-lock.json`
 
@@ -203,7 +262,7 @@ git commit -m "chore(governance): establish repository conventions"
 Run:
 
 ```bash
-npm install --save-dev vitest @vitest/coverage-v8 jsdom @testing-library/react @testing-library/jest-dom @playwright/test @axe-core/playwright
+npm install --save-dev --save-exact vitest@4.1.10 @vitest/coverage-v8@4.1.10 jsdom@29.1.1 @testing-library/react@16.3.2 @testing-library/jest-dom@6.9.1 @playwright/test@1.61.1 @axe-core/playwright@4.12.1
 ```
 
 Expected: dependencies are added to `devDependencies` and the lockfile changes.
@@ -261,6 +320,7 @@ import { defineConfig, devices } from '@playwright/test';
 export default defineConfig({
   testDir: './tests/e2e',
   fullyParallel: false,
+  forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? 'github' : 'list',
   use: {
@@ -268,7 +328,7 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   webServer: {
-    command: 'npm run dev -- --host 127.0.0.1',
+    command: 'npm run build && npm run preview -- --host 127.0.0.1',
     url: 'http://127.0.0.1:4321',
     reuseExistingServer: !process.env.CI,
   },
@@ -278,6 +338,8 @@ export default defineConfig({
   ],
 });
 ```
+
+Do not run Playwright until Task 3 has replaced the current remote-writing build. From that point onward, every browser test exercises the built static artifact through `astro preview`.
 
 - [ ] **Step 6: Write and run the first unit test**
 
@@ -302,10 +364,38 @@ npm run test -- tests/unit/config/site.test.ts
 
 Expected: `1 passed`.
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 7: Capture an immutable production baseline before site behavior changes**
+
+Create `scripts/capture-production-baseline.ts`. It must use Playwright's installed Chromium to capture these production routes at `1440x1000` and a `Pixel 7` viewport:
+
+```text
+/
+/blog
+/blog/how-to-install-claude-code-cli-2026
+/works
+/works/recursive-convergence-hypothesis
+/tools
+/contact
+```
+
+For each route and viewport, write a full-page PNG and a manifest record containing URL, HTTP status, viewport, title, canonical URL, parsed JSON-LD, and SHA-256 of the response HTML. Sort records by route then viewport and write canonical JSON to `docs/verification/baselines/core-1.0.0/manifest.json`.
+
+Run:
 
 ```bash
-git add package.json package-lock.json vitest.config.ts playwright.config.ts tests/setup.ts tests/unit/config/site.test.ts
+npx playwright install chromium
+npx --yes vercel@55.0.0 inspect jetsanchez.com --format=json > docs/verification/baselines/core-1.0.0/vercel-inspect.json
+BASELINE_DEPLOYMENT_ID=$(node -e "const d=require('./docs/verification/baselines/core-1.0.0/vercel-inspect.json'); process.stdout.write(d.id)")
+npx --yes vercel@55.0.0 api "/v13/deployments/$BASELINE_DEPLOYMENT_ID" --raw > docs/verification/baselines/core-1.0.0/vercel-deployment.json
+npx tsx scripts/capture-production-baseline.ts --origin=https://jetsanchez.com --output=docs/verification/baselines/core-1.0.0
+```
+
+Expected: the Vercel API record is `READY`, targets production, and identifies Git SHA `c0d158c2f1ba73c879890fd2a8269f633d1f2d04`; fourteen predictably named screenshots exist; every route status is `200`; every JSON-LD value parses. If the production SHA has changed, stop and review the new deployment before replacing this expected baseline. These files remain the comparison baseline even after containment and intermediate deployments.
+
+- [ ] **Step 8: Commit**
+
+```bash
+git add package.json package-lock.json vitest.config.ts playwright.config.ts tests/setup.ts tests/unit/config/site.test.ts scripts/capture-production-baseline.ts docs/verification/baselines/core-1.0.0/manifest.json docs/verification/baselines/core-1.0.0/vercel-inspect.json docs/verification/baselines/core-1.0.0/vercel-deployment.json docs/verification/baselines/core-1.0.0/screenshots/home-desktop.png docs/verification/baselines/core-1.0.0/screenshots/home-mobile.png docs/verification/baselines/core-1.0.0/screenshots/blog-index-desktop.png docs/verification/baselines/core-1.0.0/screenshots/blog-index-mobile.png docs/verification/baselines/core-1.0.0/screenshots/blog-claude-desktop.png docs/verification/baselines/core-1.0.0/screenshots/blog-claude-mobile.png docs/verification/baselines/core-1.0.0/screenshots/works-index-desktop.png docs/verification/baselines/core-1.0.0/screenshots/works-index-mobile.png docs/verification/baselines/core-1.0.0/screenshots/works-rch-desktop.png docs/verification/baselines/core-1.0.0/screenshots/works-rch-mobile.png docs/verification/baselines/core-1.0.0/screenshots/tools-desktop.png docs/verification/baselines/core-1.0.0/screenshots/tools-mobile.png docs/verification/baselines/core-1.0.0/screenshots/contact-desktop.png docs/verification/baselines/core-1.0.0/screenshots/contact-mobile.png
 git commit -m "test: establish verification harness"
 ```
 
@@ -313,6 +403,10 @@ git commit -m "test: establish verification harness"
 
 **Files:**
 - Create: `tests/unit/build/staticBoundary.test.ts`
+- Create: `scripts/verify-build-purity.ts`
+- Create: `scripts/contain-chatbot-blobs.ts`
+- Create: `scripts/verify-production-containment.ts`
+- Create: `docs/verification/containment/`
 - Create: `vercel.json`
 - Modify: `package.json`
 - Modify: `package-lock.json`
@@ -320,10 +414,10 @@ git commit -m "test: establish verification harness"
 - Modify: `.gitignore`
 - Delete: `src/pages/api/chat.ts`
 - Delete: `src/pages/chatbot.astro`
-- Remove local generated file: `src/config/chatbot-artifacts.json`
+- Ensure absent in the clean worktree: `src/config/chatbot-artifacts.json` (never touch the original checkout's copy)
 
 **Interfaces:**
-- Produces: side-effect-free `npm run build`, static `/chatbot` 301 redirect, no `/api/chat` route.
+- Produces: side-effect-free `npm run build`, exact static `/chatbot` 308 redirect, no `/api/chat` route, asserted containment evidence.
 - Consumes: Vercel project link and existing Blob/OpenRouter access for containment only.
 
 - [ ] **Step 1: Write the failing static-boundary test**
@@ -342,7 +436,8 @@ const astroConfig = readFileSync('astro.config.mjs', 'utf8');
 
 describe('static production boundary', () => {
   it('builds Astro without remote-writing embedding work', () => {
-    expect(packageJson.scripts.build).toBe('astro build');
+    expect(packageJson.scripts.build).toContain('astro build');
+    expect(packageJson.scripts.build).not.toContain('embedding');
     expect(packageJson.scripts['build:embeddings']).toBeUndefined();
   });
 
@@ -386,7 +481,7 @@ Remove the `@astrojs/vercel` import and `adapter: vercel()` from `astro.config.m
 
 - [ ] **Step 3: Remove the active server and generated-artifact boundaries**
 
-Delete:
+Delete the two tracked routes. If an accidental local command created `src/config/chatbot-artifacts.json` in the clean worktree, remove that generated copy only; it should normally be absent:
 
 ```text
 src/pages/api/chat.ts
@@ -429,78 +524,94 @@ Keep `noindex={true}` until the companion plan's release gate passes.
 
 - [ ] **Step 5: Run boundary checks**
 
+Create `scripts/verify-build-purity.ts`. It must obtain the NUL-delimited union of tracked and nonignored untracked files with `git ls-files --cached --others --exclude-standard -z`, hash each file's bytes, capture `git status --porcelain=v1 -uall`, run `npm run build` without a shell, repeat both snapshots, and fail with changed paths if either snapshot differs. Ignored build outputs such as `dist/`, `.astro/`, `node_modules/`, Playwright results, and coverage are naturally excluded; no source/config exception is permitted.
+
+Add:
+
+```json
+{
+  "verify:build-purity": "tsx scripts/verify-build-purity.ts"
+}
+```
+
 Run:
 
 ```bash
 npm run test -- tests/unit/build/staticBoundary.test.ts
 npm run check
-before_build=$(git diff --binary | shasum -a 256 | cut -d' ' -f1)
-npm run build
-after_build=$(git diff --binary | shasum -a 256 | cut -d' ' -f1)
-test "$before_build" = "$after_build"
+npm run verify:build-purity
 test ! -e dist/api/chat
 ```
 
-Expected: tests, check, and build pass; the build changes no tracked source; no chat API output exists.
+Expected: tests, check, and build pass; the build changes no tracked, staged, or nonignored untracked file; no chat API output exists.
 
 - [ ] **Step 6: Commit the static containment code**
 
 ```bash
-git add package.json package-lock.json astro.config.mjs .gitignore vercel.json src/pages/tools/chatbot.astro tests/unit/build/staticBoundary.test.ts
+git add package.json package-lock.json astro.config.mjs .gitignore vercel.json src/pages/tools/chatbot.astro tests/unit/build/staticBoundary.test.ts scripts/verify-build-purity.ts scripts/contain-chatbot-blobs.ts scripts/verify-production-containment.ts
 git add -u src/pages/api/chat.ts src/pages/chatbot.astro
-git commit -m "fix(security): retire hosted chatbot endpoint"
+git commit -m "fix(security)!: retire hosted chatbot endpoint" -m "BREAKING CHANGE: The public /api/chat generation endpoint is removed."
 ```
 
 - [ ] **Step 7: Revoke and remove the production credential**
 
-In the authenticated OpenRouter key dashboard, revoke the key used by `jet-web`. Then run:
+In the authenticated OpenRouter key dashboard, revoke the key used by `jet-web` and read the key record back as revoked/disabled. Write `docs/verification/containment/openrouter-key-revocation.json` containing only provider, non-secret key record ID or final four characters, revocation status, UTC time, and verifier—never the credential value. Then run:
 
 ```bash
-npx vercel env rm OPENROUTER_API_KEY production --yes
-npx vercel env rm OPENROUTER_API_KEY preview --yes
-npx vercel env rm OPENROUTER_API_KEY development --yes
-npx vercel env ls
+npx --yes vercel@55.0.0 env rm OPENROUTER_API_KEY production --yes
+npx --yes vercel@55.0.0 env rm OPENROUTER_API_KEY preview --yes
+npx --yes vercel@55.0.0 env rm OPENROUTER_API_KEY development --yes
+for scope in production preview development; do
+  npx --yes vercel@55.0.0 env ls "$scope" --format=json > "docs/verification/containment/vercel-env-$scope.json"
+  SCOPE="$scope" node -e "const fs=require('node:fs'); const data=JSON.parse(fs.readFileSync('docs/verification/containment/vercel-env-'+process.env.SCOPE+'.json','utf8')); if(data.envs.some(row=>row.key==='OPENROUTER_API_KEY')) process.exit(1)"
+done
 ```
 
 Expected: `OPENROUTER_API_KEY` is absent from all scopes.
 
-- [ ] **Step 8: Delete every obsolete public chatbot Blob**
+- [ ] **Step 8: Inventory, delete, and assert every obsolete public chatbot Blob**
 
-From the original linked workspace containing `.env.local`, run without printing the token:
+Implement `scripts/contain-chatbot-blobs.ts` with the Vercel Blob SDK. It must:
+
+1. page through the entire `chatbot/` prefix;
+2. write a canonical pre-delete inventory containing pathname, URL, size, and upload time to `docs/verification/containment/chatbot-blobs-before.json`;
+3. assert that the three known `d70520113a820db7` manifest, chunk, and embedding URLs are present;
+4. delete every inventoried URL;
+5. relist until the prefix is empty or a bounded retry deadline expires;
+6. write the final empty list to `chatbot-blobs-after.json` and fail unless it is `[]`;
+7. issue cache-busted GETs to every inventoried URL and fail unless each returns exactly `404`.
+
+The script reads `BLOB_READ_WRITE_TOKEN` from the environment and never prints or persists it. Load the credential into the clean worktree's process without copying or modifying the original `.env.local`, then run:
 
 ```bash
-set -a
-source .env.local
-set +a
-node --input-type=module -e "import { del, list } from '@vercel/blob'; let cursor; const urls=[]; do { const page=await list({prefix:'chatbot/',cursor}); urls.push(...page.blobs.map(blob=>blob.url)); cursor=page.hasMore?page.cursor:undefined; } while(cursor); console.log('Deleting', urls.length, 'chatbot blobs'); if(urls.length) await del(urls);"
+npx tsx scripts/contain-chatbot-blobs.ts
 ```
 
-Verify:
-
-```bash
-curl -sS -o /dev/null -w '%{http_code}\n' 'https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/chatbot/manifest-d70520113a820db7.json'
-```
-
-Expected: `404`.
+Expected: every recorded URL returns `404`, the after-inventory is empty, and the three known draft-bearing URLs are explicitly present in the evidence.
 
 - [ ] **Step 9: Deploy the containment commit and read it back**
 
-Use the approved branch/push workflow or a clean Vercel production deployment. Never deploy from the dirty original workspace.
+Use the approved branch/push workflow so Vercel produces a Git-backed deployment with a verifiable source SHA. Never deploy from the dirty original workspace, and do not accept a manual deployment whose source commit cannot be proven.
 
-Verify:
+Capture and verify the deployment rather than merely printing responses:
 
 ```bash
-curl -sS -o /dev/null -w '%{http_code}\n' -X POST https://jetsanchez.com/api/chat
-curl -sSI https://jetsanchez.com/chatbot | rg -i '^(HTTP/|location:)'
-npx vercel env ls production
+EXPECTED_SHA=$(git rev-parse HEAD)
+npx --yes vercel@55.0.0 inspect jetsanchez.com --wait --timeout=5m --format=json > docs/verification/containment/vercel-inspect.json
+DEPLOYMENT_ID=$(node -e "const d=require('./docs/verification/containment/vercel-inspect.json'); process.stdout.write(d.id)")
+npx --yes vercel@55.0.0 api "/v13/deployments/$DEPLOYMENT_ID" --raw > docs/verification/containment/vercel-deployment.json
+npx tsx scripts/verify-production-containment.ts --origin=https://jetsanchez.com --expected-commit="$EXPECTED_SHA" --deployment=docs/verification/containment/vercel-deployment.json --revocation=docs/verification/containment/openrouter-key-revocation.json --blob-before=docs/verification/containment/chatbot-blobs-before.json --blob-after=docs/verification/containment/chatbot-blobs-after.json
 ```
 
-Expected:
+`verify-production-containment.ts` fails unless the deployment is `READY`, targets production, `gitSource.sha` equals `EXPECTED_SHA`, `POST /api/chat` returns exactly `404`, `/chatbot` returns exactly `308` with resolved redirect URL `https://jetsanchez.com/tools/chatbot`, every Blob assertion still passes, the revocation record says revoked, and all three environment inventories omit `OPENROUTER_API_KEY`. Write the asserted result to `docs/verification/containment/result.json` and commit the non-secret evidence with explicit paths.
 
-```text
-POST /api/chat -> 404 or 405 with no generation
-/chatbot -> 301 or 308 to /tools/chatbot
-OPENROUTER_API_KEY absent
+- [ ] **Step 10: Inspect and commit containment evidence**
+
+Verify none of the evidence contains credential values, authorization headers, cookies, or local environment contents. Then run:
+
+```bash
+git add docs/verification/containment/openrouter-key-revocation.json docs/verification/containment/chatbot-blobs-before.json docs/verification/containment/chatbot-blobs-after.json docs/verification/containment/vercel-env-production.json docs/verification/containment/vercel-env-preview.json docs/verification/containment/vercel-env-development.json docs/verification/containment/vercel-inspect.json docs/verification/containment/vercel-deployment.json docs/verification/containment/result.json
+git commit -m "chore(security): record chatbot containment evidence"
 ```
 
 ### Task 4: Enforce explicit publication and assistant eligibility
@@ -518,7 +629,6 @@ OPENROUTER_API_KEY absent
 - Modify: `src/pages/works/index.astro`
 - Modify: `src/pages/works/[slug].astro`
 - Modify: `src/pages/rss.xml.ts`
-- Locally guard but do not stage: `src/data/blog/how-to-install-and-get-started-with-codex-cli-2026.mdx`
 
 **Interfaces:**
 - Produces: `PublicationStatus`, `isPublished()`, `isAssistantEligible()`.
@@ -623,12 +733,7 @@ status: published
 assistant: true
 ```
 
-Do not stage the active Codex draft. In the original workspace only, replace its `draft: false` with:
-
-```yaml
-status: draft
-assistant: false
-```
+The active Codex draft exists only as a user-owned untracked file in the original checkout. Do not edit, copy, parse, build, or stage it. The clean worktree cannot see it, and the production path later proves that deployments originate from the clean tracked commit. If the user eventually chooses to publish or migrate that draft, handle it as a separate content task under the explicit schema.
 
 - [ ] **Step 5: Replace every collection filter**
 
@@ -663,17 +768,18 @@ Expected: tests and build pass; no active-draft route is generated.
 - [ ] **Step 7: Commit only tracked policy work**
 
 ```bash
-git add src/content/policy.ts src/schemas/content.ts tests/unit/content/policy.test.ts src/pages src/data/blog/how-to-install-claude-code-cli-2026.mdx src/data/blog/vibe-coding-vs-agentic-coding-why-the-distinction-matters.mdx src/data/works/recursive-convergence-hypothesis.mdx
+git add src/content/policy.ts src/schemas/content.ts tests/unit/content/policy.test.ts src/pages/index.astro src/pages/blog/index.astro 'src/pages/blog/[slug].astro' src/pages/works/index.astro 'src/pages/works/[slug].astro' src/pages/rss.xml.ts src/data/blog/how-to-install-claude-code-cli-2026.mdx src/data/blog/vibe-coding-vs-agentic-coding-why-the-distinction-matters.mdx src/data/works/recursive-convergence-hypothesis.mdx
 git status --short
-git commit -m "feat(content): require explicit publication status"
+git commit -m "feat(content)!: require explicit publication status" -m "BREAKING CHANGE: Content authors must use required status and assistant fields instead of draft."
 ```
 
-Expected before commit: the Codex draft remains untracked and unstaged.
+Expected before commit: only the explicit paths above are staged; the original checkout's inventory is byte-for-byte unchanged.
 
 ### Task 5: Add production content validation and CI
 
 **Files:**
 - Create: `src/content/validation.ts`
+- Create: `src/content/gitTracking.ts`
 - Create: `scripts/verify-content.ts`
 - Create: `tests/unit/content/validation.test.ts`
 - Create: `.github/workflows/verify.yml`
@@ -685,75 +791,75 @@ Expected before commit: the Codex draft remains untracked and unstaged.
 
 - [ ] **Step 1: Write failing validation tests**
 
-Create `tests/unit/content/validation.test.ts`:
+Create table-driven tests for every approved failure:
 
-```ts
-import { describe, expect, it } from 'vitest';
-import { validateContentRecords } from '../../../src/content/validation';
+- missing `status`;
+- unsupported `status`;
+- non-boolean explicit `assistant`;
+- assistant-enabled draft;
+- untracked published entry;
+- invalid canonical URL;
+- invalid published link URL;
+- duplicate canonical ID;
+- duplicate canonical URL after URL normalization;
+- generated source ID that is missing, ineligible, or untracked.
 
-describe('content validation', () => {
-  it('rejects assistant-enabled drafts', () => {
-    const errors = validateContentRecords([
-      { path: 'src/data/blog/draft.mdx', tracked: true, data: { status: 'draft', assistant: true } },
-    ]);
-    expect(errors).toContain('src/data/blog/draft.mdx: assistant content must be published');
-  });
-
-  it('rejects untracked published content', () => {
-    const errors = validateContentRecords([
-      { path: 'src/data/blog/new.mdx', tracked: false, data: { status: 'published', assistant: false } },
-    ]);
-    expect(errors).toContain('src/data/blog/new.mdx: published content must be tracked by Git');
-  });
-
-  it('accepts an untracked draft excluded from the assistant', () => {
-    expect(validateContentRecords([
-      { path: 'src/data/blog/draft.mdx', tracked: false, data: { status: 'draft', assistant: false } },
-    ])).toEqual([]);
-  });
-});
-```
+Also test that an untracked `draft + assistant:false` record is accepted and cannot appear in the returned eligible tracked-source set. Every error assertion includes the repository-relative path and stable rule code.
 
 - [ ] **Step 2: Implement the pure validator**
 
 Create `src/content/validation.ts`:
 
 ```ts
-import { isAssistantEligible, isPublished, type PublicationData } from './policy';
-
 export interface ContentValidationRecord {
   path: string;
   tracked: boolean;
-  data: PublicationData;
+  canonicalId: string;
+  canonicalUrl: string;
+  status: unknown;
+  assistant: unknown;
+  links: Array<{ label: string; url: unknown }>;
 }
 
-export function validateContentRecords(records: ContentValidationRecord[]): string[] {
-  const errors: string[] = [];
-
-  for (const record of records) {
-    if (record.data.assistant === true && !isAssistantEligible(record.data)) {
-      errors.push(`${record.path}: assistant content must be published`);
-    }
-    if (isPublished(record.data) && !record.tracked) {
-      errors.push(`${record.path}: published content must be tracked by Git`);
-    }
-  }
-
-  return errors;
+export interface ContentPolicyError {
+  code:
+    | 'missing-status'
+    | 'unsupported-status'
+    | 'invalid-assistant-flag'
+    | 'assistant-not-published'
+    | 'published-untracked'
+    | 'invalid-canonical-url'
+    | 'invalid-link-url'
+    | 'duplicate-canonical-id'
+    | 'duplicate-canonical-url'
+    | 'generated-source-ineligible'
+    | 'schema-invalid';
+  path: string;
+  message: string;
 }
+
+export function validateContentRecords(records: ContentValidationRecord[]): ContentPolicyError[];
+
+export function assertGeneratedAssistantSources(
+  records: ContentValidationRecord[],
+  generatedCanonicalIds: readonly string[],
+): ContentPolicyError[];
 ```
+
+The implementation validates raw publication fields before schema transformation, accepts only absolute `https:` canonical and published-link URLs, normalizes canonical URLs before duplicate comparison, and uses `isPublished()`/`isAssistantEligible()` after the raw fields are proven valid. It fails closed and never silently drops a malformed record.
 
 - [ ] **Step 3: Implement the filesystem/Git adapter**
 
 Create `scripts/verify-content.ts` that:
 
 1. Recursively reads `.md` and `.mdx` files under `src/data/blog` and `src/data/works`.
-2. Parses frontmatter with `gray-matter`.
-3. Parses the result through the appropriate shared Zod schema.
-4. Calls `git ls-files --error-unmatch <path>` without a shell to determine `tracked`.
-5. Calls `validateContentRecords()`.
-6. Prints one error per line and exits `1` when errors exist.
-7. Prints `Content policy verified: <count> entries` and exits `0` otherwise.
+2. Parses raw frontmatter with `gray-matter`, preserving missing and unsupported values for policy diagnostics.
+3. Derives repository-relative path, canonical ID, canonical URL, and every published URL-bearing field, including links, images, repository, and demo values.
+4. Calls `loadTrackedContentPaths()` from `src/content/gitTracking.ts`, which runs `git ls-files -z -- src/data/blog src/data/works` once without a shell and fails when Git state is unavailable.
+5. Calls `validateContentRecords()` for raw policy, identity, URL, and tracking rules.
+6. Parses each otherwise-valid record through the appropriate shared Zod schema and reports Zod issues as path-qualified `schema-invalid` errors.
+7. Prints one `<path> [<rule-code>]: <message>` error per line and exits `1` when errors exist.
+8. Prints `Content policy verified: <count> entries; <eligible> tracked assistant sources` and exits `0` otherwise.
 
 The main entrypoint must be:
 
@@ -772,11 +878,14 @@ Set:
 ```json
 {
   "verify:content": "tsx scripts/verify-content.ts",
-  "verify": "npm run check && npm run test && npm run verify:content && npm run build"
+  "build": "npm run verify:content && astro build",
+  "verify": "npm run check && npm run test && npm run build"
 }
 ```
 
-- [ ] **Step 5: Run the validator against the guarded active draft**
+This makes content verification part of the actual Vercel and local production build, not only an optional CI command. Task 3's static-boundary test must assert that `build` contains `astro build` and contains neither embedding work nor network mutation; it must not require the script to equal a fixed string.
+
+- [ ] **Step 5: Run the validator and production build gates**
 
 Run:
 
@@ -786,7 +895,7 @@ npm run verify:content
 npm run verify
 ```
 
-Expected: all pass; the untracked active draft is accepted only because it is explicitly `draft` and not assistant-enabled.
+Expected: all pass in the clean worktree. Separately run a fixture/integration test proving an untracked `published + assistant:true` source makes `npm run build` fail before Astro generation. Do not run the original user's draft through this gate or rewrite it.
 
 - [ ] **Step 6: Add `.github/workflows/verify.yml`**
 
@@ -817,7 +926,7 @@ jobs:
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/content/validation.ts scripts/verify-content.ts tests/unit/content/validation.test.ts .github/workflows/verify.yml package.json
+git add src/content/validation.ts src/content/gitTracking.ts scripts/verify-content.ts tests/unit/content/validation.test.ts .github/workflows/verify.yml package.json
 git commit -m "ci: enforce production content and build checks"
 ```
 
@@ -972,6 +1081,8 @@ describe('structured data', () => {
 });
 ```
 
+Before implementation, add a valid typed fixture for each discriminant—`website`, `blogposting`, `person`, `navigation`, `webpage`, `software`, `scholarlyarticle`, and `creativework`. A table-driven test snapshots each complete JSON shape, verifies `JSON.stringify`/`JSON.parse` succeeds, and asserts the expected `@type`. Keep the scholarly-article entity-link assertion above as a focused regression. All eight tests must fail or be impossible to type until the exhaustive builder exists.
+
 - [ ] **Step 2: Move schema construction into a typed utility**
 
 Create `src/utils/structuredData.ts` with:
@@ -1078,10 +1189,11 @@ git commit -m "fix(seo): correct research and structured metadata"
 **Files:**
 - Create: `src/utils/grainientLifecycle.ts`
 - Create: `tests/unit/ui/grainientLifecycle.test.ts`
+- Create: `tests/unit/ui/Grainient.test.tsx`
 - Modify: `src/components/ui/Grainient.tsx`
 
 **Interfaces:**
-- Produces: `shouldRunGrainient(state)`.
+- Produces: `shouldRunGrainient(state)` and `getGrainientRendererAction(previous, next)`.
 - Consumes: hidden state, viewport state, and reduced-motion state.
 
 - [ ] **Step 1: Write the failing lifecycle test**
@@ -1120,6 +1232,8 @@ export function shouldRunGrainient(state: GrainientLifecycleState): boolean {
 }
 ```
 
+Also implement a pure renderer-transition decision with actions `initialize`, `start-loop`, `stop-loop`, `dispose`, and `none`. Tests must cover initial reduced/non-reduced states, `reduce -> no-preference`, `no-preference -> reduce`, hidden/visible, offscreen/onscreen, and combinations that must never schedule RAF.
+
 - [ ] **Step 3: Integrate a live reduced-motion query**
 
 In `Grainient.tsx`, create and subscribe to:
@@ -1136,9 +1250,11 @@ const handleReducedMotionChange = (event: MediaQueryListEvent) => {
 mediaQuery.addEventListener('change', handleReducedMotionChange);
 ```
 
-Replace `canRun()` with `shouldRunGrainient({ documentHidden: document.hidden, inViewport: isInViewport, reducedMotion })`. When reduced motion is active before renderer creation, return the existing plain hero fallback without starting an animation loop. Remove the media-query listener during cleanup.
+Replace `canRun()` with one reconciliation function driven by `getGrainientRendererAction()`. When reduced motion is active before renderer creation, render the existing plain hero fallback and create no renderer. When the preference changes to `no-preference`, initialize exactly one renderer only when mounted and visible; if it is hidden/offscreen, defer initialization until eligible. When the preference changes to `reduce`, cancel RAF, detach and dispose the renderer/canvas and GPU resources, and restore the fallback. Hidden/offscreen transitions stop or restart the existing renderer without bypassing reduced motion. Remove the media-query listener and dispose resources during cleanup.
 
 Preserve the deployed 24fps frame interval and IntersectionObserver behavior.
+
+In `Grainient.test.tsx`, inject or mock the renderer factory, `matchMedia`, `IntersectionObserver`, and RAF. Assert exact factory, dispose, and RAF call counts for both live preference directions, visibility changes, viewport changes, and unmount. No test may infer lifecycle solely from canvas presence.
 
 - [ ] **Step 4: Verify**
 
@@ -1146,6 +1262,7 @@ Run:
 
 ```bash
 npm run test -- tests/unit/ui/grainientLifecycle.test.ts
+npm run test -- tests/unit/ui/Grainient.test.tsx
 npm run check
 npm run build
 ```
@@ -1155,7 +1272,7 @@ Expected: all pass.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/utils/grainientLifecycle.ts src/components/ui/Grainient.tsx tests/unit/ui/grainientLifecycle.test.ts
+git add src/utils/grainientLifecycle.ts src/components/ui/Grainient.tsx tests/unit/ui/grainientLifecycle.test.ts tests/unit/ui/Grainient.test.tsx
 git commit -m "fix(a11y): respect reduced motion in Grainient"
 ```
 
@@ -1194,9 +1311,16 @@ rg -n "components/chatbot|useChatbot|services/(generation|initialization|retriev
 
 Expected: no output.
 
-- [ ] **Step 2: Delete retired files**
+- [ ] **Step 2: Delete retired files with explicit paths**
 
-Delete the files and directory listed in this task. Do not delete the historical design documents.
+Run the following only after the import audit is empty:
+
+```bash
+git rm scripts/build-embeddings.ts scripts/content-loader.ts src/hooks/useChatbot.ts src/services/generation.ts src/services/initialization.ts src/services/retrieval.ts src/services/rrf.ts src/stores/chatbot.ts src/types/chatbot.ts src/utils/artifact-loader.ts src/utils/chunking.ts src/utils/fp16.ts src/utils/retry.ts src/workers/retrieval.worker.ts
+git rm -r src/components/chatbot
+```
+
+Do not delete the historical design documents.
 
 - [ ] **Step 3: Remove dependencies used only by the retired runtime**
 
@@ -1223,7 +1347,6 @@ Expected: verification passes and the import scan is empty.
 
 ```bash
 git add package.json package-lock.json
-git add -u scripts src
 git commit -m "refactor(chatbot): remove retired RAG runtime"
 ```
 
@@ -1232,11 +1355,13 @@ git commit -m "refactor(chatbot): remove retired RAG runtime"
 **Files:**
 - Create: `tests/e2e/site.spec.ts`
 - Create: `tests/e2e/accessibility.spec.ts`
+- Create: `tests/deployment/core-production.spec.ts`
+- Create: `playwright.production.config.ts`
 - Modify: `package.json`
 
 **Interfaces:**
-- Produces: route, redirect, theme, metadata, keyboard, and axe verification.
-- Consumes: dev server through `playwright.config.ts`.
+- Produces: route, redirect, theme, metadata, keyboard, mobile-disclosure, and axe verification.
+- Consumes: built static output through `playwright.config.ts` and deployed production through `playwright.production.config.ts`.
 
 - [ ] **Step 1: Install the Playwright browser**
 
@@ -1253,7 +1378,16 @@ Create `tests/e2e/site.spec.ts`:
 ```ts
 import { expect, test } from '@playwright/test';
 
-const routes = ['/', '/about', '/blog', '/works', '/tools', '/contact'];
+const routes = [
+  '/',
+  '/about',
+  '/blog',
+  '/blog/how-to-install-claude-code-cli-2026',
+  '/works',
+  '/works/recursive-convergence-hypothesis',
+  '/tools',
+  '/contact',
+];
 
 for (const route of routes) {
   test(`${route} renders one main heading`, async ({ page }) => {
@@ -1278,18 +1412,34 @@ test('theme choice persists across navigation', async ({ page }) => {
 });
 
 test('machine-readable routes are available', async ({ request }) => {
-  expect((await request.get('/rss.xml')).ok()).toBe(true);
+  const rss = await request.get('/rss.xml');
+  expect(rss.ok()).toBe(true);
+  expect(await rss.text()).toContain('<rss');
   expect((await request.get('/robots.txt')).ok()).toBe(true);
+  const sitemapIndex = await request.get('/sitemap-index.xml');
+  const sitemapPage = await request.get('/sitemap-0.xml');
+  expect(sitemapIndex.ok() || sitemapPage.ok()).toBe(true);
 });
 
-test('content pages expose JSON-LD', async ({ page }) => {
+test('content pages expose parseable typed JSON-LD', async ({ page }) => {
   await page.goto('/works/recursive-convergence-hypothesis');
   const schemas = await page.locator('script[type="application/ld+json"]').allTextContents();
-  expect(schemas.some((schema) => schema.includes('ScholarlyArticle'))).toBe(true);
+  const parsed = schemas.map((schema) => JSON.parse(schema) as { '@type'?: string });
+  expect(parsed.some((schema) => schema['@type'] === 'ScholarlyArticle')).toBe(true);
+});
+
+test('draft routes are absent', async ({ request }) => {
+  const response = await request.get('/blog/how-to-install-and-get-started-with-codex-cli-2026');
+  expect(response.status()).toBe(404);
+});
+
+test('nested routes mark the canonical navigation item active', async ({ page }) => {
+  await page.goto('/blog/how-to-install-claude-code-cli-2026');
+  await expect(page.getByRole('link', { name: 'Blog', exact: true })).toHaveAttribute('aria-current', 'page');
 });
 ```
 
-Test the production redirect separately after deployment because Astro dev does not apply `vercel.json`.
+Create `playwright.production.config.ts` with `testDir: './tests/deployment'`, no `webServer`, one Chromium project, and `baseURL: process.env.PRODUCTION_ORIGIN ?? 'https://jetsanchez.com'`. In `core-production.spec.ts`, use the request fixture with `maxRedirects: 0` to require `POST /api/chat === 404` and `GET /chatbot === 308` with `location === '/tools/chatbot'`. Also assert the homepage and one sitemap respond `200`. This suite runs only after the target deployment is aliased.
 
 - [ ] **Step 3: Create accessibility tests**
 
@@ -1321,10 +1471,28 @@ test('reduced motion does not run Grainient animation', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/');
   await expect(page.locator('canvas')).toHaveCount(0);
+  await page.emulateMedia({ reducedMotion: 'no-preference' });
+  await expect(page.locator('canvas')).toHaveCount(1);
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await expect(page.locator('canvas')).toHaveCount(0);
+});
+
+test('mobile disclosure exposes and restores controlled state', async ({ page }, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile-chromium');
+  await page.goto('/');
+  const disclosure = page.getByRole('button', { name: /navigation/i });
+  await expect(disclosure).toHaveAttribute('aria-expanded', 'false');
+  await disclosure.click();
+  await expect(disclosure).toHaveAttribute('aria-expanded', 'true');
+  const controlledId = await disclosure.getAttribute('aria-controls');
+  if (!controlledId) throw new Error('Navigation disclosure lacks aria-controls');
+  await expect(page.locator(`#${controlledId}`)).toBeVisible();
+  await page.keyboard.press('Tab');
+  await expect(page.locator(':focus-visible')).toBeVisible();
+  await disclosure.click();
+  await expect(disclosure).toHaveAttribute('aria-expanded', 'false');
 });
 ```
-
-On the mobile project, open the navigation disclosure and assert `aria-expanded` changes from `false` to `true`, its controlled dock remains keyboard reachable, and closing it restores the state.
 
 Color contrast remains a separate manual/browser check because the WebGL background makes automated sampling unreliable; do not claim it passed axe.
 
@@ -1335,21 +1503,40 @@ Set:
 ```json
 {
   "verify:browser": "playwright test",
+  "verify:production": "playwright test --config=playwright.production.config.ts",
   "verify:all": "npm run verify && npm run verify:browser"
 }
 ```
 
 Keep routine `verify` browser-free for fast local and Vercel builds; CI adds a separate browser job.
 
-- [ ] **Step 5: Add a browser job to `.github/workflows/verify.yml`**
+- [ ] **Step 5: Add an executable browser job to `.github/workflows/verify.yml`**
 
-Add a job depending on `verify` that installs Chromium and runs `npm run verify:browser`.
+The completed workflow contains this second job:
+
+```yaml
+  browser:
+    needs: verify
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - run: npx playwright install --with-deps chromium
+      - run: npm run verify:browser
+```
+
+The production deployment suite is not run against the old production alias in pull-request CI. It is a required postdeployment gate in Task 12 and fails on any status or destination mismatch.
 
 - [ ] **Step 6: Run and commit**
 
 ```bash
 npm run test:e2e
-git add tests/e2e package.json .github/workflows/verify.yml
+git add tests/e2e/site.spec.ts tests/e2e/accessibility.spec.ts tests/deployment/core-production.spec.ts playwright.production.config.ts package.json .github/workflows/verify.yml
 git commit -m "test(e2e): cover core routes and accessibility"
 ```
 
@@ -1358,11 +1545,17 @@ git commit -m "test(e2e): cover core routes and accessibility"
 **Files:**
 - Rewrite: `README.md`
 - Modify: `AGENTS.md`
-- Modify: `docs/project-spec-v2.md`
-- Modify: `docs/v2-migration-log.md`
-- Modify: `docs/rag-chatbot-architecture.md`
-- Modify: `docs/rag-chatbot-implementation-plan.md`
-- Modify: `docs/rag-chatbot-implementation-log.md`
+- Create: `docs/archive/README.md`
+- Create: `docs/archive/archive-manifest.json`
+- Create: `scripts/archive-legacy-docs.ts`
+- Move tracked: `docs/project-spec.md` -> `docs/archive/site/project-spec-v1.md`
+- Move tracked: `docs/project-spec-v2.md` -> `docs/archive/site/project-spec-v2.md`
+- Move tracked: `docs/v2-migration-log.md` -> `docs/archive/site/v2-migration-log.md`
+- Move tracked: `docs/implementation-log.md` -> `docs/archive/site/implementation-logs/site-launch.md`
+- Move tracked: `docs/liquid-glass-dock-v1-log.md` -> `docs/archive/site/implementation-logs/liquid-glass-dock-v1.md`
+- Move tracked RAG docs into: `docs/archive/jets-ghost/legacy-rag/`
+- Adopt authorized untracked historical docs into: `docs/archive/jets-ghost/legacy-rag/`
+- Adopt authorized untracked dock log into: `docs/archive/site/implementation-logs/liquid-glass-dock-v2.md`
 
 **Interfaces:**
 - Produces: one canonical architecture path and accurate public contributor documentation.
@@ -1405,23 +1598,54 @@ Remove emoji, badges, “perfect performance,” hard-coded Lighthouse metrics, 
 
 Update commands, content fields, static deployment, test locations, pure-build rule, Jet's Ghost status, canonical specs, and versioning rules. Remove references to `draft?: boolean`, server OpenRouter generation, v2 as target, and Claude attribution.
 
-- [ ] **Step 3: Mark superseded and historical documents**
+- [ ] **Step 3: Move tracked legacy documents into a real archive**
 
-At the top of `project-spec-v2.md` and `v2-migration-log.md`, add:
+Create the target directories, then use explicit `git mv` commands for the tracked v1/v2 specifications, migration/launch logs, Liquid Glass v1 log, and these RAG records:
 
-```markdown
-> **Status: Superseded.** Modernized v1 is the canonical architecture. See [`docs/superpowers/specs/2026-07-11-v1-modernization-design.md`](superpowers/specs/2026-07-11-v1-modernization-design.md).
+```text
+docs/rag-chatbot-architecture.md
+docs/rag-chatbot-implementation-plan.md
+docs/rag-chatbot-implementation-log.md
 ```
 
-At the top of each old RAG document, add:
+Place site history under `docs/archive/site/` and RAG history under `docs/archive/jets-ghost/legacy-rag/`. Do not move `docs/image-workflow.md` or either active Superpowers design/plan.
 
-```markdown
-> **Status: Historical implementation record.** The active Jet's Ghost architecture is [`docs/superpowers/specs/2026-07-11-jets-ghost-local-assistant-design.md`](superpowers/specs/2026-07-11-jets-ghost-local-assistant-design.md).
+```bash
+mkdir -p docs/archive/site/implementation-logs docs/archive/jets-ghost/legacy-rag
+git mv docs/project-spec.md docs/archive/site/project-spec-v1.md
+git mv docs/project-spec-v2.md docs/archive/site/project-spec-v2.md
+git mv docs/v2-migration-log.md docs/archive/site/v2-migration-log.md
+git mv docs/implementation-log.md docs/archive/site/implementation-logs/site-launch.md
+git mv docs/liquid-glass-dock-v1-log.md docs/archive/site/implementation-logs/liquid-glass-dock-v1.md
+git mv docs/rag-chatbot-architecture.md docs/archive/jets-ghost/legacy-rag/rag-chatbot-architecture.md
+git mv docs/rag-chatbot-implementation-plan.md docs/archive/jets-ghost/legacy-rag/rag-chatbot-implementation-plan.md
+git mv docs/rag-chatbot-implementation-log.md docs/archive/jets-ghost/legacy-rag/rag-chatbot-implementation-log.md
 ```
 
-Use a correct relative target from each file location.
+- [ ] **Step 4: Adopt only the explicitly authorized untracked historical documents**
 
-- [ ] **Step 4: Verify documentation facts**
+Create `scripts/archive-legacy-docs.ts` with an exact source-to-destination map for:
+
+```text
+EMBEDDING_STORAGE_RESEARCH.md
+  -> docs/archive/jets-ghost/legacy-rag/embedding-storage-research.md
+docs/jets-ghost-v1.5-spec.md
+  -> docs/archive/jets-ghost/legacy-rag/jets-ghost-v1.5-spec.md
+docs/rag-chatbot-implementation-review.md
+  -> docs/archive/jets-ghost/legacy-rag/rag-chatbot-implementation-review.md
+docs/liquid-glass-dock-v2-log.md
+  -> docs/archive/site/implementation-logs/liquid-glass-dock-v2.md
+```
+
+The script reads those files from the inventoried original checkout, verifies each against `authorized-archive-source-hashes.txt`, refuses symlinks or changed/missing sources, copies its substantive body, prepends the correct historical/superseded banner and active-successor link, and writes source/archived SHA-256 values to `docs/archive/archive-manifest.json`. Verify mode removes only the exact generated banner before hashing the archived body and requires it to equal the recorded source hash. The script never reads or copies the active Codex article, EmDash Newsroom exercise, Page Analyzer spec, or Schema Visualizer spec.
+
+Recover `ORIGINAL_ROOT` from the `Original root: ...` line in `original-worktree-status.txt`, assert it is an absolute Git worktree path, then run the script in create and verify modes with that source root. Do not delete the original untracked copies yet; cleanup occurs only after the archive commit is integrated.
+
+- [ ] **Step 5: Index the archive and repair references**
+
+`docs/archive/README.md` lists every archived path, original path, reason/status, date, and canonical successor. Add a visible banner with a correct relative successor link to every moved tracked document. Update README, AGENTS, both active Superpowers documents, and all remaining live links so no canonical documentation points at an obsolete path.
+
+- [ ] **Step 6: Verify documentation facts and archive integrity**
 
 Run:
 
@@ -1429,37 +1653,41 @@ Run:
 for script in dev check test test:e2e verify:content build verify upload-image; do node -e "const p=require('./package.json'); if(!p.scripts['$script']) process.exit(1)"; done
 if rg -n "0\.0\.1|src/content/blog|src/content/works|Perfect Performance|Claude attribution|Download PDF" README.md AGENTS.md; then exit 1; fi
 test "$(readlink CLAUDE.md)" = "AGENTS.md"
+ORIGINAL_ROOT=$(sed -n 's/^Original root: //p' docs/verification/baselines/core-1.0.0/original-worktree-status.txt)
+test -n "$ORIGINAL_ROOT"
+npx tsx scripts/archive-legacy-docs.ts --verify --source-root="$ORIGINAL_ROOT"
+if rg -n "docs/(project-spec-v2|v2-migration-log|rag-chatbot-architecture|rag-chatbot-implementation-plan|rag-chatbot-implementation-log)\.md" README.md AGENTS.md docs/superpowers/specs; then exit 1; fi
 ```
 
 Expected: no stale claims and all documented commands exist.
 
-- [ ] **Step 5: Commit**
+- [ ] **Step 7: Commit the canonical documentation and archive**
 
 ```bash
-git add README.md AGENTS.md docs/project-spec-v2.md docs/v2-migration-log.md docs/rag-chatbot-architecture.md docs/rag-chatbot-implementation-plan.md docs/rag-chatbot-implementation-log.md
+git add README.md AGENTS.md scripts/archive-legacy-docs.ts docs/archive/README.md docs/archive/archive-manifest.json docs/archive/site/project-spec-v1.md docs/archive/site/project-spec-v2.md docs/archive/site/v2-migration-log.md docs/archive/site/implementation-logs/site-launch.md docs/archive/site/implementation-logs/liquid-glass-dock-v1.md docs/archive/site/implementation-logs/liquid-glass-dock-v2.md docs/archive/jets-ghost/legacy-rag/rag-chatbot-architecture.md docs/archive/jets-ghost/legacy-rag/rag-chatbot-implementation-plan.md docs/archive/jets-ghost/legacy-rag/rag-chatbot-implementation-log.md docs/archive/jets-ghost/legacy-rag/embedding-storage-research.md docs/archive/jets-ghost/legacy-rag/jets-ghost-v1.5-spec.md docs/archive/jets-ghost/legacy-rag/rag-chatbot-implementation-review.md docs/superpowers/specs/2026-07-11-v1-modernization-design.md docs/superpowers/specs/2026-07-11-jets-ghost-local-assistant-design.md docs/superpowers/plans/2026-07-11-v1-modernization.md docs/superpowers/plans/2026-07-11-jets-ghost-local-assistant.md
 git commit -m "docs: establish canonical project documentation"
 ```
 
-### Task 12: Qualify and release core modernization
+### Task 12: Qualify and release core modernization 2.0.0
 
 **Files:**
 - Modify: `package.json`
 - Modify: `package-lock.json`
-- Create: `docs/verification/core-modernization-1.0.1.md`
+- Create: `docs/verification/core-modernization-2.0.0.md`
 
 **Interfaces:**
-- Produces: verified application release `1.0.1` and evidence record.
+- Produces: verified breaking application release `2.0.0` and evidence record.
 - Consumes: all previous core tasks.
 
-- [ ] **Step 1: Bump the patch release without tagging**
+- [ ] **Step 1: Bump the major release without tagging**
 
 Run:
 
 ```bash
-npm version 1.0.1 --no-git-tag-version
+npm version 2.0.0 --no-git-tag-version
 ```
 
-Expected: `package.json` and the lockfile report `1.0.1`.
+Expected: `package.json` and the lockfile report `2.0.0`. This major release accounts for removal of `/api/chat` and replacement of the legacy content authoring contract.
 
 - [ ] **Step 2: Run the complete local gate**
 
@@ -1472,14 +1700,14 @@ git diff --check
 git status --short
 ```
 
-Expected: all checks pass; only the intended version and verification evidence are uncommitted.
+Expected: all checks pass; only the intended version files are uncommitted.
 
 - [ ] **Step 3: Record verification evidence**
 
-Create `docs/verification/core-modernization-1.0.1.md` containing:
+Create `docs/verification/core-modernization-2.0.0.md` containing:
 
 ```markdown
-# Core Modernization 1.0.1 Verification
+# Core Modernization 2.0.0 Verification
 
 - Node: `22.x`
 - `npm run verify`: passed
@@ -1491,44 +1719,70 @@ Create `docs/verification/core-modernization-1.0.1.md` containing:
 - Draft route: absent
 - SSRN action: DOI-backed View action only
 - Grainient: 24fps, hidden/offscreen pause, reduced-motion fallback verified
-- Production deployment: ready
+- Visual baseline: compared with `docs/verification/baselines/core-1.0.0/manifest.json`
+- Postdeployment binding: required in the `v2.0.0` annotated tag and release readback artifact
 ```
 
 The Git commit containing this file is the evidence revision; no manually copied SHA is stored inside the file.
 
 - [ ] **Step 4: Perform representative visual comparison**
 
-Compare home, blog index/detail, works index/detail, tools, and contact at mobile and desktop widths against the current production surface. Record only verified intentional differences in the evidence file. Reject changes to palette, typography, Utopia spacing, Liquid Glass geometry, or Grainient appearance for visitors without reduced-motion preferences.
+Capture the candidate using `scripts/capture-production-baseline.ts` against the candidate deployment and compare it with the immutable screenshots and metadata under `docs/verification/baselines/core-1.0.0/`. Do not recapture or replace the baseline. Compare home, blog index/detail, works index/detail, tools, and contact at both recorded viewports. Record only verified intentional differences in the evidence file. Reject changes to palette, typography, Utopia spacing, Liquid Glass geometry, or Grainient appearance for visitors without reduced-motion preferences.
 
 - [ ] **Step 5: Commit the release candidate**
 
 ```bash
-git add package.json package-lock.json docs/verification/core-modernization-1.0.1.md
-git commit -m "chore(release): prepare 1.0.1"
+git add package.json package-lock.json docs/verification/core-modernization-2.0.0.md
+git commit -m "chore(release): prepare 2.0.0"
 ```
 
 - [ ] **Step 6: Deploy through the approved remote workflow**
 
 Push only after the user-approved remote checkpoint. Wait for CI and Vercel to become ready.
 
-Verify production:
+Verify production with exact assertions and bind it to the release commit:
 
 ```bash
-curl -fsS https://jetsanchez.com/ >/dev/null
-curl -sS -o /dev/null -w '%{http_code}\n' -X POST https://jetsanchez.com/api/chat
-curl -sSI https://jetsanchez.com/chatbot | rg -i '^(HTTP/|location:)'
-curl -fsS https://jetsanchez.com/sitemap-index.xml >/dev/null || curl -fsS https://jetsanchez.com/sitemap-0.xml >/dev/null
+EXPECTED_SHA=$(git rev-parse HEAD)
+npm run verify:production
+npx --yes vercel@55.0.0 inspect jetsanchez.com --wait --timeout=5m --format=json > docs/verification/containment/release-vercel-inspect.json
+DEPLOYMENT_ID=$(node -e "const d=require('./docs/verification/containment/release-vercel-inspect.json'); process.stdout.write(d.id)")
+npx --yes vercel@55.0.0 api "/v13/deployments/$DEPLOYMENT_ID" --raw > docs/verification/containment/release-vercel-deployment.json
+npx tsx scripts/verify-production-containment.ts --origin=https://jetsanchez.com --expected-commit="$EXPECTED_SHA" --deployment=docs/verification/containment/release-vercel-deployment.json --revocation=docs/verification/containment/openrouter-key-revocation.json --blob-before=docs/verification/containment/chatbot-blobs-before.json --blob-after=docs/verification/containment/chatbot-blobs-after.json --output=docs/verification/containment/release-result.json
 ```
 
-Expected: home and sitemap load, API cannot generate, redirect is permanent.
+Expected: the deployment is `READY`, production-targeted, and built from `EXPECTED_SHA`; home and sitemap return `200`; `POST /api/chat` returns exactly `404`; `/chatbot` returns exactly `308` to `/tools/chatbot`; Blob and credential assertions remain satisfied.
+
+Keep `release-result.json` uncommitted. Committing a self-referential deployment ID would create a new SHA and invalidate the binding it records.
 
 - [ ] **Step 7: Tag only after production readback**
 
 ```bash
-git tag -a v1.0.1 -m "v1.0.1"
+git tag -a v2.0.0 "$EXPECTED_SHA" -m "v2.0.0" -m "Vercel deployment: $DEPLOYMENT_ID" -m "Git SHA: $EXPECTED_SHA"
 ```
 
-Push the tag only with the same remote authorization used for the release.
+Push the tag only with the same remote authorization used for the release. Preserve `release-result.json` as a CI/GitHub release artifact attached to `v2.0.0`; do not commit it back into the tagged tree.
+
+- [ ] **Step 8: Remove superseded untracked source copies after archive integration**
+
+Only after the archive commit is reachable from the deployed/tagged `2.0.0` commit, revalidate the four original files against `authorized-archive-source-hashes.txt` and run the archive script's verify mode against the committed copies. Then, from the original checkout, remove exactly:
+
+```text
+EMBEDDING_STORAGE_RESEARCH.md
+docs/jets-ghost-v1.5-spec.md
+docs/rag-chatbot-implementation-review.md
+docs/liquid-glass-dock-v2-log.md
+```
+
+Do not remove or modify any other untracked file. Confirm the remaining original-worktree status differs from the Task 0 inventory only by absence of these four archived paths.
+
+```bash
+ORIGINAL_ROOT=$(sed -n 's/^Original root: //p' docs/verification/baselines/core-1.0.0/original-worktree-status.txt)
+test -n "$ORIGINAL_ROOT"
+git -C "$ORIGINAL_ROOT" rev-parse --is-inside-work-tree >/dev/null
+rm -- "$ORIGINAL_ROOT/EMBEDDING_STORAGE_RESEARCH.md" "$ORIGINAL_ROOT/docs/jets-ghost-v1.5-spec.md" "$ORIGINAL_ROOT/docs/rag-chatbot-implementation-review.md" "$ORIGINAL_ROOT/docs/liquid-glass-dock-v2-log.md"
+git -C "$ORIGINAL_ROOT" status --porcelain=v1 -uall
+```
 
 ---
 
@@ -1537,11 +1791,13 @@ Push the tag only with the same remote authorization used for the release.
 Before starting the Jet's Ghost implementation plan, confirm:
 
 ```text
-[ ] Core production is 1.0.1 and healthy
+[ ] Core production is 2.0.0 and healthy
 [ ] OpenRouter is revoked and absent
 [ ] Public chatbot blobs are deleted
 [ ] Content policy and CI are enforced
 [ ] Build is static and side-effect-free
 [ ] README and AGENTS.md are canonical and accurate
+[ ] Superseded tracked and authorized untracked docs are indexed under docs/archive
+[ ] Active unrelated untracked drafts remain untouched
 [ ] Existing visual identity is unchanged
 ```

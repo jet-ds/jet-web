@@ -16,7 +16,7 @@ Modernize the existing `jet-web` application in place. The current Astro, MDX, T
 
 This is a targeted structural modernization, not a redesign. The public identity of the site—its information architecture, OKLCH palette, Utopia spacing, typography, Liquid Glass navigation, Grainient hero, writing, and editorial tone—remains intact.
 
-`docs/project-spec-v2.md` and the related migration material become superseded historical records. A CMS or platform migration can be reconsidered only when a concrete editorial workflow requires it.
+`docs/project-spec-v2.md` and the related migration material become superseded historical records under `docs/archive/`. A CMS or platform migration can be reconsidered only when a concrete editorial workflow requires it.
 
 ## Scope decomposition
 
@@ -77,7 +77,7 @@ The core site can ship without Jet's Ghost. Jet's Ghost depends on the core cont
 - The repository has no checked-in unit-test, browser-test, lint, or CI system.
 - Navigation definitions are duplicated between `src/config/site.ts`, `LiquidGlassDock.tsx`, `BaseLayout.astro`, and the no-script fallback.
 - The research work contains a nonfunctional `Download PDF` action and uses an HTTP DOI URL.
-- The local checkout predates the merged Grainient performance commit, so work must start from the current remote baseline without discarding the existing untracked files.
+- The earlier audit checkout predated the merged Grainient performance commit; the reviewed documentation head now descends from `origin/main` commit `c0d158c`, which contains `c423ffa`. Implementation must preserve that ancestry without disturbing existing untracked files.
 - The README contains stale paths and unverified performance claims.
 - The v1, v2, RAG, and migration documents describe competing target architectures.
 
@@ -163,6 +163,8 @@ No page, feed, script, or assistant module reimplements `data.draft !== true` or
 - a canonical source ID or URL is duplicated;
 - a generated assistant source does not satisfy the shared eligibility predicate.
 
+The validator receives each record's repository-relative source path, canonical ID, canonical URL, raw publication fields, parsed link URLs, and Git-tracked state. Schema parsing and policy validation are separate gates: malformed or missing publication fields must be reported with the source path rather than disappearing during collection loading. The Jet's Ghost package generator uses the same Git-tracking adapter and independently fails if an included source is absent from the verified tracked-path set.
+
 ## Immediate production containment
 
 Containment is the first implementation milestone and is performed before feature refactoring.
@@ -174,6 +176,8 @@ Containment is the first implementation milestone and is performed before featur
 5. Remove the generated chatbot artifact config from the runtime dependency graph.
 6. Verify the old artifact URLs return 404 and `POST /api/chat` cannot invoke generation.
 7. Delete the remaining obsolete objects under the Blob `chatbot/` prefix after recording their pathname inventory in the implementation evidence. Git history and archived design documents are the preservation mechanism.
+
+Containment readback is an assertion, not a visual inspection. Evidence records the complete pre-delete Blob pathname inventory, proves the prefix is empty afterward, probes every recorded URL, requires exactly `404` for `POST /api/chat`, requires exactly `308` and `Location: /tools/chatbot` for the legacy redirect, proves the credential name is absent from every Vercel scope, and identifies the production deployment ID plus Git commit that produced the response.
 
 Containment must not redeploy the existing remote-writing build unchanged, because that build can publish a new artifact generation as a side effect.
 
@@ -209,6 +213,7 @@ Downloading external model or font assets during a browser session is runtime be
 - Add a GitHub Actions workflow that runs `npm ci` and `npm run verify` on pull requests and pushes to `main`.
 - The production deployment consumes only a commit that passed the same verification command.
 - A build failure must not leave uploaded artifacts or modify tracked source files.
+- Build-purity verification snapshots tracked-file hashes and `git status --porcelain=v1 -uall` before and after the build, excluding only declared build outputs. It covers staged, unstaged, and untracked source/configuration changes.
 
 ## Repository governance and public documentation
 
@@ -227,7 +232,7 @@ No instruction is maintained independently in both files.
 
 ### Semantic Versioning 2.0.0
 
-- Set the application version in `package.json` and `package-lock.json` to `1.0.0` as the current product baseline.
+- Record `1.0.0` in `package.json` and `package-lock.json` as the product baseline before modernization changes begin.
 - Treat `package.json` as the authoritative application version.
 - Apply [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html) to tagged application releases.
 - Increment `MAJOR` for an intentionally incompatible public route, content contract, knowledge-package schema, or supported integration contract.
@@ -235,6 +240,8 @@ No instruction is maintained independently in both files.
 - Increment `PATCH` for backward-compatible fixes, accessibility improvements, performance work, internal refactors, and operational corrections included in a release.
 - Content-only and documentation-only deployments do not require a version change unless they accompany a versioned application release.
 - Use `v<major>.<minor>.<patch>` for Git release tags.
+
+This modernization intentionally removes the hosted `/api/chat` contract and replaces the legacy `draft` authoring contract with required `status`. It therefore releases as `2.0.0`, not a patch to `1.0.0`. Jet's Ghost is then a backward-compatible public feature on that core and targets `2.1.0`.
 
 ### Conventional Commits 1.0.0
 
@@ -266,8 +273,11 @@ The README contains only:
 ### 1. Canonical documentation
 
 - This design and its companion become the active target specifications.
-- Add a superseded banner and links to `docs/project-spec-v2.md` and `docs/v2-migration-log.md`.
-- Mark the old RAG architecture, implementation plan, implementation log, and v1.5 enhancement spec as historical implementation records.
+- Create `docs/archive/README.md` as the index of superseded specifications, completed implementation logs, and retired research.
+- Move the v1/v2 project specifications and migration logs into `docs/archive/site/`, and move retired RAG architecture/plans/logs/reviews/research into `docs/archive/jets-ghost/legacy-rag/`.
+- The user has explicitly approved adoption and archival of superseded untracked documents such as `docs/jets-ghost-v1.5-spec.md`, `docs/rag-chatbot-implementation-review.md`, and `EMBEDDING_STORAGE_RESEARCH.md`. Preserve each substantive body, record its source SHA-256, add status/successor context in the archive, and remove the obsolete untracked source copy only after the archived copy is committed and its body hash is verified.
+- Move completed Liquid Glass and launch implementation logs into `docs/archive/site/implementation-logs/` while retaining links from the archive index.
+- Do not archive unrelated untracked specifications merely because they are untracked. The EmDash Newsroom exercise and Page Analyzer/Schema Visualizer proposals remain separate active drafts unless a later decision supersedes them.
 - Replace `README.md` with the professional structure defined in the repository-governance section.
 - Update repository instructions after implementation so future agents use the new content and verification contracts.
 
@@ -297,7 +307,8 @@ The `Download PDF` action is removed. Citation text also uses the HTTPS DOI URL.
 - Start from `origin/main`, which includes `c423ffa`.
 - Preserve the 24fps cap, offscreen pause, hidden-document pause, WebGL fallback, theme behavior, and visual parameters.
 - When `prefers-reduced-motion: reduce` is active, render a static first frame or the existing non-WebGL fallback and do not maintain an animation loop.
-- Respond to runtime reduced-motion preference changes.
+- Treat reduced motion as renderer lifecycle state. If reduction is active initially, do not create the WebGL renderer; switching reduction off initializes one when visible, while switching it on cancels RAF, releases the renderer, and restores the static fallback.
+- Respond to runtime reduced-motion preference changes in both directions.
 - Verify no animation resumes while offscreen or hidden.
 
 ### 5. Navigation accessibility
@@ -358,6 +369,8 @@ Minimum browser coverage protects:
 - reduced-motion Grainient behavior;
 - Jet's Ghost placeholder or released activation flow, depending on milestone.
 
+Browser regression tests run against the built static output through `astro preview`, not the development server. The checked-in suite includes each listed route and assertion, parses JSON-LD as JSON, verifies active navigation and mobile disclosure behavior, and installs its browser plus system dependencies in CI. Vercel-only redirect behavior is a separate deployment assertion with an exact status and destination.
+
 Real-model Jet's Ghost evaluation is kept out of the routine CI path because it requires WebGPU and a roughly 2 GB model download. The companion design defines its separate release gate.
 
 ## Error and operational behavior
@@ -374,16 +387,17 @@ Real-model Jet's Ghost evaluation is kept out of the routine CI path because it 
 
 The later implementation plan must respect these dependencies:
 
-1. Begin from the fetched `origin/main` baseline while preserving all user-owned untracked files.
-2. Establish canonical `AGENTS.md`, version `1.0.0`, Conventional Commits, and the no-attribution rule before subsequent commits.
-3. Perform credential/artifact containment before deploying any unchanged build.
-4. Introduce the explicit content contract and migrate tracked entries before replacing filters.
-5. Make the build pure before adding the new knowledge package.
-6. Establish automated verification before broad component or accessibility changes.
-7. Complete the core modernization release independently of Jet's Ghost.
-8. Implement and release Jet's Ghost through its separate plan.
-9. Remove historical runtime dependencies only after no active code imports them.
-10. Rewrite the README after its documented commands and architecture are implemented.
+1. Inventory the original dirty checkout, record the approved starting commit, and create a clean isolated worktree and branch from that exact commit. Never edit, stage, or build the user-owned untracked Codex draft or other untracked files in the original checkout.
+2. Before any deployment or visual change, capture an immutable production baseline for representative routes, viewports, metadata, and the deployed commit/deployment identity.
+3. Establish canonical `AGENTS.md`, record version `1.0.0`, Conventional Commits, and the no-attribution rule before subsequent commits.
+4. Perform credential/artifact containment before deploying any unchanged build.
+5. Introduce the explicit content contract and migrate tracked entries before replacing filters.
+6. Make the build pure before adding the new knowledge package.
+7. Establish automated verification before broad component or accessibility changes.
+8. Complete and release the breaking core modernization as `2.0.0` independently of Jet's Ghost.
+9. Implement and release Jet's Ghost through its separate plan as `2.1.0`.
+10. Remove historical runtime dependencies only after no active code imports them.
+11. Rewrite the README after its documented commands and architecture are implemented.
 
 ## Release criteria
 
@@ -394,14 +408,14 @@ The core modernization is complete when:
 - `/api/chat` is absent in production;
 - all public and assistant content follows the explicit status policy;
 - production verification rejects untracked published entries;
-- `npm run build` makes no remote writes and changes no tracked file;
+- `npm run build` makes no remote writes and changes no tracked or nonignored untracked source/configuration file;
 - `npm run verify` passes on Node 22 in CI;
-- the site deploys as static output with a true `/chatbot` 301 redirect;
+- the site deploys as static output with an exact `/chatbot` 308 redirect to `/tools/chatbot`;
 - the DOI-backed SSRN action is the only research action;
 - `origin/main` Grainient performance behavior is preserved and reduced motion is supported;
 - representative routes pass browser smoke and automated accessibility checks;
 - active documentation identifies modernized v1 as canonical and v2 as superseded;
-- `AGENTS.md` is canonical, `CLAUDE.md` points to it, the application baseline is `1.0.0`, and commit instructions require Conventional Commits without agent attribution;
+- `AGENTS.md` is canonical, `CLAUDE.md` points to it, the recorded pre-modernization baseline is `1.0.0`, the released application is `2.0.0`, and commit instructions require Conventional Commits without agent attribution;
 - the README is concise, professional, and accurate to the implemented system;
 - the visual and editorial character remains materially unchanged.
 
@@ -409,11 +423,11 @@ The core modernization is complete when:
 
 ### Dirty working tree during baseline synchronization
 
-The repository contains user-owned untracked drafts and specifications. Implementation must use non-destructive Git operations, inventory those files before changing branches or worktrees, and never stage them implicitly.
+The repository contains user-owned untracked drafts and specifications. Implementation must inventory them, create a clean worktree from the approved commit, leave the original checkout untouched, and stage only explicit paths. The only exception is the user-authorized, hash-verified archival copy and post-integration cleanup of four named historical documents; it never includes active content or active tool specifications. If the clean checkout cannot reproduce a build because a private untracked draft was previously affecting it, record that baseline defect instead of rewriting the draft.
 
 ### Static adapter removal changes redirect behavior
 
-Move the redirect to Vercel configuration and verify its HTTP status before removing the server adapter.
+Move the redirect to Vercel configuration and require its documented `308` status plus exact `Location` before removing the server adapter.
 
 ### Content-state migration accidentally unpublishes content
 
@@ -423,15 +437,17 @@ Add failing policy tests first, migrate every tracked entry explicitly, and comp
 
 Restrict visual changes to focus visibility, semantics, motion preferences, and verified contrast defects. Preserve layouts, colors, type, spacing, and animation character for users without reduced-motion preferences.
 
+Capture the comparison screenshots and representative metadata from the pre-implementation production deployment before containment or intermediate deployments can change that surface. All release comparisons use this fixed evidence rather than whichever deployment is current at the end.
+
 ### Documentation sprawl continues
 
 Every historical document receives a visible status and canonical successor link. New implementation decisions update these Superpowers specifications rather than creating another competing architecture document.
 
 ## References
 
-- Existing project specification: `docs/project-spec.md`
-- Superseded platform proposal: `docs/project-spec-v2.md`
-- Historical RAG architecture: `docs/rag-chatbot-architecture.md`
+- Archived original project specification: `docs/archive/site/project-spec-v1.md`
+- Archived superseded platform proposal: `docs/archive/site/project-spec-v2.md`
+- Archived historical RAG architecture: `docs/archive/jets-ghost/legacy-rag/rag-chatbot-architecture.md`
 - Jet's Ghost companion design: `docs/superpowers/specs/2026-07-11-jets-ghost-local-assistant-design.md`
 - Timesheet local-assistant research rollout: `019f1533-9ec8-7b32-b80c-fe27b684a5f6`
 - [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html)
