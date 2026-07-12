@@ -21,7 +21,8 @@
 - Use only Gemma 4 E2B in the first release; expose no model picker.
 - Pin `@litert-lm/core` to `0.14.0` and the model to the approved Hugging Face revision and SHA-256.
 - During qualification, independently download the complete model artifact and verify its actual byte count and SHA-256; provider metadata is never a substitute for hashing bytes.
-- Do not claim per-browser runtime SHA-256 verification: LiteRT-LM `0.14.0` receives the pinned URL and exposes no approved verified-byte injection path in this design.
+- Do not claim per-browser runtime SHA-256 verification: although LiteRT-LM `0.14.0` accepts URL, `Blob`, and `ReadableStream<Uint8Array>` model sources, this release deliberately uses the pinned URL and does not add an app-owned incremental hash/buffering lifecycle.
+- Emit LiteRT-LM's pinned packaged WASM variants at one versioned same-origin path and call `loadLiteRtLm()` with that path only after consent; never use the SDK's default jsDelivr origin.
 - Runtime delivery must start at the exact pinned URL, remain HTTPS on correctly bounded trusted origins within five redirects, use bodyless ordinary requests, and transmit no application or conversation data.
 - Route navigation renders UI only. Compatibility checking probes support only. The explicit “Load Jet's Ghost” action alone authorizes LiteRT import, corpus/index/model requests, engine creation, and GPU allocation.
 - Do not assemble a prompt until the visitor sends a message.
@@ -38,8 +39,10 @@
 - Use one supported and one unsupported case for each exact-Preview and Production smoke; do not repeat the full acceptance set after local qualification.
 - Keep qualification evidence concise and human-readable; do not add review overlays, device runners, qualification archives, GitHub Release certification, or evidence-checksum ceremony.
 - Enforce context budgets before calling the model; never rely on silent model truncation.
+- Pass the 1,024-token response reserve to LiteRT-LM as `sessionConfig.maxOutputTokens` on every grounded conversation.
 - Keep prompts, selected context, history, and responses out of network requests, storage, and analytics.
-- Delete the active LiteRT conversation before replacement and before deleting the engine.
+- Delete the active LiteRT conversation before replacement and before deleting the engine; on final unload or route-away, call `unloadLiteRtLm()` after engine deletion and clear application references.
+- Do not claim that Unload forces immediate WASM/GPU-memory reclamation: LiteRT-LM `0.14.0` clears its singleton but its current global `delete()` implementation is a no-op.
 - Use Conventional Commits 1.0.0 without agent attribution.
 - Release Jet's Ghost as backward-compatible feature version `2.1.0` on the modernized `2.0.0` core only after real-model qualification.
 
@@ -69,6 +72,8 @@ src/features/jets-ghost/
 │   ├── types.ts
 │   ├── capabilities.ts
 │   ├── lifecycle.ts
+│   ├── modelDelivery.ts
+│   ├── liteRtAssets.server.ts
 │   ├── liteRtGemma.ts
 │   └── fakeRuntime.ts
 ├── state/
@@ -80,6 +85,7 @@ src/features/jets-ghost/
 src/pages/assistant/corpus/manifest.json.ts
 src/pages/assistant/corpus/content.json.ts
 src/pages/assistant/corpus/index.json.ts
+src/pages/assistant/runtime/litert-lm/0.14.0/[asset].ts
 src/pages/chatbot.astro
 src/pages/tools/index.astro
 src/config/site.ts
@@ -94,6 +100,7 @@ tests/fixtures/jets-ghost/product-acceptance.json
 tests/unit/jets-ghost/productAcceptance.test.ts
 docs/verification/jets-ghost-licenses.md
 docs/verification/jets-ghost-2.1.0.md
+scripts/verify-model-delivery.ts
 ```
 
 ---
@@ -103,15 +110,18 @@ docs/verification/jets-ghost-2.1.0.md
 **Files:**
 - Create: `src/features/jets-ghost/config.ts`
 - Create: `src/features/jets-ghost/runtime/modelDelivery.ts`
+- Create: `src/features/jets-ghost/runtime/liteRtAssets.server.ts`
+- Create: `src/pages/assistant/runtime/litert-lm/0.14.0/[asset].ts`
 - Create: `scripts/verify-model-delivery.ts`
 - Create: `tests/unit/jets-ghost/config.test.ts`
 - Create: `tests/unit/jets-ghost/modelDelivery.test.ts`
+- Create: `tests/unit/jets-ghost/liteRtAssets.test.ts`
 - Modify: `package.json`
 - Modify: `package-lock.json`
 - Modify: `tsconfig.json`
 
 **Interfaces:**
-- Produces: `JETS_GHOST_MODEL`, `JETS_GHOST_CONTEXT`, `JETS_GHOST_PATHS`.
+- Produces: `JETS_GHOST_MODEL`, `JETS_GHOST_CONTEXT`, `JETS_GHOST_PATHS`, and the versioned same-origin LiteRT WASM subtree.
 - Consumes: model revision `9262660a1676eed6d0c477ab1a86344430854664`.
 
 - [ ] **Step 1: Install pinned runtime and parsing dependencies**
@@ -163,6 +173,7 @@ describe("Jet's Ghost configuration", () => {
       manifest: '/assistant/corpus/manifest.json',
       content: '/assistant/corpus/content.json',
       index: '/assistant/corpus/index.json',
+      liteRtWasm: '/assistant/runtime/litert-lm/0.14.0/',
     });
   });
 });
@@ -201,10 +212,28 @@ export const JETS_GHOST_PATHS = {
   manifest: '/assistant/corpus/manifest.json',
   content: '/assistant/corpus/content.json',
   index: '/assistant/corpus/index.json',
+  liteRtWasm: '/assistant/runtime/litert-lm/0.14.0/',
 } as const;
 ```
 
-- [ ] **Step 4: Implement the durable model-delivery and qualification-hash contract**
+- [ ] **Step 4: Emit the pinned LiteRT WASM package at a versioned same-origin path**
+
+Write `tests/unit/jets-ghost/liteRtAssets.test.ts` before `runtime/liteRtAssets.server.ts` and the static endpoint. The server-only helper resolves `@litert-lm/core/package.json` through the package's public export, requires version `0.14.0`, and exposes exactly the four package-provided `.js`/`.wasm` feature pairs:
+
+```text
+litertlm_wasm_internal.js
+litertlm_wasm_internal.wasm
+litertlm_wasm_asyncify_internal.js
+litertlm_wasm_asyncify_internal.wasm
+litertlm_wasm_compat_internal.js
+litertlm_wasm_compat_internal.wasm
+litertlm_wasm_compat_asyncify_internal.js
+litertlm_wasm_compat_asyncify_internal.wasm
+```
+
+`src/pages/assistant/runtime/litert-lm/0.14.0/[asset].ts` is a prerendered static endpoint whose `getStaticPaths()` emits only that allowlist. It reads each installed package file without rewriting it, returns JavaScript or WebAssembly with the correct content type plus `Cache-Control: public, max-age=31536000, immutable`, rejects any unknown/path-traversal name, and performs no network write. Tests prove the route's emitted bytes match the installed pinned package files exactly and that the runtime directory is `JETS_GHOST_PATHS.liteRtWasm`. The production build must contain all eight files at that exact path. No source asset is copied into the worktree, no generated public directory is left behind, and no SDK runtime request may use jsDelivr.
+
+- [ ] **Step 5: Implement the durable model-delivery and qualification-hash contract**
 
 Write `tests/unit/jets-ghost/modelDelivery.test.ts` before `runtime/modelDelivery.ts`. Define pure `isTrustedModelOrigin(url, policy)`, `validateModelDeliveryChain(chain, config)`, `verifyModelArtifactStream(stream, expected)`, and `sanitizeModelDeliveryResult(result)` helpers. Tests prove:
 
@@ -230,13 +259,15 @@ Create `scripts/verify-model-delivery.ts` with two mutually exclusive explicit m
 
 Both modes create the `--output` parent recursively when needed and write only the sanitized projection above. Neither mode prints or persists complete redirected URLs, query values, signatures, policies, authorization data, cookies, raw sensitive headers, or transient paths. A provider delivery change blocks only when it violates the exact initial URL, HTTPS/trusted-origin boundary, redirect limit, request-privacy contract, or qualification-time byte count/SHA-256.
 
-- [ ] **Step 5: Verify and commit**
+- [ ] **Step 6: Verify and commit**
 
 ```bash
-npm run test -- tests/unit/jets-ghost/config.test.ts tests/unit/jets-ghost/modelDelivery.test.ts
+npm run test -- tests/unit/jets-ghost/config.test.ts tests/unit/jets-ghost/liteRtAssets.test.ts tests/unit/jets-ghost/modelDelivery.test.ts
 npx tsx scripts/verify-model-delivery.ts --transport-only --output=test-results/model-delivery-preflight.json
 npm run check
-git add package.json package-lock.json tsconfig.json src/features/jets-ghost/config.ts src/features/jets-ghost/runtime/modelDelivery.ts scripts/verify-model-delivery.ts tests/unit/jets-ghost/config.test.ts tests/unit/jets-ghost/modelDelivery.test.ts
+npm run build
+test "$(find dist/assistant/runtime/litert-lm/0.14.0 -type f | wc -l | tr -d ' ')" = "8"
+git add package.json package-lock.json tsconfig.json src/features/jets-ghost/config.ts src/features/jets-ghost/runtime/modelDelivery.ts src/features/jets-ghost/runtime/liteRtAssets.server.ts src/pages/assistant/runtime/litert-lm/0.14.0/'[asset].ts' scripts/verify-model-delivery.ts tests/unit/jets-ghost/config.test.ts tests/unit/jets-ghost/liteRtAssets.test.ts tests/unit/jets-ghost/modelDelivery.test.ts
 git commit -m "build(chatbot): pin LiteRT-LM and Gemma E2B"
 ```
 
@@ -960,17 +991,20 @@ git commit -m "feat(chatbot): define local runtime lifecycle"
 
 - [ ] **Step 1: Write runtime tests around an injected module loader**
 
-Create fakes for `Engine.create`, `engine.createConversation`, `conversation.sendMessageStreaming`, `conversation.cancel`, `conversation.delete`, and `engine.delete`. Test:
+Create fakes for `loadLiteRtLm`, `unloadLiteRtLm`, `Engine.create`, `engine.createConversation`, `conversation.sendMessageStreaming`, `conversation.cancel`, `conversation.delete`, and `engine.delete`. Test:
 
 - module loader is untouched before `load()`;
+- `loadLiteRtLm()` receives the exact versioned same-origin `JETS_GHOST_PATHS.liteRtWasm` before `Engine.create()` and the SDK default path is never used;
 - `Engine.create()` receives the pinned URL and `maxNumTokens: 16384`;
-- runtime performs no separate model fetch, byte hashing, Blob/Object-URL construction, or second preflight before `Engine.create()`;
+- runtime deliberately uses the SDK URL source and performs no separate model fetch, byte hashing, Blob/Object-URL construction, or second preflight before `Engine.create()`;
 - runtime exposes no positive artifact-byte-integrity flag under LiteRT-LM `0.14.0` and does not convert provider headers or request metadata into one;
+- `engine.createConversation()` receives `sessionConfig.maxOutputTokens: 1024`, and a boundary fixture proves the reserved output cannot consume estimator headroom;
 - replacing a session deletes the old conversation first;
-- text content streams in order;
+- string content and `part.text` for `part.type === 'text'` stream in order while non-text parts are ignored;
 - `cancel()` calls the active conversation;
-- unload deletes conversation before engine;
-- stop requested during load deletes the newly created engine immediately;
+- unload deletes conversation before engine, then calls `unloadLiteRtLm()` and clears all application references even when an earlier cleanup step fails;
+- stop requested during WASM or model load waits for the pinned API's non-abortable load to settle, deletes any newly created engine, and unloads the singleton immediately afterward;
+- a fresh runtime can load successfully after Unload and route re-entry without reusing the prior singleton, engine, or conversation;
 - events after unload are ignored.
 
 - [ ] **Step 2: Implement dynamic loading**
@@ -991,8 +1025,10 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
 `load()` calls:
 
 ```ts
-const { Engine } = await this.loadModule();
-this.engine = await Engine.create({
+const liteRt = await this.loadModule();
+this.liteRt = liteRt;
+await liteRt.loadLiteRtLm(JETS_GHOST_PATHS.liteRtWasm);
+this.engine = await liteRt.Engine.create({
   model: JETS_GHOST_MODEL.url,
   mainExecutorSettings: {
     maxNumTokens: JETS_GHOST_CONTEXT.maxContextTokens,
@@ -1000,9 +1036,9 @@ this.engine = await Engine.create({
 });
 ```
 
-0.14.0 exposes no load abort or byte progress. Honor a stop request by deleting the engine immediately after creation.
+`JETS_GHOST_PATHS.liteRtWasm` is the static same-origin directory emitted in Task 1. Passing it explicitly is mandatory because `Engine.create()` otherwise initializes the SDK singleton from `LiteRtLm.DEFAULT_WASM_PATH` on jsDelivr. LiteRT-LM `0.14.0` exposes no load abort or byte progress. Honor a stop request during WASM or model loading by waiting for the current API call to settle, deleting any engine that was created, calling `unloadLiteRtLm()`, and never entering Ready.
 
-Do not prefetch the approximately 2 GB model in application code. The pinned LiteRT-LM API consumes a URL and does not expose an approved way for this design to inject an independently hashed byte buffer into `Engine.create()`. A separate browser fetch would either be discarded or force LiteRT to download a second unverified copy, so it would add cost without proving the executed bytes. The verification document records runtime artifact-byte verification as unavailable. Runtime may compare a complete byte count only if a future API exposes an unambiguous count for the exact LiteRT-consumed artifact, never from range length, encoded transfer length, cache metadata, provider headers, or ETags.
+Do not prefetch the approximately 2 GB model in application code. The pinned API accepts a URL, `Blob`, or `ReadableStream<Uint8Array>`, but this release deliberately uses the URL. A preverified `Blob` would buffer approximately 2 GB; a verified stream would require an app-owned incremental SHA-256 implementation and a new cancellation/failure/cleanup lifecycle before the engine could be trusted. Neither has earned its cost, and a separate browser prefetch followed by URL loading would duplicate transfer without proving the executed copy. The verification document records runtime artifact-byte verification as unavailable. Runtime may compare a complete byte count only if a future API exposes an unambiguous count for the exact LiteRT-consumed artifact, never from range length, encoded transfer length, cache metadata, provider headers, or ETags.
 
 Implement `checkCapabilities()` by delegating to `checkBrowserCapabilities()` from Task 6 before any module import.
 
@@ -1015,16 +1051,21 @@ await this.conversation?.delete();
 this.conversation = await this.engine.createConversation({
   preface: { messages: preface },
   prefillPrefaceOnInit: true,
+  sessionConfig: {
+    maxOutputTokens: JETS_GHOST_CONTEXT.responseReserve,
+  },
 });
 ```
 
-Stream using `sendMessageStreaming({ role: 'user', content: message })`. For each message chunk, emit only `content` parts where `type === 'text'`, plus string content if returned. Check an operation generation ID before forwarding each chunk.
+Stream using `sendMessageStreaming({ role: 'user', content: message })`. For each message chunk, emit `chunk.content` directly when it is a string; when it is a part array, emit `part.text` only for `part.type === 'text'` and ignore other part types. Check an operation generation ID before forwarding each text fragment. The runtime test asserts the exact `maxOutputTokens` value reaches the pinned SDK, while the existing serialized-budget boundary test proves the 1,024-token generation cap cannot consume the 3,277-token estimator headroom.
 
 - [ ] **Step 4: Implement cancellation, reset, and unload**
 
 - `cancel()` synchronously calls `conversation.cancel()` and invalidates the active operation ID.
 - `reset()` deletes the conversation and clears it without deleting the engine.
-- `unload()` invalidates operations, deletes the conversation, then deletes the engine, even when conversation deletion fails; aggregate cleanup diagnostics without retaining prompts.
+- `unload()` invalidates operations, deletes the conversation, then deletes the engine, then calls the loaded module's `unloadLiteRtLm()` in final cleanup; clear every application reference even when an earlier deletion fails and aggregate diagnostics without retaining prompts.
+
+The pinned SDK's `unloadLiteRtLm()` resets its global singleton, which is necessary for route re-entry, but its current `LiteRtLm.delete()` is a no-op. Tests may prove call order, cleared application references, fresh initialization, and absence of an active engine/conversation; neither tests nor UI copy may promise immediate reclamation of every WASM allocation or browser-owned GPU resource.
 
 - [ ] **Step 5: Verify bundle isolation**
 
@@ -1034,10 +1075,11 @@ Run:
 npm run test -- tests/unit/jets-ghost/liteRtGemma.test.ts
 npm run check
 npm run build
-rg -n "litert|wasm" dist/_astro | head
+test "$(find dist/assistant/runtime/litert-lm/0.14.0 -type f | wc -l | tr -d ' ')" = "8"
+rg -n "litert" dist/_astro | head
 ```
 
-Expected: the main site builds; LiteRT assets are emitted as lazy chunks and are not requested before activation in browser tests later.
+Expected: the main site builds; package JavaScript is isolated to lazy application chunks, all eight pinned WASM runtime files exist at the versioned same-origin path, and neither class of asset is requested before activation in later browser tests.
 
 - [ ] **Step 6: Commit**
 
@@ -1103,7 +1145,7 @@ The hook receives dependency factories so tests can inject fakes. For each quest
 6. append the complete turn;
 7. return to ready.
 
-Unload/route cleanup cancels generation, calls `runtime.reset()` to delete the active conversation, unloads repository resources, then calls `runtime.unload()` to delete the engine. Use `try/finally` so later cleanup still runs after one failure, aggregate safe diagnostics, and use an operation ID to suppress late events. No background resource survives route unmount.
+Unload/route cleanup cancels generation, calls `runtime.reset()` to delete the active conversation, unloads repository resources, then calls `runtime.unload()` to delete the engine, reset the LiteRT singleton, and clear application references. Use `try/finally` so later cleanup still runs after one failure, aggregate safe diagnostics, and use an operation ID to suppress late events. No active Jet's Ghost engine or conversation survives route unmount; the hook does not claim control over the browser's eventual reclamation of SDK WASM/GPU memory.
 
 `startNewSession()` is distinct from retry: it calls `runtime.reset()`, and only after successful conversation deletion clears turns and the exhaustion error while keeping the engine and knowledge base loaded. It returns to ready and focuses the input; it does not automatically resubmit the rejected question. If reset fails, preserve the transcript and show the cleanup error.
 
@@ -1275,7 +1317,7 @@ git commit -m "feat(jets-ghost): make chatbot a first-class route"
 
 - [ ] **Step 1: Test the default production runtime path before activation**
 
-In `jets-ghost.spec.ts`, record all requests and open `/chatbot` with no fake query. Do not click compatibility or Load. Assert no request targets the three corpus/index paths, LiteRT chunks, Hugging Face, or `.litertlm`, and no engine/capability call appears in the test log. This exercises the production-mode construction path rather than bypassing it with the fake.
+In `jets-ghost.spec.ts`, record all requests and open `/chatbot` with no fake query. Do not click compatibility or Load. Assert no request targets the three corpus/index paths, `/_astro/` LiteRT chunks, `/assistant/runtime/litert-lm/0.14.0/`, Hugging Face, or `.litertlm`, and no engine/capability call appears in the test log. This exercises the production-mode construction path rather than bypassing it with the fake.
 
 Click only “Check compatibility” in a fresh run. Assert the capability call occurs but LiteRT import, corpus/index/model requests, engine creation, prompt assembly, and generation do not. This is a hard consent-boundary regression.
 
@@ -1307,13 +1349,14 @@ Begin a fresh request log before compatibility checking. Require zero assistant 
 
 - bodyless `GET` to `/assistant/corpus/manifest.json`, `/assistant/corpus/content.json`, or `/assistant/corpus/index.json`;
 - bodyless `GET` to same-origin emitted `/_astro/` chunks/assets;
+- bodyless `GET` to one of the eight allowlisted files directly beneath `/assistant/runtime/litert-lm/0.14.0/`;
 - pre-existing analytics endpoints with no conversation-derived query/header/body fields.
 
-The fake-runtime test accepts no Hugging Face/CDN request at all. Submit distinctive sentinel prompt and selected-source strings and fail if either appears in any URL, query, header, or body. Fail any nonallowlisted origin, path, method, or request body; reject `Authorization`, `Cookie`, and application-defined custom headers rather than merely searching for the literal prompt. Task 11 repeats this contract with the actual pinned model and validates its provider redirect chain in memory.
+The fake-runtime test accepts no Hugging Face request at all; because it never imports LiteRT, it also makes no request to the same-origin WASM subtree. Submit distinctive sentinel prompt and selected-source strings and fail if either appears in any URL, query, header, or body. Fail any nonallowlisted origin, path, method, or request body; reject `Authorization`, `Cookie`, application-defined custom headers, `cdn.jsdelivr.net`, and every other external SDK-runtime origin rather than merely searching for the literal prompt. Task 11 repeats this contract with the actual pinned model and validates its provider redirect chain in memory.
 
 - [ ] **Step 6: Test ClientRouter cleanup and late-event suppression**
 
-With the fake runtime loaded, cover route-away while ready and while streaming. Navigate through the retained dock so Astro ClientRouter performs the transition. Read the test-only call log and assert cancellation (when generating), `conversation.delete`, repository unload, and `engine.delete` occur in that order and once, and a deliberately delayed stream event does not update the destination page or resurrect assistant state.
+With the fake runtime loaded, cover route-away while ready and while streaming. Navigate through the retained dock so Astro ClientRouter performs the transition. Read the test-only call log and assert cancellation (when generating), `conversation.delete`, repository unload, `engine.delete`, and SDK-singleton unload occur in that order and once, and a deliberately delayed stream event does not update the destination page or resurrect assistant state. Assert a return to `/chatbot` creates a fresh runtime instance.
 
 - [ ] **Step 7: Add axe and keyboard checks**
 
@@ -1423,13 +1466,13 @@ test.skip(process.env.RUN_REAL_MODEL !== '1', 'Set RUN_REAL_MODEL=1 for the 2 GB
 Support two explicit modes in the same test file: `qualification` and `smoke`, selected by `JETS_GHOST_REAL_MODEL_MODE`; reject any other value. Full qualification requires `process.platform === 'darwin'` and `process.arch === 'arm64'`, then records the branded Chrome, macOS, and safely exposed adapter identifiers. Open canonical `/chatbot` and run the full `qualification` mode once on the available Mac through four exact phases:
 
 1. **Cold activation** — launch the test in a new Playwright-owned temporary Chrome profile, assert Cache Storage, IndexedDB, localStorage, and service-worker registrations contain no Jet's Ghost application state, then use the visible compatibility and Load actions once. Record corpus/index/model transfer, validation/hydration, and engine-ready timings.
-2. **Warm activation** — unload immediately, verify conversation/knowledge/engine cleanup, then Load again in the same browser profile and record the same timings. This is the sole warm-load measurement; do not clear browser HTTP cache between phases.
+2. **Warm activation** — unload immediately, verify conversation/knowledge/engine cleanup plus SDK-singleton reset, then Load again in the same browser profile and record the same timings. Prove route re-entry initializes a fresh singleton without asserting immediate WASM/GPU-memory reclamation. This is the sole warm-load measurement; do not clear browser HTTP cache between phases.
 3. **Product cases** — keep the warm engine loaded. Before every case, call New session and verify conversation deletion; never unload between cases. Run the six fixture cases in order. After each response is complete, call Playwright's built-in `page.pause()` so the operator can inspect the visible answer, citations, and source links, record a concise pass/block/accepted-limitation row directly in `docs/verification/jets-ghost-2.1.0.md`, and resume from Playwright Inspector. Do not build an overlay, review form, terminal-input protocol, or review application. The Markdown row records only case ID, disposition, the five categorical checks—useful answer, factual support, correct abstention when required, valid citations, inspectable sources—and a short non-content rationale; it does not reproduce the question or answer.
-4. **Lifecycle closeout** — exercise Stop, New session, Unload, one final warm reload, and ClientRouter route-away cleanup, then verify no engine/session survives.
+4. **Lifecycle closeout** — exercise Stop, New session, Unload, one final warm reload, and ClientRouter route-away cleanup, then verify no active engine/conversation or application reference survives and a fresh initialization succeeds.
 
 The harness records ordered phase markers and rejects a reused/persistent user-data directory supplied from outside the run. It does not claim the browser's global provider cache is empty; “cold” means a new isolated Chrome profile for this qualification, while “warm” means a second activation in that exact profile.
 
-In both modes, record requests in memory from before compatibility checking through final cleanup. Require zero assistant-resource requests before Load. Allow only bodyless same-origin corpus/index and emitted-asset requests, pre-existing analytics with no conversation-derived fields, and the exact pinned Hugging Face model URL followed by the redirect chain accepted by `validateModelDeliveryChain()`. Walk `Request.redirectedFrom()` in memory; require the exact pinned root, HTTPS and `isTrustedModelOrigin()` for every hop, no more than `JETS_GHOST_MODEL.maxRedirects`, and bodyless ordinary `GET`/`HEAD` plus browser-generated `Range` behavior. Do not assert an exact redirect count, signed-query-key set, response-header structure, transient CDN path, Xet address, ETag, linked hash, or provider-declared size. Submit distinctive sentinel prompt and selected-source strings and fail if either appears in any URL, query, header, or body. Reject nonallowlisted origins, request bodies, `Authorization`, `Cookie`, credentials, and application-defined custom headers. Never print or persist a complete signed URL, query value, signature, policy, raw sensitive header, transient path, or raw request object. Browser observation proves delivery containment and privacy only; it does not claim the LiteRT-consumed bytes were independently hashed.
+In both modes, record requests in memory from before compatibility checking through final cleanup. Require zero assistant-resource requests before Load. Allow only bodyless same-origin corpus/index requests, lazy `/_astro/` chunks, the eight exact filenames directly beneath `/assistant/runtime/litert-lm/0.14.0/`, pre-existing analytics with no conversation-derived fields, and the exact pinned Hugging Face model URL followed by the redirect chain accepted by `validateModelDeliveryChain()`. Require the LiteRT WASM requests to remain same-origin and fail any request to `cdn.jsdelivr.net` or another SDK-runtime origin. Walk `Request.redirectedFrom()` in memory for the model; require the exact pinned root, HTTPS and `isTrustedModelOrigin()` for every hop, no more than `JETS_GHOST_MODEL.maxRedirects`, and bodyless ordinary `GET`/`HEAD` plus browser-generated `Range` behavior. Do not assert an exact redirect count, signed-query-key set, response-header structure, transient CDN path, Xet address, ETag, linked hash, or provider-declared size. Submit distinctive sentinel prompt and selected-source strings and fail if either appears in any URL, query, header, or body. Reject nonallowlisted origins, paths, request bodies, `Authorization`, `Cookie`, credentials, and application-defined custom headers. Never print or persist a complete signed URL, query value, signature, policy, raw sensitive header, transient path, or raw request object. Browser observation proves delivery containment and privacy only; it does not claim the LiteRT-consumed bytes were independently hashed.
 
 In `smoke` mode, skip cold/warm benchmarking and the full fixture. Run exactly `showcase-rch-claim` and `unsupported-codex-draft` in a fresh session each, pausing after each for the same concise visible review. Assert one supported grounded answer with a usable citation/source, one explicit abstention about the excluded draft, the network allowlist, and final Unload/cleanup. This mode is reused against final Preview and Production; it does not repeat the six-case qualification.
 
@@ -1528,6 +1571,7 @@ Release only when:
 
 ```text
 Gemma E2B loads, streams, cancels, resets, unloads, and recovers reliably on the tested Mac
+LiteRT WASM loads only from /assistant/runtime/litert-lm/0.14.0/ after consent; no SDK-runtime CDN request occurs
 eligible corpus inclusion = 100%; ineligible inclusion = 0
 manifest/content/index hashes and versions match exactly
 indexed chunk IDs = eligible chunk IDs, with no missing, duplicate, or unknown IDs
@@ -1537,6 +1581,7 @@ verification documentation states that LiteRT-LM 0.14.0 URL loading does not ind
 MiniSearch search has no result limit or pre-packing candidate cap
 serialized knowledge JSON including metadata/escaping <= 9,011 estimated tokens
 serialized prompt + 1,024 response reserve + 3,277 estimator headroom <= 16,384 tokens
+every LiteRT conversation is configured with maxOutputTokens = 1,024
 no silent model or prompt truncation occurs
 at least two complete user/assistant turns fit without discarding grounding
 all six fixed product cases have completed one human review and a disposition on the tested Mac
@@ -1547,7 +1592,7 @@ every rendered citation resolves to selected evidence
 artifact/model load, first-token, and total-response measurements are documented for the tested Mac
 100% of observed requests satisfy the privacy allowlist
 no repeatable device loss or unrecovered cleanup failure
-Stop, New session, Unload, reload, and ClientRouter route-away pass on the tested Mac
+Stop, New session, Unload, fresh SDK initialization, reload, and ClientRouter route-away pass on the tested Mac; no immediate WASM/GPU reclamation claim is made
 model, runtime, MiniSearch, stemmer, and transitive license/attribution obligations are resolved
 ```
 
@@ -1577,7 +1622,8 @@ Complete `docs/verification/jets-ghost-2.1.0.md` as a concise human-readable rec
 
 - the tested Apple Silicon hardware/adapter, macOS version, and installed branded Chrome version;
 - qualification-time model verification mode, exact pinned initial URL/revision, independently counted complete size, independently calculated SHA-256, trusted hostnames, and redirect depth;
-- an explicit statement that LiteRT-LM `0.14.0` receives the URL directly, the browser does not independently hash and inject the executed bytes, no second verification download occurs at runtime, and runtime guarantees are limited to consent, pinned URL usage, trusted HTTPS delivery containment, redirect bounds, and request privacy;
+- an explicit statement that LiteRT-LM `0.14.0` supports URL, `Blob`, and `ReadableStream<Uint8Array>` model sources; this release deliberately passes the URL, does not add app-owned incremental hashing/buffering, does not perform a second verification download, and limits runtime guarantees to consent, pinned URL usage, trusted HTTPS delivery containment, redirect bounds, and request privacy;
+- the exact same-origin LiteRT WASM path, proof that no SDK-runtime CDN request occurred, fresh initialization after unload/route re-entry, and the known `LiteRtLm.delete()` no-op limitation without an immediate GPU-memory-reclamation claim;
 - corpus, index, configuration, MiniSearch, and stemmer versions;
 - context-budget breakdown and artifact size/fetch/hash/parse/hydration measurements;
 - cold/warm load, first-token, total-response, cancellation, reset, unload, reload, route-cleanup, and visible memory/device-loss observations;
@@ -1692,13 +1738,15 @@ Expected: the local annotated tag and remote `v2.1.0` tag point to the exact Pro
 [ ] /tools/chatbot returns exact 308 to /chatbot; Ghost replaces Tools in all primary navigation; /tools remains dormant
 [ ] Route entry and compatibility checking perform no LiteRT, corpus, index, model, engine, or prompt work
 [ ] Qualification independently downloads exactly 2,008,432,640 model bytes and hashes those bytes to the pinned SHA-256
+[ ] LiteRT's eight packaged WASM runtime assets load only from the exact versioned same-origin path after consent; the SDK default CDN is never used
 [ ] Runtime model requests start at the exact pinned URL, remain within five trusted HTTPS redirects, and contain no application or conversation data
 [ ] Documentation states that LiteRT-LM 0.14.0 URL loading does not independently verify each visitor's executed model bytes
 [ ] No prompt, response, context, or history leaves the browser
 [ ] Corpus and MiniSearch index contain exactly the tracked published assistant content and share one verified version
 [ ] Rank-and-pack uses prebuilt constant-time lookups, considers every match, uses no candidate-count cap or quadratic tentative-array rebuild, and stays within the qualified 16K profile
 [ ] Prior turn-local citation markers are removed from model-history replay and cannot resolve against a later turn
-[ ] Cancellation, New session, unload, and route cleanup work on real WebGPU
+[ ] Every grounded conversation passes maxOutputTokens = 1,024, preserving estimator headroom
+[ ] Cancellation, New session, unload, fresh SDK initialization, and route cleanup work on real WebGPU without claiming immediate WASM/GPU reclamation
 [ ] Conversation exhaustion preserves history and requires an explicit new session
 [ ] All six product cases were reviewed once on the available Apple Silicon Mac and no representative blocker remains
 [ ] Both unsupported cases abstain and every rendered citation resolves to selected evidence

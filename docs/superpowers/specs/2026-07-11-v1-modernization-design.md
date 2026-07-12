@@ -180,7 +180,7 @@ The validator receives each record's repository-relative source path, canonical 
 
 ## Immediate production containment
 
-Containment is the first implementation milestone and is performed before feature refactoring.
+Containment is the first implementation milestone and is performed before feature refactoring. Revoking the active OpenRouter key is the first external mutation after the existing Vercel project and non-secret OpenRouter key record are identified; it occurs before worktree setup, dependency installation, baseline capture, or repository edits. The non-secret revocation readback is held in private mode-restricted operator state, then sanitized and committed only after the evidence tooling exists.
 
 1. Revoke the current OpenRouter key at OpenRouter so existing deployments lose access immediately.
 2. Remove `OPENROUTER_API_KEY` from Vercel Development, Preview, and Production environments.

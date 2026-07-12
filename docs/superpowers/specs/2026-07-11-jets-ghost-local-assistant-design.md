@@ -100,7 +100,7 @@ No further retrieval-candidate harnesses or benchmark iterations are part of thi
 
 ## Official runtime baseline
 
-The first implementation pins `@litert-lm/core@0.14.0` and dynamically imports it only after explicit load consent on `/chatbot`.
+The first implementation pins `@litert-lm/core@0.14.0` and dynamically imports it only after explicit load consent on `/chatbot`. The package's JavaScript enters the normal lazy application bundle, while its eight packaged feature-variant `.js`/`.wasm` files are emitted unchanged as immutable same-origin static assets beneath `/assistant/runtime/litert-lm/0.14.0/`. After consent, the runtime explicitly calls `loadLiteRtLm('/assistant/runtime/litert-lm/0.14.0/')`; it never falls through to LiteRT-LM's `DEFAULT_WASM_PATH` on jsDelivr.
 
 The initial supported model asset is revision-pinned:
 
@@ -115,7 +115,7 @@ Size: 2,008,432,640 bytes
 SHA-256: 3a08e8d94e23b814ae5414469c370c503813949acb8ceaa17e4ebf8a35af35b5
 ```
 
-The LiteRT-LM Web API is an early preview, text-only, and WebGPU-backed. The official API supports `Engine.create()`, `engine.createConversation()`, streaming through `sendMessageStreaming()`, cancellation through `conversation.cancel()`, and resource release through `engine.delete()`.
+The LiteRT-LM Web API is an early preview, text-only, and WebGPU-backed. The pinned API supports explicit `loadLiteRtLm()`, `Engine.create()`, `engine.createConversation()`, streaming through `sendMessageStreaming()`, cancellation through `conversation.cancel()`, conversation and engine deletion, and `unloadLiteRtLm()` for clearing the SDK's global singleton.
 
 The Web-optimized E2B file is approximately 2 GB. Its model card says the model supports up to 32K context, but published web performance uses a much shorter benchmark context. Jet's Ghost therefore treats context size as an empirical browser configuration, not a promise derived from the model maximum.
 
@@ -125,7 +125,7 @@ The pinned URL may redirect through Hugging Face's delivery infrastructure. Prov
 
 Release qualification independently downloads the complete artifact from the exact pinned URL, follows only the trusted HTTPS redirect policy, counts the bytes actually received, and hashes those bytes with SHA-256. Qualification passes only when the downloaded artifact is exactly `2,008,432,640` bytes and hashes to the pinned digest above. An ETag, repository header, linked size/hash, CDN pathname, Xet identifier, or other provider assertion may be logged only as a sanitized supplemental diagnostic; none substitutes for hashing the downloaded bytes.
 
-The first release does **not** independently hash each visitor's executed model bytes. With the pinned LiteRT-LM `0.14.0` integration, `Engine.create()` receives `JETS_GHOST_MODEL.url`; the documented plan does not expose a supported path to supply a separately downloaded and verified byte buffer to the engine. Fetching and hashing one browser copy before asking LiteRT to download the URL again would not verify the second copy that LiteRT executes and would add unacceptable duplicate transfer and memory cost. The implementation therefore does not do that or claim runtime SHA-256 verification.
+The first release does **not** independently hash each visitor's executed model bytes. LiteRT-LM `0.14.0` accepts a URL, `Blob`, or `ReadableStream<Uint8Array>` as its model source. Jet's Ghost deliberately passes `JETS_GHOST_MODEL.url`: a verified-before-use `Blob` would require buffering approximately 2 GB, while a verified streaming path would require an app-owned incremental SHA-256 implementation plus a new failure, cancellation, and cleanup lifecycle before the engine could be trusted. That extra browser integrity subsystem has not earned its runtime and maintenance cost. The implementation therefore neither prefetches a duplicate copy nor claims per-visitor runtime SHA-256 verification.
 
 At runtime, Jet's Ghost guarantees explicit activation consent, use of the exact pinned initial URL, HTTPS and trusted-origin containment observed by browser qualification, bounded redirects, and absence of application or conversational data in delivery requests. A trustworthy complete-artifact byte count is compared with the pin only if the runtime API exposes the complete bytes or an unambiguous complete-byte count; range lengths, encoded transfer lengths, cache metadata, and provider assertions do not qualify. Under LiteRT-LM `0.14.0`, qualification-time hashing proves the pinned upstream artifact while TLS and the trusted provider boundary protect runtime delivery; it does not prove the bytes of each visitor's LiteRT-managed download independently.
 
@@ -473,7 +473,7 @@ The initial release profile configures LiteRT-LM with `maxNumTokens: 16384` and 
 - no more than 9,011 tokens, including serialized source metadata and boundaries, or 55% of the total context, for knowledge;
 - 3,277 tokens of estimator and SDK/model-formatting headroom.
 
-The limits sum to the configured maximum. Before `createSession()`, the application serializes the actual system message, selected sources, retained complete history turns, and current question, estimates that exact serialized prompt, and proves:
+The limits sum to the configured maximum. Every grounded conversation is created with `sessionConfig.maxOutputTokens` set to the exact `responseReserve` value of `1_024`; the SDK default is never relied on. Before `createConversation()`, the application serializes the actual system message, selected sources, retained complete history turns, and current question, estimates that exact serialized prompt, and proves:
 
 ```text
 serializedPromptTokens + responseReserve + estimatorHeadroom <= maxContextTokens
@@ -483,7 +483,7 @@ It also proves each component is within its own limit. Source metadata and escap
 
 The numeric profile is versioned runtime configuration, not retrieval architecture. Later measured device evidence may tune these allocations while retaining the same MiniSearch rank-and-pack pipeline, serialized-budget invariant, and no-cap rule.
 
-The rank-and-pack pipeline enforces the knowledge allowance, and the prompt assembler independently enforces the final serialized total. Overflow is an application error, never silent truncation by the model engine.
+The rank-and-pack pipeline enforces the knowledge allowance, the prompt assembler independently enforces the final serialized total, and the conversation configuration caps generation at the reserved output budget. Tests prove both the exact SDK value and the boundary where generation cannot consume estimator headroom. Overflow is an application error, never silent truncation by the model engine.
 
 ## Corpus growth and operating signals
 
@@ -569,11 +569,11 @@ Only the explicit “Load Jet's Ghost” action authorizes heavy work:
 | --- | --- | --- |
 | Route navigation | Render the Astro shell and approved React interface. | No capability probe, LiteRT import, corpus/index request, model request, engine creation, or GPU allocation. |
 | Check compatibility | Inspect secure context, WebGPU adapter availability, and advisory storage/browser signals. | No LiteRT import, corpus/index/model download, or engine creation. |
-| Load Jet's Ghost | After the visitor sees the approximately 2 GB and GPU-memory disclosure, import LiteRT, fetch/validate the corpus and index, fetch the pinned model, and create one engine. This is the only action that authorizes conversation creation. | No prompt assembly, grounded conversation creation, or generation; the first source-grounded conversation is created only after Send. |
+| Load Jet's Ghost | After the visitor sees the approximately 2 GB and GPU-memory disclosure, import LiteRT, load the versioned same-origin WASM runtime, fetch/validate the corpus and index, fetch the pinned model, and create one engine. This is the only action that authorizes conversation creation. | No prompt assembly, grounded conversation creation, or generation; the first source-grounded conversation is created only after Send. |
 | Ready | Keep the engine and knowledge base warm and focus the composer. | No prompt assembly until a message is submitted. |
 | Send message | Rank and pack context, assemble the cited prompt, and generate locally. | No second model, strategy change, or persistence. |
 | New session | Delete/reset the conversation, retain the engine and knowledge base, then clear the transcript after reset succeeds. | No model re-download. |
-| Unload or route away | Cancel generation, delete the conversation, unload knowledge resources, delete the engine, and suppress late events. | No background runtime survives the page instance. |
+| Unload or route away | Cancel generation, delete the conversation, unload knowledge resources, delete the engine, call `unloadLiteRtLm()`, clear application references, and suppress late events. | No active Jet's Ghost conversation or engine survives the page instance; immediate browser reclamation of all WASM/GPU memory is not promised. |
 
 Compatibility checking is cheap and reversible; it is not consent to download or allocate the model. Loading on route entry or first message is prohibited.
 
@@ -600,13 +600,16 @@ any mounted state -> route unmount -> unloading -> idle
 Rules:
 
 - Import `@litert-lm/core` only after consent.
+- Call `loadLiteRtLm()` with the exact versioned same-origin runtime directory before `Engine.create()`; never use the SDK's default jsDelivr path.
 - Call `Engine.create()` once per loaded page instance.
 - Create one active LiteRT-LM conversation.
+- Set `sessionConfig.maxOutputTokens` to `JETS_GHOST_CONTEXT.responseReserve` on every conversation.
 - Use `sendMessageStreaming()` for response delivery.
 - Use `conversation.cancel()` when the visitor stops generation.
 - Ignore late stream events after cancellation or unmount.
 - Call `conversation.delete()` before replacing a session, unloading, or handling route unmount.
 - Call `engine.delete()` after conversation cleanup on unload and route unmount.
+- Call `unloadLiteRtLm()` after engine deletion on final Unload or route unmount, including failure cleanup, so a later route entry must initialize a fresh SDK singleton.
 - A failed load leaves no runtime marked ready.
 - Cancellation returns to `ready` without duplicating the partial assistant response.
 - The user-facing New session action calls runtime reset, clears visible history only after `conversation.delete()` succeeds, and leaves the engine loaded; the next question creates a fresh conversation from that engine.
@@ -614,13 +617,15 @@ Rules:
 
 The implementation must test Astro ClientRouter navigation explicitly so route transitions do not orphan a WebGPU engine.
 
+LiteRT-LM `0.14.0` currently implements the global `LiteRtLm.delete()` invoked by `unloadLiteRtLm()` as a no-op. Engine and conversation deletion remain required, and clearing the SDK singleton is required for correct route re-entry, but the product and qualification evidence must not claim that Unload forces immediate reclamation of every WASM allocation or browser-owned GPU resource. Qualification observes post-unload behavior, successful reload, device loss, and memory pressure; an unrecovered engine/session or failed route re-entry blocks release, while the browser's final reclamation timing is a documented SDK limitation.
+
 ### Loading communication
 
 Before activation, show this meaning in the site's voice:
 
 > Jet's Ghost runs Gemma 4 E2B in this browser. Starting it downloads about 2 GB and may use substantial GPU memory. Your prompts and responses stay on this device.
 
-LiteRT-LM 0.14.0 does not expose an abort signal or trustworthy byte progress for `Engine.create()`. Show an indeterminate loading state with elapsed time and model size; do not invent a percentage. If the visitor asks to stop during model creation, mark the request and delete the engine immediately after creation completes. Generation cancellation remains immediate through `conversation.cancel()`.
+LiteRT-LM 0.14.0 does not expose an abort signal or trustworthy byte progress for WASM or model loading. Show an indeterminate loading state with elapsed time and model size; do not invent a percentage. If the visitor asks to stop during loading, mark the request, wait for the current pinned API call to settle, delete any engine that was created, call `unloadLiteRtLm()`, and never enter Ready. Generation cancellation remains immediate through `conversation.cancel()`.
 
 ## Prompt and citation assembly
 
@@ -700,13 +705,13 @@ Accessibility requirements:
 After explicit load consent, allowed assistant-initiated network requests are limited to:
 
 - bodyless `GET` requests to the three fixed same-origin knowledge-package paths;
-- bodyless `GET` requests to same-origin pinned LiteRT-LM JavaScript chunks and runtime assets emitted by the site build;
+- bodyless `GET` requests to same-origin lazy application chunks and the exact versioned runtime subtree `/assistant/runtime/litert-lm/0.14.0/` emitted from the pinned package by the static build;
 - bodyless ordinary `GET`/`HEAD` requests, including browser-generated `Range` behavior where required, in the Gemma delivery chain defined below;
 - existing page-view analytics, which receive no prompt-derived fields.
 
 The Gemma delivery chain must begin at the exact revision-pinned `huggingface.co/.../resolve/<commit>/<filename>` URL. It may follow at most five redirects. Every hop must remain HTTPS on either exact `huggingface.co`, exact `cdn.hf.co`, or a hostname ending in the boundary-safe suffix `.cdn.hf.co`; lookalikes such as `cdn.hf.co.example.com` are rejected. Adding another trusted origin requires an explicit reviewed policy change, but provider changes to redirect count within the bound, signed-query structure, transient headers, or CDN pathname do not block release.
 
-The application supplies no model-delivery request body, custom header, authorization, cookie, or credential. Ordinary browser-generated transport headers are permitted; the application does not construct or copy provider-signed query parameters. In particular, same-origin corpus requests cannot be used as an exception for prompt leakage: they are fixed bodyless GETs. Browser verification applies the origin/method/body/credential policy to every request and treats any prompt, selected source text, response, or history in a URL, headers, or body as a release blocker. Diagnostics retain only mode, trusted hostnames, redirect depth, qualification byte count and digest, timestamps, and rule codes; complete redirected URLs, query values, signatures, policies, authorization data, cookies, raw sensitive headers, and transient CDN paths are discarded.
+The application supplies no model-delivery request body, custom header, authorization, cookie, or credential. Ordinary browser-generated transport headers are permitted; the application does not construct or copy provider-signed query parameters. The LiteRT runtime subtree is same-origin only; a request to `cdn.jsdelivr.net` or any other SDK-runtime origin fails the privacy gate. In particular, same-origin corpus or runtime requests cannot be used as an exception for prompt leakage: they are fixed bodyless GETs. Browser verification applies the origin/method/body/credential policy to every request and treats any prompt, selected source text, response, or history in a URL, headers, or body as a release blocker. Diagnostics retain only mode, trusted hostnames, redirect depth, qualification byte count and digest, timestamps, and rule codes; complete redirected URLs, query values, signatures, policies, authorization data, cookies, raw sensitive headers, and transient CDN paths are discarded.
 
 The UI does not claim that model files are served by Jet or that the experience is guaranteed offline. It does claim local inference and local conversation handling after required assets are available.
 
@@ -831,14 +836,14 @@ Jet's Ghost is a backward-compatible feature on the `2.0.0` modernized core and 
 | Model integrity | Qualification independently downloads the complete pinned artifact, observes exactly 2,008,432,640 bytes, and hashes those bytes to the pinned SHA-256; runtime makes no stronger per-browser byte-integrity claim than the LiteRT API supports |
 | Ranking | Every MiniSearch result considered through prebuilt constant-time lookups; deterministic ties; no candidate-count or per-document cap; no quadratic tentative-array serialization |
 | Knowledge budget | Serialized source JSON, including metadata and escaping, is at most 9,011 estimated tokens |
-| Total context | Serialized prompt + 1,024 response reserve + 3,277 estimator headroom is at most 16,384 tokens |
+| Total context | Serialized prompt + 1,024 response reserve + 3,277 estimator headroom is at most 16,384 tokens, and LiteRT receives `maxOutputTokens: 1024` |
 | Conversation headroom | At least two complete user/assistant turns fit without discarding grounding |
 | Product cases | All six cases individually reviewed once on the tested Mac; every representative product-significant failure resolved before release |
 | Grounding diagnosis | Required evidence presence scored separately from Gemma answer quality and citation behavior |
 | Citations | Every rendered citation resolves to that turn's selected evidence; prior citation markers are neutralized before model-history replay; source inspection remains available for every response |
 | Unsupported questions | Both unsupported cases abstain without implying private or unpublished access |
 | Responsiveness | Artifact/model load, first-token, and total-response measurements are recorded on the tested Mac and support copy is limited to that evidence |
-| Lifecycle | Stop, New session/reset, unload, reload, and route-away recovery pass on the tested Mac; no repeatable device loss or unrecovered cleanup failure |
+| Lifecycle | Stop, New session/reset, unload, reload, and route-away recovery pass on the tested Mac; no active engine/conversation survives; no repeatable device loss or unrecovered cleanup failure; immediate WASM/GPU reclamation is not claimed |
 | Privacy | 100% of observed requests satisfy the exact allowlist and contain no conversation-derived data |
 
 There is no candidate-comparison gate, aggregate 90% score, or fallback selector. If a hard invariant or representative product requirement fails, canonical `/chatbot` remains noindexed while that concrete defect is diagnosed in the rank-and-pack, prompt, Gemma, citation, runtime, or UX layer that caused it.
@@ -855,12 +860,13 @@ Jet's Ghost is ready for indexed release when:
 - `/tools/chatbot` returns exact `308` to `/chatbot`, and dormant `/tools` remains out of navigation and sitemap;
 - activation is explicit and communicates the approximate 2 GB download;
 - route entry and compatibility checking initiate no LiteRT import, corpus/index/model request, engine creation, or GPU allocation;
+- LiteRT's packaged runtime assets are served only from the pinned versioned same-origin path, loaded only after consent, and never fetched from the SDK's default CDN;
 - qualification independently verifies the complete model artifact's size and SHA-256, while runtime delivery begins at the pinned URL, stays within the trusted HTTPS origin policy and redirect bound, and transmits no application or conversation data;
 - unsupported browsers fail coherently without a server fallback;
 - the knowledge package and index contain only published, assistant-enabled, tracked content and match exactly;
 - MiniSearch rank-and-pack respects the serialized context budget without a candidate-count cap;
 - no prompt-derived network request occurs;
-- cancellation, New session/reset, unload, route cleanup, and recovery pass automated and real-model checks;
+- cancellation, New session/reset, unload, fresh SDK initialization after route re-entry, route cleanup, and recovery pass automated and real-model checks without claiming immediate browser memory reclamation;
 - conversation exhaustion preserves the transcript and requires an explicit new session instead of dropping earlier turns;
 - all six product-acceptance cases have one reviewed causal diagnosis and release disposition on the tested Mac;
 - the tool passes keyboard, reduced-motion, live-region, and responsive checks;

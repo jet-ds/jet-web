@@ -27,6 +27,7 @@
 - Perform all implementation in a clean worktree created from the reviewer-approved documentation commit; leave the original checkout untouched.
 - Stage only explicit file paths. Broad directory staging and `git add -u` without exact paths are prohibited.
 - Production mutation steps require readback verification before completion.
+- Revoke the active OpenRouter production key as the first external mutation, before worktree setup, dependency installation, baseline capture, or feature work; sanitize and commit the non-secret revocation readback later after the evidence tooling exists.
 
 ---
 
@@ -71,11 +72,23 @@
 
 ---
 
+### Security prerequisite: revoke the OpenRouter key before Task 0
+
+This prerequisite is the first authorized operational action. Local identity checks may precede it; no repository edit, dependency installation, screenshot capture, deployment, Vercel environment mutation, Blob mutation, or feature work may do so.
+
+From the original checkout, validate the existing ignored Vercel link contains exactly non-secret `orgId`, `projectId`, and `projectName` fields and that `projectName` identifies `jet-web`. In the authenticated OpenRouter dashboard, use the key's non-secret record ID/label and the production project association to identify the credential currently used by that deployment. If the project or key cannot be identified unambiguously without exposing its value, stop for explicit operator identification.
+
+Once identified, revoke the key immediately and read the provider record back as revoked or disabled. Before leaving the dashboard, create private mode-`0600` operator evidence beneath a new mode-`0700` `$GIT_COMMON_DIR/codex/v1-modernization/` directory. It contains only provider, non-secret key record ID or final four characters, status, revocation UTC time, and verification UTC time; never the credential value, headers, cookies, or a provider response dump. This private readback is not staged. Task 2 creates the sanitizer, and Task 3 projects this record into committed evidence before removing the now-inert variable name from Vercel.
+
+Expected: the production credential can no longer authorize OpenRouter generation before any longer modernization task begins.
+
+---
+
 ### Task 0: Isolate implementation from the dirty original checkout
 
 **Files:**
 - Create outside the original checkout: clean Git worktree and branch.
-- Create private operator state beneath the Git common directory: `codex/v1-modernization/`.
+- Complete the private operator state created by the security prerequisite beneath the Git common directory: `codex/v1-modernization/`.
 - Record in the clean worktree: `docs/verification/baselines/core-1.0.0/operator-state-attestation.json`.
 
 **Interfaces:**
@@ -93,9 +106,11 @@ APPROVED_SHA=$(git rev-parse HEAD)
 GIT_COMMON_DIR=$(cd "$(git rev-parse --git-common-dir)" && pwd -P)
 OPERATOR_STATE_DIR="$GIT_COMMON_DIR/codex/v1-modernization"
 umask 077
-test ! -e "$OPERATOR_STATE_DIR" || { echo "Private operator state already exists; reconcile it explicitly before continuing" >&2; exit 1; }
-mkdir -p "$OPERATOR_STATE_DIR"
+test -d "$OPERATOR_STATE_DIR"
+test "$(find "$OPERATOR_STATE_DIR" -mindepth 1 -maxdepth 1 -type f -print | wc -l | tr -d ' ')" = "1"
+test -f "$OPERATOR_STATE_DIR/openrouter-key-revocation.raw.json"
 chmod 700 "$OPERATOR_STATE_DIR"
+node -e "const fs=require('node:fs'); const p=process.argv[1]; const d=JSON.parse(fs.readFileSync(p,'utf8')); const keys=Object.keys(d).sort(); const allowed=['keyRecord','provider','revokedAt','status','verifiedAt']; if(JSON.stringify(keys)!==JSON.stringify(allowed)||d.provider!=='OpenRouter'||!['revoked','disabled'].includes(d.status)||!d.keyRecord||!/Z$/.test(d.revokedAt)||!/Z$/.test(d.verifiedAt)) process.exit(1)" "$OPERATOR_STATE_DIR/openrouter-key-revocation.raw.json"
 git diff --exit-code
 git diff --cached --exit-code
 git status --porcelain=v1 -uall
@@ -108,7 +123,7 @@ cp .vercel/project.json "$OPERATOR_STATE_DIR/vercel-project.json"
 chmod 600 "$OPERATOR_STATE_DIR"/*
 ```
 
-Expected: tracked and staged diffs are empty; untracked user files may be listed. The private directory contains the absolute source root, NUL-delimited inventory, approved SHA, four archival-candidate hashes, and the validated three-field Vercel link. Nothing in that directory is tracked or copied into the clean worktree. If the original project link is absent or has any other shape, stop for explicit project identification rather than running interactive `vercel link`.
+Expected: tracked and staged diffs are empty; untracked user files may be listed. The private directory contains the sanitized-shape revocation readback, absolute source root, NUL-delimited inventory, approved SHA, four archival-candidate hashes, and the validated three-field Vercel link. Nothing in that directory is tracked or copied into the clean worktree. If the original project link is absent or has any other shape, stop for explicit project identification rather than running interactive `vercel link`.
 
 - [ ] **Step 2: Create and verify the clean worktree**
 
@@ -403,10 +418,11 @@ Create `tests/unit/ops/vercelEvidence.test.ts` before `scripts/sanitize-vercel-e
 sanitize-inspect     -> { id, name, url, target: string | null, readyState, aliases }
 sanitize-deployment  -> { id, url, target: string | null, readyState, createdAt, gitSource: { type, ref, sha }, project: { id, name } }
 sanitize-env         -> { scope, envs: [{ key, type, target, gitBranch? }] }
+sanitize-openrouter-revocation -> { provider, keyRecord, status, revokedAt, verifiedAt }
 verify-safe          -> validates one already-sanitized evidence file without rewriting it
 ```
 
-Each sanitizing mode validates provider input, constructs a new object from only the listed keys, sorts arrays deterministically, writes canonical JSON, and then runs the same safety verifier. It never copies unknown properties. `verify-safe` can scan these projections plus the purpose-built Blob/revocation/result evidence schemas; it recursively rejects property names matching value/secret/token/password/auth/cookie/header/raw/build-env patterns, authorization/cookie/encrypted-value/environment-value containers, and credential-like or high-entropy values outside approved SHA/ID fields. It does not silently bless arbitrary provider fields. Environment-variable *names* remain permitted only as `envs[].key`; their values never are. Tests include realistic Vercel responses containing nested `value`, `encryptedValue`, `buildEnv`, `env`, headers, cookies, and token-shaped canaries and prove none can survive sanitization. A sanitizer failure must remove a partial output.
+Each sanitizing mode validates provider input, constructs a new object from only the listed keys, sorts arrays deterministically, writes canonical JSON, and then runs the same safety verifier. It never copies unknown properties. `sanitize-openrouter-revocation` accepts only provider `OpenRouter`, a non-secret record ID or explicitly labelled final-four value, status `revoked` or `disabled`, and UTC timestamps; it rejects credential-shaped `keyRecord` values and all unknown fields. `verify-safe` can scan these projections plus the purpose-built Blob/result evidence schemas; it recursively rejects property names matching value/secret/token/password/auth/cookie/header/raw/build-env patterns, authorization/cookie/encrypted-value/environment-value containers, and credential-like or high-entropy values outside approved SHA/ID fields. It does not silently bless arbitrary provider fields. Environment-variable *names* remain permitted only as `envs[].key`; their values never are. Tests include realistic Vercel/OpenRouter responses containing nested `value`, `encryptedValue`, `buildEnv`, `env`, headers, cookies, and token-shaped canaries and prove none can survive sanitization. A sanitizer failure must remove a partial output.
 
 URL-shaped fields are never exempted from validation. Parse hostnames by prepending `https://` only when the provider returns a bare host, then require HTTPS semantics, no username/password, no non-root path for deployment/alias hosts, no query, no fragment, no control character, and no percent-decoded secret-shaped component. Deployment URLs must be `*.vercel.app`; aliases must be `jetsanchez.com`, `www.jetsanchez.com`, or `*.vercel.app`; Blob evidence URLs must use the exact public Vercel Blob host established by the known containment inventory and likewise have no userinfo, query, or fragment. Re-emit only the validated normalized hostname/URL form. Add plaintext and percent-encoded token query, userinfo, path, fragment, CRLF, and double-encoding canaries for every URL-bearing evidence schema.
 
@@ -657,12 +673,18 @@ git check-ignore -q .vercel/project.json
 
 Expected: the ignored local link contains no token and its project ID/name exactly match the sanitizer-approved production deployment. If any assertion fails, stop for explicit project identification; never run interactive `vercel link` in this workflow.
 
-- [ ] **Step 8: Revoke and remove the production credential**
+- [ ] **Step 8: Project revocation evidence and remove the inert Vercel credential**
 
-In the authenticated OpenRouter key dashboard, revoke the key used by `jet-web` and read the key record back as revoked/disabled. Write `docs/verification/containment/openrouter-key-revocation.json` containing only provider, non-secret key record ID or final four characters, revocation status, UTC time, and verifier—never the credential value. Then run:
+The security prerequisite already revoked the key before Task 0. Re-open the authenticated OpenRouter dashboard and confirm the same non-secret key record remains revoked/disabled; if it is active or cannot be matched, stop immediately. Update only the private verification timestamp, then use the committed sanitizer to project that private record into `docs/verification/containment/openrouter-key-revocation.json`. Never copy a raw provider response or credential value into the worktree. Then remove the now-inert variable from all Vercel scopes and read the names back:
 
 ```bash
+set -euo pipefail
+GIT_COMMON_DIR=$(cd "$(git rev-parse --git-common-dir)" && pwd -P)
+OPERATOR_STATE_DIR="$GIT_COMMON_DIR/codex/v1-modernization"
 node -e "const l=require('./.vercel/project.json'); const d=require('./docs/verification/baselines/core-1.0.0/vercel-deployment.json'); if(l.projectId!==d.project.id||l.projectName!==d.project.name) process.exit(1)"
+npx tsx scripts/sanitize-vercel-evidence.ts sanitize-openrouter-revocation --input="$OPERATOR_STATE_DIR/openrouter-key-revocation.raw.json" --output=docs/verification/containment/openrouter-key-revocation.json
+npx tsx scripts/sanitize-vercel-evidence.ts verify-safe --input=docs/verification/containment/openrouter-key-revocation.json
+node -e "const d=require('./docs/verification/containment/openrouter-key-revocation.json'); if(d.provider!=='OpenRouter'||!['revoked','disabled'].includes(d.status)) process.exit(1)"
 npx --yes vercel@55.0.0 env rm OPENROUTER_API_KEY production --yes
 npx --yes vercel@55.0.0 env rm OPENROUTER_API_KEY preview --yes
 npx --yes vercel@55.0.0 env rm OPENROUTER_API_KEY development --yes
@@ -680,7 +702,7 @@ rm -rf "$EVIDENCE_TMP"
 trap - EXIT HUP INT TERM
 ```
 
-Expected: `OPENROUTER_API_KEY` is absent from all scopes.
+Expected: the committed projection proves the originally identified key remains revoked/disabled, and `OPENROUTER_API_KEY` is absent from all Vercel scopes. This step does not represent the first containment action; it records and completes the already-effective credential containment.
 
 - [ ] **Step 9: Execute the committed Blob containment tool**
 
