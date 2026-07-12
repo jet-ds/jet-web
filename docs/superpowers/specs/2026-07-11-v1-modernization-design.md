@@ -179,6 +179,8 @@ Containment is the first implementation milestone and is performed before featur
 
 Containment readback is an assertion, not a visual inspection. Evidence records the complete pre-delete Blob pathname inventory, proves the prefix is empty afterward, probes every recorded URL, requires exactly `404` for `POST /api/chat`, requires exactly `308` and `Location: /tools/chatbot` for the legacy redirect, proves the credential name is absent from every Vercel scope, and identifies the production deployment ID plus Git commit that produced the response.
 
+Raw Vercel CLI/API responses are transient secrets-adjacent inputs, never repository evidence. Each is written only to a mode-`0600` temporary file created under a mode-`0700` temporary directory, transformed into a schema-allowlisted projection, scanned recursively for forbidden keys and secret-like values, and deleted before any `git add`. Committed environment evidence contains names, types, scopes, targets, and optional Git branches only; it never contains values, encrypted values, headers, cookies, build environment objects, or provider response residue.
+
 Containment must not redeploy the existing remote-writing build unchanged, because that build can publish a new artifact generation as a side effect.
 
 Previously cached public data cannot be recalled from a visitor's browser. Containment prevents further retrieval and removes the live production path; it cannot erase copies already downloaded.
@@ -275,7 +277,7 @@ The README contains only:
 - This design and its companion become the active target specifications.
 - Create `docs/archive/README.md` as the index of superseded specifications, completed implementation logs, and retired research.
 - Move the v1/v2 project specifications and migration logs into `docs/archive/site/`, and move retired RAG architecture/plans/logs/reviews/research into `docs/archive/jets-ghost/legacy-rag/`.
-- The user has explicitly approved adoption and archival of superseded untracked documents such as `docs/jets-ghost-v1.5-spec.md`, `docs/rag-chatbot-implementation-review.md`, and `EMBEDDING_STORAGE_RESEARCH.md`. Preserve each substantive body, record its source SHA-256, add status/successor context in the archive, and remove the obsolete untracked source copy only after the archived copy is committed and its body hash is verified.
+- The user has explicitly approved adoption and archival of four superseded untracked documents: `EMBEDDING_STORAGE_RESEARCH.md`, `docs/jets-ghost-v1.5-spec.md`, `docs/rag-chatbot-implementation-review.md`, and `docs/liquid-glass-dock-v2-log.md`. Preserve each substantive body, record its source SHA-256, add status/successor context in the archive, and remove the obsolete source copy only after the archive is reachable from the released commit. Cleanup revalidates both source and archived-body hashes, operates on this exact allowlist, and proves the original worktree inventory changed only by removal of those four paths.
 - Move completed Liquid Glass and launch implementation logs into `docs/archive/site/implementation-logs/` while retaining links from the archive index.
 - Do not archive unrelated untracked specifications merely because they are untracked. The EmDash Newsroom exercise and Page Analyzer/Schema Visualizer proposals remain separate active drafts unless a later decision supersedes them.
 - Replace `README.md` with the professional structure defined in the repository-governance section.
@@ -319,6 +321,7 @@ The `Download PDF` action is removed. Citation text also uses the HTTPS DOI URL.
 - Mobile open/close state exposes `aria-expanded` and a controlled-region relationship.
 - Motion respects reduced-motion preferences without removing navigation functionality.
 - The no-script navigation is generated from the same route data.
+- When the mobile dock is closed, the controlled region is inert, hidden from the accessibility tree, and excluded from sequential focus. Opening removes those constraints; closing restores focus to the disclosure control.
 
 ### 6. SEO and web correctness
 
@@ -415,6 +418,7 @@ The core modernization is complete when:
 - `origin/main` Grainient performance behavior is preserved and reduced motion is supported;
 - representative routes pass browser smoke and automated accessibility checks;
 - active documentation identifies modernized v1 as canonical and v2 as superseded;
+- every committed deployment/environment evidence file is a sanitizer-approved allowlisted projection, and every release readback artifact has a published SHA-256 that is verified after downloading it from the release;
 - `AGENTS.md` is canonical, `CLAUDE.md` points to it, the recorded pre-modernization baseline is `1.0.0`, the released application is `2.0.0`, and commit instructions require Conventional Commits without agent attribution;
 - the README is concise, professional, and accurate to the implemented system;
 - the visual and editorial character remains materially unchanged.

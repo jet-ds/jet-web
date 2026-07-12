@@ -70,13 +70,14 @@ Expected asset identity:
 ```text
 Size: 2,008,432,640 bytes
 SHA-256: 3a08e8d94e23b814ae5414469c370c503813949acb8ceaa17e4ebf8a35af35b5
+Hugging Face Xet content hash: 769c60390eae4510a3123e54a0154408acbf203d8f58ac2ea1fe6604abead19b
 ```
 
 The LiteRT-LM Web API is an early preview, text-only, and WebGPU-backed. The official API supports `Engine.create()`, `engine.createConversation()`, streaming through `sendMessageStreaming()`, cancellation through `conversation.cancel()`, and resource release through `engine.delete()`.
 
 The Web-optimized E2B file is approximately 2 GB. Its model card says the model supports up to 32K context, but published web performance uses a much shorter benchmark context. Jet's Ghost therefore treats context size as an empirical browser configuration, not a promise derived from the model maximum.
 
-The package version, model URL, file size, license, and API surface are reviewed as part of each dependency-update change. An early-preview update never lands as an unreviewed range bump.
+The revision URL currently redirects once to a time-limited signed URL on a regional `*.cdn.hf.co` host. The package version, initial URL, allowed redirect-chain policy, content identity, file size, license, and API surface are reviewed as part of each dependency-update change. An early-preview or delivery-path update never lands as an unreviewed range bump.
 
 ## System boundaries
 
@@ -225,7 +226,7 @@ interface KnowledgeChunk {
 
 `corpusVersion` is a SHA-256 digest of exactly `schemaVersion`, `segmentationVersion`, and the recursively canonical serialization of sorted documents, sections, and chunks. Canonical serialization sorts every object key lexicographically, preserves the explicitly sorted array order, uses UTF-8 JSON without insignificant whitespace, and normalizes dates and newlines before hashing. `sourceCommit`, derived statistics, and delivery metadata are excluded from the content digest.
 
-`sourceHash` is the SHA-256 digest of the canonical validated collection data plus MDX body received from Astro, not a second raw-filesystem parse. `sourceCommit` is still required provenance. A clean build resolves it from `git rev-parse HEAD`; CI/Vercel-provided commit variables must equal that value or the build fails. There is no `'local'` fallback in a production package. The same checked-out commit and content therefore produce byte-identical manifest and content bytes regardless of which matching environment variable is present. The package contains no wall-clock build timestamp.
+`sourceHash` is the SHA-256 digest of the **complete** normalized output of the applicable validated Blog or Works schema plus the MDX body received from Astro, not a hand-picked metadata subset and not a second raw-filesystem parse. This includes nested links and images and every type-specific field such as venue, abstract, technologies, repository, and demo when present. Dates are normalized to ISO strings and object keys are canonicalized; changing any validated metadata leaf or body changes `sourceHash`, while input object-key order does not. `sourceCommit` is still required provenance. A clean build resolves it from `git rev-parse HEAD`; CI/Vercel-provided commit variables must equal that value or the build fails. There is no `'local'` fallback in a production package. The same checked-out commit and content therefore produce byte-identical manifest and content bytes regardless of which matching environment variable is present. The package contains no wall-clock build timestamp.
 
 ### Packaging and delivery
 
@@ -417,7 +418,7 @@ Move the release profile away from full corpus when any of these is reproduced i
 - assembled prompt usage exceeds 70% before response generation;
 - p95 post-load time to first token exceeds 8 seconds on the reference baseline device;
 - peak GPU memory causes tab instability, device loss, repeatable allocation failure, or severe system pressure;
-- conversation history must be discarded before two complete user/assistant turns;
+- the next turn would exceed the conversation reserve before two complete user/assistant turns can be retained;
 - grounded-answer quality falls more than 3 percentage points below the lexical candidate because of context dilution;
 - the complete package payload exceeds 5 MB compressed or p95 package parsing exceeds 250 ms, indicating that loading and selection should be profiled separately.
 
@@ -602,8 +603,9 @@ Prompt assembly rejects an oversized current question, source serialization, fix
 - Reloading or closing the page clears it.
 - No prompt or response is stored in localStorage, IndexedDB, analytics, logs, or server requests.
 - Keep at most the conversation-history token reserve in the active prompt.
-- Preserve complete recent turns; do not cut a message mid-turn.
-- When another turn would violate the budget, ask the visitor to start a new session rather than silently dropping grounding or overflowing context.
+- Preserve every complete turn in the current visible session; do not cut a message mid-turn and do not silently evict an older turn to make a newer one fit.
+- Before session creation, include the entire existing session history and current question in the total budget calculation. The current question remains charged to `questionLimit`; serialized prior turns are charged to `conversationLimit`. If prior turns exceed that reserve, or the otherwise-valid final prompt would overflow only because all prior turns are preserved, throw `conversation-limit-reached`, leave every visible turn unchanged, do not call `createSession()`, and offer an explicit “Start new session” action.
+- “Start new session” deletes the current LiteRT conversation, clears visible history and citations, retains the loaded engine/corpus, and returns focus to the input. The visitor must deliberately retry the question in the fresh session.
 - The initial release does not generate a hidden model-authored summary of old turns.
 
 ## UI behavior
@@ -635,10 +637,12 @@ After activation, allowed network requests are limited to:
 
 - bodyless `GET` requests to the two fixed same-origin knowledge-package paths;
 - bodyless `GET` requests to same-origin pinned LiteRT-LM JavaScript chunks and runtime assets emitted by the site build;
-- a bodyless `GET` request to the exact revision-pinned Gemma model URL;
+- bodyless `GET`/`HEAD` requests, including ordinary `Range` headers, in the authenticated Gemma delivery chain defined below;
 - existing page-view analytics, which receive no prompt-derived fields.
 
-The assistant initiates no other origin, path, method, request body, query parameter, or custom header. In particular, same-origin corpus requests cannot be used as an exception for prompt leakage: they are fixed bodyless GETs. Browser verification applies this allowlist to every request and treats any prompt, selected source text, response, or history in a URL, headers, or body as a release blocker.
+The Gemma delivery chain must begin at the exact revision-pinned `huggingface.co/.../resolve/<commit>/<filename>` URL. It may follow at most two provider-issued HTTPS redirects; any intermediate hop must remain on the initial origin or already satisfy the final CDN rule. A redirected request is allowed only when Playwright proves its `redirectedFrom()` chain begins at that exact URL, its final hostname equals `cdn.hf.co` or ends in `.cdn.hf.co`, its final path segment equals the pinned Xet content hash, and its query keys are a subset of the reviewed Hugging Face signed-delivery keys (`user_id`, `response-content-disposition`, `X-Xet-Cas-Uid`, `Expires`, `Policy`, `Signature`, `Key-Pair-Id`). Signed values may vary and are never persisted by application code, logs, traces, or release evidence. Before qualification, a header-only preflight of the initial URL must expose the pinned repository commit, linked size, and linked ETag/SHA-256; the final HEAD must succeed and report the pinned content length.
+
+The assistant initiates no other origin, path, method, request body, query parameter, or custom header. In particular, same-origin corpus requests cannot be used as an exception for prompt leakage: they are fixed bodyless GETs. Provider-signed delivery queries are allowed only through the authenticated redirect chain and may contain no application data. Browser verification applies this allowlist to every request and treats any prompt, selected source text, response, or history in a URL, headers, or body as a release blocker.
 
 The UI does not claim that model files are served by Jet or that the experience is guaranteed offline. It does claim local inference and local conversation handling after required assets are available.
 
@@ -656,6 +660,7 @@ type JetsGhostErrorCode =
   | 'generation-failed'
   | 'generation-cancelled'
   | 'question-too-long'
+  | 'conversation-limit-reached'
   | 'context-budget-exceeded'
   | 'engine-cleanup-failed';
 ```
@@ -668,7 +673,7 @@ Recovery expectations:
 - model load failure can retry from consent or return to idle;
 - generation failure preserves the input and returns to ready;
 - cancellation preserves an explicitly marked partial response or removes it consistently according to one tested UI rule;
-- context overflow is caught before generation and offers a new-session action;
+- conversation exhaustion is caught before session creation, preserves the existing transcript, and offers the explicit new-session action; other context overflow remains a separate selection/profile error;
 - cleanup failure is logged locally and the runtime is never reported as unloaded until cleanup completes or the page is gone.
 
 ## Testing architecture
@@ -767,15 +772,18 @@ Jet's Ghost is ready to replace the placeholder when:
 - the OpenRouter endpoint and credential are gone;
 - only Gemma 4 E2B is exposed;
 - activation is explicit and communicates the approximate 2 GB download;
+- the pinned model identity and authenticated Hugging Face redirect-chain preflight pass without persisting signed delivery values;
 - unsupported browsers fail coherently without a server fallback;
 - the knowledge package contains only published, assistant-enabled, tracked content;
 - the chosen selector passes its context and evaluation thresholds;
 - no prompt-derived network request occurs;
 - cancellation, reset, unload, route cleanup, and recovery pass automated and real-model checks;
+- conversation exhaustion preserves the transcript and requires an explicit new session instead of dropping earlier turns;
 - corpus inclusion, citation precision/recall, reviewed grounded-answer success, and abstention meet the full-corpus thresholds;
 - the tool passes keyboard, reduced-motion, live-region, and responsive checks;
 - the tool page has accurate metadata and may be removed from `noindex`;
-- model/library license and attribution requirements are reviewed, implemented, and documented.
+- model/library license and attribution requirements are reviewed, implemented, and documented;
+- production/evaluation release artifacts are checksum-published and verified after download.
 
 The license gate inventories the exact Gemma model revision, its model card and Gemma terms, `@litert-lm/core` and transitive notices, redistribution/caching implications, and any attribution or acceptable-use disclosure required in the repository or public UI. Evidence records the reviewed URLs, versions, hashes, review date, and where each required notice is rendered. `noindex` is not removed while any required notice or permission remains unresolved.
 

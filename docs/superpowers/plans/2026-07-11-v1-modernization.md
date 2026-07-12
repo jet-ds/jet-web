@@ -245,7 +245,9 @@ git commit -m "chore(governance): establish repository conventions"
 - Create: `playwright.config.ts`
 - Create: `tests/setup.ts`
 - Create: `tests/unit/config/site.test.ts`
+- Create: `tests/unit/ops/vercelEvidence.test.ts`
 - Create: `scripts/capture-production-baseline.ts`
+- Create: `scripts/sanitize-vercel-evidence.ts`
 - Create: `docs/verification/baselines/core-1.0.0/manifest.json`
 - Create: `docs/verification/baselines/core-1.0.0/vercel-inspect.json`
 - Create: `docs/verification/baselines/core-1.0.0/vercel-deployment.json`
@@ -297,7 +299,7 @@ export default defineConfig({
   test: {
     environment: 'jsdom',
     setupFiles: ['./tests/setup.ts'],
-    include: ['tests/unit/**/*.test.{ts,tsx}'],
+    include: ['tests/{unit,integration}/**/*.test.{ts,tsx}'],
     coverage: {
       reporter: ['text', 'html'],
       include: ['src/**/*.{ts,tsx}'],
@@ -364,7 +366,26 @@ npm run test -- tests/unit/config/site.test.ts
 
 Expected: `1 passed`.
 
-- [ ] **Step 7: Capture an immutable production baseline before site behavior changes**
+- [ ] **Step 7: Write and implement the Vercel evidence sanitizer**
+
+Create `tests/unit/ops/vercelEvidence.test.ts` before `scripts/sanitize-vercel-evidence.ts`. The CLI has four explicit modes:
+
+```text
+sanitize-inspect     -> { id, name, url, target: string | null, readyState, aliases }
+sanitize-deployment  -> { id, url, target: string | null, readyState, createdAt, gitSource: { type, ref, sha }, project: { id, name } }
+sanitize-env         -> { scope, envs: [{ key, type, target, gitBranch? }] }
+verify-safe          -> validates one already-sanitized evidence file without rewriting it
+```
+
+Each sanitizing mode validates provider input, constructs a new object from only the listed keys, sorts arrays deterministically, writes canonical JSON, and then runs the same safety verifier. It never copies unknown properties. `verify-safe` can scan these projections plus the purpose-built Blob/revocation/result evidence schemas; it recursively rejects property names matching value/secret/token/password/auth/cookie/header/raw/build-env patterns, authorization/cookie/encrypted-value/environment-value containers, and credential-like or high-entropy values outside approved SHA/ID/URL fields. It does not silently bless arbitrary provider fields. Environment-variable *names* remain permitted only as `envs[].key`; their values never are. Tests include realistic Vercel responses containing nested `value`, `encryptedValue`, `buildEnv`, `env`, headers, cookies, and token-shaped canaries and prove none can survive sanitization. A sanitizer failure must remove a partial output.
+
+Run:
+
+```bash
+npm run test -- tests/unit/ops/vercelEvidence.test.ts
+```
+
+- [ ] **Step 8: Capture an immutable production baseline before site behavior changes**
 
 Create `scripts/capture-production-baseline.ts`. It must use Playwright's installed Chromium to capture these production routes at `1440x1000` and a `Pixel 7` viewport:
 
@@ -378,24 +399,34 @@ Create `scripts/capture-production-baseline.ts`. It must use Playwright's instal
 /contact
 ```
 
-For each route and viewport, write a full-page PNG and a manifest record containing URL, HTTP status, viewport, title, canonical URL, parsed JSON-LD, and SHA-256 of the response HTML. Sort records by route then viewport and write canonical JSON to `docs/verification/baselines/core-1.0.0/manifest.json`.
+For each route and viewport, write a full-page PNG and a manifest record containing URL, HTTP status, viewport, title, canonical URL, parsed JSON-LD, and SHA-256 of the response HTML. Sort records by route then viewport and write canonical JSON to the requested output. Require `--expected-commit` plus a sanitizer-approved `--deployment` file and fail unless `gitSource.sha` matches. Support an optional `--compare-to=<immutable-baseline-directory>` that writes `comparison.json` beside the candidate manifest, never into the baseline. In comparison mode, refuse an output path equal to or beneath the baseline and refuse a pre-existing output directory, preventing stale files from entering release evidence.
 
-Run:
+Raw provider responses are temporary inputs only. Create them under a private temporary directory, sanitize them into the repository, and delete the directory on every exit:
 
 ```bash
 npx playwright install chromium
-npx --yes vercel@55.0.0 inspect jetsanchez.com --format=json > docs/verification/baselines/core-1.0.0/vercel-inspect.json
+umask 077
+EVIDENCE_TMP=$(mktemp -d)
+chmod 700 "$EVIDENCE_TMP"
+trap 'rm -rf "$EVIDENCE_TMP"' EXIT HUP INT TERM
+npx --yes vercel@55.0.0 inspect jetsanchez.com --format=json > "$EVIDENCE_TMP/vercel-inspect.raw.json"
+npx tsx scripts/sanitize-vercel-evidence.ts sanitize-inspect --input="$EVIDENCE_TMP/vercel-inspect.raw.json" --output=docs/verification/baselines/core-1.0.0/vercel-inspect.json
 BASELINE_DEPLOYMENT_ID=$(node -e "const d=require('./docs/verification/baselines/core-1.0.0/vercel-inspect.json'); process.stdout.write(d.id)")
-npx --yes vercel@55.0.0 api "/v13/deployments/$BASELINE_DEPLOYMENT_ID" --raw > docs/verification/baselines/core-1.0.0/vercel-deployment.json
-npx tsx scripts/capture-production-baseline.ts --origin=https://jetsanchez.com --output=docs/verification/baselines/core-1.0.0
+npx --yes vercel@55.0.0 api "/v13/deployments/$BASELINE_DEPLOYMENT_ID" --raw > "$EVIDENCE_TMP/vercel-deployment.raw.json"
+npx tsx scripts/sanitize-vercel-evidence.ts sanitize-deployment --input="$EVIDENCE_TMP/vercel-deployment.raw.json" --output=docs/verification/baselines/core-1.0.0/vercel-deployment.json
+npx tsx scripts/sanitize-vercel-evidence.ts verify-safe --input=docs/verification/baselines/core-1.0.0/vercel-inspect.json
+npx tsx scripts/sanitize-vercel-evidence.ts verify-safe --input=docs/verification/baselines/core-1.0.0/vercel-deployment.json
+rm -rf "$EVIDENCE_TMP"
+trap - EXIT HUP INT TERM
+npx tsx scripts/capture-production-baseline.ts --origin=https://jetsanchez.com --expected-commit=c0d158c2f1ba73c879890fd2a8269f633d1f2d04 --deployment=docs/verification/baselines/core-1.0.0/vercel-deployment.json --output=docs/verification/baselines/core-1.0.0
 ```
 
 Expected: the Vercel API record is `READY`, targets production, and identifies Git SHA `c0d158c2f1ba73c879890fd2a8269f633d1f2d04`; fourteen predictably named screenshots exist; every route status is `200`; every JSON-LD value parses. If the production SHA has changed, stop and review the new deployment before replacing this expected baseline. These files remain the comparison baseline even after containment and intermediate deployments.
 
-- [ ] **Step 8: Commit**
+- [ ] **Step 9: Commit**
 
 ```bash
-git add package.json package-lock.json vitest.config.ts playwright.config.ts tests/setup.ts tests/unit/config/site.test.ts scripts/capture-production-baseline.ts docs/verification/baselines/core-1.0.0/manifest.json docs/verification/baselines/core-1.0.0/vercel-inspect.json docs/verification/baselines/core-1.0.0/vercel-deployment.json docs/verification/baselines/core-1.0.0/screenshots/home-desktop.png docs/verification/baselines/core-1.0.0/screenshots/home-mobile.png docs/verification/baselines/core-1.0.0/screenshots/blog-index-desktop.png docs/verification/baselines/core-1.0.0/screenshots/blog-index-mobile.png docs/verification/baselines/core-1.0.0/screenshots/blog-claude-desktop.png docs/verification/baselines/core-1.0.0/screenshots/blog-claude-mobile.png docs/verification/baselines/core-1.0.0/screenshots/works-index-desktop.png docs/verification/baselines/core-1.0.0/screenshots/works-index-mobile.png docs/verification/baselines/core-1.0.0/screenshots/works-rch-desktop.png docs/verification/baselines/core-1.0.0/screenshots/works-rch-mobile.png docs/verification/baselines/core-1.0.0/screenshots/tools-desktop.png docs/verification/baselines/core-1.0.0/screenshots/tools-mobile.png docs/verification/baselines/core-1.0.0/screenshots/contact-desktop.png docs/verification/baselines/core-1.0.0/screenshots/contact-mobile.png
+git add package.json package-lock.json vitest.config.ts playwright.config.ts tests/setup.ts tests/unit/config/site.test.ts tests/unit/ops/vercelEvidence.test.ts scripts/capture-production-baseline.ts scripts/sanitize-vercel-evidence.ts docs/verification/baselines/core-1.0.0/manifest.json docs/verification/baselines/core-1.0.0/vercel-inspect.json docs/verification/baselines/core-1.0.0/vercel-deployment.json docs/verification/baselines/core-1.0.0/screenshots/home-desktop.png docs/verification/baselines/core-1.0.0/screenshots/home-mobile.png docs/verification/baselines/core-1.0.0/screenshots/blog-index-desktop.png docs/verification/baselines/core-1.0.0/screenshots/blog-index-mobile.png docs/verification/baselines/core-1.0.0/screenshots/blog-claude-desktop.png docs/verification/baselines/core-1.0.0/screenshots/blog-claude-mobile.png docs/verification/baselines/core-1.0.0/screenshots/works-index-desktop.png docs/verification/baselines/core-1.0.0/screenshots/works-index-mobile.png docs/verification/baselines/core-1.0.0/screenshots/works-rch-desktop.png docs/verification/baselines/core-1.0.0/screenshots/works-rch-mobile.png docs/verification/baselines/core-1.0.0/screenshots/tools-desktop.png docs/verification/baselines/core-1.0.0/screenshots/tools-mobile.png docs/verification/baselines/core-1.0.0/screenshots/contact-desktop.png docs/verification/baselines/core-1.0.0/screenshots/contact-mobile.png
 git commit -m "test: establish verification harness"
 ```
 
@@ -403,6 +434,8 @@ git commit -m "test: establish verification harness"
 
 **Files:**
 - Create: `tests/unit/build/staticBoundary.test.ts`
+- Create: `tests/unit/ops/chatbotContainment.test.ts`
+- Create: `tests/unit/ops/productionContainment.test.ts`
 - Create: `scripts/verify-build-purity.ts`
 - Create: `scripts/contain-chatbot-blobs.ts`
 - Create: `scripts/verify-production-containment.ts`
@@ -522,9 +555,13 @@ In `src/pages/tools/chatbot.astro`, replace the v2 migration paragraph with:
 
 Keep `noindex={true}` until the companion plan's release gate passes.
 
-- [ ] **Step 5: Run boundary checks**
+- [ ] **Step 5: Implement and test every containment tool before committing it**
 
 Create `scripts/verify-build-purity.ts`. It must obtain the NUL-delimited union of tracked and nonignored untracked files with `git ls-files --cached --others --exclude-standard -z`, hash each file's bytes, capture `git status --porcelain=v1 -uall`, run `npm run build` without a shell, repeat both snapshots, and fail with changed paths if either snapshot differs. Ignored build outputs such as `dist/`, `.astro/`, `node_modules/`, Playwright results, and coverage are naturally excluded; no source/config exception is permitted.
+
+Write `tests/unit/ops/chatbotContainment.test.ts` and `tests/unit/ops/productionContainment.test.ts` before their scripts. `contain-chatbot-blobs.ts` receives injected list/delete/fetch/time dependencies, defaults to a read-only dry run, and requires `--execute` for deletion. Tests cover all pagination, the three known URLs, additional matching objects, an already-empty prefix, refusal without `--execute`, cache-busted exact-`404` probes, bounded relist retries, and canonical before/after evidence. `verify-production-containment.ts` receives injected fetch/file readers and tests every status, redirect, deployment-SHA, environment, revocation, and Blob assertion—including one failing test per boundary. Neither test may call Vercel, Blob, OpenRouter, or the public site.
+
+Implement both scripts until those tests pass. This step finishes the scripts that Step 6 stages; the following steps only execute the already-committed tools against authorized external systems.
 
 Add:
 
@@ -538,6 +575,7 @@ Run:
 
 ```bash
 npm run test -- tests/unit/build/staticBoundary.test.ts
+npm run test -- tests/unit/ops/chatbotContainment.test.ts tests/unit/ops/productionContainment.test.ts
 npm run check
 npm run verify:build-purity
 test ! -e dist/api/chat
@@ -548,7 +586,7 @@ Expected: tests, check, and build pass; the build changes no tracked, staged, or
 - [ ] **Step 6: Commit the static containment code**
 
 ```bash
-git add package.json package-lock.json astro.config.mjs .gitignore vercel.json src/pages/tools/chatbot.astro tests/unit/build/staticBoundary.test.ts scripts/verify-build-purity.ts scripts/contain-chatbot-blobs.ts scripts/verify-production-containment.ts
+git add package.json package-lock.json astro.config.mjs .gitignore vercel.json src/pages/tools/chatbot.astro tests/unit/build/staticBoundary.test.ts tests/unit/ops/chatbotContainment.test.ts tests/unit/ops/productionContainment.test.ts scripts/verify-build-purity.ts scripts/contain-chatbot-blobs.ts scripts/verify-production-containment.ts
 git add -u src/pages/api/chat.ts src/pages/chatbot.astro
 git commit -m "fix(security)!: retire hosted chatbot endpoint" -m "BREAKING CHANGE: The public /api/chat generation endpoint is removed."
 ```
@@ -561,17 +599,25 @@ In the authenticated OpenRouter key dashboard, revoke the key used by `jet-web` 
 npx --yes vercel@55.0.0 env rm OPENROUTER_API_KEY production --yes
 npx --yes vercel@55.0.0 env rm OPENROUTER_API_KEY preview --yes
 npx --yes vercel@55.0.0 env rm OPENROUTER_API_KEY development --yes
+umask 077
+EVIDENCE_TMP=$(mktemp -d)
+chmod 700 "$EVIDENCE_TMP"
+trap 'rm -rf "$EVIDENCE_TMP"' EXIT HUP INT TERM
 for scope in production preview development; do
-  npx --yes vercel@55.0.0 env ls "$scope" --format=json > "docs/verification/containment/vercel-env-$scope.json"
+  npx --yes vercel@55.0.0 env ls "$scope" --format=json > "$EVIDENCE_TMP/vercel-env-$scope.raw.json"
+  npx tsx scripts/sanitize-vercel-evidence.ts sanitize-env --scope="$scope" --input="$EVIDENCE_TMP/vercel-env-$scope.raw.json" --output="docs/verification/containment/vercel-env-$scope.json"
+  npx tsx scripts/sanitize-vercel-evidence.ts verify-safe --input="docs/verification/containment/vercel-env-$scope.json"
   SCOPE="$scope" node -e "const fs=require('node:fs'); const data=JSON.parse(fs.readFileSync('docs/verification/containment/vercel-env-'+process.env.SCOPE+'.json','utf8')); if(data.envs.some(row=>row.key==='OPENROUTER_API_KEY')) process.exit(1)"
 done
+rm -rf "$EVIDENCE_TMP"
+trap - EXIT HUP INT TERM
 ```
 
 Expected: `OPENROUTER_API_KEY` is absent from all scopes.
 
-- [ ] **Step 8: Inventory, delete, and assert every obsolete public chatbot Blob**
+- [ ] **Step 8: Execute the committed Blob containment tool**
 
-Implement `scripts/contain-chatbot-blobs.ts` with the Vercel Blob SDK. It must:
+The committed `scripts/contain-chatbot-blobs.ts` must:
 
 1. page through the entire `chatbot/` prefix;
 2. write a canonical pre-delete inventory containing pathname, URL, size, and upload time to `docs/verification/containment/chatbot-blobs-before.json`;
@@ -585,6 +631,7 @@ The script reads `BLOB_READ_WRITE_TOKEN` from the environment and never prints o
 
 ```bash
 npx tsx scripts/contain-chatbot-blobs.ts
+npx tsx scripts/contain-chatbot-blobs.ts --execute
 ```
 
 Expected: every recorded URL returns `404`, the after-inventory is empty, and the three known draft-bearing URLs are explicitly present in the evidence.
@@ -597,19 +644,30 @@ Capture and verify the deployment rather than merely printing responses:
 
 ```bash
 EXPECTED_SHA=$(git rev-parse HEAD)
-npx --yes vercel@55.0.0 inspect jetsanchez.com --wait --timeout=5m --format=json > docs/verification/containment/vercel-inspect.json
+umask 077
+EVIDENCE_TMP=$(mktemp -d)
+chmod 700 "$EVIDENCE_TMP"
+trap 'rm -rf "$EVIDENCE_TMP"' EXIT HUP INT TERM
+npx --yes vercel@55.0.0 inspect jetsanchez.com --wait --timeout=5m --format=json > "$EVIDENCE_TMP/vercel-inspect.raw.json"
+npx tsx scripts/sanitize-vercel-evidence.ts sanitize-inspect --input="$EVIDENCE_TMP/vercel-inspect.raw.json" --output=docs/verification/containment/vercel-inspect.json
 DEPLOYMENT_ID=$(node -e "const d=require('./docs/verification/containment/vercel-inspect.json'); process.stdout.write(d.id)")
-npx --yes vercel@55.0.0 api "/v13/deployments/$DEPLOYMENT_ID" --raw > docs/verification/containment/vercel-deployment.json
-npx tsx scripts/verify-production-containment.ts --origin=https://jetsanchez.com --expected-commit="$EXPECTED_SHA" --deployment=docs/verification/containment/vercel-deployment.json --revocation=docs/verification/containment/openrouter-key-revocation.json --blob-before=docs/verification/containment/chatbot-blobs-before.json --blob-after=docs/verification/containment/chatbot-blobs-after.json
+npx --yes vercel@55.0.0 api "/v13/deployments/$DEPLOYMENT_ID" --raw > "$EVIDENCE_TMP/vercel-deployment.raw.json"
+npx tsx scripts/sanitize-vercel-evidence.ts sanitize-deployment --input="$EVIDENCE_TMP/vercel-deployment.raw.json" --output=docs/verification/containment/vercel-deployment.json
+rm -rf "$EVIDENCE_TMP"
+trap - EXIT HUP INT TERM
+npx tsx scripts/verify-production-containment.ts --origin=https://jetsanchez.com --expected-commit="$EXPECTED_SHA" --deployment=docs/verification/containment/vercel-deployment.json --revocation=docs/verification/containment/openrouter-key-revocation.json --blob-before=docs/verification/containment/chatbot-blobs-before.json --blob-after=docs/verification/containment/chatbot-blobs-after.json --env=docs/verification/containment/vercel-env-production.json --env=docs/verification/containment/vercel-env-preview.json --env=docs/verification/containment/vercel-env-development.json
 ```
 
-`verify-production-containment.ts` fails unless the deployment is `READY`, targets production, `gitSource.sha` equals `EXPECTED_SHA`, `POST /api/chat` returns exactly `404`, `/chatbot` returns exactly `308` with resolved redirect URL `https://jetsanchez.com/tools/chatbot`, every Blob assertion still passes, the revocation record says revoked, and all three environment inventories omit `OPENROUTER_API_KEY`. Write the asserted result to `docs/verification/containment/result.json` and commit the non-secret evidence with explicit paths.
+`verify-production-containment.ts` fails unless the deployment is `READY`, targets production, `gitSource.sha` equals `EXPECTED_SHA`, `POST /api/chat` returns exactly `404`, `/chatbot` returns exactly `308` with resolved redirect URL `https://jetsanchez.com/tools/chatbot`, every Blob assertion still passes, the revocation record says revoked, and all three environment inventories omit `OPENROUTER_API_KEY`. Construct `result.json` from an explicit schema containing only deployment ID/Git SHA, ready/target state, asserted route status/destination, Blob counts/probe statuses, credential-revoked boolean, environment-name-absence booleans, and UTC verification time; never forward raw responses or headers. Write it to `docs/verification/containment/result.json` and commit the non-secret evidence with explicit paths.
 
 - [ ] **Step 10: Inspect and commit containment evidence**
 
-Verify none of the evidence contains credential values, authorization headers, cookies, or local environment contents. Then run:
+Run `verify-safe` over every evidence file; do not rely on manual inspection. It must reject credential values, authorization headers, cookies, raw environment/build objects, or local environment contents. Then run:
 
 ```bash
+for evidence in docs/verification/containment/*.json; do
+  npx tsx scripts/sanitize-vercel-evidence.ts verify-safe --input="$evidence"
+done
 git add docs/verification/containment/openrouter-key-revocation.json docs/verification/containment/chatbot-blobs-before.json docs/verification/containment/chatbot-blobs-after.json docs/verification/containment/vercel-env-production.json docs/verification/containment/vercel-env-preview.json docs/verification/containment/vercel-env-development.json docs/verification/containment/vercel-inspect.json docs/verification/containment/vercel-deployment.json docs/verification/containment/result.json
 git commit -m "chore(security): record chatbot containment evidence"
 ```
@@ -782,6 +840,7 @@ Expected before commit: only the explicit paths above are staged; the original c
 - Create: `src/content/gitTracking.ts`
 - Create: `scripts/verify-content.ts`
 - Create: `tests/unit/content/validation.test.ts`
+- Create: `tests/integration/content/untrackedBuild.test.ts`
 - Create: `.github/workflows/verify.yml`
 - Modify: `package.json`
 
@@ -850,7 +909,7 @@ The implementation validates raw publication fields before schema transformation
 
 - [ ] **Step 3: Implement the filesystem/Git adapter**
 
-Create `scripts/verify-content.ts` that:
+Create `scripts/verify-content.ts` with a `--root=<absolute-or-relative-path>` option that defaults to the repository root. Every filesystem and Git operation resolves beneath that root; this seam exists for isolated integration testing and does not weaken production defaults. The script:
 
 1. Recursively reads `.md` and `.mdx` files under `src/data/blog` and `src/data/works`.
 2. Parses raw frontmatter with `gray-matter`, preserving missing and unsupported values for policy diagnostics.
@@ -885,17 +944,20 @@ Set:
 
 This makes content verification part of the actual Vercel and local production build, not only an optional CI command. Task 3's static-boundary test must assert that `build` contains `astro build` and contains neither embedding work nor network mutation; it must not require the script to equal a fixed string.
 
-- [ ] **Step 5: Run the validator and production build gates**
+- [ ] **Step 5: Add and run the isolated untracked-build integration test**
+
+Create `tests/integration/content/untrackedBuild.test.ts`. In a `try/finally`, it creates a unique directory with `mkdtemp()`, initializes a Git repository, writes the smallest valid blog/works fixture, stages only those baseline files with `git add --`, then writes an **untracked** `published + assistant:true` MDX entry. No fixture commit or Git identity is required. Invoke `scripts/verify-content.ts --root=<fixture>` in a child process using the repository's pinned `tsx` executable. A test-only wrapper writes an Astro-step sentinel only when that validator exits `0`, matching the production `verify:content && astro build` ordering without a shell; assert exit `1`, the path-qualified `published-untracked` diagnostic, and absence of the sentinel file. Remove the entire fixture directory in `finally`, including after assertion failure. Never copy or read the user's active Codex draft.
 
 Run:
 
 ```bash
 npm run test -- tests/unit/content/validation.test.ts
+npm run test -- tests/integration/content/untrackedBuild.test.ts
 npm run verify:content
 npm run verify
 ```
 
-Expected: all pass in the clean worktree. Separately run a fixture/integration test proving an untracked `published + assistant:true` source makes `npm run build` fail before Astro generation. Do not run the original user's draft through this gate or rewrite it.
+Expected: all pass in the clean worktree; the isolated fixture proves an untracked eligible source stops the production command chain before Astro generation.
 
 - [ ] **Step 6: Add `.github/workflows/verify.yml`**
 
@@ -926,7 +988,7 @@ jobs:
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/content/validation.ts src/content/gitTracking.ts scripts/verify-content.ts tests/unit/content/validation.test.ts .github/workflows/verify.yml package.json
+git add src/content/validation.ts src/content/gitTracking.ts scripts/verify-content.ts tests/unit/content/validation.test.ts tests/integration/content/untrackedBuild.test.ts .github/workflows/verify.yml package.json
 git commit -m "ci: enforce production content and build checks"
 ```
 
@@ -934,6 +996,7 @@ git commit -m "ci: enforce production content and build checks"
 
 **Files:**
 - Create: `tests/unit/navigation/navigation.test.ts`
+- Create: `tests/unit/navigation/LiquidGlassDock.test.tsx`
 - Modify: `src/config/site.ts`
 - Modify: `src/components/navigation/LiquidGlassDock.tsx`
 - Modify: `src/components/layout/BaseLayout.astro`
@@ -1008,6 +1071,10 @@ aria-expanded={dockVisible}
 aria-controls="site-navigation-dock"
 ```
 
+The closed mobile dock must not remain an invisible tab stop. When the mobile layout is active and `dockVisible` is false, set `inert`, `aria-hidden="true"`, and the existing pointer-events/visual closed state on the controlled dock (or conditionally omit its interactive descendants). Opening removes `inert`/`aria-hidden`. Closing from the dock restores focus to the disclosure button; closing because the viewport leaves mobile mode clears the mobile-only attributes. The disclosure has an accessible name of `Open navigation` while closed and `Close navigation` while open.
+
+Create `tests/unit/navigation/LiquidGlassDock.test.tsx` with mocked viewport/scroll state. Prove the disclosure is initially discoverable only after the existing mobile scroll threshold, the closed dock is inert and hidden, its links are excluded from sequential focus, opening exposes the dock, and closing restores disclosure focus.
+
 - [ ] **Step 4: Generate BaseLayout navigation from `NAV_ITEMS`**
 
 Import `NAV_ITEMS` alongside `SITE`. Generate structured-data entries:
@@ -1027,6 +1094,7 @@ Run:
 
 ```bash
 npm run test -- tests/unit/navigation/navigation.test.ts
+npm run test -- tests/unit/navigation/LiquidGlassDock.test.tsx
 npm run check
 npm run build
 ```
@@ -1036,7 +1104,7 @@ Expected: all pass and `NAV_ITEMS` appears only in `src/config/site.ts` as a dec
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/config/site.ts src/components/navigation/LiquidGlassDock.tsx src/components/layout/BaseLayout.astro tests/unit/navigation/navigation.test.ts
+git add src/config/site.ts src/components/navigation/LiquidGlassDock.tsx src/components/layout/BaseLayout.astro tests/unit/navigation/navigation.test.ts tests/unit/navigation/LiquidGlassDock.test.tsx
 git commit -m "refactor(navigation): centralize route configuration"
 ```
 
@@ -1480,17 +1548,32 @@ test('reduced motion does not run Grainient animation', async ({ page }) => {
 test('mobile disclosure exposes and restores controlled state', async ({ page }, testInfo) => {
   test.skip(testInfo.project.name !== 'mobile-chromium');
   await page.goto('/');
-  const disclosure = page.getByRole('button', { name: /navigation/i });
+  await page.evaluate(() => window.scrollTo(0, 160));
+  const disclosure = page.locator('button[aria-controls="site-navigation-dock"]');
+  await expect(disclosure).toBeVisible();
+  await expect(disclosure).toHaveAccessibleName('Open navigation');
   await expect(disclosure).toHaveAttribute('aria-expanded', 'false');
-  await disclosure.click();
-  await expect(disclosure).toHaveAttribute('aria-expanded', 'true');
   const controlledId = await disclosure.getAttribute('aria-controls');
   if (!controlledId) throw new Error('Navigation disclosure lacks aria-controls');
-  await expect(page.locator(`#${controlledId}`)).toBeVisible();
+  const dock = page.locator(`#${controlledId}`);
+  await expect(dock).toHaveAttribute('inert', '');
+  await expect(dock).toHaveAttribute('aria-hidden', 'true');
+  await expect(dock.locator('a').first()).not.toBeFocused();
+  await disclosure.click();
+  await expect(disclosure).toHaveAttribute('aria-expanded', 'true');
+  await expect(disclosure).toHaveAccessibleName('Close navigation');
+  await expect(dock).not.toHaveAttribute('inert', '');
+  await expect(dock).not.toHaveAttribute('aria-hidden', 'true');
+  await expect(dock).toBeVisible();
   await page.keyboard.press('Tab');
-  await expect(page.locator(':focus-visible')).toBeVisible();
+  await expect(dock.locator(':focus-visible')).toBeVisible();
   await disclosure.click();
   await expect(disclosure).toHaveAttribute('aria-expanded', 'false');
+  await expect(disclosure).toHaveAccessibleName('Open navigation');
+  await expect(disclosure).toBeFocused();
+  await expect(dock).toHaveAttribute('inert', '');
+  await page.keyboard.press('Tab');
+  await expect(dock.locator(':focus')).toHaveCount(0);
 });
 ```
 
@@ -1548,6 +1631,9 @@ git commit -m "test(e2e): cover core routes and accessibility"
 - Create: `docs/archive/README.md`
 - Create: `docs/archive/archive-manifest.json`
 - Create: `scripts/archive-legacy-docs.ts`
+- Create: `scripts/verify-doc-links.ts`
+- Create: `tests/unit/ops/archiveLegacyDocs.test.ts`
+- Create: `tests/unit/ops/docLinks.test.ts`
 - Move tracked: `docs/project-spec.md` -> `docs/archive/site/project-spec-v1.md`
 - Move tracked: `docs/project-spec-v2.md` -> `docs/archive/site/project-spec-v2.md`
 - Move tracked: `docs/v2-migration-log.md` -> `docs/archive/site/v2-migration-log.md`
@@ -1556,6 +1642,8 @@ git commit -m "test(e2e): cover core routes and accessibility"
 - Move tracked RAG docs into: `docs/archive/jets-ghost/legacy-rag/`
 - Adopt authorized untracked historical docs into: `docs/archive/jets-ghost/legacy-rag/`
 - Adopt authorized untracked dock log into: `docs/archive/site/implementation-logs/liquid-glass-dock-v2.md`
+- Modify: `package.json`
+- Modify: `package-lock.json`
 
 **Interfaces:**
 - Produces: one canonical architecture path and accurate public contributor documentation.
@@ -1639,11 +1727,25 @@ docs/liquid-glass-dock-v2-log.md
 
 The script reads those files from the inventoried original checkout, verifies each against `authorized-archive-source-hashes.txt`, refuses symlinks or changed/missing sources, copies its substantive body, prepends the correct historical/superseded banner and active-successor link, and writes source/archived SHA-256 values to `docs/archive/archive-manifest.json`. Verify mode removes only the exact generated banner before hashing the archived body and requires it to equal the recorded source hash. The script never reads or copies the active Codex article, EmDash Newsroom exercise, Page Analyzer spec, or Schema Visualizer spec.
 
+The same exact map owns a later `--cleanup --release-ref=<tag>` mode; there is no standalone `rm` workflow. Cleanup first performs every check without mutation: all four sources are regular untracked files with the recorded hashes, all four archived bodies match, the tag is annotated and contains the archived paths, the commit that introduced `archive-manifest.json` is an ancestor of the tag, and the current original-worktree porcelain inventory exactly matches the Task 0 inventory. It then removes only the four mapped sources, proves the new inventory equals the original inventory minus exactly those four records, and reports the removed paths. Use private byte backups and restore all four on any unlink/postcondition failure so a partial cleanup is not accepted.
+
+Test the archive script through injected filesystem/Git adapters in `tests/unit/ops/archiveLegacyDocs.test.ts`. Cover exact-map creation and verification, source-hash drift, archived-body drift, symlinks, missing/unexpected files, a release ref that does not contain the archive commit, a pre-cleanup inventory mismatch, successful removal of exactly four paths, and rollback after an injected unlink/postcondition failure.
+
 Recover `ORIGINAL_ROOT` from the `Original root: ...` line in `original-worktree-status.txt`, assert it is an absolute Git worktree path, then run the script in create and verify modes with that source root. Do not delete the original untracked copies yet; cleanup occurs only after the archive commit is integrated.
 
 - [ ] **Step 5: Index the archive and repair references**
 
-`docs/archive/README.md` lists every archived path, original path, reason/status, date, and canonical successor. Add a visible banner with a correct relative successor link to every moved tracked document. Update README, AGENTS, both active Superpowers documents, and all remaining live links so no canonical documentation points at an obsolete path.
+`docs/archive/README.md` lists every archived path, original path, reason/status, date, and canonical successor. Add a visible banner with a correct relative successor link to every moved tracked document. Update README, AGENTS, both active Superpowers designs, both active Superpowers plans, and all remaining live links so no canonical documentation points at an obsolete path.
+
+Install the parser dependencies as exact regular dependencies because both the checked-in verification script and the later corpus builder use them:
+
+```bash
+npm install --save-exact unified@11.0.5 remark-parse@11.0.0 remark-gfm@4.0.1 unist-util-visit@5.0.0
+```
+
+Then create `scripts/verify-doc-links.ts` and `tests/unit/ops/docLinks.test.ts`. The verifier obtains tracked Markdown with `git ls-files -z -- '*.md'`, scans every non-archive document plus `docs/archive/README.md`, and uses a Markdown syntax tree to inspect actual link/image nodes—never regex over prose. It therefore ignores fenced code, inline code, and plain path examples. For relative destinations it strips fragments/queries, resolves from the containing document, rejects paths that escape the repository, and requires the target to exist; external, fragment-only, and `mailto:` destinations remain outside this filesystem check. Tests cover both plans, both specs, code literals, fragments, URL-encoded paths, missing files, and archive links.
+
+Add `"verify:docs": "tsx scripts/verify-doc-links.ts"` and include it in `npm run verify` so future link drift fails CI.
 
 - [ ] **Step 6: Verify documentation facts and archive integrity**
 
@@ -1656,7 +1758,9 @@ test "$(readlink CLAUDE.md)" = "AGENTS.md"
 ORIGINAL_ROOT=$(sed -n 's/^Original root: //p' docs/verification/baselines/core-1.0.0/original-worktree-status.txt)
 test -n "$ORIGINAL_ROOT"
 npx tsx scripts/archive-legacy-docs.ts --verify --source-root="$ORIGINAL_ROOT"
-if rg -n "docs/(project-spec-v2|v2-migration-log|rag-chatbot-architecture|rag-chatbot-implementation-plan|rag-chatbot-implementation-log)\.md" README.md AGENTS.md docs/superpowers/specs; then exit 1; fi
+npm run test -- tests/unit/ops/archiveLegacyDocs.test.ts
+npm run test -- tests/unit/ops/docLinks.test.ts
+npm run verify:docs
 ```
 
 Expected: no stale claims and all documented commands exist.
@@ -1664,7 +1768,7 @@ Expected: no stale claims and all documented commands exist.
 - [ ] **Step 7: Commit the canonical documentation and archive**
 
 ```bash
-git add README.md AGENTS.md scripts/archive-legacy-docs.ts docs/archive/README.md docs/archive/archive-manifest.json docs/archive/site/project-spec-v1.md docs/archive/site/project-spec-v2.md docs/archive/site/v2-migration-log.md docs/archive/site/implementation-logs/site-launch.md docs/archive/site/implementation-logs/liquid-glass-dock-v1.md docs/archive/site/implementation-logs/liquid-glass-dock-v2.md docs/archive/jets-ghost/legacy-rag/rag-chatbot-architecture.md docs/archive/jets-ghost/legacy-rag/rag-chatbot-implementation-plan.md docs/archive/jets-ghost/legacy-rag/rag-chatbot-implementation-log.md docs/archive/jets-ghost/legacy-rag/embedding-storage-research.md docs/archive/jets-ghost/legacy-rag/jets-ghost-v1.5-spec.md docs/archive/jets-ghost/legacy-rag/rag-chatbot-implementation-review.md docs/superpowers/specs/2026-07-11-v1-modernization-design.md docs/superpowers/specs/2026-07-11-jets-ghost-local-assistant-design.md docs/superpowers/plans/2026-07-11-v1-modernization.md docs/superpowers/plans/2026-07-11-jets-ghost-local-assistant.md
+git add README.md AGENTS.md package.json package-lock.json scripts/archive-legacy-docs.ts scripts/verify-doc-links.ts tests/unit/ops/archiveLegacyDocs.test.ts tests/unit/ops/docLinks.test.ts docs/archive/README.md docs/archive/archive-manifest.json docs/archive/site/project-spec-v1.md docs/archive/site/project-spec-v2.md docs/archive/site/v2-migration-log.md docs/archive/site/implementation-logs/site-launch.md docs/archive/site/implementation-logs/liquid-glass-dock-v1.md docs/archive/site/implementation-logs/liquid-glass-dock-v2.md docs/archive/jets-ghost/legacy-rag/rag-chatbot-architecture.md docs/archive/jets-ghost/legacy-rag/rag-chatbot-implementation-plan.md docs/archive/jets-ghost/legacy-rag/rag-chatbot-implementation-log.md docs/archive/jets-ghost/legacy-rag/embedding-storage-research.md docs/archive/jets-ghost/legacy-rag/jets-ghost-v1.5-spec.md docs/archive/jets-ghost/legacy-rag/rag-chatbot-implementation-review.md docs/superpowers/specs/2026-07-11-v1-modernization-design.md docs/superpowers/specs/2026-07-11-jets-ghost-local-assistant-design.md docs/superpowers/plans/2026-07-11-v1-modernization.md docs/superpowers/plans/2026-07-11-jets-ghost-local-assistant.md
 git commit -m "docs: establish canonical project documentation"
 ```
 
@@ -1702,7 +1806,7 @@ git status --short
 
 Expected: all checks pass; only the intended version files are uncommitted.
 
-- [ ] **Step 3: Record verification evidence**
+- [ ] **Step 3: Record non-self-referential verification evidence**
 
 Create `docs/verification/core-modernization-2.0.0.md` containing:
 
@@ -1719,53 +1823,108 @@ Create `docs/verification/core-modernization-2.0.0.md` containing:
 - Draft route: absent
 - SSRN action: DOI-backed View action only
 - Grainient: 24fps, hidden/offscreen pause, reduced-motion fallback verified
-- Visual baseline: compared with `docs/verification/baselines/core-1.0.0/manifest.json`
-- Postdeployment binding: required in the `v2.0.0` annotated tag and release readback artifact
+- Visual baseline: candidate comparison is a required release artifact; it is not claimed complete in this commit
+- Postdeployment binding and artifact checksums: required in the `v2.0.0` annotated tag and downloaded release readback
 ```
 
 The Git commit containing this file is the evidence revision; no manually copied SHA is stored inside the file.
 
-- [ ] **Step 4: Perform representative visual comparison**
-
-Capture the candidate using `scripts/capture-production-baseline.ts` against the candidate deployment and compare it with the immutable screenshots and metadata under `docs/verification/baselines/core-1.0.0/`. Do not recapture or replace the baseline. Compare home, blog index/detail, works index/detail, tools, and contact at both recorded viewports. Record only verified intentional differences in the evidence file. Reject changes to palette, typography, Utopia spacing, Liquid Glass geometry, or Grainient appearance for visitors without reduced-motion preferences.
-
-- [ ] **Step 5: Commit the release candidate**
+- [ ] **Step 4: Commit the release candidate**
 
 ```bash
 git add package.json package-lock.json docs/verification/core-modernization-2.0.0.md
 git commit -m "chore(release): prepare 2.0.0"
 ```
 
-- [ ] **Step 6: Deploy through the approved remote workflow**
+- [ ] **Step 5: Deploy and compare the exact preview candidate**
 
-Push only after the user-approved remote checkpoint. Wait for CI and Vercel to become ready.
+After the user-approved branch push, wait for its Git-backed Vercel Preview deployment and set `CANDIDATE_URL` to that preview hostname. Do not capture localhost or the production alias. Sanitize the provider responses and prove the preview was built from the committed candidate before visual capture:
 
-Verify production with exact assertions and bind it to the release commit:
+```bash
+EXPECTED_SHA=$(git rev-parse HEAD)
+test -n "$CANDIDATE_URL"
+umask 077
+EVIDENCE_TMP=$(mktemp -d)
+chmod 700 "$EVIDENCE_TMP"
+trap 'rm -rf "$EVIDENCE_TMP"' EXIT HUP INT TERM
+npx --yes vercel@55.0.0 inspect "$CANDIDATE_URL" --wait --timeout=5m --format=json > "$EVIDENCE_TMP/candidate-inspect.raw.json"
+npx tsx scripts/sanitize-vercel-evidence.ts sanitize-inspect --input="$EVIDENCE_TMP/candidate-inspect.raw.json" --output="$EVIDENCE_TMP/candidate-inspect.json"
+CANDIDATE_DEPLOYMENT_ID=$(EVIDENCE_TMP="$EVIDENCE_TMP" node -e "const d=require(process.env.EVIDENCE_TMP+'/candidate-inspect.json'); process.stdout.write(d.id)")
+npx --yes vercel@55.0.0 api "/v13/deployments/$CANDIDATE_DEPLOYMENT_ID" --raw > "$EVIDENCE_TMP/candidate-deployment.raw.json"
+npx tsx scripts/sanitize-vercel-evidence.ts sanitize-deployment --input="$EVIDENCE_TMP/candidate-deployment.raw.json" --output="$EVIDENCE_TMP/candidate-deployment.json"
+EXPECTED_SHA="$EXPECTED_SHA" EVIDENCE_TMP="$EVIDENCE_TMP" node -e "const d=require(process.env.EVIDENCE_TMP+'/candidate-deployment.json'); if(d.readyState!=='READY'||d.target==='production'||d.gitSource?.sha!==process.env.EXPECTED_SHA) process.exit(1)"
+CANDIDATE_OUTPUT="test-results/core-2.0.0-candidate-$EXPECTED_SHA"
+test "$CANDIDATE_OUTPUT" != "docs/verification/baselines/core-1.0.0"
+test ! -e "$CANDIDATE_OUTPUT"
+npx tsx scripts/capture-production-baseline.ts --origin="https://$CANDIDATE_URL" --expected-commit="$EXPECTED_SHA" --deployment="$EVIDENCE_TMP/candidate-deployment.json" --output="$CANDIDATE_OUTPUT" --compare-to=docs/verification/baselines/core-1.0.0
+rm -rf "$EVIDENCE_TMP"
+trap - EXIT HUP INT TERM
+```
+
+The capture script refuses an output path inside the immutable baseline, requires the sanitized deployment's `gitSource.sha` to equal `--expected-commit`, and writes screenshots, `manifest.json`, `comparison.json`, and a copied sanitized `deployment.json` under the exact candidate output directory. Compare home, blog index/detail, works index/detail, tools, and contact at both baseline viewports. Reject unexplained changes to palette, typography, Utopia spacing, Liquid Glass geometry, or Grainient appearance for visitors without reduced-motion preferences; record reviewed intentional differences in `comparison.json`. Preserve this directory for the release asset and then remove the private raw-input directory.
+
+- [ ] **Step 6: Promote through the approved production workflow and read it back**
+
+Promote/merge only after the exact preview comparison passes. Wait for CI and the production alias to become ready.
+
+Verify production with exact assertions and bind it to the same release commit. Raw Vercel responses again exist only in a private temporary directory; only sanitized projections feed verification:
 
 ```bash
 EXPECTED_SHA=$(git rev-parse HEAD)
 npm run verify:production
-npx --yes vercel@55.0.0 inspect jetsanchez.com --wait --timeout=5m --format=json > docs/verification/containment/release-vercel-inspect.json
-DEPLOYMENT_ID=$(node -e "const d=require('./docs/verification/containment/release-vercel-inspect.json'); process.stdout.write(d.id)")
-npx --yes vercel@55.0.0 api "/v13/deployments/$DEPLOYMENT_ID" --raw > docs/verification/containment/release-vercel-deployment.json
-npx tsx scripts/verify-production-containment.ts --origin=https://jetsanchez.com --expected-commit="$EXPECTED_SHA" --deployment=docs/verification/containment/release-vercel-deployment.json --revocation=docs/verification/containment/openrouter-key-revocation.json --blob-before=docs/verification/containment/chatbot-blobs-before.json --blob-after=docs/verification/containment/chatbot-blobs-after.json --output=docs/verification/containment/release-result.json
+umask 077
+EVIDENCE_TMP=$(mktemp -d)
+chmod 700 "$EVIDENCE_TMP"
+trap 'rm -rf "$EVIDENCE_TMP"' EXIT HUP INT TERM
+npx --yes vercel@55.0.0 inspect jetsanchez.com --wait --timeout=5m --format=json > "$EVIDENCE_TMP/release-inspect.raw.json"
+npx tsx scripts/sanitize-vercel-evidence.ts sanitize-inspect --input="$EVIDENCE_TMP/release-inspect.raw.json" --output="$EVIDENCE_TMP/release-inspect.json"
+DEPLOYMENT_ID=$(EVIDENCE_TMP="$EVIDENCE_TMP" node -e "const d=require(process.env.EVIDENCE_TMP+'/release-inspect.json'); process.stdout.write(d.id)")
+npx --yes vercel@55.0.0 api "/v13/deployments/$DEPLOYMENT_ID" --raw > "$EVIDENCE_TMP/release-deployment.raw.json"
+npx tsx scripts/sanitize-vercel-evidence.ts sanitize-deployment --input="$EVIDENCE_TMP/release-deployment.raw.json" --output=test-results/core-2.0.0-vercel-deployment.json
+for scope in production preview development; do
+  npx --yes vercel@55.0.0 env ls "$scope" --format=json > "$EVIDENCE_TMP/release-env-$scope.raw.json"
+  npx tsx scripts/sanitize-vercel-evidence.ts sanitize-env --scope="$scope" --input="$EVIDENCE_TMP/release-env-$scope.raw.json" --output="test-results/core-2.0.0-vercel-env-$scope.json"
+  npx tsx scripts/sanitize-vercel-evidence.ts verify-safe --input="test-results/core-2.0.0-vercel-env-$scope.json"
+done
+npx tsx scripts/verify-production-containment.ts --origin=https://jetsanchez.com --expected-commit="$EXPECTED_SHA" --deployment=test-results/core-2.0.0-vercel-deployment.json --revocation=docs/verification/containment/openrouter-key-revocation.json --blob-before=docs/verification/containment/chatbot-blobs-before.json --blob-after=docs/verification/containment/chatbot-blobs-after.json --env=test-results/core-2.0.0-vercel-env-production.json --env=test-results/core-2.0.0-vercel-env-preview.json --env=test-results/core-2.0.0-vercel-env-development.json --output=test-results/core-2.0.0-release-result.json
+npx tsx scripts/sanitize-vercel-evidence.ts verify-safe --input=test-results/core-2.0.0-vercel-deployment.json
+npx tsx scripts/sanitize-vercel-evidence.ts verify-safe --input=test-results/core-2.0.0-release-result.json
+rm -rf "$EVIDENCE_TMP"
+trap - EXIT HUP INT TERM
 ```
 
 Expected: the deployment is `READY`, production-targeted, and built from `EXPECTED_SHA`; home and sitemap return `200`; `POST /api/chat` returns exactly `404`; `/chatbot` returns exactly `308` to `/tools/chatbot`; Blob and credential assertions remain satisfied.
 
-Keep `release-result.json` uncommitted. Committing a self-referential deployment ID would create a new SHA and invalidate the binding it records.
+Keep the deployment/result JSON and visual candidate directory uncommitted. Committing a self-referential deployment ID would create a new SHA and invalidate the binding it records.
 
-- [ ] **Step 7: Tag only after production readback**
+- [ ] **Step 7: Checksum, tag, publish, and download-verify release evidence**
+
+Package the visual evidence, calculate reproducible SHA-256 records, and include the checksum-manifest digest in the annotated tag. These commands require the same explicit authorization as any other tag push or GitHub Release mutation:
 
 ```bash
-git tag -a v2.0.0 "$EXPECTED_SHA" -m "v2.0.0" -m "Vercel deployment: $DEPLOYMENT_ID" -m "Git SHA: $EXPECTED_SHA"
+VISUAL_ASSET="test-results/core-2.0.0-candidate-$EXPECTED_SHA.tar.gz"
+tar -czf "$VISUAL_ASSET" -C test-results "core-2.0.0-candidate-$EXPECTED_SHA"
+CHECKSUMS="test-results/core-2.0.0-SHA256SUMS.txt"
+(cd test-results && shasum -a 256 "core-2.0.0-vercel-deployment.json" "core-2.0.0-vercel-env-production.json" "core-2.0.0-vercel-env-preview.json" "core-2.0.0-vercel-env-development.json" "core-2.0.0-release-result.json" "core-2.0.0-candidate-$EXPECTED_SHA.tar.gz" > "core-2.0.0-SHA256SUMS.txt")
+CHECKSUMS_SHA256=$(shasum -a 256 "$CHECKSUMS" | awk '{print $1}')
+git tag -a v2.0.0 "$EXPECTED_SHA" -m "v2.0.0" -m "Vercel deployment: $DEPLOYMENT_ID" -m "Git SHA: $EXPECTED_SHA" -m "SHA256SUMS: $CHECKSUMS_SHA256"
+git push origin v2.0.0
+gh release create v2.0.0 --verify-tag --title "v2.0.0" --notes-from-tag "test-results/core-2.0.0-vercel-deployment.json#Sanitized Vercel deployment" "test-results/core-2.0.0-vercel-env-production.json#Sanitized production environment inventory" "test-results/core-2.0.0-vercel-env-preview.json#Sanitized preview environment inventory" "test-results/core-2.0.0-vercel-env-development.json#Sanitized development environment inventory" "test-results/core-2.0.0-release-result.json#Production containment result" "$VISUAL_ASSET#Visual comparison evidence" "$CHECKSUMS#SHA-256 manifest"
+VERIFY_DIR=$(mktemp -d)
+chmod 700 "$VERIFY_DIR"
+trap 'rm -rf "$VERIFY_DIR"' EXIT HUP INT TERM
+gh release download v2.0.0 --dir "$VERIFY_DIR" --pattern 'core-2.0.0-*'
+(cd "$VERIFY_DIR" && shasum -a 256 -c core-2.0.0-SHA256SUMS.txt)
+test "$(shasum -a 256 "$VERIFY_DIR/core-2.0.0-SHA256SUMS.txt" | awk '{print $1}')" = "$CHECKSUMS_SHA256"
+rm -rf "$VERIFY_DIR"
+trap - EXIT HUP INT TERM
 ```
 
-Push the tag only with the same remote authorization used for the release. Preserve `release-result.json` as a CI/GitHub release artifact attached to `v2.0.0`; do not commit it back into the tagged tree.
+Expected: `gh release create --verify-tag` proves the annotated tag already exists remotely, every named asset downloads, `shasum -c` passes, and the downloaded checksum manifest matches the digest in the tag. Do not commit any release artifact back into the tagged tree.
 
 - [ ] **Step 8: Remove superseded untracked source copies after archive integration**
 
-Only after the archive commit is reachable from the deployed/tagged `2.0.0` commit, revalidate the four original files against `authorized-archive-source-hashes.txt` and run the archive script's verify mode against the committed copies. Then, from the original checkout, remove exactly:
+Only after the archive commit is reachable from the deployed/tagged `2.0.0` commit and the downloaded release evidence passes, use the archive script's guarded cleanup mode. It owns and removes exactly:
 
 ```text
 EMBEDDING_STORAGE_RESEARCH.md
@@ -1774,13 +1933,13 @@ docs/rag-chatbot-implementation-review.md
 docs/liquid-glass-dock-v2-log.md
 ```
 
-Do not remove or modify any other untracked file. Confirm the remaining original-worktree status differs from the Task 0 inventory only by absence of these four archived paths.
+Do not remove or modify any other untracked file. The script itself must confirm the remaining original-worktree status differs from the Task 0 inventory only by absence of these four archived paths.
 
 ```bash
 ORIGINAL_ROOT=$(sed -n 's/^Original root: //p' docs/verification/baselines/core-1.0.0/original-worktree-status.txt)
 test -n "$ORIGINAL_ROOT"
 git -C "$ORIGINAL_ROOT" rev-parse --is-inside-work-tree >/dev/null
-rm -- "$ORIGINAL_ROOT/EMBEDDING_STORAGE_RESEARCH.md" "$ORIGINAL_ROOT/docs/jets-ghost-v1.5-spec.md" "$ORIGINAL_ROOT/docs/rag-chatbot-implementation-review.md" "$ORIGINAL_ROOT/docs/liquid-glass-dock-v2-log.md"
+npx tsx scripts/archive-legacy-docs.ts --cleanup --release-ref=v2.0.0 --source-root="$ORIGINAL_ROOT"
 git -C "$ORIGINAL_ROOT" status --porcelain=v1 -uall
 ```
 
@@ -1798,6 +1957,8 @@ Before starting the Jet's Ghost implementation plan, confirm:
 [ ] Build is static and side-effect-free
 [ ] README and AGENTS.md are canonical and accurate
 [ ] Superseded tracked and authorized untracked docs are indexed under docs/archive
+[ ] The four authorized superseded source copies were removed by guarded archive cleanup
 [ ] Active unrelated untracked drafts remain untouched
+[ ] Committed provider evidence is sanitized and downloaded release artifacts match the tagged SHA-256 manifest
 [ ] Existing visual identity is unchanged
 ```
