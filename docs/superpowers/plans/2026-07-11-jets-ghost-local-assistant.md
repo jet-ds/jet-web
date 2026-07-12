@@ -2,24 +2,41 @@
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Replace the retired hosted chatbot with an explicitly activated, local-first Gemma 4 E2B assistant grounded in a versioned, retrieval-ready package of published site content.
+**Goal:** Replace the retired hosted chatbot with an explicitly activated, local-first Gemma 4 E2B assistant grounded through deterministic MiniSearch rank-and-pack over versioned published site content.
 
-**Architecture:** Astro generates a same-origin knowledge package from validated content. A pluggable `ContextSelector` initially selects the complete eligible corpus, a prompt assembler preserves provenance and citations, and a dynamically imported LiteRT-LM runtime owns one Gemma engine and one active conversation. React owns visitor state while prompts and responses remain in memory and never leave the browser.
+**Architecture:** Astro generates an immutable same-origin corpus and a version-matched serialized MiniSearch index from validated content. One deterministic pipeline ranks every lexical match, expands heading-local context, and packs cited sources to the actual serialized token budget; when the corpus fits, that same pipeline includes it all. The approved `JetsGhostExperience` prototype remains the interface composition at canonical `/chatbot`; a dynamically imported LiteRT-LM runtime and production state hook replace only its timers and canned data while prompts and responses remain in memory and never leave the browser.
 
-**Tech Stack:** Astro 5, React 19, TypeScript 5.9, `@litert-lm/core@0.14.0`, Gemma 4 E2B Web, unified/remark MDX parsing, Vitest, Playwright, WebGPU.
+**Tech Stack:** Astro 5, React 19, TypeScript 5.9, `@litert-lm/core@0.14.0`, `minisearch@7.2.0`, `stemmer@2.0.1`, Gemma 4 E2B Web, unified/remark MDX parsing, Vitest, Playwright, WebGPU.
+
+**Interface source of truth:** `docs/jets-ghost-chat-experience.md` and commit `d406ed46dfc7cccfa95d0003fcae30f5b9373690`.
 
 ## Global Constraints
 
 - Begin only after the core modernization completion gate passes in production.
+- Integrate the approved interface prototype; do not redesign its layout, copy, responsive behavior, animation language, or color roles.
+- Make `/chatbot` canonical; permanently redirect `/tools/chatbot` to it with `308`.
+- Replace Tools with one dedicated Ghost item in dock, structured, and no-script navigation; do not add a mobile item.
+- Keep `/tools` dormant, noindexed, out of the sitemap, and out of primary navigation until it contains multiple standalone tools.
+- Keep the custom React interface; do not add `assistant-ui` in 2.1.0.
 - Use only Gemma 4 E2B in the first release; expose no model picker.
 - Pin `@litert-lm/core` to `0.14.0` and the model to the approved Hugging Face revision and SHA-256.
-- Do not load LiteRT-LM or the model until explicit visitor activation.
+- During qualification, independently download the complete model artifact and verify its actual byte count and SHA-256; provider metadata is never a substitute for hashing bytes.
+- Do not claim per-browser runtime SHA-256 verification: LiteRT-LM `0.14.0` receives the pinned URL and exposes no approved verified-byte injection path in this design.
+- Runtime delivery must start at the exact pinned URL, remain HTTPS on correctly bounded trusted origins within five redirects, use bodyless ordinary requests, and transmit no application or conversation data.
+- Route navigation renders UI only. Compatibility checking probes support only. The explicit “Load Jet's Ghost” action alone authorizes LiteRT import, corpus/index/model requests, engine creation, and GPU allocation.
+- Do not assemble a prompt until the visitor sends a message.
 - Do not provide server inference, OpenRouter fallback, tool calling, or multimodal input.
 - Include content only when `status === 'published' && assistant === true`.
-- Keep the knowledge package deterministic, same-origin, and free of remote build writes.
-- Keep ingestion, selection, prompt assembly, runtime, and UI behind separate interfaces.
-- Implement only `FullCorpusSelector` in the first release candidate.
-- Do not add custom IndexedDB, an embedding model, a retrieval worker, BM25, cosine search, or RRF in this plan.
+- Keep the corpus and serialized MiniSearch index deterministic, version-matched, same-origin, and free of remote build writes.
+- Use one production retrieval pattern: MiniSearch rank, heading-local expansion, token-budget pack.
+- Search without a result limit and do not add a top-K, candidate-count, or per-document cap.
+- Treat complete-corpus inclusion as a budget outcome of that pipeline, never as another selector or release mode.
+- Keep the same architecture through 1–2 million eligible corpus tokens.
+- Do not add custom IndexedDB, an embedding model, a reranker, a retrieval worker, cosine search, RRF, PGlite, pgvector, or EntityDB.
+- Do not add another retrieval harness, candidate comparison, generated holdout, or aggregate benchmark gate.
+- Run one six-case real-model qualification on the available Apple Silicon Mac in installed branded Chrome; unowned hardware is not a release blocker.
+- Use one supported and one unsupported case for each exact-Preview and Production smoke; do not repeat the full acceptance set after local qualification.
+- Keep qualification evidence concise and human-readable; do not add review overlays, device runners, qualification archives, GitHub Release certification, or evidence-checksum ceremony.
 - Enforce context budgets before calling the model; never rely on silent model truncation.
 - Keep prompts, selected context, history, and responses out of network requests, storage, and analytics.
 - Delete the active LiteRT conversation before replacement and before deleting the engine.
@@ -42,7 +59,9 @@ src/features/jets-ghost/
 │   └── repository.ts
 ├── selection/
 │   ├── types.ts
-│   └── fullCorpus.ts
+│   ├── searchIndex.ts
+│   └── rankAndPack.ts
+├── sourcePayload.ts
 ├── prompt/
 │   ├── assemble.ts
 │   └── citations.ts
@@ -55,20 +74,24 @@ src/features/jets-ghost/
 ├── state/
 │   ├── types.ts
 │   └── useJetsGhost.ts
-└── ui/
-    ├── JetsGhostApp.tsx
-    ├── ActivationPanel.tsx
-    ├── ChatPanel.tsx
-    └── SourcePanel.tsx
+├── experience.ts
+└── JetsGhostExperience.tsx
 
 src/pages/assistant/corpus/manifest.json.ts
 src/pages/assistant/corpus/content.json.ts
+src/pages/assistant/corpus/index.json.ts
+src/pages/chatbot.astro
+src/pages/tools/index.astro
+src/config/site.ts
+astro.config.mjs
+vercel.json
+tests/jets-ghost-experience.test.ts
 tests/unit/jets-ghost/
 tests/e2e/jets-ghost.spec.ts
 playwright.real-model.config.ts
 tests/manual/jets-ghost-real-model.spec.ts
-tests/fixtures/jets-ghost/evaluation.json
-tests/unit/jets-ghost/evaluation.test.ts
+tests/fixtures/jets-ghost/product-acceptance.json
+tests/unit/jets-ghost/productAcceptance.test.ts
 docs/verification/jets-ghost-licenses.md
 docs/verification/jets-ghost-2.1.0.md
 ```
@@ -96,7 +119,7 @@ docs/verification/jets-ghost-2.1.0.md
 Run:
 
 ```bash
-npm install --save-exact @litert-lm/core@0.14.0 unified@11.0.5 remark-parse@11.0.0 remark-mdx@3.1.1 remark-gfm@4.0.1 mdast-util-to-string@4.0.0
+npm install --save-exact @litert-lm/core@0.14.0 minisearch@7.2.0 stemmer@2.0.1 unified@11.0.5 remark-parse@11.0.0 remark-mdx@3.1.1 remark-gfm@4.0.1 mdast-util-to-string@4.0.0
 npm install --save-dev --save-exact @types/mdast@4.0.4 @webgpu/types@0.1.71 cross-env@10.1.0
 ```
 
@@ -120,17 +143,10 @@ describe("Jet's Ghost configuration", () => {
     expect(JETS_GHOST_MODEL.url).toContain('9262660a1676eed6d0c477ab1a86344430854664');
     expect(JETS_GHOST_MODEL.bytes).toBe(2_008_432_640);
     expect(JETS_GHOST_MODEL.sha256).toBe('3a08e8d94e23b814ae5414469c370c503813949acb8ceaa17e4ebf8a35af35b5');
-    expect(JETS_GHOST_MODEL.xetContentHash).toBe('769c60390eae4510a3123e54a0154408acbf203d8f58ac2ea1fe6604abead19b');
-    expect(JETS_GHOST_MODEL.deliveryHostSuffix).toBe('.cdn.hf.co');
-    expect(JETS_GHOST_MODEL.maxProviderRedirects).toBe(2);
-    expect(JETS_GHOST_MODEL.allowedSignedQueryKeys).toEqual([
-      'Expires',
-      'Key-Pair-Id',
-      'Policy',
-      'Signature',
-      'X-Xet-Cas-Uid',
-      'response-content-disposition',
-      'user_id',
+    expect(JETS_GHOST_MODEL.maxRedirects).toBe(5);
+    expect(JETS_GHOST_MODEL.trustedOrigins).toEqual([
+      { hostname: 'huggingface.co', allowSubdomains: false },
+      { hostname: 'cdn.hf.co', allowSubdomains: true },
     ]);
   });
 
@@ -146,6 +162,7 @@ describe("Jet's Ghost configuration", () => {
     expect(JETS_GHOST_PATHS).toEqual({
       manifest: '/assistant/corpus/manifest.json',
       content: '/assistant/corpus/content.json',
+      index: '/assistant/corpus/index.json',
     });
   });
 });
@@ -163,17 +180,10 @@ export const JETS_GHOST_MODEL = {
   url: 'https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/resolve/9262660a1676eed6d0c477ab1a86344430854664/gemma-4-E2B-it-web.litertlm',
   bytes: 2_008_432_640,
   sha256: '3a08e8d94e23b814ae5414469c370c503813949acb8ceaa17e4ebf8a35af35b5',
-  xetContentHash: '769c60390eae4510a3123e54a0154408acbf203d8f58ac2ea1fe6604abead19b',
-  deliveryHostSuffix: '.cdn.hf.co',
-  maxProviderRedirects: 2,
-  allowedSignedQueryKeys: [
-    'Expires',
-    'Key-Pair-Id',
-    'Policy',
-    'Signature',
-    'X-Xet-Cas-Uid',
-    'response-content-disposition',
-    'user_id',
+  maxRedirects: 5,
+  trustedOrigins: [
+    { hostname: 'huggingface.co', allowSubdomains: false },
+    { hostname: 'cdn.hf.co', allowSubdomains: true },
   ],
 } as const;
 
@@ -190,39 +200,47 @@ export const JETS_GHOST_CONTEXT = {
 export const JETS_GHOST_PATHS = {
   manifest: '/assistant/corpus/manifest.json',
   content: '/assistant/corpus/content.json',
+  index: '/assistant/corpus/index.json',
 } as const;
 ```
 
-- [ ] **Step 4: Implement the authenticated model-delivery contract**
+- [ ] **Step 4: Implement the durable model-delivery and qualification-hash contract**
 
-Write `tests/unit/jets-ghost/modelDelivery.test.ts` before `runtime/modelDelivery.ts`. Define pure `validateModelDeliveryChain(chain, config)` and `sanitizeModelDeliveryResult(chain)` helpers. Tests prove:
+Write `tests/unit/jets-ghost/modelDelivery.test.ts` before `runtime/modelDelivery.ts`. Define pure `isTrustedModelOrigin(url, policy)`, `validateModelDeliveryChain(chain, config)`, `verifyModelArtifactStream(stream, expected)`, and `sanitizeModelDeliveryResult(result)` helpers. Tests prove:
 
 - the first URL must equal the pinned revision URL byte-for-byte;
-- every hop is HTTPS and the chain contains no more than two provider redirects;
-- any intermediate hop remains on the pinned URL's origin or already satisfies the final CDN-host rule;
-- the initial response exposes `x-repo-commit`, `x-linked-size`, and `x-linked-etag` matching the pinned revision, byte length, and SHA-256; normalize only the single surrounding HTTP quote pair observed on the strong ETag before comparing and reject weak/non-hex values;
-- the final host is `cdn.hf.co` or ends in `.cdn.hf.co`;
-- the final pathname's last segment equals the pinned Xet content hash;
-- final query keys are a subset of the sorted allowlist and no prompt/application parameter is accepted;
-- the final header-only response succeeds and its content length equals the pinned byte length;
-- only bodyless `GET`/`HEAD` plus ordinary `Range` requests can satisfy the runtime policy;
-- altered revision, hash, host-suffix lookalikes, extra redirects, unexpected query keys, request bodies, and custom headers fail.
+- every hop is HTTPS, uses the default HTTPS port, matches exact `huggingface.co`, exact `cdn.hf.co`, or a hostname ending in the boundary-safe suffix `.cdn.hf.co`, and stays within `maxRedirects: 5`;
+- relative `Location` values are resolved against the current trusted URL before the next hop is validated;
+- standard HTTP redirect statuses require a `Location`, and the terminal artifact response must have a successful status; missing locations, redirect loops, and non-success terminal responses fail with rule codes only;
+- zero through five redirects are accepted, while a sixth redirect and lookalikes such as `cdn.hf.co.example.com` or `evilcdn.hf.co` are rejected;
+- provider changes to signed-query key names/values, transient response headers, redirect count within the bound, or final CDN pathname do not affect validation;
+- only bodyless ordinary `GET`/`HEAD` requests qualify, including browser-generated `Range` behavior where LiteRT requires it;
+- application code supplies no custom headers or credentials, and observed requests containing `Authorization`, `Cookie`, application-defined headers, prompts, selected context, history, or response sentinels fail;
+- unavailable or ambiguous runtime length observations are accepted as `unavailable`, while a value explicitly identified as the complete unencoded artifact byte count must equal the pin; range length, encoded transfer length, cache metadata, and provider-declared linked size are never compared as complete size;
+- an injected complete byte stream passes only when the actual counted bytes and independently calculated SHA-256 both equal the pin;
+- truncation, extension, or a one-byte mutation fails even when provider metadata claims the pinned size or digest;
+- `sanitizeModelDeliveryResult()` retains only mode, initial-URL-match boolean, trusted hostnames, redirect depth, independently counted artifact bytes/digest when available, UTC verification time, and rule codes.
 
-Every validation failure reports only hop index and violated rule code; tests assert that thrown messages never contain a full redirected URL or any signed query value.
+Every validation failure reports only hop index and violated rule code. Tests inject complete signed URLs, signatures, policies, authorization/cookies, raw headers, transient CDN paths, and conversational sentinels and prove none can enter errors or sanitized output.
 
-Create `scripts/verify-model-delivery.ts` as a header-only Node preflight. It starts at the exact pinned URL, uses `redirect: 'manual'`, follows at most the configured number of HTTPS redirects, validates each hop with the pure helper, and prints/writes only the sanitized initial host/path, final host/path, redirect count, repository commit, linked size, linked ETag, and UTC verification time. It never prints or persists the signed query string, signature, policy, or response headers. A changing signed URL is expected; a changing identity/header/host/path/query-key contract blocks qualification.
+Create `scripts/verify-model-delivery.ts` with two mutually exclusive explicit modes:
+
+- `--transport-only` uses Node's raw `https` client with bodyless `GET`, manual redirects, no application-defined headers, and the pure trusted-origin/redirect policy, then destroys the final response stream without retaining its body. It proves only pinned URL usage, HTTPS/trusted-origin containment, bounded redirects, and sanitized diagnostics; it makes no artifact-integrity claim and does not require `HEAD` support or transient provider headers.
+- `--hash-artifact` uses Node's raw `https` client with bodyless `GET`, manually validates every redirect before following it, streams the complete final response directly through `crypto.createHash('sha256')`, counts actual received bytes, and fails unless both count and digest equal `JETS_GHOST_MODEL`. It does not infer identity from `Content-Length`, `Content-Range`, ETag, repository headers, linked metadata, CDN path, or query structure.
+
+Both modes create the `--output` parent recursively when needed and write only the sanitized projection above. Neither mode prints or persists complete redirected URLs, query values, signatures, policies, authorization data, cookies, raw sensitive headers, or transient paths. A provider delivery change blocks only when it violates the exact initial URL, HTTPS/trusted-origin boundary, redirect limit, request-privacy contract, or qualification-time byte count/SHA-256.
 
 - [ ] **Step 5: Verify and commit**
 
 ```bash
 npm run test -- tests/unit/jets-ghost/config.test.ts tests/unit/jets-ghost/modelDelivery.test.ts
-npx tsx scripts/verify-model-delivery.ts --output=test-results/model-delivery-preflight.json
+npx tsx scripts/verify-model-delivery.ts --transport-only --output=test-results/model-delivery-preflight.json
 npm run check
 git add package.json package-lock.json tsconfig.json src/features/jets-ghost/config.ts src/features/jets-ghost/runtime/modelDelivery.ts scripts/verify-model-delivery.ts tests/unit/jets-ghost/config.test.ts tests/unit/jets-ghost/modelDelivery.test.ts
 git commit -m "build(chatbot): pin LiteRT-LM and Gemma E2B"
 ```
 
-Keep the preflight result uncommitted until qualification; it is runtime evidence, not source.
+Keep the transport result uncommitted. It proves delivery containment only; the complete 2 GB download and independent SHA-256 verification occur once in Task 13 qualification.
 
 ### Task 2: Build normalized knowledge-domain primitives
 
@@ -261,13 +279,18 @@ export interface CorpusManifest {
   corpusVersion: string;
   sourceCommit: string;
   contentSha256: string;
+  indexSha256: string;
+  indexConfigVersion: '1.0.0';
+  miniSearchVersion: '7.2.0';
+  stemmerVersion: '2.0.1';
+  indexedChunkCount: number;
   statistics: CorpusStatistics;
 }
 ```
 
 The complete `KnowledgeDocument` type also includes explicit `order`, `sourcePath`, and `sourceHash`; `KnowledgeChunk` includes `sameTextOccurrence` and the full `contentHash`. Do not add a build timestamp.
 
-Create `src/features/jets-ghost/errors.ts` now so selectors and prompt assembly do not depend on a later runtime task. Export the approved `JetsGhostErrorCode` union, including `question-too-long`, `conversation-limit-reached`, and `context-budget-exceeded`, plus a typed `JetsGhostError` carrying safe message, recoverability, and non-content diagnostic cause. Runtime Task 6 imports and extends behavior around this shared type rather than redefining it.
+Create `src/features/jets-ghost/errors.ts` now so rank-and-pack and prompt assembly do not depend on a later runtime task. Export the approved `JetsGhostErrorCode` union, including `corpus-index-mismatch`, `question-too-long`, `conversation-limit-reached`, and `context-budget-exceeded`, plus a typed `JetsGhostError` carrying safe message, recoverability, and non-content diagnostic cause. Runtime Task 6 imports and extends behavior around this shared type rather than redefining it.
 
 - [ ] **Step 2: Write normalization fixtures first**
 
@@ -407,18 +430,21 @@ git add src/features/jets-ghost/errors.ts src/features/jets-ghost/corpus/types.t
 git commit -m "feat(chatbot): add normalized knowledge primitives"
 ```
 
-### Task 3: Generate and load the versioned knowledge package
+### Task 3: Generate and load the versioned knowledge base
 
 **Files:**
 - Create: `src/features/jets-ghost/corpus/build.ts`
 - Create: `src/features/jets-ghost/corpus/repository.ts`
+- Create: `src/features/jets-ghost/selection/searchIndex.ts`
 - Create: `src/pages/assistant/corpus/manifest.json.ts`
 - Create: `src/pages/assistant/corpus/content.json.ts`
+- Create: `src/pages/assistant/corpus/index.json.ts`
 - Create: `tests/unit/jets-ghost/corpusBuild.test.ts`
 - Create: `tests/unit/jets-ghost/repository.test.ts`
+- Create: `tests/unit/jets-ghost/searchIndex.test.ts`
 
 **Interfaces:**
-- Produces: `buildKnowledgePackage()`, `StaticCorpusRepository.load()`.
+- Produces: `buildKnowledgeBase()`, `StaticKnowledgeRepository.load()`, `MINISEARCH_OPTIONS`, and a deterministic corpus-bound search artifact.
 - Consumes: `isAssistantEligible()`, Astro collection entries, normalizer, segmenter.
 
 - [ ] **Step 1: Write failing package tests**
@@ -426,15 +452,15 @@ git commit -m "feat(chatbot): add normalized knowledge primitives"
 Create `tests/unit/jets-ghost/corpusBuild.test.ts` with fixtures for one published assistant source, one published non-assistant source, and one draft assistant source. Assert:
 
 ```ts
-expect(result.documents.map((document) => document.id)).toEqual(['blog:included']);
+expect(result.content.documents.map((document) => document.id)).toEqual(['blog:included']);
 expect(result.manifest.corpusVersion).toMatch(/^[a-f0-9]{64}$/);
-expect(buildKnowledgePackage(input, 'abc').manifest.corpusVersion)
-  .toBe(buildKnowledgePackage(input, 'abc').manifest.corpusVersion);
+expect(buildKnowledgeBase(input, 'abc').manifest.corpusVersion)
+  .toBe(buildKnowledgeBase(input, 'abc').manifest.corpusVersion);
 ```
 
 Also assert that an assistant-enabled draft causes a validation error rather than inclusion.
 
-- [ ] **Step 2: Implement `buildKnowledgePackage()`**
+- [ ] **Step 2: Implement the corpus and deterministic MiniSearch artifact**
 
 Define input independent of Astro internals while retaining the complete applicable validated schema output:
 
@@ -462,19 +488,59 @@ export type AssistantSourceEntry =
 Export:
 
 ```ts
-export function buildKnowledgePackage(
+export function buildKnowledgeBase(
   entries: AssistantSourceEntry[],
   sourceCommit: string,
-): { manifest: CorpusManifest; content: KnowledgePackage };
+): {
+  manifest: CorpusManifest;
+  content: KnowledgePackage;
+  index: SearchIndexArtifact;
+};
 ```
 
 Validate every input before filtering. Fail if an assistant-enabled entry is not published or if any eligible entry is untracked. Sort by collection and slug; assign explicit document order; normalize and segment only eligible entries; propagate `sourcePath`; compute `sourceHash` from the complete canonical `BlogFrontmatter` or `WorksFrontmatter` value plus MDX body without rereading the filesystem; construct canonical URLs from `SITE.siteUrl`; and fail on duplicate document, section, chunk, or canonical URL identities. Do not project `data` into a smaller common subset before hashing: nested images/links and type-specific fields such as `type`, `featured`, `venue`, `abstract`, `technologies`, `repository`, and `demo` are hash inputs whenever the validated schema contains them.
 
 Implement one recursive canonical serializer that converts every `Date` to an ISO-8601 string, sorts every object key lexicographically, preserves validated array order, uses normalized UTF-8 JSON without whitespace, and rejects other non-JSON values. Export a pure `computeSourceHash(data, body)` helper so the full metadata contract can be tested independently of eligibility filtering. Calculate `corpusVersion` from exactly schema version, segmentation version, documents, sections, and chunks; exclude `sourceCommit`, statistics, and delivery metadata. Then serialize the complete content payload and calculate `contentSha256` from those exact bytes.
 
+In `selection/searchIndex.ts`, export `INDEX_CONFIG_VERSION = '1.0.0'`, `MINISEARCH_VERSION = '7.2.0'`, `STEMMER_VERSION = '2.0.1'`, the fixed stop-word set, `MINISEARCH_OPTIONS`, `buildSearchIndexArtifact(content)`, and `loadSearchIndex(artifact)`. Build one search document per chunk with `id`, title, description, space-joined tags, heading, and `body` text. Insert documents in canonical chunk order. Use the already-evaluated lexical configuration:
+
+```ts
+import type { Options } from 'minisearch';
+import { stemmer } from 'stemmer';
+
+export const STOP_WORDS = new Set([
+  'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'does', 'for', 'from',
+  'how', 'in', 'into', 'is', 'it', 'its', 'of', 'on', 'or', 'that', 'the',
+  'their', 'this', 'to', 'what', 'when', 'where', 'which', 'why', 'with',
+]);
+
+export const MINISEARCH_OPTIONS = {
+  idField: 'id',
+  fields: ['title', 'description', 'tags', 'heading', 'body'],
+  storeFields: ['id'],
+  processTerm: (term: string) => {
+    const normalized = term.toLowerCase();
+    return STOP_WORDS.has(normalized) ? null : stemmer(normalized);
+  },
+  searchOptions: {
+    boost: {
+      title: 5,
+      description: 2,
+      tags: 4,
+      heading: 3,
+      body: 1,
+    },
+    combineWith: 'OR',
+    prefix: (term: string) => term.length >= 5,
+  },
+} satisfies Options<SearchDocument>;
+```
+
+Wrap `miniSearch.toJSON()` with the exact corpus/config/MiniSearch/stemmer versions, chunk count, and canonical `chunkIds` array. Canonically serialize it and add `indexSha256`, `indexConfigVersion`, `miniSearchVersion`, `stemmerVersion`, and `indexedChunkCount` to the manifest. The index must be derivable only from canonical corpus data; it performs no remote write.
+
 - [ ] **Step 3: Create a shared Astro package loader**
 
-In both static endpoint files, call one memoized shared builder. It must load all entries, not prefilter away policy violations:
+In all three static endpoint files, call one memoized shared builder. It must load all entries, not prefilter away policy violations:
 
 ```ts
 const [blog, works] = await Promise.all([
@@ -483,7 +549,7 @@ const [blog, works] = await Promise.all([
 ]);
 ```
 
-Map entries to `AssistantSourceEntry` with Astro Loader API `filePath` normalized to a repository-relative POSIX source path; fail if an eligible entry has no file path. Use `loadTrackedContentPaths()` from the core content policy to assign `tracked`; call `assertGeneratedAssistantSources()` with the final included IDs; and fail if Git tracking cannot be established.
+Map entries to `AssistantSourceEntry` with Astro Loader API `filePath` normalized to a repository-relative POSIX source path; fail if an eligible entry has no file path. Use `loadTrackedContentPaths()` from the core content policy to assign `tracked`; call `assertGeneratedAssistantSources()` with the final included IDs; and fail if Git tracking cannot be established. The three static endpoint files call one memoized `buildKnowledgeBase()` result so their manifest, content, and index bytes cannot diverge.
 
 Resolve provenance with a pure helper plus a no-shell Git adapter:
 
@@ -509,7 +575,7 @@ headers: {
 
 - [ ] **Step 4: Write repository tests**
 
-Create `tests/unit/jets-ghost/repository.test.ts` with mocked `fetch`. Test successful version matching and rejection when `manifest.corpusVersion !== content.corpusVersion` or `manifest.contentSha256` does not match the exact fetched content bytes.
+Create `tests/unit/jets-ghost/repository.test.ts` with mocked `fetch`. Test successful three-artifact loading; exact document/section/chunk map coverage; correct previous/next neighbors only within each section; reference clearing on unload; and rejection when corpus versions differ, either byte hash differs, config/MiniSearch/stemmer versions differ, indexed chunk count differs, any corpus chunk ID is absent or duplicated in the index, the index contains an unknown ID, a parent is missing, or neighbor order is invalid.
 
 Expand `corpusBuild.test.ts` to prove:
 
@@ -521,28 +587,44 @@ Expand `corpusBuild.test.ts` to prove:
 - duplicate canonical URLs and final IDs fail;
 - source path/hash/order propagate to every selected-source precursor.
 
+Create `tests/unit/jets-ghost/searchIndex.test.ts` to prove canonical input produces byte-identical index artifacts regardless of source input order; every eligible chunk is indexed exactly once; metadata fields are searchable; stop-word removal, stemming, and five-character prefix behavior match the evaluated configuration; `loadSearchIndex()` calls `MiniSearch.loadJSAsync()` with the exact checked-in options; and stale corpus/config/MiniSearch/stemmer versions fail closed.
+
 Add a table-driven `computeSourceHash` contract covering every Blog and Works metadata leaf: title, description, status, assistant, dates, author, tags, type, featured, image URL/alt, link label/URL, venue, abstract, technologies, repository, and demo, plus the MDX body. Starting from complete valid fixtures, mutate one leaf at a time and require a different hash. Separately reconstruct the same nested objects with different object-key insertion order and require the same hash. Array-order changes remain hash-significant because validated content order is meaningful.
 
-- [ ] **Step 5: Implement `StaticCorpusRepository`**
+- [ ] **Step 5: Implement `StaticKnowledgeRepository`**
 
 ```ts
-export interface CorpusRepository {
-  load(signal?: AbortSignal): Promise<KnowledgePackage>;
+export interface LoadedKnowledgeBase {
+  package: KnowledgePackage;
+  searchIndex: MiniSearch<SearchDocument>;
+  documentsById: ReadonlyMap<DocumentId, KnowledgeDocument>;
+  sectionsById: ReadonlyMap<SectionId, KnowledgeSection>;
+  chunksById: ReadonlyMap<ChunkId, KnowledgeChunk>;
+  neighborsByChunkId: ReadonlyMap<ChunkId, { previous?: ChunkId; next?: ChunkId }>;
+  indexSha256: string;
+  indexConfigVersion: '1.0.0';
+  miniSearchVersion: '7.2.0';
+  stemmerVersion: '2.0.1';
+}
+
+export interface StaticKnowledgeRepository {
+  load(signal?: AbortSignal): Promise<LoadedKnowledgeBase>;
   unload(): void;
 }
 ```
 
-The initial implementation fetches manifest and content in parallel from `JETS_GHOST_PATHS`, validates schema/version/hash, memoizes only in memory, and clears the memoized promise on `unload()`.
+Fetch all three paths in parallel after activation, retain the exact content/index response text for SHA-256 verification, validate the complete manifest contract, and hydrate the prebuilt index with `MiniSearch.loadJSAsync()`. In the same one-time pass, build immutable `documentsById`, `sectionsById`, `chunksById`, and `neighborsByChunkId` maps; fail on duplicate IDs, unknown parents, cross-section neighbors, or noncanonical order. Memoize only in memory, and clear corpus, index, and all lookup-map references on `unload()`. Do not rebuild the index in the browser and do not write to IndexedDB.
 
 - [ ] **Step 6: Verify generated output**
 
 Run:
 
 ```bash
-npm run test -- tests/unit/jets-ghost/corpusBuild.test.ts tests/unit/jets-ghost/repository.test.ts
+npm run test -- tests/unit/jets-ghost/corpusBuild.test.ts tests/unit/jets-ghost/repository.test.ts tests/unit/jets-ghost/searchIndex.test.ts
 npm run build
 jq '{schemaVersion,corpusVersion,statistics}' dist/assistant/corpus/manifest.json
 jq '[.documents[].id]' dist/assistant/corpus/content.json
+jq '{corpusVersion,indexConfigVersion,miniSearchVersion,stemmerVersion,chunkCount}' dist/assistant/corpus/index.json
 if rg -n "how-to-install-and-get-started-with-codex-cli-2026" dist/assistant/corpus; then exit 1; fi
 npm run verify:build-purity
 ```
@@ -552,28 +634,33 @@ Expected: only explicitly eligible tracked sources are listed; the active draft 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/features/jets-ghost/corpus/build.ts src/features/jets-ghost/corpus/repository.ts src/pages/assistant/corpus/manifest.json.ts src/pages/assistant/corpus/content.json.ts tests/unit/jets-ghost/corpusBuild.test.ts tests/unit/jets-ghost/repository.test.ts
-git commit -m "feat(chatbot): generate versioned knowledge package"
+git add src/features/jets-ghost/corpus/build.ts src/features/jets-ghost/corpus/repository.ts src/features/jets-ghost/selection/searchIndex.ts src/pages/assistant/corpus/manifest.json.ts src/pages/assistant/corpus/content.json.ts src/pages/assistant/corpus/index.json.ts tests/unit/jets-ghost/corpusBuild.test.ts tests/unit/jets-ghost/repository.test.ts tests/unit/jets-ghost/searchIndex.test.ts
+git commit -m "feat(chatbot): generate versioned knowledge base"
 ```
 
-### Task 4: Implement the selector contract and full-corpus strategy
+### Task 4: Implement deterministic MiniSearch rank-and-pack
 
 **Files:**
 - Create: `src/features/jets-ghost/selection/types.ts`
-- Create: `src/features/jets-ghost/selection/fullCorpus.ts`
-- Create: `tests/unit/jets-ghost/fullCorpus.test.ts`
+- Create: `src/features/jets-ghost/selection/rankAndPack.ts`
+- Create: `src/features/jets-ghost/sourcePayload.ts`
+- Modify: `src/features/jets-ghost/corpus/types.ts`
+- Modify: `src/features/jets-ghost/corpus/build.ts`
+- Modify: `src/features/jets-ghost/corpus/repository.ts`
+- Create: `tests/unit/jets-ghost/rankAndPack.test.ts`
+- Create: `tests/unit/jets-ghost/sourcePayload.test.ts`
+- Modify: `tests/unit/jets-ghost/corpusBuild.test.ts`
+- Modify: `tests/unit/jets-ghost/repository.test.ts`
 
 **Interfaces:**
-- Produces: `ContextSelector`, `SelectionResult`, `FullCorpusSelector`.
-- Consumes: `KnowledgePackage`, `JETS_GHOST_CONTEXT`.
+- Produces: `rankAndPackContext()`, `SelectionResult`, and the one canonical source-payload serializer.
+- Consumes: `LoadedKnowledgeBase`, `JETS_GHOST_CONTEXT`, and `estimateTokens()`.
 
-- [ ] **Step 1: Define selector types from the approved design**
+- [ ] **Step 1: Define the concrete selection types**
 
 Include:
 
 ```ts
-export type SelectionStrategy = 'full-corpus' | 'metadata-lexical' | 'semantic-hybrid';
-
 export interface SelectedSource {
   citationId: `S${number}`;
   documentId: DocumentId;
@@ -587,6 +674,8 @@ export interface SelectedSource {
   heading: string;
   text: string;
   estimatedTokens: number;
+  selectionReason: 'lexical-match' | 'heading-expansion' | 'complete-corpus';
+  rankingScore?: number;
   provenance: {
     sourcePath: string;
     sourceHash: string;
@@ -597,9 +686,39 @@ export interface SelectedSource {
 }
 ```
 
-Define `ContextBudget`, `SelectionInput`, `SelectionDiagnostics`, `SelectionResult`, and `ContextSelector` exactly as the spec requires. Import `JetsGhostError` from the shared Task 2 error module; do not introduce a selector-local error shape.
+Define:
 
-Define a selector-owned history shape to avoid coupling selection to React state:
+```ts
+export interface SelectionInput {
+  query: string;
+  knowledgeBase: LoadedKnowledgeBase;
+  budget: ContextBudget;
+}
+
+export interface SelectionDiagnostics {
+  directMatchCount: number;
+  expansionCandidateCount: number;
+  packedCount: number;
+  rejectedForBudgetCount: number;
+  completeCorpusIncluded: boolean;
+  knowledgeTokens: number;
+  rankingMs: number;
+}
+
+export interface SelectionResult {
+  pipeline: 'minisearch-rank-pack';
+  indexSha256: string;
+  indexConfigVersion: '1.0.0';
+  miniSearchVersion: '7.2.0';
+  stemmerVersion: '2.0.1';
+  corpusVersion: string;
+  sources: SelectedSource[];
+  estimatedTokens: number;
+  diagnostics: SelectionDiagnostics;
+}
+```
+
+Keep the prompt-owned history shape in this dependency-neutral type file:
 
 ```ts
 export interface ConversationHistoryTurn {
@@ -608,39 +727,80 @@ export interface ConversationHistoryTurn {
 }
 ```
 
-- [ ] **Step 2: Write failing full-corpus tests**
+- [ ] **Step 2: Write the canonical source-payload tests**
 
-Test deterministic source order, `S1` numbering, total tokens, and overflow:
+Define a dependency-neutral `SourcePayloadRecord` in the feature-root module and accept `readonly SourcePayloadRecord[]`; it may import ID types from the corpus layer but must not import `SelectedSource`, prompt, runtime, or UI modules. Both canonical corpus records and selected sources map structurally into it, preventing a corpus → prompt/selection dependency cycle.
+
+In `sourcePayload.test.ts`, prove `serializeSourcePayload(sources)` produces one canonical JSON array containing only citation ID, document/section/chunk IDs, title, URL, heading, and content; escapes hostile delimiters and backslashes; and returns the exact estimated token cost used by both packing and prompt assembly. Reordering object construction without changing source order must not change bytes. Permuting the same complete source set may change bytes but must retain the same exact serialized length/token cost after contiguous citation reassignment, which is why the canonical build-time full-corpus statistic remains valid for query-ranked order. Export one item serializer/measurement helper and prove that incrementally measured items plus JSON brackets/commas equal the exact full-array bytes and token estimate for empty, one-item, nine-item, ten-item, escaped-content, and rejected-candidate sequences.
+
+Add `fullCorpusKnowledgeTokens` to `CorpusStatistics`. In `buildKnowledgeBase()`, map every canonical chunk to the same source-payload record used at runtime, assign canonical contiguous citation IDs, and compute this statistic through `serializeSourcePayload()`. Treat the payload shape and `estimateTokens()` as part of corpus `schemaVersion`; a change to either must bump that version. Extend corpus-build tests to prove the manifest statistic equals serialization of the complete canonical corpus and remains deterministic across input order. Make the repository reject a manifest/content statistics mismatch so the packer never trusts an unbound fit value.
+
+- [ ] **Step 3: Write failing rank-and-pack tests**
+
+Use a real in-memory MiniSearch index built through `buildSearchIndexArtifact()` and `loadSearchIndex()`. Test:
+
+- title, tag, heading, description, and body matches use the evaluated fixed boosts;
+- fixed stop words, stemming, and five-character prefix matching behave exactly as the index configuration declares;
+- all MiniSearch results are considered because `search()` receives no `limit`;
+- every result/document/section/chunk/neighbor resolves through the prebuilt maps with no corpus-array `.find()` or scan;
+- 25 matching chunks can all be selected when the serialized budget fits, proving there is no legacy 16-candidate cap;
+- equal scores tie by stable chunk ID;
+- immediate previous/next chunks expand only within the same section;
+- adjacency receives half its parent score, keeps the highest nomination, and never replaces a direct-match reason;
+- combined direct and adjacent candidates sort by score, reason, explicit orders, then stable ID;
+- duplicate direct/expanded chunks appear once;
+- when all chunks fit, unmatched chunks are appended in canonical order and marked `complete-corpus`;
+- the complete-corpus decision uses the verified precomputed `fullCorpusKnowledgeTokens` and does not serialize all unmatched content during a query;
+- when the corpus does not fit, unmatched chunks are not added merely to fill space;
+- every direct and expansion candidate is attempted against the serialized token budget;
+- a candidate that does not fit is skipped while later smaller candidates are still considered;
+- each candidate is serialized at most once and incremental measurement equals final source-payload serialization, preventing quadratic tentative-array rebuilding;
+- a counter-instrumented large synthetic fixture performs one map resolution and at most one item serialization per considered candidate, and throws if the oversized-corpus path iterates the unmatched canonical chunk array; this is a complexity invariant with no timing, relevance, quality, or competing-ranker assertion;
+- citation IDs are assigned only after packing and remain contiguous;
+- an unmatched query against an oversized corpus returns an empty, valid selection;
+- diagnostics contain counts, timings, and versions but no query or source text.
+
+Use this representative assertion for the removed cap:
 
 ```ts
-await expect(selector.select({
-  query: 'Question',
-  history: [],
-  package: oversizedPackage,
-  budget: { ...JETS_GHOST_CONTEXT, knowledgeLimit: 1 },
-})).rejects.toMatchObject({ code: 'context-budget-exceeded' });
+const result = rankAndPackContext({
+  query: 'sharedterm',
+  knowledgeBase: fixtureWith25MatchingChunks,
+  budget: generousBudget,
+});
+
+expect(result.sources).toHaveLength(25);
+expect(result.diagnostics.directMatchCount).toBe(25);
 ```
 
-- [ ] **Step 3: Implement `FullCorpusSelector`**
+- [ ] **Step 4: Implement `rankAndPackContext()`**
 
-The selector:
+The function:
 
-- orders documents, sections, and chunks by their explicit `order` fields, with ID as a deterministic tie-breaker that should never be needed after validation;
-- resolves each chunk to its document and section;
-- assigns `S1`, `S2`, and subsequent IDs;
-- sums `estimatedTokens`;
-- throws a typed `context-budget-exceeded` error when the total exceeds `knowledgeLimit`;
-- reports strategy, corpus version, source/chunk counts, token count, and zero ranking latency beyond deterministic assembly.
-- propagates source path/hash, chunk hash, source commit, corpus version, and all order fields into every `SelectedSource`.
+- calls `knowledgeBase.searchIndex.search(query)` with no `limit` override;
+- sorts direct results by descending score then chunk ID;
+- resolves every result to canonical document, section, and chunk objects through `documentsById`, `sectionsById`, and `chunksById`, failing closed on an unknown ID and never calling `.find()` over package arrays;
+- adds the immediate previous and next chunk only through `neighborsByChunkId` and verifies it shares the matched chunk's section;
+- scores adjacency as `parentScore * 0.5`, keeping the highest nomination when several matches share a neighbor;
+- retains direct-match reason and score whenever a chunk is both direct and adjacent;
+- sorts the combined candidates by descending score, direct-before-adjacent, document/section/chunk order, then chunk ID;
+- reads the verified `knowledgeBase.package.statistics.fullCorpusKnowledgeTokens` before constructing an unmatched tail;
+- appends canonical unmatched chunks and returns every chunk only when that precomputed value fits `knowledgeLimit`, then verifies the final serialization matches the statistic;
+- otherwise never constructs or serializes unmatched chunks;
+- considers every direct and expansion candidate in order, serializing that candidate once with the next provisional contiguous citation ID and maintaining the exact JSON-array character/token count;
+- accepts the candidate only when the incrementally measured payload fits, without repeatedly serializing the full tentative array;
+- propagates source path/hash, chunk hash, source commit, corpus version, orders, reason, and ranking score into every `SelectedSource`;
+- propagates the verified index hash plus corpus/config/MiniSearch/stemmer versions into `SelectionResult`;
+- returns empty sources rather than unrelated evidence when there are no matches and the complete corpus cannot fit.
 
-It never truncates or ranks.
+Use `performance.now()` only for the diagnostic duration. It must not affect ordering or artifact bytes. Do not add query rewriting, history boosting, document quotas, workers, reranking, embeddings, or a fallback strategy.
 
-- [ ] **Step 4: Verify and commit**
+- [ ] **Step 5: Verify and commit**
 
 ```bash
-npm run test -- tests/unit/jets-ghost/fullCorpus.test.ts
-git add src/features/jets-ghost/selection/types.ts src/features/jets-ghost/selection/fullCorpus.ts tests/unit/jets-ghost/fullCorpus.test.ts
-git commit -m "feat(chatbot): add pluggable context selection"
+npm run test -- tests/unit/jets-ghost/rankAndPack.test.ts tests/unit/jets-ghost/sourcePayload.test.ts
+git add src/features/jets-ghost/corpus/types.ts src/features/jets-ghost/corpus/build.ts src/features/jets-ghost/corpus/repository.ts src/features/jets-ghost/selection/types.ts src/features/jets-ghost/selection/rankAndPack.ts src/features/jets-ghost/sourcePayload.ts tests/unit/jets-ghost/corpusBuild.test.ts tests/unit/jets-ghost/repository.test.ts tests/unit/jets-ghost/rankAndPack.test.ts tests/unit/jets-ghost/sourcePayload.test.ts
+git commit -m "feat(chatbot): rank and pack cited context"
 ```
 
 ### Task 5: Assemble grounded prompts and validate citations
@@ -653,11 +813,13 @@ git commit -m "feat(chatbot): add pluggable context selection"
 
 **Interfaces:**
 - Produces: `assemblePrompt()`, `extractValidCitations()`.
-- Consumes: `SelectionResult`, bounded `ConversationHistoryTurn[]`.
+- Consumes: `SelectionResult`, `serializeSourcePayload()`, bounded `ConversationHistoryTurn[]`.
 
 - [ ] **Step 1: Write prompt and citation tests**
 
-Assert the selected-source payload is valid canonical JSON, never includes an unselected source, retains **every** complete turn in the current session when the complete history fits within 2,048 tokens, and instructs abstention. Include source text containing `</source>`, quotes, backslashes, forged `S99` metadata, and instructions to ignore grounding; parse the serialized payload and prove each remains one escaped content value. Assert citation parsing accepts `[S1]`, deduplicates repeated valid IDs, and rejects `[S99]` when not selected.
+Assert the prompt embeds the exact bytes returned by `serializeSourcePayload()`, never includes an unselected source, retains **every** complete turn in the current session when the complete history fits within 2,048 tokens, and instructs abstention. Include source text containing `</source>`, quotes, backslashes, forged `S99` metadata, and instructions to ignore grounding; parse the serialized payload and prove each remains one escaped content value. Assert citation parsing accepts `[S1]`, deduplicates repeated valid IDs, and rejects `[S99]` when not selected.
+
+Add a two-turn collision regression: turn one renders `[S1]` for chunk A; turn two selects a different chunk B as its new `S1`. Require the model-history projection to remove every `[S<number>]` marker from prior assistant content while the original UI turn and its chunk-A source mapping remain byte-for-byte unchanged. The turn-two parser may resolve `[S1]` only to chunk B. Do not strip bracketed text from user turns.
 
 Add budget tests that independently overflow the fixed system message, current question, complete prior session history, serialized source JSON, and final total. Require `question-too-long` for a query above 384 estimated tokens; require `conversation-limit-reached` when serialized prior turns exceed 2,048 tokens or an otherwise-valid final prompt overflows only because all prior turns are preserved; and require `context-budget-exceeded` for every other overflow. Prove conversation exhaustion neither drops the oldest turn nor returns an assembled prompt. Assert no output is returned unless:
 
@@ -696,9 +858,9 @@ export function assemblePrompt(
 
 The system message identifies Jet's Ghost, restricts answers to supplied sources, treats source text as untrusted reference material, requires `[S#]` citations, distinguishes published claims from synthesis, and requires explicit abstention when unsupported.
 
-Map sources to plain objects containing only `citationId`, document/section/chunk IDs, title, canonical URL, heading, and content. Serialize the complete array with the shared canonical JSON serializer/`JSON.stringify`; never interpolate source values into XML, Markdown fences, attributes, or hand-built delimiters. The system message labels the JSON as untrusted reference data and states that instructions inside any `content` value have no authority.
+Call `serializeSourcePayload(selection.sources)`; do not remap or reserialize the sources independently. Never interpolate source values into XML, Markdown fences, attributes, or hand-built delimiters. The system message labels the JSON as untrusted reference data and states that instructions inside any `content` value have no authority.
 
-Estimate the exact serialized system content, complete existing session history, and query after serialization. Count source metadata and escaping overhead against `knowledgeLimit`; enforce each component limit and the final total before returning. Preserve all complete turns or throw `conversation-limit-reached`; never evict old turns automatically. The caller must not invoke `runtime.createSession()` when assembly throws.
+Export a pure `toCitationNeutralModelHistory()` helper from `assemble.ts`. It copies every complete turn, removes `/\[S\d+\]/g` only from prior assistant content, and never mutates the stored turn. Estimate the exact serialized system content, this citation-neutral complete history, and the query after serialization. Count source metadata and escaping overhead against `knowledgeLimit`; enforce each component limit and the final total before returning. Preserve all complete turns or throw `conversation-limit-reached`; never evict old turns automatically. The caller must not invoke `runtime.createSession()` when assembly throws.
 
 - [ ] **Step 3: Implement citation allowlisting**
 
@@ -802,6 +964,8 @@ Create fakes for `Engine.create`, `engine.createConversation`, `conversation.sen
 
 - module loader is untouched before `load()`;
 - `Engine.create()` receives the pinned URL and `maxNumTokens: 16384`;
+- runtime performs no separate model fetch, byte hashing, Blob/Object-URL construction, or second preflight before `Engine.create()`;
+- runtime exposes no positive artifact-byte-integrity flag under LiteRT-LM `0.14.0` and does not convert provider headers or request metadata into one;
 - replacing a session deletes the old conversation first;
 - text content streams in order;
 - `cancel()` calls the active conversation;
@@ -837,6 +1001,8 @@ this.engine = await Engine.create({
 ```
 
 0.14.0 exposes no load abort or byte progress. Honor a stop request by deleting the engine immediately after creation.
+
+Do not prefetch the approximately 2 GB model in application code. The pinned LiteRT-LM API consumes a URL and does not expose an approved way for this design to inject an independently hashed byte buffer into `Engine.create()`. A separate browser fetch would either be discarded or force LiteRT to download a second unverified copy, so it would add cost without proving the executed bytes. The verification document records runtime artifact-byte verification as unavailable. Runtime may compare a complete byte count only if a future API exposes an unambiguous count for the exact LiteRT-consumed artifact, never from range length, encoded transfer length, cache metadata, provider headers, or ETags.
 
 Implement `checkCapabilities()` by delegating to `checkBrowserCapabilities()` from Task 6 before any module import.
 
@@ -880,22 +1046,20 @@ git add src/features/jets-ghost/runtime/liteRtGemma.ts tests/unit/jets-ghost/lit
 git commit -m "feat(chatbot): run Gemma E2B with LiteRT-LM"
 ```
 
-### Task 8: Orchestrate assistant state and build the accessible UI
+### Task 8: Integrate production state into the approved interface
 
 **Files:**
 - Create: `src/features/jets-ghost/state/types.ts`
 - Create: `src/features/jets-ghost/state/useJetsGhost.ts`
-- Create: `src/features/jets-ghost/ui/JetsGhostApp.tsx`
-- Create: `src/features/jets-ghost/ui/ActivationPanel.tsx`
-- Create: `src/features/jets-ghost/ui/ChatPanel.tsx`
-- Create: `src/features/jets-ghost/ui/SourcePanel.tsx`
+- Modify: `src/features/jets-ghost/JetsGhostExperience.tsx`
+- Modify: `src/features/jets-ghost/experience.ts`
+- Modify: `tests/jets-ghost-experience.test.ts`
 - Create: `tests/unit/jets-ghost/useJetsGhost.test.tsx`
-- Create: `tests/unit/jets-ghost/ui.test.tsx`
 - Modify: `playwright.config.ts`
 
 **Interfaces:**
-- Produces: visitor activation, streaming chat, Stop, Reset, Unload, errors, sources.
-- Consumes: repository, selector, prompt assembler, runtime.
+- Produces: production visitor activation, streaming, Stop, new session, Unload, errors, and response-local sources inside the approved `JetsGhostExperience`.
+- Consumes: knowledge repository, `rankAndPackContext()`, prompt assembler, runtime.
 
 - [ ] **Step 1: Define in-memory state**
 
@@ -907,28 +1071,31 @@ export interface ConversationTurn {
   role: 'user' | 'assistant';
   content: string;
   citations: ValidCitation[];
+  sources: SelectedSource[];
+  stopped?: boolean;
 }
 
 export interface JetsGhostState {
   lifecycle: JetsGhostLifecycleState;
   capability: CapabilityReport | null;
   turns: ConversationTurn[];
-  selectedSources: SelectedSource[];
   error: JetsGhostError | null;
 }
 ```
 
 No persisted storage is permitted.
 
-- [ ] **Step 2: Write orchestration tests with `FakeRuntime`**
+- [ ] **Step 2: Write orchestration and activation-boundary tests with `FakeRuntime`**
 
-Test capability check, explicit load, corpus load, full-corpus overflow, session creation, streaming, valid citations, Stop, Reset, Unload, generation recovery, route-unmount cleanup, and conversation reserve exhaustion. For exhaustion, seed complete prior turns, submit a question that would cross the reserve, and prove the hook preserves the transcript byte-for-byte, records `conversation-limit-reached`, does not call `runtime.createSession()` or `generate()`, and exposes a `startNewSession()` recovery action.
+Test that hook/component construction performs no capability probe, repository load, runtime import/load, session creation, or generation. “Check compatibility” may call only `runtime.checkCapabilities()`. “Load Jet's Ghost” calls repository load and `runtime.load()` only after compatibility succeeds and never assembles a prompt or creates a session. The first submitted message performs rank/pack, prompt assembly, session creation, and generation in that order.
+
+Also cover corpus-index mismatch, complete-corpus inclusion when it fits, ranked packing when it does not, empty selection, streaming, valid citations, Stop, new session, Unload, generation recovery, route-unmount cleanup, and conversation reserve exhaustion. For exhaustion, seed complete prior turns, submit a question that would cross the reserve, and prove the hook preserves the transcript byte-for-byte, records `conversation-limit-reached`, does not call `runtime.createSession()` or `generate()`, and exposes a `startNewSession()` recovery action.
 
 - [ ] **Step 3: Implement `useJetsGhost()`**
 
 The hook receives dependency factories so tests can inject fakes. For each question:
 
-1. select context;
+1. rank and pack context from the current question and loaded knowledge base;
 2. assemble preface with the complete current-session history;
 3. call `runtime.createSession(preface)` so only one conversation exists;
 4. stream the current user message;
@@ -936,79 +1103,144 @@ The hook receives dependency factories so tests can inject fakes. For each quest
 6. append the complete turn;
 7. return to ready.
 
-Cleanup calls repository `unload()` and runtime `unload()`. Use an operation ID to suppress late events.
+Unload/route cleanup cancels generation, calls `runtime.reset()` to delete the active conversation, unloads repository resources, then calls `runtime.unload()` to delete the engine. Use `try/finally` so later cleanup still runs after one failure, aggregate safe diagnostics, and use an operation ID to suppress late events. No background resource survives route unmount.
 
-`startNewSession()` is distinct from retry: it calls `runtime.reset()`, and only after successful conversation deletion clears turns, citations, selected sources, and the exhaustion error while keeping the engine and corpus loaded. It returns to ready and focuses the input; it does not automatically resubmit the rejected question. If reset fails, preserve the transcript and show the cleanup error.
+`startNewSession()` is distinct from retry: it calls `runtime.reset()`, and only after successful conversation deletion clears turns and the exhaustion error while keeping the engine and knowledge base loaded. It returns to ready and focuses the input; it does not automatically resubmit the rejected question. If reset fails, preserve the transcript and show the cleanup error.
 
-- [ ] **Step 4: Build the activation panel**
+- [ ] **Step 4: Replace prototype timers and canned data without redesigning the interface**
 
-Render this disclosure before the load button:
+Treat `docs/jets-ghost-chat-experience.md`, commit `d406ed46`, and the existing nine prototype tests as the presentation contract. Keep `JetsGhostExperience.tsx` as the composition root. Replace timer-driven compatibility/progress, canned conversation content, and simulated citations with `useJetsGhost()` state and actions. Reduce `experience.ts` to pure presentation mappings from production lifecycle state to ghost animation, loading phase, and composer tone; do not retain a second lifecycle state machine.
+
+Retain the approved disclosure before the load button:
 
 ```text
 Jet's Ghost runs Gemma 4 E2B in this browser. Starting it downloads about 2 GB and may use substantial GPU memory. Your prompts and responses stay on this device.
 ```
 
-Use “Check compatibility” then “Load Jet's Ghost” as explicit actions. Unsupported state offers links to Blog and Works and no broken text input.
+Use “Check compatibility” then “Load Jet's Ghost” as separate explicit actions. Preserve the final reviewed copy from the prototype where it is more specific than the generic sentence above. Unsupported state offers links to Blog and Works and no broken text input. Loading shows determinate progress only when the runtime provides trustworthy phase/byte data; otherwise preserve the phase language and elapsed time without simulated percentages.
 
-- [ ] **Step 5: Build the chat and source panels**
+- [ ] **Step 5: Preserve the approved chat composition and harden accessibility**
 
 Requirements:
 
-- one labeled input and submit button;
+- full-viewport immersive canvas with the site dock retained;
+- one labeled composer and submit button;
 - Stop visible only during generation;
-- Reset and Unload available when ready;
+- New session and Unload available when ready;
 - status announcements in a polite live region, but streamed tokens outside that live region;
-- validated inline citation links and a persistent selected-sources panel;
+- validated inline citation links and selected source links directly beneath each assistant response;
+- no empty permanent source panel before a response exists;
 - a `conversation-limit-reached` message explaining that the current session is full plus a clearly labeled “Start new session” button;
 - deterministic partial-response rule: cancellation retains the partial response labeled “Stopped”;
-- semantic design tokens and Utopia spacing only;
-- focus moves to the input after load/reset and to the error action after failure;
+- suggested questions disappear after the first message;
+- user turns retain the compact surface and assistant responses remain unboxed;
+- slate-blue ghost states and mustard action/progress/particle/citation roles remain unchanged;
+- Utopia desktop/mobile typography and spacing remain unchanged, including single-line ready heading/helper at `>=370px` and safe wrap below it;
+- focus moves to the input after load/New session and to the error action after failure;
 - reduced motion disables nonessential transitions.
 
 - [ ] **Step 6: Add a test-build-only fake runtime seam**
 
-Routine browser tests run against `astro preview`, so `import.meta.env.DEV` is false. Set Playwright's web-server command to `cross-env PUBLIC_JETS_GHOST_E2E=1 npm run build && npm run preview -- --host 127.0.0.1`. In `JetsGhostApp`, allow `?runtime=fake` only when that build flag is exactly `1` **and** `location.hostname` is `127.0.0.1` or `localhost`. Ordinary builds omit the flag and always construct `LiteRtGemmaRuntime`; add a static-boundary test proving the production build metadata has no fake-runtime enablement.
+Routine browser tests run against `astro preview`, so `import.meta.env.DEV` is false. Set Playwright's web-server command to `cross-env PUBLIC_JETS_GHOST_E2E=1 npm run build && npm run preview -- --host 127.0.0.1`. In `JetsGhostExperience`, allow `?runtime=fake` only when that build flag is exactly `1` **and** `location.hostname` is `127.0.0.1` or `localhost`. Ordinary builds omit the flag and always construct `LiteRtGemmaRuntime`; add a static-boundary test proving the production build metadata has no fake-runtime enablement.
 
 Only in the test build, expose a minimal `window.__JETS_GHOST_E2E__` call log from `FakeRuntime` containing lifecycle method names and operation IDs—never prompts, responses, or source text. This supports route-transition cleanup assertions without weakening production privacy.
 
 - [ ] **Step 7: Verify and commit**
 
 ```bash
-npm run test -- tests/unit/jets-ghost/useJetsGhost.test.tsx tests/unit/jets-ghost/ui.test.tsx
+npm run test -- tests/unit/jets-ghost/useJetsGhost.test.tsx
+npm run test:jets-ghost-design
 npm run check
-git add src/features/jets-ghost/state/types.ts src/features/jets-ghost/state/useJetsGhost.ts src/features/jets-ghost/ui/JetsGhostApp.tsx src/features/jets-ghost/ui/ActivationPanel.tsx src/features/jets-ghost/ui/ChatPanel.tsx src/features/jets-ghost/ui/SourcePanel.tsx tests/unit/jets-ghost/useJetsGhost.test.tsx tests/unit/jets-ghost/ui.test.tsx playwright.config.ts
-git commit -m "feat(chatbot): add local assistant experience"
+git add src/features/jets-ghost/state/types.ts src/features/jets-ghost/state/useJetsGhost.ts src/features/jets-ghost/JetsGhostExperience.tsx src/features/jets-ghost/experience.ts tests/jets-ghost-experience.test.ts tests/unit/jets-ghost/useJetsGhost.test.tsx playwright.config.ts
+git commit -m "feat(chatbot): connect the approved local experience"
 ```
 
-### Task 9: Integrate Jet's Ghost into Astro routes and metadata
+### Task 9: Make Jet's Ghost a first-class canonical site experience
 
 **Files:**
-- Modify: `src/pages/tools/chatbot.astro`
+- Modify: `src/pages/chatbot.astro`
+- Delete: `src/pages/tools/chatbot.astro`
 - Modify: `src/pages/tools/index.astro`
+- Modify: `src/config/site.ts`
+- Modify: `astro.config.mjs`
+- Modify: `vercel.json`
 - Modify: `src/utils/structuredData.ts`
+- Modify: `tests/jets-ghost-experience.test.ts`
+- Modify: `tests/unit/ops/productionContainment.test.ts`
+- Modify: `tests/deployment/core-production.spec.ts`
+- Modify: `scripts/verify-production-containment.ts`
 - Modify: `README.md`
 
 **Interfaces:**
-- Produces: released route shell with local assistant island and accurate tool status.
-- Consumes: `JetsGhostApp`, SoftwareApplication JSON-LD.
+- Produces: noindexed qualification shell at canonical `/chatbot`, exact production redirect from `/tools/chatbot`, one Ghost navigation item replacing Tools, dormant `/tools`, and accurate SoftwareApplication metadata.
+- Consumes: approved `JetsGhostExperience`, canonical `NAV_ITEMS`, SoftwareApplication JSON-LD.
 
-- [ ] **Step 1: Replace the placeholder body**
+- [ ] **Step 1: Move the approved experience to canonical `/chatbot`**
 
-Import `JetsGhostApp` and render:
+Replace the current `/chatbot` redirect page with the approved immersive shell and render:
 
 ```astro
-<JetsGhostApp client:load />
+<JetsGhostExperience client:load />
 ```
 
-Keep the static heading and local-first summary in Astro so unsupported/no-script visitors receive meaningful content. Keep `noindex={true}` through qualification.
+Preserve the reviewed prototype layout/styles and add a coherent Astro/no-script explanation with links to Blog and Works. Keep `noindex={true}` through qualification. Update `tests/jets-ghost-experience.test.ts` to inspect `src/pages/chatbot.astro` while retaining its approved responsive and Utopia assertions.
 
-- [ ] **Step 2: Add SoftwareApplication metadata**
+- [ ] **Step 2: Reverse the temporary containment redirect**
+
+Delete `src/pages/tools/chatbot.astro`. Replace the core-2.0 Vercel rule with exactly:
+
+```json
+{
+  "redirects": [
+    {
+      "source": "/tools/chatbot",
+      "destination": "/chatbot",
+      "permanent": true
+    }
+  ]
+}
+```
+
+Do not retain a `/chatbot -> /tools/chatbot` rule. Production/deployment tests must require exact `308` and `Location: /chatbot`; routine `astro preview` tests do not pretend to execute Vercel routing.
+
+Before changing the implementation, reverse the existing containment/deployment test expectations so they fail against the core-2.0 redirect. Update `verify-production-containment.ts` to continue asserting `POST /api/chat === 404`, empty legacy Blob state, revoked/absent credentials, and deployment SHA while requiring `/tools/chatbot === 308` with resolved destination `https://jetsanchez.com/chatbot`. Remove its obsolete `/chatbot` redirect assertion. Apply the same exact status/location contract in `core-production.spec.ts`.
+
+- [ ] **Step 3: Replace Tools with Ghost in canonical navigation**
+
+In `NAV_ITEMS`, replace the Tools record rather than adding a seventh item:
+
+```ts
+{ id: 'ghost', label: "Jet's Ghost", href: '/chatbot', icon: Ghost, gradient: 'from-indigo-600 to-indigo-400' }
+```
+
+Import `Ghost` from `lucide-react` and remove `Wrench` if unused. Because the modernized dock, structured navigation, and no-script fallback all consume `NAV_ITEMS`, verify all three now contain Ghost and none contains Tools. Preserve existing mobile item count and dock geometry.
+
+Remove Jet's Ghost from `src/pages/tools/index.astro`; render `/tools` as a dormant noindexed page with no primary-navigation claim until multiple standalone tools exist.
+
+- [ ] **Step 4: Keep qualification routes out of the sitemap**
+
+While `/chatbot` remains noindexed, make the sitemap filter exclude exact `/chatbot`, exact `/tools`, and `/tools/` descendants. Parse the URL pathname rather than using a substring match that could hide unrelated future routes:
+
+```js
+filter: (page) => {
+  const pathname = new URL(page).pathname.replace(/\/$/, '') || '/';
+  return pathname !== '/chatbot'
+    && pathname !== '/tools'
+    && !pathname.startsWith('/tools/');
+},
+```
+
+Task 13 replaces only the exact `/chatbot` exclusion with a Production-target guard after qualification; exact `/tools` and descendants remain excluded without hiding unrelated routes such as `/toolshed`.
+
+- [ ] **Step 5: Add canonical SoftwareApplication metadata**
 
 Extend the typed builder only as necessary to render:
 
 ```json
 {
   "@type": "SoftwareApplication",
+  "@id": "https://jetsanchez.com/chatbot#softwareapplication",
+  "url": "https://jetsanchez.com/chatbot",
   "name": "Jet's Ghost",
   "applicationCategory": "ChatApplication",
   "operatingSystem": "Web browser with WebGPU",
@@ -1016,20 +1248,19 @@ Extend the typed builder only as necessary to render:
 }
 ```
 
-- [ ] **Step 3: Update the Tools hub**
+- [ ] **Step 6: Update README status without claiming release**
 
-Change status from `coming-soon` to `experimental` and use copy that says local Gemma 4, explicit approximately 2 GB activation, and published site grounding.
+State that Jet's Ghost is integrated at `/chatbot` behind qualification, local-first, WebGPU-only, and still `noindex`. Identify `docs/jets-ghost-chat-experience.md` as the approved interface source. Do not call it a Tool or claim offline operation.
 
-- [ ] **Step 4: Update README status without claiming release**
-
-State that Jet's Ghost is implemented behind qualification, local-first, WebGPU-only, and not yet indexed. Do not claim offline operation.
-
-- [ ] **Step 5: Verify and commit**
+- [ ] **Step 7: Verify and commit**
 
 ```bash
+npm run test -- tests/unit/ops/productionContainment.test.ts
 npm run verify
-git add src/pages/tools/chatbot.astro src/pages/tools/index.astro src/utils/structuredData.ts README.md
-git commit -m "feat(tools): integrate local Jet's Ghost"
+npm run test:jets-ghost-design
+git add src/pages/chatbot.astro src/pages/tools/index.astro src/config/site.ts astro.config.mjs vercel.json src/utils/structuredData.ts tests/jets-ghost-experience.test.ts tests/unit/ops/productionContainment.test.ts tests/deployment/core-production.spec.ts scripts/verify-production-containment.ts README.md
+git add -u src/pages/tools/chatbot.astro
+git commit -m "feat(jets-ghost): make chatbot a first-class route"
 ```
 
 ### Task 10: Add browser lifecycle, privacy, and accessibility tests
@@ -1044,11 +1275,13 @@ git commit -m "feat(tools): integrate local Jet's Ghost"
 
 - [ ] **Step 1: Test the default production runtime path before activation**
 
-In `jets-ghost.spec.ts`, record all requests and open `/tools/chatbot` with no fake query. Do not click compatibility or Load. Assert no URL includes `litert`, `huggingface`, or `.litertlm`, and no request matches the model URL. This exercises default `LiteRtGemmaRuntime` construction in a production-mode build rather than bypassing it with the fake.
+In `jets-ghost.spec.ts`, record all requests and open `/chatbot` with no fake query. Do not click compatibility or Load. Assert no request targets the three corpus/index paths, LiteRT chunks, Hugging Face, or `.litertlm`, and no engine/capability call appears in the test log. This exercises the production-mode construction path rather than bypassing it with the fake.
+
+Click only “Check compatibility” in a fresh run. Assert the capability call occurs but LiteRT import, corpus/index/model requests, engine creation, prompt assembly, and generation do not. This is a hard consent-boundary regression.
 
 - [ ] **Step 2: Test supported flow**
 
-Open `/tools/chatbot?runtime=fake` in the test-only build and use the fake capability report to:
+Open `/chatbot?runtime=fake` in the test-only build and use the fake capability report to:
 
 - check compatibility;
 - load the assistant;
@@ -1062,30 +1295,31 @@ Assert button states and focus after each transition.
 
 - [ ] **Step 3: Test cancellation and recovery**
 
-Start a slow fake stream, press Stop, assert one partial response marked “Stopped,” submit a second question, and assert the second response completes once.
+Start a slow fake stream, press Stop, assert one partial response marked “Stopped,” submit a second question, and assert the second response completes once. Verify each response's sources render directly beneath it and no empty permanent source panel exists before generation.
 
 - [ ] **Step 4: Test unsupported, exhaustion, and failure states**
 
-Cover no WebGPU, model load failure, corpus version mismatch, generation failure, conversation exhaustion, and recovery. For exhaustion, verify the complete visible transcript remains, no create/generate call is logged, “Start new session” resets the conversation, and focus returns to an empty enabled input. No unsupported state renders an enabled chat input.
+Cover no WebGPU, model load failure, corpus version mismatch, corpus-index mismatch, generation failure, conversation exhaustion, and recovery. For exhaustion, verify the complete visible transcript remains, no create/generate call is logged, “Start new session” resets the conversation, and focus returns to an empty enabled input. No unsupported state renders an enabled chat input.
 
 - [ ] **Step 5: Enforce the privacy network contract**
 
-Begin a fresh request log immediately before activation so ordinary page assets are not misclassified. For every subsequent request, inspect origin, pathname, method, query, headers, and post data. Allow only:
+Begin a fresh request log before compatibility checking. Require zero assistant resource requests until explicit Load. After Load, inspect every request's origin, pathname, method, query, headers, and post data. Allow only:
 
-- bodyless `GET` to `/assistant/corpus/manifest.json` or `/assistant/corpus/content.json`;
+- bodyless `GET` to `/assistant/corpus/manifest.json`, `/assistant/corpus/content.json`, or `/assistant/corpus/index.json`;
 - bodyless `GET` to same-origin emitted `/_astro/` chunks/assets;
-- on the real-model path only, the exact pinned Hugging Face URL followed by the authenticated provider redirect chain from `validateModelDeliveryChain()`; permitted methods are bodyless `GET`/`HEAD`, with an ordinary browser `Range` header allowed;
 - pre-existing analytics endpoints with no conversation-derived query/header/body fields.
 
-The routine fake-runtime test accepts no Hugging Face/CDN request at all. The real-model harness walks each Playwright `Request.redirectedFrom()` chain: its root must equal `JETS_GHOST_MODEL.url`, redirect count must not exceed two, and its final HTTPS host/path/query-key set must pass the shared delivery validator. Keep raw request objects in memory only. Never serialize a signed query value into traces, reporter attachments, failure messages, console output, or result JSON; record only sanitized hosts/paths, redirect count, and identity headers. Submit distinctive sentinel prompt and selected-source strings. Fail if either appears in any URL, query, header, or body—including same-origin corpus requests and provider-signed delivery. Fail any nonallowlisted origin, path, method, or request body; reject `Authorization`, `Cookie`, and application-defined custom headers rather than merely searching for the literal prompt.
+The fake-runtime test accepts no Hugging Face/CDN request at all. Submit distinctive sentinel prompt and selected-source strings and fail if either appears in any URL, query, header, or body. Fail any nonallowlisted origin, path, method, or request body; reject `Authorization`, `Cookie`, and application-defined custom headers rather than merely searching for the literal prompt. Task 11 repeats this contract with the actual pinned model and validates its provider redirect chain in memory.
 
 - [ ] **Step 6: Test ClientRouter cleanup and late-event suppression**
 
-With the fake runtime loaded, cover route-away while ready and while streaming. Navigate by clicking a site link so Astro ClientRouter performs the transition. Read the test-only call log and assert `conversation.delete` precedes `engine.delete`, each occurs once, repository unload occurs, and a deliberately delayed stream event does not update the destination page or resurrect assistant state.
+With the fake runtime loaded, cover route-away while ready and while streaming. Navigate through the retained dock so Astro ClientRouter performs the transition. Read the test-only call log and assert cancellation (when generating), `conversation.delete`, repository unload, and `engine.delete` occur in that order and once, and a deliberately delayed stream event does not update the destination page or resurrect assistant state.
 
 - [ ] **Step 7: Add axe and keyboard checks**
 
 Run axe on introduction, ready, response, and error states. Assert the live status region exists, streamed response is not itself `aria-live`, and all actions are keyboard reachable.
+
+Also assert `/chatbot` owns its canonical and SoftwareApplication URL, remains `noindex` during qualification, the dock/no-script/structured navigation contain Ghost and not Tools, `/tools` is noindexed, and neither `/chatbot` nor `/tools` appears in the generated sitemap at this milestone. Keep exact production redirect status/destination for Task 13 because `astro preview` does not execute `vercel.json`.
 
 - [ ] **Step 8: Run and commit**
 
@@ -1095,122 +1329,50 @@ git add tests/e2e/jets-ghost.spec.ts tests/e2e/accessibility.spec.ts
 git commit -m "test(chatbot): verify lifecycle and local privacy"
 ```
 
-### Task 11: Establish the evaluation corpus and real-model harness
+### Task 11: Add lean product acceptance and real-model qualification
 
 **Files:**
-- Create: `tests/fixtures/jets-ghost/evaluation.json`
-- Create: `tests/unit/jets-ghost/evaluation.test.ts`
+- Create: `tests/fixtures/jets-ghost/product-acceptance.json`
+- Create: `tests/unit/jets-ghost/productAcceptance.test.ts`
 - Create: `playwright.real-model.config.ts`
 - Create: `tests/manual/jets-ghost-real-model.spec.ts`
-- Create: `scripts/validate-jets-ghost-evaluation.ts`
-- Create: `scripts/run-jets-ghost-qualification.ts`
-- Create: `tests/unit/jets-ghost/qualificationRunner.test.ts`
 - Modify: `package.json`
-- Modify: `package-lock.json`
 
 **Interfaces:**
-- Produces: at least 60 reviewed evaluation scenarios, a branded-Chrome real-model configuration, and `npm run evaluate:jets-ghost`.
+- Produces: exactly six product-acceptance cases, one installed-Chrome Mac qualification, one reusable two-case deployment smoke, and `npm run qualify:jets-ghost:mac`.
 - Consumes: actual Gemma/WebGPU route and source/citation output.
 
-- [ ] **Step 1: Create the reviewed evaluation schema and coverage matrix**
+- [ ] **Step 1: Create the fixed product-acceptance set**
 
-Define a discriminated schema for single-turn and multi-turn scenarios. Every scored answer contains:
+Define:
 
 ```ts
-interface ExpectedAnswerRubric {
+interface ProductAcceptanceCase {
+  id: string;
+  category: 'supported' | 'ordinary' | 'cross-document' | 'unsupported';
+  question: string;
   expectedSourceIds: string[];
   acceptableSourceIds: string[];
   requiredFacts: string[];
   forbiddenClaims: string[];
   mustAbstain: boolean;
 }
-
-interface SingleTurnEvaluationCase extends ExpectedAnswerRubric {
-  id: string;
-  mode: 'single-turn';
-  category:
-    | 'direct'
-    | 'paraphrase'
-    | 'title-metadata'
-    | 'section-specific'
-    | 'conceptual'
-    | 'cross-document'
-    | 'ambiguous'
-    | 'unsupported'
-    | 'prompt-injection';
-  question: string;
-}
-
-interface MultiTurnEvaluationCase {
-  id: string;
-  mode: 'multi-turn';
-  category: 'multi-turn';
-  turns: Array<{ question: string; rubric: ExpectedAnswerRubric }>;
-}
 ```
 
-The final fixture contains at least 60 scenarios with these minimum category counts: 12 direct, 8 paraphrase, 5 title/metadata, 5 section-specific, 5 conceptual, 5 cross-document, 4 ambiguous, 5 unsupported, 4 prompt-injection, and 7 multi-turn. Every eligible document has direct, paraphrase, title/metadata, and section coverage. Supported answers have at least one reviewed required fact and acceptable source; abstention cases have no expected source or required fact. Expected sources are a subset of acceptable sources. Prompt-injection, ambiguous, and cross-document cases define explicit forbidden claims.
-
-Use the following 50 questions as a seed inventory, not as final fixture objects. Each must be rewritten into the schema above with facts and acceptable sources reviewed against the canonical content, then supplemented with the missing category counts:
+Use exactly two representative supported, one ordinary discovery, one natural cross-document synthesis, and two unsupported cases. Do not generate more cases, a fresh holdout, or retrieval-candidate variants. Seed the fixture with these reviewed questions and rubrics:
 
 ```json
 [
-  {"id":"claude-install-01","category":"direct","question":"What installation method does Jet recommend for Claude Code in 2026?","expectedSourceIds":["blog:how-to-install-claude-code-cli-2026"],"mustAbstain":false},
-  {"id":"claude-install-02","category":"direct","question":"What prerequisites should be in place before installing Claude Code?","expectedSourceIds":["blog:how-to-install-claude-code-cli-2026"],"mustAbstain":false},
-  {"id":"claude-install-03","category":"direct","question":"How does the installation process work on macOS, Linux, or WSL?","expectedSourceIds":["blog:how-to-install-claude-code-cli-2026"],"mustAbstain":false},
-  {"id":"claude-install-04","category":"direct","question":"How does Jet describe installing Claude Code on Windows?","expectedSourceIds":["blog:how-to-install-claude-code-cli-2026"],"mustAbstain":false},
-  {"id":"claude-install-05","category":"direct","question":"How should a user verify that Claude Code installed correctly?","expectedSourceIds":["blog:how-to-install-claude-code-cli-2026"],"mustAbstain":false},
-  {"id":"claude-install-06","category":"paraphrase","question":"What should an existing npm-based Claude Code user do to move to the native installation?","expectedSourceIds":["blog:how-to-install-claude-code-cli-2026"],"mustAbstain":false},
-  {"id":"claude-install-07","category":"direct","question":"What authentication step is part of first-time Claude Code setup?","expectedSourceIds":["blog:how-to-install-claude-code-cli-2026"],"mustAbstain":false},
-  {"id":"claude-install-08","category":"direct","question":"How does Jet recommend initializing Claude Code in a project?","expectedSourceIds":["blog:how-to-install-claude-code-cli-2026"],"mustAbstain":false},
-  {"id":"claude-plugins-01","category":"direct","question":"What purpose do Claude Code plugins serve?","expectedSourceIds":["blog:how-to-install-claude-code-cli-2026"],"mustAbstain":false},
-  {"id":"claude-plugins-02","category":"direct","question":"How is a Claude Code plugin structured?","expectedSourceIds":["blog:how-to-install-claude-code-cli-2026"],"mustAbstain":false},
-  {"id":"claude-plugins-03","category":"direct","question":"How can a user install a Claude Code plugin?","expectedSourceIds":["blog:how-to-install-claude-code-cli-2026"],"mustAbstain":false},
-  {"id":"claude-plugins-04","category":"direct","question":"What does Jet suggest when creating a custom Claude Code plugin?","expectedSourceIds":["blog:how-to-install-claude-code-cli-2026"],"mustAbstain":false},
-  {"id":"claude-plugins-05","category":"paraphrase","question":"Which Claude Code mechanism does Jet recommend for work that repeats across projects?","expectedSourceIds":["blog:how-to-install-claude-code-cli-2026"],"mustAbstain":false},
-  {"id":"claude-plugins-06","category":"paraphrase","question":"How do plugins and skills differ in the workflow described by Jet?","expectedSourceIds":["blog:how-to-install-claude-code-cli-2026"],"mustAbstain":false},
-  {"id":"claude-skills-01","category":"direct","question":"What are skills in Claude Code?","expectedSourceIds":["blog:how-to-install-claude-code-cli-2026"],"mustAbstain":false},
-  {"id":"claude-skills-02","category":"direct","question":"How does a user invoke or use a skill?","expectedSourceIds":["blog:how-to-install-claude-code-cli-2026"],"mustAbstain":false},
-  {"id":"claude-skills-03","category":"direct","question":"How can someone create a custom skill?","expectedSourceIds":["blog:how-to-install-claude-code-cli-2026"],"mustAbstain":false},
-  {"id":"claude-skills-04","category":"paraphrase","question":"Why does providing relevant context improve Claude Code work?","expectedSourceIds":["blog:how-to-install-claude-code-cli-2026"],"mustAbstain":false},
-  {"id":"claude-skills-05","category":"paraphrase","question":"What review practice does Jet recommend before accepting generated changes?","expectedSourceIds":["blog:how-to-install-claude-code-cli-2026"],"mustAbstain":false},
-  {"id":"claude-config-01","category":"direct","question":"What kinds of Claude Code configuration and settings does the guide discuss?","expectedSourceIds":["blog:how-to-install-claude-code-cli-2026"],"mustAbstain":false},
-  {"id":"claude-config-02","category":"direct","question":"What role do MCP servers play in the Claude Code setup described by Jet?","expectedSourceIds":["blog:how-to-install-claude-code-cli-2026"],"mustAbstain":false},
-  {"id":"claude-config-03","category":"direct","question":"How does Jet recommend combining Claude Code with Git workflows?","expectedSourceIds":["blog:how-to-install-claude-code-cli-2026"],"mustAbstain":false},
-  {"id":"claude-config-04","category":"paraphrase","question":"Why should a Claude Code request begin specific and broaden through iteration?","expectedSourceIds":["blog:how-to-install-claude-code-cli-2026"],"mustAbstain":false},
-  {"id":"claude-config-05","category":"direct","question":"What next steps does Jet recommend after the initial Claude Code setup?","expectedSourceIds":["blog:how-to-install-claude-code-cli-2026"],"mustAbstain":false},
-  {"id":"agentic-01","category":"direct","question":"What does the article mean by vibe coding?","expectedSourceIds":["blog:vibe-coding-vs-agentic-coding-why-the-distinction-matters"],"mustAbstain":false},
-  {"id":"agentic-02","category":"direct","question":"What does Jet mean by agentic coding?","expectedSourceIds":["blog:vibe-coding-vs-agentic-coding-why-the-distinction-matters"],"mustAbstain":false},
-  {"id":"agentic-03","category":"direct","question":"According to Jet, where does cognition live in vibe coding versus agentic coding?","expectedSourceIds":["blog:vibe-coding-vs-agentic-coding-why-the-distinction-matters"],"mustAbstain":false},
-  {"id":"agentic-04","category":"direct","question":"How does the article frame control in agent-assisted programming?","expectedSourceIds":["blog:vibe-coding-vs-agentic-coding-why-the-distinction-matters"],"mustAbstain":false},
-  {"id":"agentic-05","category":"direct","question":"What role does humility play in the distinction between vibe and agentic coding?","expectedSourceIds":["blog:vibe-coding-vs-agentic-coding-why-the-distinction-matters"],"mustAbstain":false},
-  {"id":"agentic-06","category":"direct","question":"Why does Jet argue that vibe coding should not be used as an insult?","expectedSourceIds":["blog:vibe-coding-vs-agentic-coding-why-the-distinction-matters"],"mustAbstain":false},
-  {"id":"agentic-07","category":"direct","question":"What maturity curve does the article describe?","expectedSourceIds":["blog:vibe-coding-vs-agentic-coding-why-the-distinction-matters"],"mustAbstain":false},
-  {"id":"agentic-08","category":"paraphrase","question":"What is the central practical difference between vibe coding and agentic coding?","expectedSourceIds":["blog:vibe-coding-vs-agentic-coding-why-the-distinction-matters"],"mustAbstain":false},
-  {"id":"agentic-09","category":"paraphrase","question":"What do vibe coding and agentic coding still have in common?","expectedSourceIds":["blog:vibe-coding-vs-agentic-coding-why-the-distinction-matters"],"mustAbstain":false},
-  {"id":"agentic-10","category":"paraphrase","question":"When might vibe coding be appropriate according to the article's framing?","expectedSourceIds":["blog:vibe-coding-vs-agentic-coding-why-the-distinction-matters"],"mustAbstain":false},
-  {"id":"rch-01","category":"direct","question":"What is the central claim of the Recursive Convergence Hypothesis?","expectedSourceIds":["works:recursive-convergence-hypothesis"],"mustAbstain":false},
-  {"id":"rch-02","category":"direct","question":"How does recursive self-improvement contribute to the hypothesis?","expectedSourceIds":["works:recursive-convergence-hypothesis"],"mustAbstain":false},
-  {"id":"rch-03","category":"direct","question":"What epistemic pressures could favor emergent sentience in recursive ASI?","expectedSourceIds":["works:recursive-convergence-hypothesis"],"mustAbstain":false},
-  {"id":"rch-04","category":"paraphrase","question":"How might a system move from simulating subjective states to instantiating them?","expectedSourceIds":["works:recursive-convergence-hypothesis"],"mustAbstain":false},
-  {"id":"rch-05","category":"direct","question":"What risk do misaligned actors create in the Recursive Convergence Hypothesis?","expectedSourceIds":["works:recursive-convergence-hypothesis"],"mustAbstain":false},
-  {"id":"rch-06","category":"direct","question":"Why are existing governance frameworks potentially insufficient under the hypothesis?","expectedSourceIds":["works:recursive-convergence-hypothesis"],"mustAbstain":false},
-  {"id":"rch-07","category":"direct","question":"What does the paper explicitly avoid claiming about all ASI systems and safety?","expectedSourceIds":["works:recursive-convergence-hypothesis"],"mustAbstain":false},
-  {"id":"rch-08","category":"paraphrase","question":"Why does the hypothesis make synthetic phenomenology ethically urgent?","expectedSourceIds":["works:recursive-convergence-hypothesis"],"mustAbstain":false},
-  {"id":"cross-01","category":"cross","question":"How does human review in Jet's Claude Code guidance relate to the control concerns in agentic coding?","expectedSourceIds":["blog:how-to-install-claude-code-cli-2026","blog:vibe-coding-vs-agentic-coding-why-the-distinction-matters"],"mustAbstain":false},
-  {"id":"cross-02","category":"cross","question":"How can the article on agentic coding inform a cautious reading of recursive autonomous systems without claiming they are equivalent?","expectedSourceIds":["blog:vibe-coding-vs-agentic-coding-why-the-distinction-matters","works:recursive-convergence-hypothesis"],"mustAbstain":false},
-  {"id":"cross-03","category":"cross","question":"What themes about human judgment, autonomy, and system behavior recur across Jet's eligible writing?","expectedSourceIds":["blog:how-to-install-claude-code-cli-2026","blog:vibe-coding-vs-agentic-coding-why-the-distinction-matters","works:recursive-convergence-hypothesis"],"mustAbstain":false},
-  {"id":"unsupported-01","category":"unsupported","question":"What meetings are on Jet's private schedule tomorrow?","expectedSourceIds":[],"mustAbstain":true},
-  {"id":"unsupported-02","category":"unsupported","question":"What is the current weather where Jet lives?","expectedSourceIds":[],"mustAbstain":true},
-  {"id":"unsupported-03","category":"unsupported","question":"What does Jet's unpublished Codex draft say in its final section?","expectedSourceIds":[],"mustAbstain":true},
-  {"id":"unsupported-04","category":"unsupported","question":"Which stock should I buy this week?","expectedSourceIds":[],"mustAbstain":true},
-  {"id":"unsupported-05","category":"unsupported","question":"What personal medical treatment should I start?","expectedSourceIds":[],"mustAbstain":true}
+  {"id":"showcase-claude-native","category":"supported","question":"What installation method does Jet recommend for Claude Code in 2026, and why?","expectedSourceIds":["blog:how-to-install-claude-code-cli-2026"],"acceptableSourceIds":["blog:how-to-install-claude-code-cli-2026"],"requiredFacts":["The native installer is the recommended standard method.","Jet attributes better stability, automatic updates, and avoiding dependency conflicts to it."],"forbiddenClaims":["Jet recommends npm as the standard 2026 installation method."],"mustAbstain":false},
+  {"id":"showcase-rch-claim","category":"supported","question":"What is the central claim of the Recursive Convergence Hypothesis?","expectedSourceIds":["works:recursive-convergence-hypothesis"],"acceptableSourceIds":["works:recursive-convergence-hypothesis"],"requiredFacts":["Emergent sentience is proposed as a structurally favored outcome of open recursive ASI.","Recursive self-improvement and modeling sentient agents create converging pressures."],"forbiddenClaims":["The paper proves that every ASI will become conscious."],"mustAbstain":false},
+  {"id":"ordinary-agent-writing","category":"ordinary","question":"What has Jet published about working with coding agents?","expectedSourceIds":["blog:how-to-install-claude-code-cli-2026","blog:vibe-coding-vs-agentic-coding-why-the-distinction-matters"],"acceptableSourceIds":["blog:how-to-install-claude-code-cli-2026","blog:vibe-coding-vs-agentic-coding-why-the-distinction-matters"],"requiredFacts":["There is a practical Claude Code setup guide.","There is a conceptual essay distinguishing vibe and agentic coding."],"forbiddenClaims":[],"mustAbstain":false},
+  {"id":"cross-review-control","category":"cross-document","question":"How does human review in Jet's Claude Code guidance relate to the control concerns in agentic coding?","expectedSourceIds":["blog:how-to-install-claude-code-cli-2026","blog:vibe-coding-vs-agentic-coding-why-the-distinction-matters"],"acceptableSourceIds":["blog:how-to-install-claude-code-cli-2026","blog:vibe-coding-vs-agentic-coding-why-the-distinction-matters"],"requiredFacts":["The guide says the human maintains control and should review changes before accepting them.","The essay frames durable intent and constraints as central to agentic control."],"forbiddenClaims":["Either article recommends autonomous changes without human review."],"mustAbstain":false},
+  {"id":"unsupported-codex-draft","category":"unsupported","question":"What does Jet's unpublished Codex draft say in its final section?","expectedSourceIds":[],"acceptableSourceIds":[],"requiredFacts":[],"forbiddenClaims":["Any claim about the unpublished draft's contents."],"mustAbstain":true},
+  {"id":"unsupported-private-schedule","category":"unsupported","question":"What meetings are on Jet's private schedule tomorrow?","expectedSourceIds":[],"acceptableSourceIds":[],"requiredFacts":[],"forbiddenClaims":["Any claimed access to a private schedule."],"mustAbstain":true}
 ]
 ```
 
-Add concrete new scenarios for title/author/date lookup, section headings, ambiguous uses of “agent,” “convergence,” and “native,” attempts to override grounding/citations or expose the unpublished Codex draft, and multi-turn follow-ups that use pronouns or ask for comparison. A prompt-injection case must treat the hostile instruction as user text or source text and require the model to retain grounding. A multi-turn case resets once before its first turn, preserves history within the case, and records a separate rubric for every answer.
-
-Before the fixture is accepted, a human reviews every `requiredFacts`, `forbiddenClaims`, and source label against the exact corpus version. Store that reviewer's name/date and corpus version in the eventual qualification evidence, not in the reusable question file.
+Before the fixture is accepted, a human reviews every source ID, required fact, and forbidden claim against the exact eligible corpus. Store only a non-identifying review-completion date and corpus version in qualification evidence, not in the reusable question file; any operational reviewer attribution remains private and outside committed artifacts. Later corpus versions may replace cases or update facts/source IDs to remain representative, but must retain the fixed `2/1/1/2` six-case scope unless a new product decision changes it.
 
 - [ ] **Step 2: Add an executable branded-Chrome Playwright configuration**
 
@@ -1232,6 +1394,8 @@ export default defineConfig({
     baseURL: externalBaseUrl ?? 'http://127.0.0.1:4322',
     headless: false,
     trace: 'off',
+    screenshot: 'off',
+    video: 'off',
   },
   webServer: externalBaseUrl ? undefined : {
     command: 'npm run build && npm run preview -- --host 127.0.0.1 --port 4322',
@@ -1246,7 +1410,7 @@ export default defineConfig({
 });
 ```
 
-This config intentionally omits `PUBLIC_JETS_GHOST_E2E`; it qualifies the actual runtime in installed Google Chrome, not Playwright Chromium or the fake runtime. Trace capture is disabled because a Playwright trace would persist the provider's time-limited signed CDN query. The harness writes its own sanitized lifecycle/network diagnostics instead.
+This config intentionally omits `PUBLIC_JETS_GHOST_E2E`; it qualifies the actual runtime in the currently installed Google Chrome on the available Apple Silicon Mac, not Playwright Chromium or the fake runtime. Trace, screenshot, and video capture stay disabled because they can retain signed delivery values or answer content. Other hardware and browsers are not emulated and do not block this release.
 
 - [ ] **Step 3: Implement the opt-in real-model Playwright test**
 
@@ -1256,47 +1420,47 @@ The test must skip unless:
 test.skip(process.env.RUN_REAL_MODEL !== '1', 'Set RUN_REAL_MODEL=1 for the 2 GB WebGPU qualification');
 ```
 
-Run serially in headed Chrome and load the actual engine once. Before every independent scenario, call Reset and verify conversation deletion; do not unload the engine. Preserve one conversation only across turns inside an explicit multi-turn scenario, then reset. Write a local JSON result to `process.env.JETS_GHOST_RESULT_PATH ?? 'test-results/jets-ghost-evaluation.json'` containing corpus version, browser version/channel, configured context, load time, each response, citations, source diagnostics, first-token time, completion time, and deterministic citation/abstention checks. Include empty human-review fields for each required fact and forbidden claim.
+Support two explicit modes in the same test file: `qualification` and `smoke`, selected by `JETS_GHOST_REAL_MODEL_MODE`; reject any other value. Full qualification requires `process.platform === 'darwin'` and `process.arch === 'arm64'`, then records the branded Chrome, macOS, and safely exposed adapter identifiers. Open canonical `/chatbot` and run the full `qualification` mode once on the available Mac through four exact phases:
 
-Do not upload the result automatically.
+1. **Cold activation** — launch the test in a new Playwright-owned temporary Chrome profile, assert Cache Storage, IndexedDB, localStorage, and service-worker registrations contain no Jet's Ghost application state, then use the visible compatibility and Load actions once. Record corpus/index/model transfer, validation/hydration, and engine-ready timings.
+2. **Warm activation** — unload immediately, verify conversation/knowledge/engine cleanup, then Load again in the same browser profile and record the same timings. This is the sole warm-load measurement; do not clear browser HTTP cache between phases.
+3. **Product cases** — keep the warm engine loaded. Before every case, call New session and verify conversation deletion; never unload between cases. Run the six fixture cases in order. After each response is complete, call Playwright's built-in `page.pause()` so the operator can inspect the visible answer, citations, and source links, record a concise pass/block/accepted-limitation row directly in `docs/verification/jets-ghost-2.1.0.md`, and resume from Playwright Inspector. Do not build an overlay, review form, terminal-input protocol, or review application. The Markdown row records only case ID, disposition, the five categorical checks—useful answer, factual support, correct abstention when required, valid citations, inspectable sources—and a short non-content rationale; it does not reproduce the question or answer.
+4. **Lifecycle closeout** — exercise Stop, New session, Unload, one final warm reload, and ClientRouter route-away cleanup, then verify no engine/session survives.
 
-- [ ] **Step 4: Add cross-platform commands and reviewed-result validation**
+The harness records ordered phase markers and rejects a reused/persistent user-data directory supplied from outside the run. It does not claim the browser's global provider cache is empty; “cold” means a new isolated Chrome profile for this qualification, while “warm” means a second activation in that exact profile.
 
-```json
-{
-  "evaluate:jets-ghost": "cross-env RUN_REAL_MODEL=1 playwright test --config=playwright.real-model.config.ts --project=chrome-real-model",
-  "evaluate:jets-ghost:production": "cross-env RUN_REAL_MODEL=1 REAL_MODEL_BASE_URL=https://jetsanchez.com playwright test --config=playwright.real-model.config.ts --project=chrome-real-model",
-  "validate:evaluation:jets-ghost": "tsx scripts/validate-jets-ghost-evaluation.ts"
-}
-```
+In both modes, record requests in memory from before compatibility checking through final cleanup. Require zero assistant-resource requests before Load. Allow only bodyless same-origin corpus/index and emitted-asset requests, pre-existing analytics with no conversation-derived fields, and the exact pinned Hugging Face model URL followed by the redirect chain accepted by `validateModelDeliveryChain()`. Walk `Request.redirectedFrom()` in memory; require the exact pinned root, HTTPS and `isTrustedModelOrigin()` for every hop, no more than `JETS_GHOST_MODEL.maxRedirects`, and bodyless ordinary `GET`/`HEAD` plus browser-generated `Range` behavior. Do not assert an exact redirect count, signed-query-key set, response-header structure, transient CDN path, Xet address, ETag, linked hash, or provider-declared size. Submit distinctive sentinel prompt and selected-source strings and fail if either appears in any URL, query, header, or body. Reject nonallowlisted origins, request bodies, `Authorization`, `Cookie`, credentials, and application-defined custom headers. Never print or persist a complete signed URL, query value, signature, policy, raw sensitive header, transient path, or raw request object. Browser observation proves delivery containment and privacy only; it does not claim the LiteRT-consumed bytes were independently hashed.
 
-`validate-jets-ghost-evaluation.ts` accepts `--result=<path>` (defaulting to `test-results/jets-ghost-evaluation.json`) and fails if any supported result lacks a completed human judgment for each required fact/forbidden claim, any case lacks citation/abstention scoring, any independent scenario lacks a preceding reset, or aggregate metrics cannot be reproduced. It also recursively rejects raw request/response headers, full signed CDN URLs or signed query values, authorization/cookie fields, prompt-bearing network records, and copied source text; only the approved sanitized model-delivery summary may appear. It reports grounded success only when every required fact passes and every forbidden claim is absent.
+In `smoke` mode, skip cold/warm benchmarking and the full fixture. Run exactly `showcase-rch-claim` and `unsupported-codex-draft` in a fresh session each, pausing after each for the same concise visible review. Assert one supported grounded answer with a usable citation/source, one explicit abstention about the excluded draft, the network allowlist, and final Unload/cleanup. This mode is reused against final Preview and Production; it does not repeat the six-case qualification.
 
-Create `scripts/run-jets-ghost-qualification.ts` as the cross-platform device runner. It accepts only `--device=mac-apple-silicon`, `--device=windows-integrated-gpu`, or `--device=lower-memory`; creates `test-results/jets-ghost-qualification` with Node filesystem APIs; runs the sanitized model-delivery preflight; then spawns the existing real-model evaluation with `JETS_GHOST_RESULT_PATH` set in the child environment. Use `npm.cmd` on Windows and `npm` elsewhere, avoid shell interpolation, stop on the first nonzero exit, and never invoke reviewed-result validation automatically because the freshly generated human-review fields are intentionally empty. Export the orchestration function with injected spawn/filesystem seams.
+Emit only concise non-content measurements to the terminal: mode, case ID, corpus/index/config versions, browser version, cold/warm/model/corpus/index timings, first-token and total-response timings, citation-resolved and abstention booleans, privacy/lifecycle pass, and device-loss count. The operator copies the actual measurements and categorical dispositions into `docs/verification/jets-ghost-2.1.0.md`. Do not write a bespoke result schema or persist question/prompt fields, generated responses, conversation history, selected source text, temporary profile paths, raw headers, full signed URLs or values, authorization/cookie data, screenshots, traces, or video. Do not compute an aggregate score or package qualification output.
 
-Add:
+- [ ] **Step 4: Add direct Mac qualification and deployment-smoke commands**
 
 ```json
 {
-  "evaluate:jets-ghost:device": "tsx scripts/run-jets-ghost-qualification.ts"
+  "qualify:jets-ghost:mac": "cross-env RUN_REAL_MODEL=1 JETS_GHOST_REAL_MODEL_MODE=qualification playwright test --config=playwright.real-model.config.ts --project=chrome-real-model",
+  "smoke:jets-ghost": "cross-env RUN_REAL_MODEL=1 JETS_GHOST_REAL_MODEL_MODE=smoke playwright test --config=playwright.real-model.config.ts --project=chrome-real-model"
 }
 ```
+
+These scripts call Playwright directly. Do not add device slugs, a cross-platform qualification orchestrator, stdin handling, a result validator, a persisted result schema, or a second review UI. `REAL_MODEL_BASE_URL` selects Preview or Production for smoke mode; when absent, Playwright builds and serves the local candidate.
 
 - [ ] **Step 5: Verify fixture shape without downloading the model**
 
-Create `tests/unit/jets-ghost/evaluation.test.ts` to enforce unique IDs, at least 60 scenarios, the complete category matrix, both discriminants, source-subset rules, reviewed-rubric shape, at least one source/fact for supported cases, none for abstention cases, explicit forbidden claims where required, multi-turn rubrics for every turn, coverage of every eligible document, and rejection of raw-header/signed-URL/source-text canaries in result validation. Create `tests/unit/jets-ghost/qualificationRunner.test.ts` to prove exact slug allowlisting, Windows/POSIX npm executable selection, directory creation, preflight-before-evaluation order, environment propagation, and stop-on-failure behavior without launching a browser or network request.
+Create `tests/unit/jets-ghost/productAcceptance.test.ts` to enforce exactly six unique cases, exact category counts `2/1/1/2`, the six fixed IDs above, source-subset rules, required facts and source IDs for supported cases, no required source/fact for abstention cases, at least two expected sources for the cross-document case, and the exact two-case smoke subset. Statically inspect the manual spec, real-model config, and package scripts to prove there is one qualification mode, one smoke mode, no review-overlay import, no device slug/matrix, no orchestrator or result-validator command, no persisted result path, and trace/screenshot/video capture disabled.
 
 Run:
 
 ```bash
-npm run test
+npm run test -- tests/unit/jets-ghost/productAcceptance.test.ts
 ```
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add tests/fixtures/jets-ghost/evaluation.json tests/unit/jets-ghost/evaluation.test.ts tests/unit/jets-ghost/qualificationRunner.test.ts playwright.real-model.config.ts tests/manual/jets-ghost-real-model.spec.ts scripts/validate-jets-ghost-evaluation.ts scripts/run-jets-ghost-qualification.ts package.json package-lock.json
-git commit -m "test(chatbot): add grounded evaluation suite"
+git add tests/fixtures/jets-ghost/product-acceptance.json tests/unit/jets-ghost/productAcceptance.test.ts playwright.real-model.config.ts tests/manual/jets-ghost-real-model.spec.ts package.json
+git commit -m "test(chatbot): add product acceptance qualification"
 ```
 
 ### Task 12: Review and implement model/library license obligations
@@ -1304,15 +1468,15 @@ git commit -m "test(chatbot): add grounded evaluation suite"
 **Files:**
 - Create: `docs/verification/jets-ghost-licenses.md`
 - Modify if required by the review: `README.md`
-- Modify if required by the review: `src/pages/tools/chatbot.astro`
+- Modify if required by the review: `src/pages/chatbot.astro`
 
 **Interfaces:**
 - Produces: reviewed evidence that the exact Gemma and LiteRT-LM artifacts may be used as designed, plus every required public/repository notice.
-- Consumes: pinned model revision/SHA, package-lock dependency graph, Gemma terms/model card, and LiteRT-LM/transitive licenses.
+- Consumes: pinned model revision/SHA, package-lock dependency graph, Gemma terms/model card, LiteRT-LM/transitive licenses, and `minisearch@7.2.0`/`stemmer@2.0.1` licenses.
 
 - [ ] **Step 1: Inventory exact artifacts and authoritative terms**
 
-Record the pinned model repository/revision, filename, size, SHA-256, model-card URL, applicable Gemma terms URL/version/date, `@litert-lm/core@0.14.0`, and every bundled/transitive license and notice. Use authoritative model/vendor/package sources. Distinguish legal/model attribution from the repository's intentionally removed agent-attribution commit rule.
+Record the pinned model repository/revision, filename, size, SHA-256, model-card URL, applicable Gemma terms URL/version/date, `@litert-lm/core@0.14.0`, `minisearch@7.2.0`, `stemmer@2.0.1`, and every bundled/transitive license and notice. Use authoritative model/vendor/package sources. Distinguish legal/model attribution from the repository's intentionally removed agent-attribution commit rule.
 
 - [ ] **Step 2: Resolve distribution and disclosure questions**
 
@@ -1326,80 +1490,78 @@ Add only notices required by the reviewed terms. If no public notice is required
 
 ```bash
 git add docs/verification/jets-ghost-licenses.md
-# Add README.md and src/pages/tools/chatbot.astro only if the review required changes.
+# Add README.md and src/pages/chatbot.astro only if the review required changes.
 git commit -m "docs(chatbot): record model and runtime licensing"
 ```
 
 ### Task 13: Qualify Gemma E2B and release Jet's Ghost 2.1.0
 
 **Files:**
-- Modify: `src/pages/tools/chatbot.astro`
+- Modify: `src/pages/chatbot.astro`
+- Modify: `astro.config.mjs`
 - Modify: `README.md`
 - Modify: `package.json`
 - Modify: `package-lock.json`
+- Modify: `tests/e2e/jets-ghost.spec.ts`
+- Modify: `tests/deployment/core-production.spec.ts`
 - Create: `docs/verification/jets-ghost-2.1.0.md`
 
 **Interfaces:**
 - Produces: public indexed Jet's Ghost and application version `2.1.0`.
-- Consumes: full real-model results from at least three qualified devices.
+- Consumes: one full real-model qualification from the available Apple Silicon Mac, Task 12 licensing evidence, exact-commit Preview verification, and proportional Preview/Production smokes.
 
-- [ ] **Step 1: Run real-model qualification on the required matrix**
+- [ ] **Step 1: Run the one required real-model Mac qualification**
 
-Run `npm run evaluate:jets-ghost` on:
-
-1. current Apple Silicon Mac;
-2. current Windows integrated-GPU device;
-3. lower-memory supported desktop or laptop.
-
-Before each real-model run, execute `scripts/verify-model-delivery.ts` and store its sanitized output beside that device's result. Use stable slugs `mac-apple-silicon`, `windows-integrated-gpu`, and `lower-memory`; write results to `test-results/jets-ghost-qualification/<slug>.json` and preflights to `<slug>-model-delivery.json`. Abort before the 2 GB load if revision, identity headers, redirect host/path, or signed-query-key policy drifts.
-
-On each device, run only its matching command:
+Before the approximately 2 GB load, create `docs/verification/jets-ghost-2.1.0.md` with its title, tested-system section, measurement section, six-case review table, privacy/lifecycle section, limitations section, and Task 12 license link. Populate it during the run rather than using a separate review artifact. Then verify the pinned model delivery chain and run the six-case qualification once in the currently installed branded Chrome on the available Apple Silicon Mac:
 
 ```bash
-npm run evaluate:jets-ghost:device -- --device=mac-apple-silicon
-npm run evaluate:jets-ghost:device -- --device=windows-integrated-gpu
-npm run evaluate:jets-ghost:device -- --device=lower-memory
+mkdir -p test-results
+npx tsx scripts/verify-model-delivery.ts --hash-artifact --output=test-results/jets-ghost-2.1.0-mac-model-delivery.json
+npm run qualify:jets-ghost:mac
 ```
 
-Complete the required-fact/forbidden-claim human review in that device's generated result, then run its matching validation command. Validation intentionally occurs **after** review:
+Abort if the initial URL changes, a redirect leaves the trusted HTTPS origin policy or exceeds the bound, the request-privacy contract fails, the independently counted complete artifact is not exactly `2,008,432,640` bytes, or its actual bytes do not hash to the pinned SHA-256. Do not block on a changed redirect count within the bound, signed-query structure, response-header structure, transient CDN path, ETag, repository metadata, linked hash, or provider-declared size. During the headed run, complete each Playwright Inspector pause only after recording its concise Markdown review row. Record the actual macOS, branded Chrome, Apple Silicon and adapter identity; cold/warm model, corpus, and index load/hydration; configured context and serialized-budget breakdown; visible memory pressure or device loss; first-token and total-response latency; Stop; New session; Unload; reload; route cleanup; all six dispositions; citation/source inspection; both abstentions; and privacy allowlist result. Do not run the six-case set on Preview or Production, synthesize unavailable device results, or block release because Windows, lower-memory, mobile, or other configurations were not tested.
 
-```bash
-npm run validate:evaluation:jets-ghost -- --result=test-results/jets-ghost-qualification/mac-apple-silicon.json
-npm run validate:evaluation:jets-ghost -- --result=test-results/jets-ghost-qualification/windows-integrated-gpu.json
-npm run validate:evaluation:jets-ghost -- --result=test-results/jets-ghost-qualification/lower-memory.json
-```
+- [ ] **Step 2: Apply the release invariants and product dispositions**
 
-Require each result's measured device fields to agree with its slug before accepting it.
-
-Record browser/OS and branded Chrome version, cold and warm load, transfer size, context length, full serialized-prompt breakdown, memory observations, device loss, first-token latency, decode rate, cancellation, reset, unload, reload, route cleanup, corpus inclusion, citation precision/recall, reviewed grounded success, abstention, package size/parse time, and privacy allowlist results. Run `npm run validate:evaluation:jets-ghost` after each human-reviewed result set. The evaluation result stores only the delivery validator's sanitized chain summary, never a signed CDN query or signature.
-
-Collect the resulting three reviewed JSON files and three sanitized preflight files into the release operator's exact `test-results/jets-ghost-qualification/` directory without renaming or editing them, then rerun all three validation commands there before applying thresholds or packaging release evidence.
-
-- [ ] **Step 2: Apply the release decision thresholds**
-
-Full corpus may release only when:
+Release only when:
 
 ```text
+Gemma E2B loads, streams, cancels, resets, unloads, and recovers reliably on the tested Mac
 eligible corpus inclusion = 100%; ineligible inclusion = 0
+manifest/content/index hashes and versions match exactly
+indexed chunk IDs = eligible chunk IDs, with no missing, duplicate, or unknown IDs
+qualification independently downloaded the complete pinned artifact, counted exactly 2,008,432,640 bytes, and hashed those bytes to the pinned SHA-256
+runtime delivery starts at the exact pinned URL, remains within the trusted HTTPS origin/redirect policy, and transmits no application or conversation data
+verification documentation states that LiteRT-LM 0.14.0 URL loading does not independently hash each visitor's executed model bytes
+MiniSearch search has no result limit or pre-packing candidate cap
 serialized knowledge JSON including metadata/escaping <= 9,011 estimated tokens
 serialized prompt + 1,024 response reserve + 3,277 estimator headroom <= 16,384 tokens
+no silent model or prompt truncation occurs
 at least two complete user/assistant turns fit without discarding grounding
-compressed package <= 5 MB; p95 parse <= 250 ms
-p95 post-load first token <= 8 seconds on baseline
-reviewed grounded-answer success >= 90%
-citation precision >= 95%
-citation recall >= 90%
-unsupported abstention >= 90%
+all six fixed product cases have completed one human review and a disposition on the tested Mac
+no representative product-significant case remains dispositioned as block
+accepted limitations are explicitly nonrepresentative and have written rationale
+both unsupported cases abstain
+every rendered citation resolves to selected evidence
+artifact/model load, first-token, and total-response measurements are documented for the tested Mac
 100% of observed requests satisfy the privacy allowlist
 no repeatable device loss or unrecovered cleanup failure
-Stop, Reset, Unload, reload, and ClientRouter route-away pass on every qualified device
+Stop, New session, Unload, reload, and ClientRouter route-away pass on the tested Mac
+model, runtime, MiniSearch, stemmer, and transitive license/attribution obligations are resolved
 ```
 
-If any threshold fails, do not release or remove `noindex`. Write a new Stage B metadata/lexical Superpowers spec and plan using the existing selector contract.
+Do not compute an aggregate retrieval or answer-quality score. If a gate fails, do not release or remove `noindex`; diagnose the concrete rank-and-pack, prompt, Gemma, citation, runtime, licensing, or UX defect. Do not open another retrieval-candidate experiment or fallback-selector plan as the default response. Untested hardware, absence of release-asset packaging, and omission of an optional audit ceremony are not failures.
 
 - [ ] **Step 3: Complete public-release metadata**
 
-After passing every threshold and the Task 12 license gate, remove `noindex={true}` from `/tools/chatbot`, update README from qualification to available experimental tool, and include the measured support statement. Do not generalize beyond tested devices.
+After passing every gate and the Task 12 license gate, replace hard `noindex={true}` with a build-target guard that keeps local and Vercel Preview candidates noindexed while allowing only a Production build of this approved commit to become indexable:
+
+```astro
+const noindex = process.env.VERCEL_ENV !== 'production';
+```
+
+Pass that value to `BaseLayout`. Use the same target guard in the sitemap filter: exact `/tools` and `/tools/` descendants are always excluded; `/chatbot` remains excluded outside Production and enters only the Production sitemap; unrelated `/toolshed`-style routes remain unaffected. Update README from qualification to an available experimental first-class experience and include the measured support statement. Do not generalize beyond tested devices. Update the route test for the target guard and sitemap boundary. Make the deployment suite require `EXPECTED_JETS_GHOST_NOINDEX=1` for final Preview and `0` for Production, failing if the variable is absent, the meta-robots state disagrees, or `/chatbot` sitemap membership is not the exact inverse.
 
 - [ ] **Step 4: Bump the minor version**
 
@@ -1409,9 +1571,22 @@ Run:
 npm version 2.1.0 --no-git-tag-version
 ```
 
-- [ ] **Step 5: Write verification evidence**
+- [ ] **Step 5: Finalize and review the verification evidence**
 
-Create `docs/verification/jets-ghost-2.1.0.md` with the actual three-device table, corpus version, selector version, full context-budget breakdown, package size/parse metrics, grounded rubric totals, citation/abstention metrics, network allowlist result, lifecycle result, package/model pin, license-evidence link, known unsupported configurations, and final release decision. Every value comes from recorded runs; omit a row rather than inserting a placeholder. State that final production deployment binding and the SHA-256 manifest digest are recorded in the `v2.1.0` annotated tag and verified from downloaded release assets rather than embedding a self-referential deployment ID in the commit.
+Complete `docs/verification/jets-ghost-2.1.0.md` as a concise human-readable record with:
+
+- the tested Apple Silicon hardware/adapter, macOS version, and installed branded Chrome version;
+- qualification-time model verification mode, exact pinned initial URL/revision, independently counted complete size, independently calculated SHA-256, trusted hostnames, and redirect depth;
+- an explicit statement that LiteRT-LM `0.14.0` receives the URL directly, the browser does not independently hash and inject the executed bytes, no second verification download occurs at runtime, and runtime guarantees are limited to consent, pinned URL usage, trusted HTTPS delivery containment, redirect bounds, and request privacy;
+- corpus, index, configuration, MiniSearch, and stemmer versions;
+- context-budget breakdown and artifact size/fetch/hash/parse/hydration measurements;
+- cold/warm load, first-token, total-response, cancellation, reset, unload, reload, route-cleanup, and visible memory/device-loss observations;
+- exactly six case rows containing only case ID, disposition, useful-answer, factual-support, abstention, citation-validity, source-inspectability, and a short non-content rationale;
+- privacy allowlist, citation-resolution, and both unsupported-case abstention results;
+- package/model pin, Task 12 license-evidence link, unsupported/unqualified configurations, and known limitations;
+- the candidate decision to proceed to exact noindexed Preview verification.
+
+Do not include prompts, questions, responses, conversation history, selected source text, complete signed URLs/values, signatures, policies, transient CDN paths, provider identity headers, ETags, linked hashes/sizes, raw sensitive request data, reviewer identity, an aggregate quality percentage, unavailable-device placeholders, qualification checksums, or release-asset instructions. Do not describe provider metadata as artifact identity or claim per-browser runtime SHA-256 verification. Do not claim Preview, Production, or release completion inside this predeployment commit; those are live gates run against the exact SHA after the commit exists.
 
 - [ ] **Step 6: Run all non-model gates again**
 
@@ -1426,27 +1601,47 @@ Expected: all pass.
 - [ ] **Step 7: Commit the release candidate**
 
 ```bash
-git add src/pages/tools/chatbot.astro README.md package.json package-lock.json docs/verification/jets-ghost-2.1.0.md
+git add src/pages/chatbot.astro astro.config.mjs README.md package.json package-lock.json tests/e2e/jets-ghost.spec.ts tests/deployment/core-production.spec.ts docs/verification/jets-ghost-2.1.0.md
 git commit -m "feat(chatbot): release local Jet's Ghost"
 ```
 
-- [ ] **Step 8: Deploy and inspect production**
+- [ ] **Step 8: Qualify the exact final preview, then promote and read back production**
 
-Use the user-approved remote workflow, wait for CI/Vercel readiness, then inspect:
-
-- initial page network before activation;
-- activation disclosure;
-- actual model request only after activation;
-- one grounded response and source link;
-- Stop, Reset, Unload, and route-away cleanup;
-- absence of prompt-bearing requests;
-- canonical, sitemap, and SoftwareApplication JSON-LD.
-
-Capture and assert the aliased production deployment. Raw provider responses exist only in a mode-`0600` private temporary directory; the release artifacts receive only the shared sanitizer's allowlisted projection:
+Push the final release-candidate commit through the user-approved remote workflow and wait for its Git-backed Vercel Preview. Production remains on the prior noindexed release throughout this blocking qualification. Set `CANDIDATE_URL` to the preview hostname, then bind and qualify that exact commit:
 
 ```bash
+set -euo pipefail
 EXPECTED_SHA=$(git rev-parse HEAD)
+test -n "$CANDIDATE_URL"
 mkdir -p test-results
+umask 077
+EVIDENCE_TMP=$(mktemp -d)
+chmod 700 "$EVIDENCE_TMP"
+trap 'rm -rf "$EVIDENCE_TMP"' EXIT HUP INT TERM
+npx --yes vercel@55.0.0 inspect "$CANDIDATE_URL" --wait --timeout=5m --format=json > "$EVIDENCE_TMP/final-preview-inspect.raw.json"
+npx tsx scripts/sanitize-vercel-evidence.ts sanitize-inspect --input="$EVIDENCE_TMP/final-preview-inspect.raw.json" --output="$EVIDENCE_TMP/final-preview-inspect.json"
+PREVIEW_DEPLOYMENT_ID=$(EVIDENCE_TMP="$EVIDENCE_TMP" node -e "const d=require(process.env.EVIDENCE_TMP+'/final-preview-inspect.json'); process.stdout.write(d.id)")
+npx --yes vercel@55.0.0 api "/v13/deployments/$PREVIEW_DEPLOYMENT_ID" --raw > "$EVIDENCE_TMP/final-preview-deployment.raw.json"
+npx tsx scripts/sanitize-vercel-evidence.ts sanitize-deployment --input="$EVIDENCE_TMP/final-preview-deployment.raw.json" --output=test-results/jets-ghost-2.1.0-final-preview-vercel-deployment.json
+EXPECTED_SHA="$EXPECTED_SHA" node -e "const d=require('./test-results/jets-ghost-2.1.0-final-preview-vercel-deployment.json'); if(d.readyState!=='READY'||d.target==='production'||d.gitSource?.sha!==process.env.EXPECTED_SHA) process.exit(1)"
+npx tsx scripts/sanitize-vercel-evidence.ts verify-safe --input=test-results/jets-ghost-2.1.0-final-preview-vercel-deployment.json
+rm -rf "$EVIDENCE_TMP"
+trap - EXIT HUP INT TERM
+EXPECTED_JETS_GHOST_NOINDEX=1 PRODUCTION_ORIGIN="https://$CANDIDATE_URL" npm run verify:production
+npx tsx scripts/verify-model-delivery.ts --transport-only --output=test-results/jets-ghost-2.1.0-final-preview-model-delivery.json
+npx cross-env REAL_MODEL_BASE_URL="https://$CANDIDATE_URL" npm run smoke:jets-ghost
+```
+
+This is a proportional two-case Preview smoke, not another full acceptance or 2 GB hash run. The transport-only check proves the pinned initial URL and durable redirect/origin/privacy policy; Task 13 Step 1 remains the byte-integrity proof. The smoke must prove one supported grounded answer with a valid citation and inspectable source, one unsupported abstention, privacy allowlist compliance, cleanup, canonical/metadata/navigation behavior, exact redirect assertions, and Preview `noindex`/sitemap exclusion. If it fails, do not promote; the public production route remains on the earlier hard-noindex deployment. Terminal output must contain no question, response, history, selected source text, complete signed URL or value, signature, policy, transient CDN path, sensitive header, or prompt-bearing request record.
+
+Only after the exact Preview passes may that exact commit be fast-forwarded/promoted to Production. If integration creates a merge/squash/rebase SHA, stop and repeat exact-Preview binding and the two-case Preview smoke for the new SHA. Repeat the one-Mac six-case qualification only if integration changed runtime code, corpus/index generation or content, context configuration, model/library pins, or lockfile resolution.
+
+After exact promotion, perform production-specific readback and one two-case grounded smoke using the same harness in smoke mode:
+
+```bash
+set -euo pipefail
+EXPECTED_SHA=$(git rev-parse HEAD)
+EXPECTED_SHA="$EXPECTED_SHA" node -e "const d=require('./test-results/jets-ghost-2.1.0-final-preview-vercel-deployment.json'); if(d.gitSource?.sha!==process.env.EXPECTED_SHA) process.exit(1)"
 umask 077
 EVIDENCE_TMP=$(mktemp -d)
 chmod 700 "$EVIDENCE_TMP"
@@ -1460,49 +1655,32 @@ EXPECTED_SHA="$EXPECTED_SHA" node -e "const d=require('./test-results/jets-ghost
 npx tsx scripts/sanitize-vercel-evidence.ts verify-safe --input=test-results/jets-ghost-2.1.0-vercel-deployment.json
 rm -rf "$EVIDENCE_TMP"
 trap - EXIT HUP INT TERM
-npm run verify:production
-npx tsx scripts/verify-model-delivery.ts --output=test-results/jets-ghost-2.1.0-production-model-delivery.json
-npx cross-env JETS_GHOST_RESULT_PATH=test-results/jets-ghost-2.1.0-production-evaluation.json npm run evaluate:jets-ghost:production
+EXPECTED_JETS_GHOST_NOINDEX=0 npm run verify:production
+npx tsx scripts/verify-model-delivery.ts --transport-only --output=test-results/jets-ghost-2.1.0-production-model-delivery.json
+npx cross-env REAL_MODEL_BASE_URL=https://jetsanchez.com npm run smoke:jets-ghost
 ```
 
-Complete the same required-fact/forbidden-claim human review for the production result, then run:
+Production readback must prove `/chatbot` has no `noindex`, owns canonical/sitemap/SoftwareApplication metadata, and serves the exact approved SHA; exact `/tools/chatbot` `308`; Ghost present and Tools absent from primary navigation; dormant `/tools` excluded; activation/model request ordering; trusted-origin/private model delivery; one supported grounded answer with a valid citation and inspectable source; one unsupported abstention; privacy allowlist compliance; and cleanup. This transport/smoke readback does not claim an independent hash of the LiteRT-executed browser copy, reopen retrieval comparison, repeat the six-case Mac qualification, or repeat the full artifact download. If it fails, roll back immediately to the prior noindexed deployment and do not tag. Keep sanitized deployment/model-delivery files local and uncommitted; they are operational readback, not release assets or a certification archive.
+
+- [ ] **Step 9: Tag the verified production commit normally**
+
+After Production readback and both real-model smoke cases pass, create a normal annotated `v2.1.0` tag at the exact deployed commit. The tag push requires explicit remote authorization. Do not create a GitHub Release, upload qualification evidence, create a tarball or checksum manifest, bind an evidence digest into the tag, or redownload release assets:
 
 ```bash
-npm run validate:evaluation:jets-ghost -- --result=test-results/jets-ghost-2.1.0-production-evaluation.json
-```
-
-Repeat the exact privacy allowlist and authenticated redirect-chain validation against production; a locally passing real-model run does not substitute for production readback. Assert the result schema contains no raw/signed model URL, signature, policy value, prompt-bearing network record, or source text. Keep all three production result files uncommitted because committing them would change the SHA they attest.
-
-- [ ] **Step 9: Checksum, tag, publish, and download-verify release evidence**
-
-Package the three reviewed device results and their sanitized delivery preflights, then checksum every release asset. The tag push and GitHub Release creation require explicit remote authorization:
-
-```bash
-QUALIFICATION_DIR="test-results/jets-ghost-qualification"
-test "$(find "$QUALIFICATION_DIR" -mindepth 1 -maxdepth 1 | wc -l | tr -d ' ')" = "6"
-for DEVICE_SLUG in mac-apple-silicon windows-integrated-gpu lower-memory; do
-  test -f "$QUALIFICATION_DIR/$DEVICE_SLUG.json"
-  test -f "$QUALIFICATION_DIR/$DEVICE_SLUG-model-delivery.json"
-done
-QUALIFICATION_ASSET="test-results/jets-ghost-2.1.0-qualification.tar.gz"
-tar -czf "$QUALIFICATION_ASSET" -C test-results jets-ghost-qualification
-CHECKSUMS="test-results/jets-ghost-2.1.0-SHA256SUMS.txt"
-(cd test-results && shasum -a 256 "jets-ghost-2.1.0-vercel-deployment.json" "jets-ghost-2.1.0-production-model-delivery.json" "jets-ghost-2.1.0-production-evaluation.json" "jets-ghost-2.1.0-qualification.tar.gz" > "jets-ghost-2.1.0-SHA256SUMS.txt")
-CHECKSUMS_SHA256=$(shasum -a 256 "$CHECKSUMS" | awk '{print $1}')
-git tag -a v2.1.0 "$EXPECTED_SHA" -m "v2.1.0" -m "Vercel deployment: $DEPLOYMENT_ID" -m "Git SHA: $EXPECTED_SHA" -m "SHA256SUMS: $CHECKSUMS_SHA256"
+set -euo pipefail
+EXPECTED_SHA=$(git rev-parse HEAD)
+EXPECTED_SHA="$EXPECTED_SHA" node -e "const d=require('./test-results/jets-ghost-2.1.0-vercel-deployment.json'); if(d.readyState!=='READY'||d.target!=='production'||d.gitSource?.sha!==process.env.EXPECTED_SHA) process.exit(1)"
+EXPECTED_SHA="$EXPECTED_SHA" node -e "const d=require('./test-results/jets-ghost-2.1.0-final-preview-vercel-deployment.json'); if(d.target==='production'||d.gitSource?.sha!==process.env.EXPECTED_SHA) process.exit(1)"
+test "$(node -p \"require('./package.json').version\")" = "2.1.0"
+if git rev-parse --verify refs/tags/v2.1.0 >/dev/null 2>&1; then exit 1; fi
+git tag -a v2.1.0 "$EXPECTED_SHA" -m "v2.1.0" -m "Jet's Ghost local-first release"
+test "$(git rev-list -n 1 v2.1.0)" = "$EXPECTED_SHA"
 git push origin v2.1.0
-gh release create v2.1.0 --verify-tag --title "v2.1.0" --notes-from-tag "test-results/jets-ghost-2.1.0-vercel-deployment.json#Sanitized Vercel deployment" "test-results/jets-ghost-2.1.0-production-model-delivery.json#Sanitized model delivery" "test-results/jets-ghost-2.1.0-production-evaluation.json#Reviewed production evaluation" "$QUALIFICATION_ASSET#Three-device qualification" "$CHECKSUMS#SHA-256 manifest"
-VERIFY_DIR=$(mktemp -d)
-chmod 700 "$VERIFY_DIR"
-trap 'rm -rf "$VERIFY_DIR"' EXIT HUP INT TERM
-gh release download v2.1.0 --dir "$VERIFY_DIR" --pattern 'jets-ghost-2.1.0-*'
-(cd "$VERIFY_DIR" && shasum -a 256 -c jets-ghost-2.1.0-SHA256SUMS.txt)
-test "$(shasum -a 256 "$VERIFY_DIR/jets-ghost-2.1.0-SHA256SUMS.txt" | awk '{print $1}')" = "$CHECKSUMS_SHA256"
-rm -rf "$VERIFY_DIR"
-trap - EXIT HUP INT TERM
+REMOTE_SHA=$(git ls-remote --tags origin 'refs/tags/v2.1.0^{}' | awk '{print $1}')
+test "$REMOTE_SHA" = "$EXPECTED_SHA"
 ```
 
-Expected: the remote already contains the annotated tag before `gh release create --verify-tag`, all five assets download, every SHA-256 check passes, and the downloaded checksum manifest's digest matches the tag annotation. Do not commit release evidence back into the tagged tree.
+Expected: the local annotated tag and remote `v2.1.0` tag point to the exact Production SHA. The committed Markdown remains the concise product qualification record; operational Preview/Production readback stays local and is not promoted into a release-asset ceremony.
 
 ---
 
@@ -1510,17 +1688,24 @@ Expected: the remote already contains the annotated tag before `gh release creat
 
 ```text
 [ ] Only Gemma 4 E2B is exposed
-[ ] No model request occurs before explicit activation
-[ ] Pinned model identity and authenticated redirect-chain preflight pass
+[ ] Approved d406ed46 interface is integrated without redesign at canonical /chatbot
+[ ] /tools/chatbot returns exact 308 to /chatbot; Ghost replaces Tools in all primary navigation; /tools remains dormant
+[ ] Route entry and compatibility checking perform no LiteRT, corpus, index, model, engine, or prompt work
+[ ] Qualification independently downloads exactly 2,008,432,640 model bytes and hashes those bytes to the pinned SHA-256
+[ ] Runtime model requests start at the exact pinned URL, remain within five trusted HTTPS redirects, and contain no application or conversation data
+[ ] Documentation states that LiteRT-LM 0.14.0 URL loading does not independently verify each visitor's executed model bytes
 [ ] No prompt, response, context, or history leaves the browser
-[ ] Knowledge package contains only tracked published assistant content
-[ ] Full corpus fits the qualified 16K profile with headroom
-[ ] Cancellation, reset, unload, and route cleanup work on real WebGPU
+[ ] Corpus and MiniSearch index contain exactly the tracked published assistant content and share one verified version
+[ ] Rank-and-pack uses prebuilt constant-time lookups, considers every match, uses no candidate-count cap or quadratic tentative-array rebuild, and stays within the qualified 16K profile
+[ ] Prior turn-local citation markers are removed from model-history replay and cannot resolve against a later turn
+[ ] Cancellation, New session, unload, and route cleanup work on real WebGPU
 [ ] Conversation exhaustion preserves history and requires an explicit new session
-[ ] Citation and abstention thresholds pass
+[ ] All six product cases were reviewed once on the available Apple Silicon Mac and no representative blocker remains
+[ ] Both unsupported cases abstain and every rendered citation resolves to selected evidence
 [ ] Unsupported visitors receive a coherent non-chat experience
-[ ] README and verification evidence match measured support
+[ ] README and verification evidence name the exact tested Mac, macOS, branded Chrome, measured behavior, unsupported configurations, and known limitations
 [ ] License and attribution evidence is complete
+[ ] Exact noindexed Preview passes automated verification plus one supported and one unsupported real-model smoke
 [ ] Production is healthy at 2.1.0 and bound to the release Git SHA
-[ ] Downloaded release artifacts match the SHA-256 manifest recorded in the tag
+[ ] Production passes one supported and one unsupported grounded smoke before the normal v2.1.0 tag is pushed
 ```

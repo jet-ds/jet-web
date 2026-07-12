@@ -4,7 +4,7 @@
 
 **Goal:** Modernize the existing Astro site in place, contain the retired chatbot exposure, enforce explicit content publication, add verification, and preserve the site's visual identity.
 
-**Architecture:** The site becomes a deterministic static Astro build deployed on Vercel. Astro content collections remain authoritative, shared predicates govern publication and assistant inclusion, and React remains limited to interactive islands. Jet's Ghost is left as a noindexed placeholder until its separate plan is implemented.
+**Architecture:** The site becomes a deterministic static Astro build deployed on Vercel. Astro content collections remain authoritative, shared predicates govern publication and assistant inclusion, and React remains limited to interactive islands. Core `2.0.0` preserves the approved noindexed Jet's Ghost interface prototype at `/tools/chatbot` behind an interim `/chatbot` redirect; the companion `2.1.0` plan integrates its real local runtime at canonical `/chatbot` and reverses the route, navigation, and indexing state together.
 
 **Tech Stack:** Astro 5, MDX, React 19, TypeScript 5.9, Tailwind CSS 3.4, Vitest, Playwright, axe-core, Vercel, Node.js 22.
 
@@ -20,6 +20,8 @@
 - `AGENTS.md` is canonical; `CLAUDE.md` is a relative symlink to it.
 - Application versioning follows Semantic Versioning 2.0.0 from baseline `1.0.0`.
 - The intentionally incompatible modernization releases as `2.0.0`; Jet's Ghost later targets `2.1.0`.
+- Preserve the Jet's Ghost interface, copy, responsive behavior, animation language, and activation boundary from `docs/jets-ghost-chat-experience.md` and commit `d406ed46dfc7cccfa95d0003fcae30f5b9373690`; this plan contains exposure but does not redesign the prototype.
+- Treat `/chatbot` to `/tools/chatbot` as an interim core-`2.0.0` containment redirect. The companion plan owns the final `/tools/chatbot` to `/chatbot` reversal, Ghost-for-Tools navigation replacement, and `/tools` dormancy.
 - Non-merge commits follow Conventional Commits 1.0.0 and require no agent attribution.
 - Never stage or rewrite unrelated user-owned untracked files.
 - Perform all implementation in a clean worktree created from the reviewer-approved documentation commit; leave the original checkout untouched.
@@ -64,7 +66,7 @@
 
 ### Deployment
 
-- `vercel.json` — permanent legacy-chatbot redirect.
+- `vercel.json` — interim core-`2.0.0` containment redirect, reversed by the Jet's Ghost `2.1.0` plan.
 - `astro.config.mjs` — static Astro configuration without the Vercel server adapter.
 
 ---
@@ -73,8 +75,8 @@
 
 **Files:**
 - Create outside the original checkout: clean Git worktree and branch.
-- Record in the clean worktree: `docs/verification/baselines/core-1.0.0/original-worktree-status.txt`.
-- Record in the clean worktree: `docs/verification/baselines/core-1.0.0/authorized-archive-source-hashes.txt`.
+- Create private operator state beneath the Git common directory: `codex/v1-modernization/`.
+- Record in the clean worktree: `docs/verification/baselines/core-1.0.0/operator-state-attestation.json`.
 
 **Interfaces:**
 - Produces: an isolated implementation checkout at the exact reviewer-approved commit.
@@ -85,16 +87,28 @@
 Use `superpowers:using-git-worktrees`. From the original checkout run:
 
 ```bash
+set -euo pipefail
 ORIGINAL_ROOT=$(git rev-parse --show-toplevel)
 APPROVED_SHA=$(git rev-parse HEAD)
-export ORIGINAL_ROOT APPROVED_SHA
+GIT_COMMON_DIR=$(cd "$(git rev-parse --git-common-dir)" && pwd -P)
+OPERATOR_STATE_DIR="$GIT_COMMON_DIR/codex/v1-modernization"
+umask 077
+test ! -e "$OPERATOR_STATE_DIR" || { echo "Private operator state already exists; reconcile it explicitly before continuing" >&2; exit 1; }
+mkdir -p "$OPERATOR_STATE_DIR"
+chmod 700 "$OPERATOR_STATE_DIR"
 git diff --exit-code
 git diff --cached --exit-code
 git status --porcelain=v1 -uall
-shasum -a 256 EMBEDDING_STORAGE_RESEARCH.md docs/jets-ghost-v1.5-spec.md docs/rag-chatbot-implementation-review.md docs/liquid-glass-dock-v2-log.md
+git status --porcelain=v1 -z -uall > "$OPERATOR_STATE_DIR/original-status.z"
+printf '%s\n' "$ORIGINAL_ROOT" > "$OPERATOR_STATE_DIR/original-root.txt"
+printf '%s\n' "$APPROVED_SHA" > "$OPERATOR_STATE_DIR/approved-sha.txt"
+shasum -a 256 EMBEDDING_STORAGE_RESEARCH.md docs/jets-ghost-v1.5-spec.md docs/rag-chatbot-implementation-review.md docs/liquid-glass-dock-v2-log.md > "$OPERATOR_STATE_DIR/authorized-archive-source-hashes.txt"
+node -e "const p=require('./.vercel/project.json'); const keys=Object.keys(p).sort(); if(JSON.stringify(keys)!==JSON.stringify(['orgId','projectId','projectName'])||!['orgId','projectId','projectName'].every(k=>typeof p[k]==='string'&&p[k])) process.exit(1)"
+cp .vercel/project.json "$OPERATOR_STATE_DIR/vercel-project.json"
+chmod 600 "$OPERATOR_STATE_DIR"/*
 ```
 
-Expected: tracked and staged diffs are empty; untracked user files may be listed. Save the exact porcelain output and four archival-candidate hashes outside the repository temporarily. Do not add, edit, move, or delete any listed file.
+Expected: tracked and staged diffs are empty; untracked user files may be listed. The private directory contains the absolute source root, NUL-delimited inventory, approved SHA, four archival-candidate hashes, and the validated three-field Vercel link. Nothing in that directory is tracked or copied into the clean worktree. If the original project link is absent or has any other shape, stop for explicit project identification rather than running interactive `vercel link`.
 
 - [ ] **Step 2: Create and verify the clean worktree**
 
@@ -108,11 +122,27 @@ test -z "$(git status --porcelain=v1 -uall)"
 
 Expected: all checks pass. Every remaining task runs only in this clean worktree. If the branch already exists, stop and reconcile it rather than resetting or overwriting it.
 
-- [ ] **Step 3: Record but do not import the original inventory**
+- [ ] **Step 3: Commit only a non-identifying attestation later**
 
-Create `original-worktree-status.txt` with the original path, `APPROVED_SHA`, and saved porcelain inventory, and create `authorized-archive-source-hashes.txt` with the four saved SHA-256 records. These files are evidence only. No listed user file is copied into the worktree except the specific superseded documents explicitly authorized for archival in Task 11. At the end of every task, compare the original checkout's status with this inventory and stop if any entry changed before the controlled post-archive cleanup.
+Using the private state, create `operator-state-attestation.json` with only:
 
-No commit occurs in Task 0; Task 1 establishes the commit policy and commits this evidence explicitly.
+```json
+{
+  "schemaVersion": "1.0.0",
+  "approvedSha": "<40-hex commit>",
+  "inventory": {
+    "sha256": "<SHA-256 of original-status.z>",
+    "entryCount": 0
+  },
+  "authorizedArchiveSources": [
+    { "path": "<one of the four approved paths>", "sha256": "<SHA-256>" }
+  ]
+}
+```
+
+Sort the four authorized records by path and calculate `entryCount` from the NUL-delimited private inventory. The attestation contains no absolute path and no unrelated untracked filename. Validate it against the private files before use. No listed user file is copied into the worktree except the four superseded documents explicitly authorized for archival in Task 11. At the end of every task, recalculate the original checkout's NUL-delimited inventory and compare its digest/count with the private state; stop on drift before controlled cleanup.
+
+No commit occurs in Task 0; Task 1 establishes the commit policy and commits only this non-identifying attestation.
 
 ---
 
@@ -122,8 +152,7 @@ No commit occurs in Task 0; Task 1 establishes the commit policy and commits thi
 - Replace symlink with file: `AGENTS.md`
 - Replace file with symlink: `CLAUDE.md`
 - Create: `.nvmrc`
-- Create: `docs/verification/baselines/core-1.0.0/original-worktree-status.txt`
-- Create: `docs/verification/baselines/core-1.0.0/authorized-archive-source-hashes.txt`
+- Create: `docs/verification/baselines/core-1.0.0/operator-state-attestation.json`
 - Modify: `package.json`
 - Modify: `package-lock.json`
 
@@ -234,7 +263,7 @@ Expected: all checks pass and the three governance phrases are printed.
 - [ ] **Step 6: Commit**
 
 ```bash
-git add AGENTS.md CLAUDE.md .nvmrc package.json package-lock.json docs/verification/baselines/core-1.0.0/original-worktree-status.txt docs/verification/baselines/core-1.0.0/authorized-archive-source-hashes.txt
+git add AGENTS.md CLAUDE.md .nvmrc package.json package-lock.json docs/verification/baselines/core-1.0.0/operator-state-attestation.json
 git commit -m "chore(governance): establish repository conventions"
 ```
 
@@ -377,7 +406,9 @@ sanitize-env         -> { scope, envs: [{ key, type, target, gitBranch? }] }
 verify-safe          -> validates one already-sanitized evidence file without rewriting it
 ```
 
-Each sanitizing mode validates provider input, constructs a new object from only the listed keys, sorts arrays deterministically, writes canonical JSON, and then runs the same safety verifier. It never copies unknown properties. `verify-safe` can scan these projections plus the purpose-built Blob/revocation/result evidence schemas; it recursively rejects property names matching value/secret/token/password/auth/cookie/header/raw/build-env patterns, authorization/cookie/encrypted-value/environment-value containers, and credential-like or high-entropy values outside approved SHA/ID/URL fields. It does not silently bless arbitrary provider fields. Environment-variable *names* remain permitted only as `envs[].key`; their values never are. Tests include realistic Vercel responses containing nested `value`, `encryptedValue`, `buildEnv`, `env`, headers, cookies, and token-shaped canaries and prove none can survive sanitization. A sanitizer failure must remove a partial output.
+Each sanitizing mode validates provider input, constructs a new object from only the listed keys, sorts arrays deterministically, writes canonical JSON, and then runs the same safety verifier. It never copies unknown properties. `verify-safe` can scan these projections plus the purpose-built Blob/revocation/result evidence schemas; it recursively rejects property names matching value/secret/token/password/auth/cookie/header/raw/build-env patterns, authorization/cookie/encrypted-value/environment-value containers, and credential-like or high-entropy values outside approved SHA/ID fields. It does not silently bless arbitrary provider fields. Environment-variable *names* remain permitted only as `envs[].key`; their values never are. Tests include realistic Vercel responses containing nested `value`, `encryptedValue`, `buildEnv`, `env`, headers, cookies, and token-shaped canaries and prove none can survive sanitization. A sanitizer failure must remove a partial output.
+
+URL-shaped fields are never exempted from validation. Parse hostnames by prepending `https://` only when the provider returns a bare host, then require HTTPS semantics, no username/password, no non-root path for deployment/alias hosts, no query, no fragment, no control character, and no percent-decoded secret-shaped component. Deployment URLs must be `*.vercel.app`; aliases must be `jetsanchez.com`, `www.jetsanchez.com`, or `*.vercel.app`; Blob evidence URLs must use the exact public Vercel Blob host established by the known containment inventory and likewise have no userinfo, query, or fragment. Re-emit only the validated normalized hostname/URL form. Add plaintext and percent-encoded token query, userinfo, path, fragment, CRLF, and double-encoding canaries for every URL-bearing evidence schema.
 
 Run:
 
@@ -447,10 +478,11 @@ git commit -m "test: establish verification harness"
 - Modify: `.gitignore`
 - Delete: `src/pages/api/chat.ts`
 - Delete: `src/pages/chatbot.astro`
+- Preserve unchanged: `src/pages/tools/chatbot.astro`, `src/features/jets-ghost/JetsGhostExperience.tsx`, `src/features/jets-ghost/experience.ts`, `tests/jets-ghost-experience.test.ts`
 - Ensure absent in the clean worktree: `src/config/chatbot-artifacts.json` (never touch the original checkout's copy)
 
 **Interfaces:**
-- Produces: side-effect-free `npm run build`, exact static `/chatbot` 308 redirect, no `/api/chat` route, asserted containment evidence.
+- Produces: side-effect-free `npm run build`, exact interim static `/chatbot` 308 redirect, preserved noindexed interface prototype, no `/api/chat` route, and asserted containment evidence.
 - Consumes: Vercel project link and existing Blob/OpenRouter access for containment only.
 
 - [ ] **Step 1: Write the failing static-boundary test**
@@ -514,7 +546,7 @@ Remove the `@astrojs/vercel` import and `adapter: vercel()` from `astro.config.m
 
 - [ ] **Step 3: Remove the active server and generated-artifact boundaries**
 
-Delete the two tracked routes. If an accidental local command created `src/config/chatbot-artifacts.json` in the clean worktree, remove that generated copy only; it should normally be absent:
+Delete the active API route and the old root chatbot route. If an accidental local command created `src/config/chatbot-artifacts.json` in the clean worktree, remove that generated copy only; it should normally be absent:
 
 ```text
 src/pages/api/chat.ts
@@ -527,6 +559,16 @@ Remove this obsolete ignore entry from `.gitignore`:
 ```text
 src/config/chatbot-artifacts.json
 ```
+
+Add the generated verification directories that later tasks intentionally keep out of commits:
+
+```text
+coverage/
+playwright-report/
+test-results/
+```
+
+Extend `staticBoundary.test.ts` with an injected `git check-ignore` assertion for one child path beneath each directory. This makes build-purity exclusions explicit rather than assuming the current repository already ignores them.
 
 Create `vercel.json`:
 
@@ -543,17 +585,19 @@ Create `vercel.json`:
 }
 ```
 
-- [ ] **Step 4: Make the placeholder describe the approved direction**
+This redirect is the core-`2.0.0` containment state, not the final information architecture. Do not reverse it in this task; the companion Jet's Ghost Task 9 coordinates that reversal with the canonical, sitemap, structured-data, navigation, and deployment-test changes.
 
-In `src/pages/tools/chatbot.astro`, replace the v2 migration paragraph with:
+- [ ] **Step 4: Preserve and verify the approved interface prototype**
 
-```astro
-<p class="text-text-secondary mb-m">
-  Jet's Ghost is being rebuilt as a local-first assistant powered in your browser by Gemma 4. It will use only explicitly published site content and will not send conversations to a hosted model.
-</p>
+Keep the noindexed `/tools/chatbot` prototype from commit `d406ed46dfc7cccfa95d0003fcae30f5b9373690` intact. It is the approved `2.1.0` interface source, not a placeholder to rewrite. Confirm:
+
+```bash
+npm run test:jets-ghost-design
+rg -n "noindex=\{true\}" src/pages/tools/chatbot.astro
+if rg -n "@litert-lm|gemma-4-E2B|assistant/corpus|/api/chat|OPENROUTER" src/pages/tools/chatbot.astro src/features/jets-ghost; then exit 1; fi
 ```
 
-Keep `noindex={true}` until the companion plan's release gate passes.
+Expected: the interface tests pass, the prototype remains noindexed, and it has no production model, corpus, engine, or hosted-generation dependency. Its timers and transparent canned response remain design-only seams until the companion plan replaces them.
 
 - [ ] **Step 5: Implement and test every containment tool before committing it**
 
@@ -586,16 +630,39 @@ Expected: tests, check, and build pass; the build changes no tracked, staged, or
 - [ ] **Step 6: Commit the static containment code**
 
 ```bash
-git add package.json package-lock.json astro.config.mjs .gitignore vercel.json src/pages/tools/chatbot.astro tests/unit/build/staticBoundary.test.ts tests/unit/ops/chatbotContainment.test.ts tests/unit/ops/productionContainment.test.ts scripts/verify-build-purity.ts scripts/contain-chatbot-blobs.ts scripts/verify-production-containment.ts
+git add package.json package-lock.json astro.config.mjs .gitignore vercel.json tests/unit/build/staticBoundary.test.ts tests/unit/ops/chatbotContainment.test.ts tests/unit/ops/productionContainment.test.ts scripts/verify-build-purity.ts scripts/contain-chatbot-blobs.ts scripts/verify-production-containment.ts
 git add -u src/pages/api/chat.ts src/pages/chatbot.astro
 git commit -m "fix(security)!: retire hosted chatbot endpoint" -m "BREAKING CHANGE: The public /api/chat generation endpoint is removed."
 ```
 
-- [ ] **Step 7: Revoke and remove the production credential**
+- [ ] **Step 7: Bind and verify the clean worktree's Vercel project**
+
+The clean worktree does not inherit ignored `.vercel/project.json`. Restore only the validated three-field link from private operator state and bind it to the sanitized production baseline before any environment mutation:
+
+```bash
+set -euo pipefail
+GIT_COMMON_DIR=$(cd "$(git rev-parse --git-common-dir)" && pwd -P)
+OPERATOR_STATE_DIR="$GIT_COMMON_DIR/codex/v1-modernization"
+install -d -m 700 .vercel
+install -m 600 "$OPERATOR_STATE_DIR/vercel-project.json" .vercel/project.json
+node - <<'NODE'
+const link = require('./.vercel/project.json');
+const deployment = require('./docs/verification/baselines/core-1.0.0/vercel-deployment.json');
+const keys = Object.keys(link).sort();
+if (JSON.stringify(keys) !== JSON.stringify(['orgId', 'projectId', 'projectName'])) process.exit(1);
+if (link.projectId !== deployment.project.id || link.projectName !== deployment.project.name) process.exit(1);
+NODE
+git check-ignore -q .vercel/project.json
+```
+
+Expected: the ignored local link contains no token and its project ID/name exactly match the sanitizer-approved production deployment. If any assertion fails, stop for explicit project identification; never run interactive `vercel link` in this workflow.
+
+- [ ] **Step 8: Revoke and remove the production credential**
 
 In the authenticated OpenRouter key dashboard, revoke the key used by `jet-web` and read the key record back as revoked/disabled. Write `docs/verification/containment/openrouter-key-revocation.json` containing only provider, non-secret key record ID or final four characters, revocation status, UTC time, and verifier—never the credential value. Then run:
 
 ```bash
+node -e "const l=require('./.vercel/project.json'); const d=require('./docs/verification/baselines/core-1.0.0/vercel-deployment.json'); if(l.projectId!==d.project.id||l.projectName!==d.project.name) process.exit(1)"
 npx --yes vercel@55.0.0 env rm OPENROUTER_API_KEY production --yes
 npx --yes vercel@55.0.0 env rm OPENROUTER_API_KEY preview --yes
 npx --yes vercel@55.0.0 env rm OPENROUTER_API_KEY development --yes
@@ -615,7 +682,7 @@ trap - EXIT HUP INT TERM
 
 Expected: `OPENROUTER_API_KEY` is absent from all scopes.
 
-- [ ] **Step 8: Execute the committed Blob containment tool**
+- [ ] **Step 9: Execute the committed Blob containment tool**
 
 The committed `scripts/contain-chatbot-blobs.ts` must:
 
@@ -636,7 +703,7 @@ npx tsx scripts/contain-chatbot-blobs.ts --execute
 
 Expected: every recorded URL returns `404`, the after-inventory is empty, and the three known draft-bearing URLs are explicitly present in the evidence.
 
-- [ ] **Step 9: Deploy the containment commit and read it back**
+- [ ] **Step 10: Deploy the containment commit and read it back**
 
 Use the approved branch/push workflow so Vercel produces a Git-backed deployment with a verifiable source SHA. Never deploy from the dirty original workspace, and do not accept a manual deployment whose source commit cannot be proven.
 
@@ -658,9 +725,9 @@ trap - EXIT HUP INT TERM
 npx tsx scripts/verify-production-containment.ts --origin=https://jetsanchez.com --expected-commit="$EXPECTED_SHA" --deployment=docs/verification/containment/vercel-deployment.json --revocation=docs/verification/containment/openrouter-key-revocation.json --blob-before=docs/verification/containment/chatbot-blobs-before.json --blob-after=docs/verification/containment/chatbot-blobs-after.json --env=docs/verification/containment/vercel-env-production.json --env=docs/verification/containment/vercel-env-preview.json --env=docs/verification/containment/vercel-env-development.json
 ```
 
-`verify-production-containment.ts` fails unless the deployment is `READY`, targets production, `gitSource.sha` equals `EXPECTED_SHA`, `POST /api/chat` returns exactly `404`, `/chatbot` returns exactly `308` with resolved redirect URL `https://jetsanchez.com/tools/chatbot`, every Blob assertion still passes, the revocation record says revoked, and all three environment inventories omit `OPENROUTER_API_KEY`. Construct `result.json` from an explicit schema containing only deployment ID/Git SHA, ready/target state, asserted route status/destination, Blob counts/probe statuses, credential-revoked boolean, environment-name-absence booleans, and UTC verification time; never forward raw responses or headers. Write it to `docs/verification/containment/result.json` and commit the non-secret evidence with explicit paths.
+`verify-production-containment.ts` fails unless the deployment is `READY`, targets production, `gitSource.sha` equals `EXPECTED_SHA`, `POST /api/chat` returns exactly `404`, `/chatbot` returns exactly `308` with resolved redirect URL `https://jetsanchez.com/tools/chatbot` for the interim core-`2.0.0` state, every Blob assertion still passes, the revocation record says revoked, and all three environment inventories omit `OPENROUTER_API_KEY`. Construct `result.json` from an explicit schema containing only deployment ID/Git SHA, ready/target state, asserted route status/destination, Blob counts/probe statuses, credential-revoked boolean, environment-name-absence booleans, and UTC verification time; never forward raw responses or headers. Write it to `docs/verification/containment/result.json` and commit the non-secret evidence with explicit paths.
 
-- [ ] **Step 10: Inspect and commit containment evidence**
+- [ ] **Step 11: Inspect and commit containment evidence**
 
 Run `verify-safe` over every evidence file; do not rely on manual inspection. It must reject credential values, authorization headers, cookies, raw environment/build objects, or local environment contents. Then run:
 
@@ -1037,6 +1104,8 @@ export function isActiveNavItem(currentPath: string, href: string): boolean {
 }
 ```
 
+Preserve the existing Tools item during core `2.0.0`; it remains the interim route to the noindexed prototype. The companion `2.1.0` plan replaces that same record with Ghost pointing to `/chatbot`, so the dock item count does not grow.
+
 - [ ] **Step 3: Remove the local dock array**
 
 In `LiquidGlassDock.tsx`, import:
@@ -1262,7 +1331,25 @@ git commit -m "fix(seo): correct research and structured metadata"
 
 **Interfaces:**
 - Produces: `shouldRunGrainient(state)` and `getGrainientRendererAction(previous, next)`.
-- Consumes: hidden state, viewport state, and reduced-motion state.
+- Consumes: inherited PR #15 lifecycle behavior from `c423ffa`, hidden state, viewport state, and reduced-motion state.
+
+- [ ] **Step 0: Prove the approved baseline already contains PR #15**
+
+Before modifying `Grainient.tsx`, bind the check to Task 0's approved implementation baseline:
+
+```bash
+set -euo pipefail
+GIT_COMMON_DIR=$(cd "$(git rev-parse --git-common-dir)" && pwd -P)
+APPROVED_SHA=$(cat "$GIT_COMMON_DIR/codex/v1-modernization/approved-sha.txt")
+git cat-file -e "${APPROVED_SHA}^{commit}"
+git cat-file -e c423ffa^{commit}
+git merge-base --is-ancestor "$APPROVED_SHA" HEAD
+git merge-base --is-ancestor c423ffa "$APPROVED_SHA"
+git diff --exit-code "$APPROVED_SHA" -- src/components/ui/Grainient.tsx
+rg -n "targetFps = 24|IntersectionObserver|visibilitychange" src/components/ui/Grainient.tsx
+```
+
+Expected: every command passes, proving the clean implementation lineage already contains `c423ffa` through PR #15 and Tasks 1–7 have not altered `Grainient.tsx`. Preserve that implementation and add only reduced-motion lifecycle behavior. If either ancestry assertion fails, stop Task 8: reconcile PR #15 in a separate reviewed commit and rerun this preflight before writing reduced-motion code. Do not manually recreate, cherry-pick blindly over a changed file, or replace the inherited 24fps and visibility-pause logic.
 
 - [ ] **Step 1: Write the failing lifecycle test**
 
@@ -1368,6 +1455,8 @@ git commit -m "fix(a11y): respect reduced motion in Grainient"
 **Interfaces:**
 - Produces: no active imports or dependencies from the retired chatbot.
 - Consumes: Git history and historical documents as the preservation mechanism.
+
+This cleanup targets only the retired RAG/runtime paths listed below. Preserve `src/features/jets-ghost/JetsGhostExperience.tsx`, `src/features/jets-ghost/experience.ts`, `src/pages/tools/chatbot.astro`, and `tests/jets-ghost-experience.test.ts`; they are the approved `2.1.0` interface prototype and handoff seam.
 
 - [ ] **Step 1: Prove the old runtime is unreachable**
 
@@ -1507,7 +1596,7 @@ test('nested routes mark the canonical navigation item active', async ({ page })
 });
 ```
 
-Create `playwright.production.config.ts` with `testDir: './tests/deployment'`, no `webServer`, one Chromium project, and `baseURL: process.env.PRODUCTION_ORIGIN ?? 'https://jetsanchez.com'`. In `core-production.spec.ts`, use the request fixture with `maxRedirects: 0` to require `POST /api/chat === 404` and `GET /chatbot === 308` with `location === '/tools/chatbot'`. Also assert the homepage and one sitemap respond `200`. This suite runs only after the target deployment is aliased.
+Create `playwright.production.config.ts` with `testDir: './tests/deployment'`, no `webServer`, one Chromium project, and `baseURL: process.env.PRODUCTION_ORIGIN ?? 'https://jetsanchez.com'`. In `core-production.spec.ts`, use the request fixture with `maxRedirects: 0` to require `POST /api/chat === 404` and the interim core-`2.0.0` `GET /chatbot === 308` with `location === '/tools/chatbot'`. Also assert the homepage and one sitemap respond `200`. This suite runs only after the target deployment is aliased; the companion Jet's Ghost route-integration task intentionally updates this assertion when the redirect is reversed.
 
 - [ ] **Step 3: Create accessibility tests**
 
@@ -1684,7 +1773,7 @@ Remove emoji, badges, “perfect performance,” hard-coded Lighthouse metrics, 
 
 - [ ] **Step 2: Update `AGENTS.md` to the implemented truth**
 
-Update commands, content fields, static deployment, test locations, pure-build rule, Jet's Ghost status, canonical specs, and versioning rules. Remove references to `draft?: boolean`, server OpenRouter generation, v2 as target, and Claude attribution.
+Update commands, content fields, static deployment, test locations, pure-build rule, Jet's Ghost status, its approved interface source, the interim core route state and final `2.1.0` route direction, canonical specs, and versioning rules. Remove references to `draft?: boolean`, server OpenRouter generation, v2 as target, and Claude attribution.
 
 - [ ] **Step 3: Move tracked legacy documents into a real archive**
 
@@ -1725,13 +1814,22 @@ docs/liquid-glass-dock-v2-log.md
   -> docs/archive/site/implementation-logs/liquid-glass-dock-v2.md
 ```
 
-The script reads those files from the inventoried original checkout, verifies each against `authorized-archive-source-hashes.txt`, refuses symlinks or changed/missing sources, copies its substantive body, prepends the correct historical/superseded banner and active-successor link, and writes source/archived SHA-256 values to `docs/archive/archive-manifest.json`. Verify mode removes only the exact generated banner before hashing the archived body and requires it to equal the recorded source hash. The script never reads or copies the active Codex article, EmDash Newsroom exercise, Page Analyzer spec, or Schema Visualizer spec.
+The script reads those files from the inventoried original checkout, verifies each against the private `$OPERATOR_STATE_DIR/authorized-archive-source-hashes.txt`, refuses symlinks or changed/missing sources, copies its substantive body, prepends the correct historical/superseded banner and active-successor link, and writes source/archived SHA-256 values to `docs/archive/archive-manifest.json`. It also verifies that those four path/hash pairs match the committed non-identifying attestation. Verify mode removes only the exact generated banner before hashing the archived body and requires it to equal the recorded source hash. The script never reads or copies the active Codex article, EmDash Newsroom exercise, Page Analyzer spec, or Schema Visualizer spec.
 
 The same exact map owns a later `--cleanup --release-ref=<tag>` mode; there is no standalone `rm` workflow. Cleanup first performs every check without mutation: all four sources are regular untracked files with the recorded hashes, all four archived bodies match, the tag is annotated and contains the archived paths, the commit that introduced `archive-manifest.json` is an ancestor of the tag, and the current original-worktree porcelain inventory exactly matches the Task 0 inventory. It then removes only the four mapped sources, proves the new inventory equals the original inventory minus exactly those four records, and reports the removed paths. Use private byte backups and restore all four on any unlink/postcondition failure so a partial cleanup is not accepted.
 
 Test the archive script through injected filesystem/Git adapters in `tests/unit/ops/archiveLegacyDocs.test.ts`. Cover exact-map creation and verification, source-hash drift, archived-body drift, symlinks, missing/unexpected files, a release ref that does not contain the archive commit, a pre-cleanup inventory mismatch, successful removal of exactly four paths, and rollback after an injected unlink/postcondition failure.
 
-Recover `ORIGINAL_ROOT` from the `Original root: ...` line in `original-worktree-status.txt`, assert it is an absolute Git worktree path, then run the script in create and verify modes with that source root. Do not delete the original untracked copies yet; cleanup occurs only after the archive commit is integrated.
+Recover `ORIGINAL_ROOT` from the private `original-root.txt`, assert it is an absolute Git worktree path, and pass the private source-hash and NUL-delimited inventory paths explicitly to the script. Validate the committed attestation against those private inputs before create or verify mode. Do not delete the original untracked copies yet; cleanup occurs only after the archive commit is integrated.
+
+```bash
+GIT_COMMON_DIR=$(cd "$(git rev-parse --git-common-dir)" && pwd -P)
+OPERATOR_STATE_DIR="$GIT_COMMON_DIR/codex/v1-modernization"
+ORIGINAL_ROOT=$(cat "$OPERATOR_STATE_DIR/original-root.txt")
+test -n "$ORIGINAL_ROOT" && test "${ORIGINAL_ROOT#/}" != "$ORIGINAL_ROOT"
+npx tsx scripts/archive-legacy-docs.ts --create --source-root="$ORIGINAL_ROOT" --source-hashes="$OPERATOR_STATE_DIR/authorized-archive-source-hashes.txt" --inventory="$OPERATOR_STATE_DIR/original-status.z" --attestation=docs/verification/baselines/core-1.0.0/operator-state-attestation.json
+npx tsx scripts/archive-legacy-docs.ts --verify --source-root="$ORIGINAL_ROOT" --source-hashes="$OPERATOR_STATE_DIR/authorized-archive-source-hashes.txt" --inventory="$OPERATOR_STATE_DIR/original-status.z" --attestation=docs/verification/baselines/core-1.0.0/operator-state-attestation.json
+```
 
 - [ ] **Step 5: Index the archive and repair references**
 
@@ -1755,9 +1853,11 @@ Run:
 for script in dev check test test:e2e verify:content build verify upload-image; do node -e "const p=require('./package.json'); if(!p.scripts['$script']) process.exit(1)"; done
 if rg -n "0\.0\.1|src/content/blog|src/content/works|Perfect Performance|Claude attribution|Download PDF" README.md AGENTS.md; then exit 1; fi
 test "$(readlink CLAUDE.md)" = "AGENTS.md"
-ORIGINAL_ROOT=$(sed -n 's/^Original root: //p' docs/verification/baselines/core-1.0.0/original-worktree-status.txt)
-test -n "$ORIGINAL_ROOT"
-npx tsx scripts/archive-legacy-docs.ts --verify --source-root="$ORIGINAL_ROOT"
+GIT_COMMON_DIR=$(cd "$(git rev-parse --git-common-dir)" && pwd -P)
+OPERATOR_STATE_DIR="$GIT_COMMON_DIR/codex/v1-modernization"
+ORIGINAL_ROOT=$(cat "$OPERATOR_STATE_DIR/original-root.txt")
+test -n "$ORIGINAL_ROOT" && test "${ORIGINAL_ROOT#/}" != "$ORIGINAL_ROOT"
+npx tsx scripts/archive-legacy-docs.ts --verify --source-root="$ORIGINAL_ROOT" --source-hashes="$OPERATOR_STATE_DIR/authorized-archive-source-hashes.txt" --inventory="$OPERATOR_STATE_DIR/original-status.z" --attestation=docs/verification/baselines/core-1.0.0/operator-state-attestation.json
 npm run test -- tests/unit/ops/archiveLegacyDocs.test.ts
 npm run test -- tests/unit/ops/docLinks.test.ts
 npm run verify:docs
@@ -1819,11 +1919,11 @@ Create `docs/verification/core-modernization-2.0.0.md` containing:
 - OpenRouter key: revoked and absent from Vercel
 - `/api/chat`: unavailable in production
 - Legacy chatbot Blob prefix: empty
-- `/chatbot`: permanent redirect to `/tools/chatbot`
+- `/chatbot`: interim core-`2.0.0` permanent redirect to `/tools/chatbot` (reversed by Jet's Ghost `2.1.0`)
 - Draft route: absent
 - SSRN action: DOI-backed View action only
 - Grainient: 24fps, hidden/offscreen pause, reduced-motion fallback verified
-- Visual baseline: candidate comparison is a required release artifact; it is not claimed complete in this commit
+- Visual baseline: preview-to-baseline comparison is a required release artifact; it is not claimed complete in this commit
 - Postdeployment binding and artifact checksums: required in the `v2.0.0` annotated tag and downloaded release readback
 ```
 
@@ -1841,6 +1941,7 @@ git commit -m "chore(release): prepare 2.0.0"
 After the user-approved branch push, wait for its Git-backed Vercel Preview deployment and set `CANDIDATE_URL` to that preview hostname. Do not capture localhost or the production alias. Sanitize the provider responses and prove the preview was built from the committed candidate before visual capture:
 
 ```bash
+set -euo pipefail
 EXPECTED_SHA=$(git rev-parse HEAD)
 test -n "$CANDIDATE_URL"
 umask 077
@@ -1865,12 +1966,14 @@ The capture script refuses an output path inside the immutable baseline, require
 
 - [ ] **Step 6: Promote through the approved production workflow and read it back**
 
-Promote/merge only after the exact preview comparison passes. Wait for CI and the production alias to become ready.
+Promote/merge only after the exact preview comparison passes, using a fast-forward/exact-commit workflow so the release commit remains the previewed SHA. After integration, require `test -d "test-results/core-2.0.0-candidate-$(git rev-parse HEAD)"`. If integration creates a merge/squash/rebase SHA, stop: that SHA is a new candidate, and Step 5's deployment binding and visual comparison must be rerun before production promotion or tagging. Wait for CI and the production alias to become ready.
 
 Verify production with exact assertions and bind it to the same release commit. Raw Vercel responses again exist only in a private temporary directory; only sanitized projections feed verification:
 
 ```bash
+set -euo pipefail
 EXPECTED_SHA=$(git rev-parse HEAD)
+test -d "test-results/core-2.0.0-candidate-$EXPECTED_SHA"
 npm run verify:production
 umask 077
 EVIDENCE_TMP=$(mktemp -d)
@@ -1893,15 +1996,20 @@ rm -rf "$EVIDENCE_TMP"
 trap - EXIT HUP INT TERM
 ```
 
-Expected: the deployment is `READY`, production-targeted, and built from `EXPECTED_SHA`; home and sitemap return `200`; `POST /api/chat` returns exactly `404`; `/chatbot` returns exactly `308` to `/tools/chatbot`; Blob and credential assertions remain satisfied.
+Expected: the deployment is `READY`, production-targeted, and built from `EXPECTED_SHA`; home and sitemap return `200`; `POST /api/chat` returns exactly `404`; the interim core-`2.0.0` `/chatbot` route returns exactly `308` to `/tools/chatbot`; Blob and credential assertions remain satisfied.
 
 Keep the deployment/result JSON and visual candidate directory uncommitted. Committing a self-referential deployment ID would create a new SHA and invalidate the binding it records.
 
 - [ ] **Step 7: Checksum, tag, publish, and download-verify release evidence**
 
-Package the visual evidence, calculate reproducible SHA-256 records, and include the checksum-manifest digest in the annotated tag. These commands require the same explicit authorization as any other tag push or GitHub Release mutation:
+Package the visual evidence, calculate reproducible SHA-256 records, and include the checksum-manifest digest in the annotated tag. Create the GitHub Release as a draft, download and verify every uploaded asset, and publish only after readback passes. These commands require the same explicit authorization as any other tag push or GitHub Release mutation:
 
 ```bash
+set -euo pipefail
+EXPECTED_SHA=$(git rev-parse HEAD)
+DEPLOYMENT_ID=$(EXPECTED_SHA="$EXPECTED_SHA" node -e "const d=require('./test-results/core-2.0.0-vercel-deployment.json'); if(d.readyState!=='READY'||d.target!=='production'||d.gitSource?.sha!==process.env.EXPECTED_SHA) process.exit(1); process.stdout.write(d.id)")
+test -d "test-results/core-2.0.0-candidate-$EXPECTED_SHA"
+for REQUIRED in test-results/core-2.0.0-vercel-deployment.json test-results/core-2.0.0-vercel-env-production.json test-results/core-2.0.0-vercel-env-preview.json test-results/core-2.0.0-vercel-env-development.json test-results/core-2.0.0-release-result.json; do test -f "$REQUIRED"; done
 VISUAL_ASSET="test-results/core-2.0.0-candidate-$EXPECTED_SHA.tar.gz"
 tar -czf "$VISUAL_ASSET" -C test-results "core-2.0.0-candidate-$EXPECTED_SHA"
 CHECKSUMS="test-results/core-2.0.0-SHA256SUMS.txt"
@@ -1909,18 +2017,20 @@ CHECKSUMS="test-results/core-2.0.0-SHA256SUMS.txt"
 CHECKSUMS_SHA256=$(shasum -a 256 "$CHECKSUMS" | awk '{print $1}')
 git tag -a v2.0.0 "$EXPECTED_SHA" -m "v2.0.0" -m "Vercel deployment: $DEPLOYMENT_ID" -m "Git SHA: $EXPECTED_SHA" -m "SHA256SUMS: $CHECKSUMS_SHA256"
 git push origin v2.0.0
-gh release create v2.0.0 --verify-tag --title "v2.0.0" --notes-from-tag "test-results/core-2.0.0-vercel-deployment.json#Sanitized Vercel deployment" "test-results/core-2.0.0-vercel-env-production.json#Sanitized production environment inventory" "test-results/core-2.0.0-vercel-env-preview.json#Sanitized preview environment inventory" "test-results/core-2.0.0-vercel-env-development.json#Sanitized development environment inventory" "test-results/core-2.0.0-release-result.json#Production containment result" "$VISUAL_ASSET#Visual comparison evidence" "$CHECKSUMS#SHA-256 manifest"
+gh release create v2.0.0 --draft --verify-tag --title "v2.0.0" --notes-from-tag "test-results/core-2.0.0-vercel-deployment.json#Sanitized Vercel deployment" "test-results/core-2.0.0-vercel-env-production.json#Sanitized production environment inventory" "test-results/core-2.0.0-vercel-env-preview.json#Sanitized preview environment inventory" "test-results/core-2.0.0-vercel-env-development.json#Sanitized development environment inventory" "test-results/core-2.0.0-release-result.json#Production containment result" "$VISUAL_ASSET#Visual comparison evidence" "$CHECKSUMS#SHA-256 manifest"
 VERIFY_DIR=$(mktemp -d)
 chmod 700 "$VERIFY_DIR"
 trap 'rm -rf "$VERIFY_DIR"' EXIT HUP INT TERM
 gh release download v2.0.0 --dir "$VERIFY_DIR" --pattern 'core-2.0.0-*'
 (cd "$VERIFY_DIR" && shasum -a 256 -c core-2.0.0-SHA256SUMS.txt)
 test "$(shasum -a 256 "$VERIFY_DIR/core-2.0.0-SHA256SUMS.txt" | awk '{print $1}')" = "$CHECKSUMS_SHA256"
+test "$(find "$VERIFY_DIR" -mindepth 1 -maxdepth 1 -type f | wc -l | tr -d ' ')" = "7"
+gh release edit v2.0.0 --draft=false
 rm -rf "$VERIFY_DIR"
 trap - EXIT HUP INT TERM
 ```
 
-Expected: `gh release create --verify-tag` proves the annotated tag already exists remotely, every named asset downloads, `shasum -c` passes, and the downloaded checksum manifest matches the digest in the tag. Do not commit any release artifact back into the tagged tree.
+Expected: `gh release create --draft --verify-tag` proves the annotated tag already exists remotely; all seven named assets download from the authenticated draft; `shasum -c` passes; the downloaded checksum manifest matches the digest in the tag; and only then does `gh release edit` publish it. Do not commit any release artifact back into the tagged tree. If upload/readback fails, leave the release as a draft and do not continue to archive cleanup.
 
 - [ ] **Step 8: Remove superseded untracked source copies after archive integration**
 
@@ -1936,10 +2046,12 @@ docs/liquid-glass-dock-v2-log.md
 Do not remove or modify any other untracked file. The script itself must confirm the remaining original-worktree status differs from the Task 0 inventory only by absence of these four archived paths.
 
 ```bash
-ORIGINAL_ROOT=$(sed -n 's/^Original root: //p' docs/verification/baselines/core-1.0.0/original-worktree-status.txt)
-test -n "$ORIGINAL_ROOT"
+GIT_COMMON_DIR=$(cd "$(git rev-parse --git-common-dir)" && pwd -P)
+OPERATOR_STATE_DIR="$GIT_COMMON_DIR/codex/v1-modernization"
+ORIGINAL_ROOT=$(cat "$OPERATOR_STATE_DIR/original-root.txt")
+test -n "$ORIGINAL_ROOT" && test "${ORIGINAL_ROOT#/}" != "$ORIGINAL_ROOT"
 git -C "$ORIGINAL_ROOT" rev-parse --is-inside-work-tree >/dev/null
-npx tsx scripts/archive-legacy-docs.ts --cleanup --release-ref=v2.0.0 --source-root="$ORIGINAL_ROOT"
+npx tsx scripts/archive-legacy-docs.ts --cleanup --release-ref=v2.0.0 --source-root="$ORIGINAL_ROOT" --source-hashes="$OPERATOR_STATE_DIR/authorized-archive-source-hashes.txt" --inventory="$OPERATOR_STATE_DIR/original-status.z" --attestation=docs/verification/baselines/core-1.0.0/operator-state-attestation.json
 git -C "$ORIGINAL_ROOT" status --porcelain=v1 -uall
 ```
 
@@ -1961,4 +2073,6 @@ Before starting the Jet's Ghost implementation plan, confirm:
 [ ] Active unrelated untracked drafts remain untouched
 [ ] Committed provider evidence is sanitized and downloaded release artifacts match the tagged SHA-256 manifest
 [ ] Existing visual identity is unchanged
+[ ] The approved Jet's Ghost prototype from d406ed46 remains intact and noindexed at /tools/chatbot
+[ ] The 2.1.0 handoff explicitly moves it to canonical /chatbot, reverses the redirect, replaces Tools with Ghost, and makes /tools dormant
 ```

@@ -1,14 +1,18 @@
 # Jet Web v1 Modernization Design
 
-**Status:** Approved for planning
+**Status:** Approved for implementation
 
 **Date:** 2026-07-11
+
+**Last revised:** 2026-07-13
 
 **Canonical target:** Existing Astro, MDX, and Vercel application
 
 **Companion design:** [Jet's Ghost Local Assistant](./2026-07-11-jets-ghost-local-assistant-design.md)
 
 **Implementation plan:** [Jet Web v1 Modernization](../plans/2026-07-11-v1-modernization.md)
+
+**Approved Jet's Ghost interface:** [`docs/jets-ghost-chat-experience.md`](../../jets-ghost-chat-experience.md), implemented as the 2.1.0 prototype in commit `d406ed46dfc7cccfa95d0003fcae30f5b9373690`
 
 ## Executive decision
 
@@ -23,7 +27,7 @@ This is a targeted structural modernization, not a redesign. The public identity
 The modernization consists of two independently releasable systems:
 
 1. **Core site modernization** — production containment, content policy, deterministic builds, static deployment, verification, accessibility, SEO, consistency, and repository hygiene.
-2. **Jet's Ghost local assistant** — a local Gemma 4 E2B runtime, durable knowledge package, pluggable context selection, citations, and evaluation.
+2. **Jet's Ghost local assistant** — a local Gemma 4 E2B runtime, durable versioned knowledge package, deterministic MiniSearch rank-and-pack, citations, and product qualification.
 
 The core site can ship without Jet's Ghost. Jet's Ghost depends on the core content policy and deterministic corpus generation, but the rest of the site does not depend on the model runtime.
 
@@ -83,11 +87,20 @@ The core site can ship without Jet's Ghost. Jet's Ghost depends on the core cont
 
 ## Chosen approach and rejected alternatives
 
-### Chosen: modernize v1 and separate durable knowledge from retrieval
+### Chosen: modernize v1 and give Jet's Ghost one durable retrieval path
 
-Keep Astro, MDX, semantic design tokens, React islands, and Vercel. Replace implicit content state with an explicit policy, make the build pure, remove the server generation boundary, and implement Jet's Ghost as an optional local feature behind stable corpus and runtime interfaces.
+Keep Astro, MDX, semantic design tokens, React islands, and Vercel. Replace implicit content state with an explicit policy, make the build pure, remove the server generation boundary, and implement Jet's Ghost as an optional local feature behind a stable corpus, deterministic MiniSearch rank-and-pack, citation, and runtime pipeline.
 
 This approach has the smallest migration surface and creates a credible long-term architecture without assuming the corpus remains small.
+
+### Milestone handoff for the approved Jet's Ghost interface
+
+Core modernization `2.0.0` and Jet's Ghost `2.1.0` deliberately own different route states:
+
+- During `2.0.0` containment, the approved interface prototype from commit `d406ed46dfc7cccfa95d0003fcae30f5b9373690` remains noindexed at `/tools/chatbot`, and `/chatbot` temporarily redirects there. The prototype is preserved as inert product-design code: it has no production corpus, model, engine, or hosted generation path.
+- During `2.1.0` integration, `/chatbot` becomes the canonical production route, `/tools/chatbot` permanently redirects to it, Ghost replaces Tools in the existing dock slot, and `/tools` becomes dormant, noindexed, absent from the sitemap, and absent from primary navigation.
+
+The companion design and plan own that coordinated reversal. Canonical URLs, sitemap policy, structured data, dock and no-script navigation, deployment assertions, and containment/regression tests change together; the interface is integrated rather than redesigned.
 
 ### Rejected: proceed with the Cloudflare and EmDash v2 rebuild
 
@@ -177,7 +190,7 @@ Containment is the first implementation milestone and is performed before featur
 6. Verify the old artifact URLs return 404 and `POST /api/chat` cannot invoke generation.
 7. Delete the remaining obsolete objects under the Blob `chatbot/` prefix after recording their pathname inventory in the implementation evidence. Git history and archived design documents are the preservation mechanism.
 
-Containment readback is an assertion, not a visual inspection. Evidence records the complete pre-delete Blob pathname inventory, proves the prefix is empty afterward, probes every recorded URL, requires exactly `404` for `POST /api/chat`, requires exactly `308` and `Location: /tools/chatbot` for the legacy redirect, proves the credential name is absent from every Vercel scope, and identifies the production deployment ID plus Git commit that produced the response.
+Containment readback is an assertion, not a visual inspection. Evidence records the complete pre-delete Blob pathname inventory, proves the prefix is empty afterward, probes every recorded URL, requires exactly `404` for `POST /api/chat`, requires exactly `308` and `Location: /tools/chatbot` for the interim core-`2.0.0` redirect, proves the credential name is absent from every Vercel scope, and identifies the production deployment ID plus Git commit that produced the response.
 
 Raw Vercel CLI/API responses are transient secrets-adjacent inputs, never repository evidence. Each is written only to a mode-`0600` temporary file created under a mode-`0700` temporary directory, transformed into a schema-allowlisted projection, scanned recursively for forbidden keys and secret-like values, and deleted before any `git add`. Committed environment evidence contains names, types, scopes, targets, and optional Git branches only; it never contains values, encrypted values, headers, cookies, build environment objects, or provider response residue.
 
@@ -189,7 +202,7 @@ Previously cached public data cannot be recalled from a visitor's browser. Conta
 
 ### Runtime mode
 
-After `/api/chat` is removed, the site returns to static Astro output. The legacy `/chatbot` route becomes a true platform redirect to `/tools/chatbot` through `vercel.json`, allowing `src/pages/chatbot.astro`, its server-rendering exception, and the Vercel server adapter to be removed if no other dynamic route remains.
+After `/api/chat` is removed, the site returns to static Astro output. For core `2.0.0`, `/chatbot` becomes a true platform redirect to the approved noindexed prototype at `/tools/chatbot` through `vercel.json`, allowing the old `src/pages/chatbot.astro`, its server-rendering exception, and the Vercel server adapter to be removed if no other dynamic route remains. The companion `2.1.0` plan later moves the prototype to static `/chatbot` and reverses this redirect without reintroducing a server adapter.
 
 ### Deterministic scripts
 
@@ -306,7 +319,8 @@ The `Download PDF` action is removed. Citation text also uses the HTTPS DOI URL.
 
 ### 4. Grainient performance and reduced motion
 
-- Start from `origin/main`, which includes `c423ffa`.
+- Before touching `Grainient.tsx`, prove commit `c423ffa` from PR #15 is an ancestor of the approved implementation baseline. The currently approved `d406ed46` baseline passes this check through merge commit `c0d158c`.
+- Preserve the inherited PR #15 implementation rather than recreating it. If a future approved baseline fails the ancestry check, stop and reconcile PR #15 as a distinct reviewed change before reduced-motion work begins.
 - Preserve the 24fps cap, offscreen pause, hidden-document pause, WebGL fallback, theme behavior, and visual parameters.
 - When `prefers-reduced-motion: reduce` is active, render a static first frame or the existing non-WebGL fallback and do not maintain an animation loop.
 - Treat reduced motion as renderer lifecycle state. If reduction is active initially, do not create the WebGL renderer; switching reduction off initializes one when visible, while switching it on cancels RAF, releases the renderer, and restores the static fallback.
@@ -331,7 +345,7 @@ The `Download PDF` action is removed. Citation text also uses the HTTPS DOI URL.
 - Omit `twitter:creator` unless a real Twitter/X handle is configured; never derive it from a display name.
 - Keep canonical URLs HTTPS-only.
 - Verify sitemap, RSS, robots, canonical tags, Open Graph, Twitter cards, and JSON-LD against representative routes.
-- Keep `/tools/chatbot` noindexed while it is an unavailable placeholder; index it only after the local assistant release gate passes.
+- Keep the approved prototype at `/tools/chatbot` noindexed and out of the sitemap during core `2.0.0`. In `2.1.0`, keep `/tools` dormant and excluded, move Jet's Ghost to canonical `/chatbot`, and remove the exact `/chatbot` exclusion only after the local-assistant release gate passes.
 
 ### 7. Dependency and dead-code cleanup
 
@@ -340,11 +354,11 @@ After the old chatbot runtime is disconnected, remove dependencies used only by 
 - `@huggingface/transformers`
 - `@petamoriken/float16`
 - `idb`
-- `minisearch`
+- the legacy `minisearch` installation and its old index format
 - the old retrieval worker and RRF modules
 - the server generation service and API route
 
-Retain `@vercel/blob` and `dotenv` only for the explicit image workflow. Retain `framer-motion` and `ogl` for the dock and Grainient. The Jet's Ghost design introduces `@litert-lm/core` independently.
+Retain `@vercel/blob` and `dotenv` only for the explicit image workflow. Retain `framer-motion` and `ogl` for the dock and Grainient. The Jet's Ghost design independently introduces pinned `@litert-lm/core`, MiniSearch, and stemmer dependencies with a new version-matched static index.
 
 ### 8. Verification system
 
@@ -365,12 +379,12 @@ Minimum browser coverage protects:
 - home, about, blog index/detail, works index/detail, tools, contact, and RSS routes;
 - theme persistence;
 - dock keyboard navigation and mobile disclosure;
-- `/chatbot` permanent redirect;
+- the interim core-`2.0.0` `/chatbot` redirect and the companion `2.1.0` reversal to `/tools/chatbot` redirecting to canonical `/chatbot`;
 - absence of published draft routes;
 - SSRN DOI action;
 - representative metadata and JSON-LD;
 - reduced-motion Grainient behavior;
-- Jet's Ghost placeholder or released activation flow, depending on milestone.
+- the approved noindexed Jet's Ghost prototype or released activation flow, depending on milestone.
 
 Browser regression tests run against the built static output through `astro preview`, not the development server. The checked-in suite includes each listed route and assertion, parses JSON-LD as JSON, verifies active navigation and mobile disclosure behavior, and installs its browser plus system dependencies in CI. Vercel-only redirect behavior is a separate deployment assertion with an exact status and destination.
 
@@ -382,7 +396,7 @@ Real-model Jet's Ghost evaluation is kept out of the routine CI path because it 
 - A missing image remains a build or validation failure according to the existing image workflow; it is not silently replaced.
 - Failure to load analytics does not affect navigation or content.
 - WebGL failure retains the existing visual fallback.
-- Jet's Ghost failure never affects static routes or the rest of the Tools hub.
+- Jet's Ghost failure never affects the site's static routes or primary navigation.
 - No visitor prompt, response, or selected context is sent to analytics or a server.
 - Production failures are diagnosable through CI output, Vercel deployment state, browser console checks, and deterministic reproduction from the deployed commit.
 
@@ -398,7 +412,7 @@ The later implementation plan must respect these dependencies:
 6. Make the build pure before adding the new knowledge package.
 7. Establish automated verification before broad component or accessibility changes.
 8. Complete and release the breaking core modernization as `2.0.0` independently of Jet's Ghost.
-9. Implement and release Jet's Ghost through its separate plan as `2.1.0`.
+9. Integrate the approved Jet's Ghost interface without redesign, reverse the interim route and navigation state as one coordinated change, and release it through the separate plan as `2.1.0`.
 10. Remove historical runtime dependencies only after no active code imports them.
 11. Rewrite the README after its documented commands and architecture are implemented.
 
@@ -413,7 +427,7 @@ The core modernization is complete when:
 - production verification rejects untracked published entries;
 - `npm run build` makes no remote writes and changes no tracked or nonignored untracked source/configuration file;
 - `npm run verify` passes on Node 22 in CI;
-- the site deploys as static output with an exact `/chatbot` 308 redirect to `/tools/chatbot`;
+- the core-`2.0.0` site deploys as static output with the documented interim `/chatbot` 308 redirect to the noindexed `/tools/chatbot` prototype, ready for the companion plan's coordinated reversal;
 - the DOI-backed SSRN action is the only research action;
 - `origin/main` Grainient performance behavior is preserved and reduced motion is supported;
 - representative routes pass browser smoke and automated accessibility checks;
@@ -429,9 +443,9 @@ The core modernization is complete when:
 
 The repository contains user-owned untracked drafts and specifications. Implementation must inventory them, create a clean worktree from the approved commit, leave the original checkout untouched, and stage only explicit paths. The only exception is the user-authorized, hash-verified archival copy and post-integration cleanup of four named historical documents; it never includes active content or active tool specifications. If the clean checkout cannot reproduce a build because a private untracked draft was previously affecting it, record that baseline defect instead of rewriting the draft.
 
-### Static adapter removal changes redirect behavior
+### Static adapter removal or route reversal changes redirect behavior
 
-Move the redirect to Vercel configuration and require its documented `308` status plus exact `Location` before removing the server adapter.
+Move the containment redirect to Vercel configuration and require its documented `308` status plus exact `Location` before removing the server adapter. In `2.1.0`, reverse source and destination only in the same change that establishes `/chatbot` canonical metadata and updates sitemap, navigation, and deployment tests.
 
 ### Content-state migration accidentally unpublishes content
 
@@ -453,6 +467,7 @@ Every historical document receives a visible status and canonical successor link
 - Archived superseded platform proposal: `docs/archive/site/project-spec-v2.md`
 - Archived historical RAG architecture: `docs/archive/jets-ghost/legacy-rag/rag-chatbot-architecture.md`
 - Jet's Ghost companion design: `docs/superpowers/specs/2026-07-11-jets-ghost-local-assistant-design.md`
+- Approved Jet's Ghost 2.1.0 interface: `docs/jets-ghost-chat-experience.md` and commit `d406ed46dfc7cccfa95d0003fcae30f5b9373690`
 - Timesheet local-assistant research rollout: `019f1533-9ec8-7b32-b80c-fe27b684a5f6`
 - [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html)
 - [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/)
