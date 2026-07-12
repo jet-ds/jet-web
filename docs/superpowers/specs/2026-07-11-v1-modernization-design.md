@@ -404,17 +404,18 @@ Real-model Jet's Ghost evaluation is kept out of the routine CI path because it 
 
 The later implementation plan must respect these dependencies:
 
-1. Inventory the original dirty checkout, record the approved starting commit, and create a clean isolated worktree and branch from that exact commit. Never edit, stage, or build the user-owned untracked Codex draft or other untracked files in the original checkout.
-2. Before any deployment or visual change, capture an immutable production baseline for representative routes, viewports, metadata, and the deployed commit/deployment identity.
-3. Establish canonical `AGENTS.md`, record version `1.0.0`, Conventional Commits, and the no-attribution rule before subsequent commits.
-4. Perform credential/artifact containment before deploying any unchanged build.
-5. Introduce the explicit content contract and migrate tracked entries before replacing filters.
-6. Make the build pure before adding the new knowledge package.
-7. Establish automated verification before broad component or accessibility changes.
-8. Complete and release the breaking core modernization as `2.0.0` independently of Jet's Ghost.
-9. Integrate the approved Jet's Ghost interface without redesign, reverse the interim route and navigation state as one coordinated change, and release it through the separate plan as `2.1.0`.
-10. Remove historical runtime dependencies only after no active code imports them.
-11. Rewrite the README after its documented commands and architecture are implemented.
+1. Identify the existing Vercel project and non-secret OpenRouter key record, revoke that key immediately, verify it is revoked/disabled, and retain only the constrained private readback needed for later sanitization. This is the first external mutation.
+2. Inventory the original dirty checkout, record the approved starting commit, and create a clean isolated worktree and branch from that exact commit. Never edit, stage, or build the user-owned untracked Codex draft or other untracked files in the original checkout.
+3. Before any deployment or visual change, capture an immutable production baseline for representative routes, viewports, metadata, and the deployed commit/deployment identity.
+4. Establish canonical `AGENTS.md`, record version `1.0.0`, Conventional Commits, and the no-attribution rule before subsequent commits.
+5. Remove the inert Vercel credential variable, delete the draft-bearing and obsolete assistant artifacts, remove the endpoint, deploy the static containment build, and read every containment boundary back before further feature work.
+6. Introduce the explicit content contract and migrate tracked entries before replacing filters.
+7. Make the build pure before adding the new knowledge package.
+8. Establish automated verification before broad component or accessibility changes.
+9. Complete and release the breaking core modernization as `2.0.0` independently of Jet's Ghost.
+10. Integrate the approved Jet's Ghost interface without redesign, reverse the interim route and navigation state as one coordinated change, and release it through the separate plan as `2.1.0`.
+11. Remove historical runtime dependencies only after no active code imports them.
+12. Rewrite the README after its documented commands and architecture are implemented.
 
 ## Release criteria
 

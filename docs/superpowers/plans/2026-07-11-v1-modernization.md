@@ -412,7 +412,7 @@ Expected: `1 passed`.
 
 - [ ] **Step 7: Write and implement the Vercel evidence sanitizer**
 
-Create `tests/unit/ops/vercelEvidence.test.ts` before `scripts/sanitize-vercel-evidence.ts`. The CLI has four explicit modes:
+Create `tests/unit/ops/vercelEvidence.test.ts` before `scripts/sanitize-vercel-evidence.ts`. The CLI has five explicit modes:
 
 ```text
 sanitize-inspect     -> { id, name, url, target: string | null, readyState, aliases }

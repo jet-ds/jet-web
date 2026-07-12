@@ -100,7 +100,7 @@ No further retrieval-candidate harnesses or benchmark iterations are part of thi
 
 ## Official runtime baseline
 
-The first implementation pins `@litert-lm/core@0.14.0` and dynamically imports it only after explicit load consent on `/chatbot`. The package's JavaScript enters the normal lazy application bundle, while its eight packaged feature-variant `.js`/`.wasm` files are emitted unchanged as immutable same-origin static assets beneath `/assistant/runtime/litert-lm/0.14.0/`. After consent, the runtime explicitly calls `loadLiteRtLm('/assistant/runtime/litert-lm/0.14.0/')`; it never falls through to LiteRT-LM's `DEFAULT_WASM_PATH` on jsDelivr.
+The first implementation pins `@litert-lm/core@0.14.0` and dynamically imports it only after explicit load consent on `/chatbot`. The package's JavaScript enters the normal lazy application bundle, while its eight packaged feature-variant `.js`/`.wasm` files are emitted unchanged as same-origin static assets beneath `/assistant/runtime/litert-lm/0.14.0/`. A narrowly scoped Vercel header rule gives that versioned subtree its immutable cache policy; the prerendered Astro endpoint owns bytes and content type, not deployed cache metadata. After consent, the runtime explicitly calls `loadLiteRtLm('/assistant/runtime/litert-lm/0.14.0/')`; it never falls through to LiteRT-LM's `DEFAULT_WASM_PATH` on jsDelivr.
 
 The initial supported model asset is revision-pinned:
 
@@ -364,7 +364,7 @@ interface StaticKnowledgeRepository {
 }
 ```
 
-The repository fetches the manifest, content, and serialized index in parallel, verifies their byte hashes and shared versions, then hydrates the MiniSearch index with the same checked-in options used at build time. During that one hydration pass it builds immutable document, section, chunk, and same-section-neighbor maps, failing on duplicates or invalid neighbor order. Rank-and-pack resolves matches and adjacency only through those constant-time maps; it never repeatedly scans corpus arrays. The repository memoizes the loaded knowledge base in memory for the page session and releases the index, arrays, and lookup maps on unload.
+The repository fetches the manifest, content, and serialized index in parallel with `credentials: 'omit'`, verifies their byte hashes and shared versions, then hydrates the MiniSearch index with the same checked-in options used at build time. During that one hydration pass it builds immutable document, section, chunk, and same-section-neighbor maps, failing on duplicates or invalid neighbor order. Rank-and-pack resolves matches and adjacency only through those constant-time maps; it never repeatedly scans corpus arrays. The repository memoizes the loaded knowledge base in memory for the page session and releases the index, arrays, and lookup maps on unload.
 
 The repository loads the complete immutable artifacts. That is appropriate for a static-site assistant and remains the chosen design through 1–2 million eligible corpus tokens. Jet's Ghost is not a growing browser-local personal knowledge system: visitors do not ingest private files, mutate records, synchronize data, manage migrations, or retain a personal database. Those requirements would justify a different product and substrate.
 
@@ -711,7 +711,7 @@ After explicit load consent, allowed assistant-initiated network requests are li
 
 The Gemma delivery chain must begin at the exact revision-pinned `huggingface.co/.../resolve/<commit>/<filename>` URL. It may follow at most five redirects. Every hop must remain HTTPS on either exact `huggingface.co`, exact `cdn.hf.co`, or a hostname ending in the boundary-safe suffix `.cdn.hf.co`; lookalikes such as `cdn.hf.co.example.com` are rejected. Adding another trusted origin requires an explicit reviewed policy change, but provider changes to redirect count within the bound, signed-query structure, transient headers, or CDN pathname do not block release.
 
-The application supplies no model-delivery request body, custom header, authorization, cookie, or credential. Ordinary browser-generated transport headers are permitted; the application does not construct or copy provider-signed query parameters. The LiteRT runtime subtree is same-origin only; a request to `cdn.jsdelivr.net` or any other SDK-runtime origin fails the privacy gate. In particular, same-origin corpus or runtime requests cannot be used as an exception for prompt leakage: they are fixed bodyless GETs. Browser verification applies the origin/method/body/credential policy to every request and treats any prompt, selected source text, response, or history in a URL, headers, or body as a release blocker. Diagnostics retain only mode, trusted hostnames, redirect depth, qualification byte count and digest, timestamps, and rule codes; complete redirected URLs, query values, signatures, policies, authorization data, cookies, raw sensitive headers, and transient CDN paths are discarded.
+The application constructs no `Authorization` or `Cookie` header. Explicit corpus requests use `credentials: 'omit'` and must contain neither. Same-origin document, lazy application-chunk, and fixed LiteRT runtime-asset GETs may carry browser-managed first-party cookies such as GA4's `_ga`; `loadLiteRtLm()` does not expose a credentials mode for those module/WASM fetches. Those ambient cookies are allowed only on the exact same-origin asset paths above and never justify a request body, custom header, variable URL, or conversational field. The cross-origin model-delivery chain must contain no authorization or cookie and must not use `credentials: 'include'`; ordinary browser-generated transport headers remain permitted, and the application does not construct or copy provider-signed query parameters. A request to `cdn.jsdelivr.net` or any other SDK-runtime origin fails the privacy gate. Browser verification treats any prompt, selected source text, response, or history in any URL, headers, or body as a release blocker. Diagnostics retain only mode, trusted hostnames, redirect depth, qualification byte count and digest, timestamps, and rule codes; complete redirected URLs, query values, signatures, policies, authorization data, cookies, raw sensitive headers, and transient CDN paths are discarded.
 
 The UI does not claim that model files are served by Jet or that the experience is guaranteed offline. It does claim local inference and local conversation handling after required assets are available.
 
@@ -906,7 +906,7 @@ Make activation explicit, state the cost before loading, detect WebGPU, provide 
 
 ### Qualification integrity is mistaken for per-browser integrity
 
-State the boundary precisely: release qualification hashes a complete independent download, while LiteRT-LM `0.14.0` subsequently owns each visitor's URL-based fetch. Do not treat provider metadata as a hash, do not double-download a browser copy that LiteRT cannot consume, and do not claim the exact executed bytes were independently verified unless a future runtime API exposes a verified-byte injection path.
+State the boundary precisely: release qualification hashes a complete independent download, while this release deliberately gives LiteRT-LM `0.14.0` the pinned URL for each visitor's fetch. The SDK can also consume a `Blob` or `ReadableStream<Uint8Array>`, but a trustworthy browser verification path would require app-owned buffering or incremental hashing plus failure/cancellation cleanup that has not earned its cost. Do not treat provider metadata as a hash, add a duplicate prefetch, or claim the exact executed bytes were independently verified.
 
 ### Maximum context is mistaken for comfortable context
 
@@ -926,7 +926,7 @@ Treat `docs/jets-ghost-chat-experience.md`, commit `d406ed46`, and the prototype
 
 ### Astro route transitions leak GPU resources
 
-Own engine lifecycle inside one runtime service, call `engine.delete()` on unmount, suppress late events, and include ClientRouter transitions in real-model qualification.
+Own lifecycle inside one runtime service; cancel generation, delete the conversation and engine, call `unloadLiteRtLm()`, clear application references, suppress late events, and include ClientRouter route-away plus fresh route re-entry in real-model qualification. Document the pinned SDK's no-op global `delete()` limitation rather than promising immediate WASM/GPU reclamation.
 
 ## References
 

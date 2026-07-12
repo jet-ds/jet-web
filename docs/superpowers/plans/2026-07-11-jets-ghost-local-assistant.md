@@ -119,6 +119,7 @@ scripts/verify-model-delivery.ts
 - Modify: `package.json`
 - Modify: `package-lock.json`
 - Modify: `tsconfig.json`
+- Modify: `vercel.json`
 
 **Interfaces:**
 - Produces: `JETS_GHOST_MODEL`, `JETS_GHOST_CONTEXT`, `JETS_GHOST_PATHS`, and the versioned same-origin LiteRT WASM subtree.
@@ -231,7 +232,27 @@ litertlm_wasm_compat_asyncify_internal.js
 litertlm_wasm_compat_asyncify_internal.wasm
 ```
 
-`src/pages/assistant/runtime/litert-lm/0.14.0/[asset].ts` is a prerendered static endpoint whose `getStaticPaths()` emits only that allowlist. It reads each installed package file without rewriting it, returns JavaScript or WebAssembly with the correct content type plus `Cache-Control: public, max-age=31536000, immutable`, rejects any unknown/path-traversal name, and performs no network write. Tests prove the route's emitted bytes match the installed pinned package files exactly and that the runtime directory is `JETS_GHOST_PATHS.liteRtWasm`. The production build must contain all eight files at that exact path. No source asset is copied into the worktree, no generated public directory is left behind, and no SDK runtime request may use jsDelivr.
+`src/pages/assistant/runtime/litert-lm/0.14.0/[asset].ts` is a prerendered static endpoint whose `getStaticPaths()` emits only that allowlist. It reads each installed package file without rewriting it, returns JavaScript or WebAssembly with the correct content type, rejects any unknown/path-traversal name, and performs no network write. Tests prove the route's emitted bytes match the installed pinned package files exactly and that the runtime directory is `JETS_GHOST_PATHS.liteRtWasm`. The production build must contain all eight files at that exact path. No source asset is copied into the worktree, no generated public directory is left behind, and no SDK runtime request may use jsDelivr.
+
+Astro's static generator preserves the body and extension but does not carry an endpoint's ordinary response headers into deployed static-file metadata. Merge this narrowly scoped rule into the existing core `vercel.json` without replacing its redirect or other configuration:
+
+```json
+{
+  "headers": [
+    {
+      "source": "/assistant/runtime/litert-lm/0.14.0/:asset",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    }
+  ]
+}
+```
+
+The versioned path makes the immutable policy safe. `liteRtAssets.test.ts` parses `vercel.json` and requires this exact source/value while allowing the file's unrelated redirect configuration. Preview and Production deployment checks later request one emitted `.wasm` file and require the exact cache header; local `astro preview` does not pretend to apply Vercel headers.
 
 - [ ] **Step 5: Implement the durable model-delivery and qualification-hash contract**
 
@@ -244,7 +265,7 @@ Write `tests/unit/jets-ghost/modelDelivery.test.ts` before `runtime/modelDeliver
 - zero through five redirects are accepted, while a sixth redirect and lookalikes such as `cdn.hf.co.example.com` or `evilcdn.hf.co` are rejected;
 - provider changes to signed-query key names/values, transient response headers, redirect count within the bound, or final CDN pathname do not affect validation;
 - only bodyless ordinary `GET`/`HEAD` requests qualify, including browser-generated `Range` behavior where LiteRT requires it;
-- application code supplies no custom headers or credentials, and observed requests containing `Authorization`, `Cookie`, application-defined headers, prompts, selected context, history, or response sentinels fail;
+- application code supplies no custom headers or credentials to the cross-origin model chain, and observed model requests containing `Authorization`, `Cookie`, `credentials: 'include'`, application-defined headers, prompts, selected context, history, or response sentinels fail;
 - unavailable or ambiguous runtime length observations are accepted as `unavailable`, while a value explicitly identified as the complete unencoded artifact byte count must equal the pin; range length, encoded transfer length, cache metadata, and provider-declared linked size are never compared as complete size;
 - an injected complete byte stream passes only when the actual counted bytes and independently calculated SHA-256 both equal the pin;
 - truncation, extension, or a one-byte mutation fails even when provider metadata claims the pinned size or digest;
@@ -267,7 +288,7 @@ npx tsx scripts/verify-model-delivery.ts --transport-only --output=test-results/
 npm run check
 npm run build
 test "$(find dist/assistant/runtime/litert-lm/0.14.0 -type f | wc -l | tr -d ' ')" = "8"
-git add package.json package-lock.json tsconfig.json src/features/jets-ghost/config.ts src/features/jets-ghost/runtime/modelDelivery.ts src/features/jets-ghost/runtime/liteRtAssets.server.ts src/pages/assistant/runtime/litert-lm/0.14.0/'[asset].ts' scripts/verify-model-delivery.ts tests/unit/jets-ghost/config.test.ts tests/unit/jets-ghost/liteRtAssets.test.ts tests/unit/jets-ghost/modelDelivery.test.ts
+git add package.json package-lock.json tsconfig.json vercel.json src/features/jets-ghost/config.ts src/features/jets-ghost/runtime/modelDelivery.ts src/features/jets-ghost/runtime/liteRtAssets.server.ts src/pages/assistant/runtime/litert-lm/0.14.0/'[asset].ts' scripts/verify-model-delivery.ts tests/unit/jets-ghost/config.test.ts tests/unit/jets-ghost/liteRtAssets.test.ts tests/unit/jets-ghost/modelDelivery.test.ts
 git commit -m "build(chatbot): pin LiteRT-LM and Gemma E2B"
 ```
 
@@ -644,7 +665,7 @@ export interface StaticKnowledgeRepository {
 }
 ```
 
-Fetch all three paths in parallel after activation, retain the exact content/index response text for SHA-256 verification, validate the complete manifest contract, and hydrate the prebuilt index with `MiniSearch.loadJSAsync()`. In the same one-time pass, build immutable `documentsById`, `sectionsById`, `chunksById`, and `neighborsByChunkId` maps; fail on duplicate IDs, unknown parents, cross-section neighbors, or noncanonical order. Memoize only in memory, and clear corpus, index, and all lookup-map references on `unload()`. Do not rebuild the index in the browser and do not write to IndexedDB.
+Fetch all three paths in parallel after activation with `credentials: 'omit'`, retain the exact content/index response text for SHA-256 verification, validate the complete manifest contract, and hydrate the prebuilt index with `MiniSearch.loadJSAsync()`. Repository tests assert the explicit credentials mode and reject any supplied headers. In the same one-time pass, build immutable `documentsById`, `sectionsById`, `chunksById`, and `neighborsByChunkId` maps; fail on duplicate IDs, unknown parents, cross-section neighbors, or noncanonical order. Memoize only in memory, and clear corpus, index, and all lookup-map references on `unload()`. Do not rebuild the index in the browser and do not write to IndexedDB.
 
 - [ ] **Step 6: Verify generated output**
 
@@ -1229,10 +1250,21 @@ Preserve the reviewed prototype layout/styles and add a coherent Astro/no-script
 
 - [ ] **Step 2: Reverse the temporary containment redirect**
 
-Delete `src/pages/tools/chatbot.astro`. Replace the core-2.0 Vercel rule with exactly:
+Delete `src/pages/tools/chatbot.astro`. Reverse only the core-2.0 redirect while preserving the versioned LiteRT runtime cache rule added in Task 1. The relevant `vercel.json` state is exactly:
 
 ```json
 {
+  "headers": [
+    {
+      "source": "/assistant/runtime/litert-lm/0.14.0/:asset",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=31536000, immutable"
+        }
+      ]
+    }
+  ],
   "redirects": [
     {
       "source": "/tools/chatbot",
@@ -1243,7 +1275,7 @@ Delete `src/pages/tools/chatbot.astro`. Replace the core-2.0 Vercel rule with ex
 }
 ```
 
-Do not retain a `/chatbot -> /tools/chatbot` rule. Production/deployment tests must require exact `308` and `Location: /chatbot`; routine `astro preview` tests do not pretend to execute Vercel routing.
+Do not retain a `/chatbot -> /tools/chatbot` rule. Production/deployment tests must require exact `308` and `Location: /chatbot`, and must require the exact immutable cache header on `/assistant/runtime/litert-lm/0.14.0/litertlm_wasm_internal.wasm`; routine `astro preview` tests do not pretend to execute Vercel routing or headers.
 
 Before changing the implementation, reverse the existing containment/deployment test expectations so they fail against the core-2.0 redirect. Update `verify-production-containment.ts` to continue asserting `POST /api/chat === 404`, empty legacy Blob state, revoked/absent credentials, and deployment SHA while requiring `/tools/chatbot === 308` with resolved destination `https://jetsanchez.com/chatbot`. Remove its obsolete `/chatbot` redirect assertion. Apply the same exact status/location contract in `core-production.spec.ts`.
 
@@ -1352,7 +1384,7 @@ Begin a fresh request log before compatibility checking. Require zero assistant 
 - bodyless `GET` to one of the eight allowlisted files directly beneath `/assistant/runtime/litert-lm/0.14.0/`;
 - pre-existing analytics endpoints with no conversation-derived query/header/body fields.
 
-The fake-runtime test accepts no Hugging Face request at all; because it never imports LiteRT, it also makes no request to the same-origin WASM subtree. Submit distinctive sentinel prompt and selected-source strings and fail if either appears in any URL, query, header, or body. Fail any nonallowlisted origin, path, method, or request body; reject `Authorization`, `Cookie`, application-defined custom headers, `cdn.jsdelivr.net`, and every other external SDK-runtime origin rather than merely searching for the literal prompt. Task 11 repeats this contract with the actual pinned model and validates its provider redirect chain in memory.
+The fake-runtime test accepts no Hugging Face request at all; because it never imports LiteRT, it also makes no request to the same-origin WASM subtree. Submit distinctive sentinel prompt and selected-source strings and fail if either appears in any URL, query, header, or body. Explicit corpus fetches must report `credentials: 'omit'` in the injected fetch test and carry neither `Cookie` nor `Authorization`. Browser-managed first-party cookies are permitted only on exact same-origin document and emitted application-asset GETs; pre-existing analytics may use its ordinary browser-managed state, but neither class may contain a conversational sentinel. Fail any nonallowlisted origin, path, method, request body, application-constructed credential/custom header, `cdn.jsdelivr.net`, or other external SDK-runtime origin. Task 11 repeats this contract with the actual pinned model and validates its provider redirect chain in memory.
 
 - [ ] **Step 6: Test ClientRouter cleanup and late-event suppression**
 
@@ -1472,7 +1504,7 @@ Support two explicit modes in the same test file: `qualification` and `smoke`, s
 
 The harness records ordered phase markers and rejects a reused/persistent user-data directory supplied from outside the run. It does not claim the browser's global provider cache is empty; “cold” means a new isolated Chrome profile for this qualification, while “warm” means a second activation in that exact profile.
 
-In both modes, record requests in memory from before compatibility checking through final cleanup. Require zero assistant-resource requests before Load. Allow only bodyless same-origin corpus/index requests, lazy `/_astro/` chunks, the eight exact filenames directly beneath `/assistant/runtime/litert-lm/0.14.0/`, pre-existing analytics with no conversation-derived fields, and the exact pinned Hugging Face model URL followed by the redirect chain accepted by `validateModelDeliveryChain()`. Require the LiteRT WASM requests to remain same-origin and fail any request to `cdn.jsdelivr.net` or another SDK-runtime origin. Walk `Request.redirectedFrom()` in memory for the model; require the exact pinned root, HTTPS and `isTrustedModelOrigin()` for every hop, no more than `JETS_GHOST_MODEL.maxRedirects`, and bodyless ordinary `GET`/`HEAD` plus browser-generated `Range` behavior. Do not assert an exact redirect count, signed-query-key set, response-header structure, transient CDN path, Xet address, ETag, linked hash, or provider-declared size. Submit distinctive sentinel prompt and selected-source strings and fail if either appears in any URL, query, header, or body. Reject nonallowlisted origins, paths, request bodies, `Authorization`, `Cookie`, credentials, and application-defined custom headers. Never print or persist a complete signed URL, query value, signature, policy, raw sensitive header, transient path, or raw request object. Browser observation proves delivery containment and privacy only; it does not claim the LiteRT-consumed bytes were independently hashed.
+In both modes, record requests in memory from before compatibility checking through final cleanup. Require zero assistant-resource requests before Load. Allow only bodyless same-origin corpus/index requests, lazy `/_astro/` chunks, the eight exact filenames directly beneath `/assistant/runtime/litert-lm/0.14.0/`, pre-existing analytics with no conversation-derived fields, and the exact pinned Hugging Face model URL followed by the redirect chain accepted by `validateModelDeliveryChain()`. Require the LiteRT WASM requests to remain same-origin and fail any request to `cdn.jsdelivr.net` or another SDK-runtime origin. Explicit corpus requests must contain no `Cookie` or `Authorization`; their injected-fetch unit tests prove `credentials: 'omit'`. Exact same-origin document, application-chunk, and runtime-asset GETs may carry browser-managed first-party cookies, but no conversational sentinel, request body, application-defined header, or variable assistant path. Pre-existing analytics may carry its ordinary browser-managed state but no conversation-derived field. Walk `Request.redirectedFrom()` in memory for the model; require the exact pinned root, HTTPS and `isTrustedModelOrigin()` for every hop, no more than `JETS_GHOST_MODEL.maxRedirects`, bodyless ordinary `GET`/`HEAD` plus browser-generated `Range` behavior, no `Authorization` or `Cookie`, and no included cross-origin credentials. Do not assert an exact redirect count, signed-query-key set, response-header structure, transient CDN path, Xet address, ETag, linked hash, or provider-declared size. Submit distinctive sentinel prompt and selected-source strings and fail if either appears in any URL, query, header, or body. Reject nonallowlisted origins, paths, request bodies, and application-defined credential/custom headers. Never print or persist a complete signed URL, query value, signature, policy, cookie, raw sensitive header, transient path, or raw request object. Browser observation proves delivery containment and privacy only; it does not claim the LiteRT-consumed bytes were independently hashed.
 
 In `smoke` mode, skip cold/warm benchmarking and the full fixture. Run exactly `showcase-rch-claim` and `unsupported-codex-draft` in a fresh session each, pausing after each for the same concise visible review. Assert one supported grounded answer with a usable citation/source, one explicit abstention about the excluded draft, the network allowlist, and final Unload/cleanup. This mode is reused against final Preview and Production; it does not repeat the six-case qualification.
 
@@ -1678,7 +1710,7 @@ npx tsx scripts/verify-model-delivery.ts --transport-only --output=test-results/
 npx cross-env REAL_MODEL_BASE_URL="https://$CANDIDATE_URL" npm run smoke:jets-ghost
 ```
 
-This is a proportional two-case Preview smoke, not another full acceptance or 2 GB hash run. The transport-only check proves the pinned initial URL and durable redirect/origin/privacy policy; Task 13 Step 1 remains the byte-integrity proof. The smoke must prove one supported grounded answer with a valid citation and inspectable source, one unsupported abstention, privacy allowlist compliance, cleanup, canonical/metadata/navigation behavior, exact redirect assertions, and Preview `noindex`/sitemap exclusion. If it fails, do not promote; the public production route remains on the earlier hard-noindex deployment. Terminal output must contain no question, response, history, selected source text, complete signed URL or value, signature, policy, transient CDN path, sensitive header, or prompt-bearing request record.
+This is a proportional two-case Preview smoke, not another full acceptance or 2 GB hash run. The transport-only check proves the pinned initial URL and durable redirect/origin/privacy policy; Task 13 Step 1 remains the byte-integrity proof. The smoke must prove one supported grounded answer with a valid citation and inspectable source, one unsupported abstention, privacy allowlist compliance, cleanup, canonical/metadata/navigation behavior, exact redirect assertions, exact `Cache-Control: public, max-age=31536000, immutable` on one versioned LiteRT `.wasm` response, and Preview `noindex`/sitemap exclusion. If it fails, do not promote; the public production route remains on the earlier hard-noindex deployment. Terminal output must contain no question, response, history, selected source text, complete signed URL or value, signature, policy, transient CDN path, sensitive header, or prompt-bearing request record.
 
 Only after the exact Preview passes may that exact commit be fast-forwarded/promoted to Production. If integration creates a merge/squash/rebase SHA, stop and repeat exact-Preview binding and the two-case Preview smoke for the new SHA. Repeat the one-Mac six-case qualification only if integration changed runtime code, corpus/index generation or content, context configuration, model/library pins, or lockfile resolution.
 
@@ -1706,7 +1738,7 @@ npx tsx scripts/verify-model-delivery.ts --transport-only --output=test-results/
 npx cross-env REAL_MODEL_BASE_URL=https://jetsanchez.com npm run smoke:jets-ghost
 ```
 
-Production readback must prove `/chatbot` has no `noindex`, owns canonical/sitemap/SoftwareApplication metadata, and serves the exact approved SHA; exact `/tools/chatbot` `308`; Ghost present and Tools absent from primary navigation; dormant `/tools` excluded; activation/model request ordering; trusted-origin/private model delivery; one supported grounded answer with a valid citation and inspectable source; one unsupported abstention; privacy allowlist compliance; and cleanup. This transport/smoke readback does not claim an independent hash of the LiteRT-executed browser copy, reopen retrieval comparison, repeat the six-case Mac qualification, or repeat the full artifact download. If it fails, roll back immediately to the prior noindexed deployment and do not tag. Keep sanitized deployment/model-delivery files local and uncommitted; they are operational readback, not release assets or a certification archive.
+Production readback must prove `/chatbot` has no `noindex`, owns canonical/sitemap/SoftwareApplication metadata, and serves the exact approved SHA; exact `/tools/chatbot` `308`; Ghost present and Tools absent from primary navigation; dormant `/tools` excluded; the exact immutable cache header on one versioned LiteRT `.wasm` response; activation/model request ordering; trusted-origin/private model delivery; one supported grounded answer with a valid citation and inspectable source; one unsupported abstention; privacy allowlist compliance; and cleanup. This transport/smoke readback does not claim an independent hash of the LiteRT-executed browser copy, reopen retrieval comparison, repeat the six-case Mac qualification, or repeat the full artifact download. If it fails, roll back immediately to the prior noindexed deployment and do not tag. Keep sanitized deployment/model-delivery files local and uncommitted; they are operational readback, not release assets or a certification archive.
 
 - [ ] **Step 9: Tag the verified production commit normally**
 
