@@ -892,7 +892,7 @@ A future model implements `LocalModelRuntime` and receives its own qualification
 
 ### Tool use and multimodality
 
-The Web SDK currently lacks these capabilities. They remain outside this design. A future LiteRT-LM API addition requires a new spec because it changes privacy, permission, capability, and interaction boundaries.
+Tool use and multimodal input remain outside this product release regardless of partial SDK support. Adding either requires a new spec because it changes privacy, permission, capability, and interaction boundaries.
 
 ## Risks and mitigations
 
