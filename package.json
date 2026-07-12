@@ -11,7 +11,8 @@
     "preview": "astro preview",
     "astro": "astro",
     "upload-image": "tsx scripts/upload-image.ts",
-    "validate-images": "tsx scripts/validate-images.ts"
+    "validate-images": "tsx scripts/validate-images.ts",
+    "test:jets-ghost-design": "tsx --test tests/jets-ghost-experience.test.ts"
   },
   "dependencies": {
     "@astrojs/mdx": "^4.3.13",

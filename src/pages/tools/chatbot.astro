@@ -1,42 +1,31 @@
 ---
 import BaseLayout from '../../components/layout/BaseLayout.astro';
-import PageWrapper from '../../components/layout/PageWrapper.astro';
-import Container from '../../components/ui/Container.astro';
-import Card from '../../components/ui/Card.astro';
-import Button from '../../components/ui/Button.astro';
+import JetsGhostExperience from '../../features/jets-ghost/JetsGhostExperience';
 
-const title = "Jet's Ghost — Coming Soon";
-const description = "Jet's Ghost is being rebuilt. Check back soon.";
+const title = "Jet's Ghost — Local AI Interface Preview";
+const description = "Preview the full-screen, local-first chat experience planned for Jet's Ghost 2.1.";
 ---
 
-<BaseLayout title={title} description={description} noindex={true}>
-  <PageWrapper spacing="default">
-    <Container size="md">
-      <div class="mb-xl text-center">
-        <h1 class="text-5xl font-bold leading-tight mb-s text-text-primary">
-          Jet's Ghost
-        </h1>
-        <p class="text-xl text-text-tertiary">
-          AI chat assistant grounded in this site's content.
-        </p>
-      </div>
-
-      <Card>
-        <div class="text-center py-l">
-          <p class="text-text-secondary mb-m">
-            Jet's Ghost is being rebuilt from the ground up as part of the site's v2 platform migration. The new version will have the same content-grounded, citation-aware responses — rebuilt on a cleaner foundation.
-          </p>
-          <p class="text-accent-text text-sm">
-            Check back soon.
-          </p>
-        </div>
-      </Card>
-
-      <div class="mt-m text-center">
-        <a href="/tools" class="inline-flex items-center gap-1 transition-colors text-text-tertiary hover:text-text-secondary no-underline hover:underline">
-          <span class="text-accent-base">←</span> Back to Tools
-        </a>
-      </div>
-    </Container>
-  </PageWrapper>
+<BaseLayout title={title} description={description} noindex={true} immersive>
+  <JetsGhostExperience client:load />
 </BaseLayout>
+
+<style is:global>
+  .jets-ghost-header {
+    padding-top: max(var(--space-m), env(safe-area-inset-top));
+  }
+
+  .jets-ghost-composer {
+    padding-bottom: calc(var(--space-2xl) + var(--space-xl) + env(safe-area-inset-bottom));
+  }
+
+  @media (min-width: 769px) {
+    .jets-ghost-header {
+      padding-top: calc(var(--space-2xl) + var(--space-xl));
+    }
+
+    .jets-ghost-composer {
+      padding-bottom: var(--space-m);
+    }
+  }
+</style>

@@ -7,9 +7,9 @@ import Card from '../../components/ui/Card.astro';
 const tools = [
   {
     name: "Jet's Ghost",
-    description: 'AI chat assistant grounded in site content. Ask questions about blog posts, research, and projects.',
+    description: 'Preview a private, full-screen AI chat grounded in Jet\'s published writing, research, and projects.',
     href: '/tools/chatbot',
-    status: 'coming-soon' as const,
+    status: 'preview' as const,
   },
 ];
 ---
@@ -37,14 +37,17 @@ const tools = [
                 <h2 class="text-xl font-semibold text-text-primary group-hover:text-brand-base transition-colors">
                   {tool.name}
                 </h2>
-                {tool.status === 'coming-soon' && (
+                {tool.status === 'preview' && (
                   <span class="flex-shrink-0 text-xs font-medium px-xs py-3xs rounded-full bg-accent-subtle text-accent-text border border-accent-base/30">
-                    Coming soon
+                    2.1 preview
                   </span>
                 )}
               </div>
               <p class="text-text-secondary">
                 {tool.description}
+              </p>
+              <p class="mt-s text-sm font-medium text-brand-text">
+                Open full-screen experience <span aria-hidden="true">→</span>
               </p>
             </Card>
           </a>
