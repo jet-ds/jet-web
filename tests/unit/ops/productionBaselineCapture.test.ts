@@ -144,7 +144,11 @@ function makeBrowser(phase?: FailurePhase) {
   };
 }
 
-function dependenciesFor(fixture: Fixture, phase?: FailurePhase): CaptureDependencies {
+function dependenciesFor(
+  fixture: Fixture,
+  phase?: FailurePhase,
+  deploymentTarget: 'production' | null = null,
+): CaptureDependencies {
   const screenshotDirectory = resolve(fixture.candidate, 'screenshots');
   const candidateDeployment = resolve(fixture.candidate, 'deployment.json');
   const candidateManifest = resolve(fixture.candidate, 'manifest.json');
@@ -196,9 +200,12 @@ function dependenciesFor(fixture: Fixture, phase?: FailurePhase): CaptureDepende
     verifyDeployment() {
       return {
         id: 'dpl_approved123',
+        url: 'jet-preview.vercel.app',
         readyState: 'READY',
-        target: 'production',
-        gitSource: { sha: expectedCommit },
+        target: deploymentTarget,
+        createdAt: 1_783_917_600_000,
+        gitSource: { type: 'github', ref: 'codex/v1-modernization', sha: expectedCommit },
+        project: { id: 'prj_approved123', name: 'jet-web' },
       };
     },
     hash() {
@@ -218,6 +225,42 @@ afterEach(() => {
 });
 
 describe('production baseline capture safety', () => {
+  it('accepts ready exact-SHA preview evidence for candidate comparison', async () => {
+    const fixture = makeFixture();
+
+    await captureProductionBaseline(captureArguments(fixture), dependenciesFor(fixture));
+
+    const manifest = JSON.parse(readFileSync(resolve(fixture.candidate, 'manifest.json'), 'utf8'));
+    expect(manifest.deployment).toEqual({
+      id: 'dpl_approved123',
+      readyState: 'READY',
+      target: null,
+      gitSha: expectedCommit,
+    });
+  });
+
+  it('rejects production deployment evidence for candidate comparison', async () => {
+    const fixture = makeFixture();
+
+    await expect(captureProductionBaseline(
+      captureArguments(fixture),
+      dependenciesFor(fixture, undefined, 'production'),
+    )).rejects.toThrow('DEPLOYMENT_NOT_READY_PREVIEW');
+    expect(existsSync(fixture.candidate)).toBe(false);
+  });
+
+  it('rejects preview deployment evidence for production baseline capture', async () => {
+    const fixture = makeFixture();
+    const output = resolve(fixture.root, 'baseline-output');
+    const outputFixture = { ...fixture, candidate: output };
+
+    await expect(captureProductionBaseline(
+      baselineCaptureArguments(fixture, output),
+      dependenciesFor(outputFixture),
+    )).rejects.toThrow('DEPLOYMENT_NOT_READY_PRODUCTION');
+    expect(existsSync(output)).toBe(false);
+  });
+
   it.each(['output-ancestor', 'baseline-path'] as const)(
     'rejects prospective output contained through a symlinked %s',
     async (variant) => {
@@ -313,7 +356,7 @@ describe('production baseline capture safety', () => {
     await expect(
       captureProductionBaseline(
         baselineCaptureArguments(fixture, output),
-        dependenciesFor(outputFixture, 'manifest-write'),
+        dependenciesFor(outputFixture, 'manifest-write', 'production'),
       ),
     ).rejects.toThrow('INJECTED_MANIFEST_WRITE_FAILURE');
     expect(readFileSync(sentinel, 'utf8')).toBe('preserve me');

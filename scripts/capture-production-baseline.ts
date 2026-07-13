@@ -188,17 +188,21 @@ function verifySanitizedDeployment(path: string): JsonObject {
   return deployment;
 }
 
-function assertDeployment(deployment: JsonObject, expectedCommit: string): {
+function assertDeployment(
+  deployment: JsonObject,
+  expectedCommit: string,
+  expectedTarget: 'production' | null,
+): {
   id: string;
   readyState: string;
-  target: string;
+  target: 'production' | null;
   gitSha: string;
 } {
   const gitSource = isObject(deployment.gitSource) ? deployment.gitSource : undefined;
   if (
     typeof deployment.id !== 'string'
     || typeof deployment.readyState !== 'string'
-    || typeof deployment.target !== 'string'
+    || (deployment.target !== null && typeof deployment.target !== 'string')
     || !gitSource
     || typeof gitSource.sha !== 'string'
   ) {
@@ -209,15 +213,16 @@ function assertDeployment(deployment: JsonObject, expectedCommit: string): {
       `DEPLOYMENT_SHA_MISMATCH actual=${gitSource.sha} readyState=${deployment.readyState} target=${deployment.target}`,
     );
   }
-  if (deployment.readyState !== 'READY' || deployment.target !== 'production') {
+  if (deployment.readyState !== 'READY' || deployment.target !== expectedTarget) {
+    const targetLabel = expectedTarget === null ? 'PREVIEW' : 'PRODUCTION';
     throw new Error(
-      `DEPLOYMENT_NOT_READY_PRODUCTION actual=${gitSource.sha} readyState=${deployment.readyState} target=${deployment.target}`,
+      `DEPLOYMENT_NOT_READY_${targetLabel} actual=${gitSource.sha} readyState=${deployment.readyState} target=${deployment.target}`,
     );
   }
   return {
     id: deployment.id,
     readyState: deployment.readyState,
-    target: deployment.target,
+    target: expectedTarget,
     gitSha: gitSource.sha,
   };
 }
@@ -367,7 +372,11 @@ export async function captureProductionBaseline(
   }
 
   try {
-    const deployment = assertDeployment(dependencies.verifyDeployment(deploymentPath), expectedCommit);
+    const deployment = assertDeployment(
+      dependencies.verifyDeployment(deploymentPath),
+      expectedCommit,
+      compareTo ? null : 'production',
+    );
     dependencies.fileSystem.mkdirSync(screenshotDirectory, { recursive: true });
     if (compareTo) dependencies.fileSystem.copyFileSync(deploymentPath, candidateDeploymentPath);
     const records: CaptureRecord[] = [];
