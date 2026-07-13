@@ -301,18 +301,50 @@ export async function verifyProductionContainment(
     fail('CHAT_API_TERMINAL_REDIRECT_PRESENT');
   }
 
-  const chatbotResponse = await dependencies.fetch(
+  const chatbotSlashlessResponse = await dependencies.fetch(
     new URL('/chatbot', `${options.origin}/`).toString(),
     { method: 'GET', redirect: 'manual', cache: 'no-store' },
   );
-  if (chatbotResponse.status !== 308) fail('CHATBOT_REDIRECT_STATUS_NOT_308');
-  const redirectDestination = resolveRedirect(
+  if (chatbotSlashlessResponse.status !== 308) fail('CHATBOT_SLASHLESS_STATUS_NOT_308');
+  const chatbotSlashlessDestination = resolveRedirect(
     options.origin,
-    chatbotResponse.headers.get('location'),
-    'CHATBOT_REDIRECT_DESTINATION_MISMATCH',
+    chatbotSlashlessResponse.headers.get('location'),
+    'CHATBOT_SLASHLESS_DESTINATION_MISMATCH',
   );
-  const expectedDestination = new URL('/tools/chatbot/', `${options.origin}/`).toString();
-  if (redirectDestination !== expectedDestination) fail('CHATBOT_REDIRECT_DESTINATION_MISMATCH');
+  const expectedChatbotSlashlessDestination = new URL(
+    '/chatbot/',
+    `${options.origin}/`,
+  ).toString();
+  if (chatbotSlashlessDestination !== expectedChatbotSlashlessDestination) {
+    fail('CHATBOT_SLASHLESS_DESTINATION_MISMATCH');
+  }
+
+  const chatbotSlashfulResponse = await dependencies.fetch(
+    chatbotSlashlessDestination,
+    { method: 'GET', redirect: 'manual', cache: 'no-store' },
+  );
+  if (chatbotSlashfulResponse.status !== 308) fail('CHATBOT_SLASHFUL_STATUS_NOT_308');
+  const chatbotSlashfulDestination = resolveRedirect(
+    options.origin,
+    chatbotSlashfulResponse.headers.get('location'),
+    'CHATBOT_SLASHFUL_DESTINATION_MISMATCH',
+  );
+  const expectedChatbotSlashfulDestination = new URL(
+    '/tools/chatbot/',
+    `${options.origin}/`,
+  ).toString();
+  if (chatbotSlashfulDestination !== expectedChatbotSlashfulDestination) {
+    fail('CHATBOT_SLASHFUL_DESTINATION_MISMATCH');
+  }
+
+  const chatbotTerminalResponse = await dependencies.fetch(
+    chatbotSlashfulDestination,
+    { method: 'GET', redirect: 'manual', cache: 'no-store' },
+  );
+  if (chatbotTerminalResponse.status !== 200) fail('CHATBOT_TERMINAL_STATUS_NOT_200');
+  if (chatbotTerminalResponse.headers.get('location') !== null) {
+    fail('CHATBOT_TERMINAL_REDIRECT_PRESENT');
+  }
 
   const timestamp = dependencies.now().getTime();
   if (!Number.isFinite(timestamp)) fail('INVALID_TIME');
@@ -337,7 +369,17 @@ export async function verifyProductionContainment(
         destination: apiRedirectDestination,
       },
       { path: '/api/chat/', status: apiTerminalResponse.status },
-      { path: '/chatbot', status: chatbotResponse.status, destination: redirectDestination },
+      {
+        path: '/chatbot',
+        status: chatbotSlashlessResponse.status,
+        destination: chatbotSlashlessDestination,
+      },
+      {
+        path: '/chatbot/',
+        status: chatbotSlashfulResponse.status,
+        destination: chatbotSlashfulDestination,
+      },
+      { path: '/tools/chatbot/', status: chatbotTerminalResponse.status },
     ],
     blobs: {
       beforeCount: before.length,

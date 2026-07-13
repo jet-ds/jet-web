@@ -2,9 +2,9 @@
 
 **Status:** Final approved interface direction and implementation prototype for 2.1.0
 
-**Canonical production route:** `/chatbot`
+**Canonical production route:** `/chatbot/`
 
-**Current prototype route:** `/tools/chatbot` (to move during integration)
+**Current prototype route:** `/tools/chatbot/` (to move during integration)
 
 This note records the final interaction decisions represented by the prototype. The interface, responsive treatment, animation states, copy, and activation boundaries are approved as the 2.1.0 design direction. Integration into the broader Jet's Ghost architecture and release plan still needs to connect the real local runtime and corpus, reverse the temporary route redirects, and harden the experience with the plan's full test and accessibility matrix. The prototype itself does not load the production model or answer from the production corpus.
 
@@ -14,7 +14,7 @@ Jet's Ghost uses one calm, full-viewport canvas. The navigation dock remains vis
 
 The composer is the visual anchor. Suggested questions disappear once the conversation begins. User turns use a compact surface; assistant responses remain unboxed for readable long-form answers. Sources sit directly beneath the response instead of occupying a permanent panel before they exist.
 
-Jet's Ghost is a first-class site experience rather than a child of Tools. For 2.1.0, `/chatbot` is the canonical route and receives a dedicated Ghost dock item in place of Tools. `/tools/chatbot` permanently redirects to `/chatbot`. The Tools hub may remain dormant for future utilities, but it should not occupy primary navigation until it contains multiple standalone tools.
+Jet's Ghost is a first-class site experience rather than a child of Tools. For 2.1.0, `/chatbot/` is the canonical `200` document and receives a dedicated Ghost dock item in place of Tools. Vercel normalizes `/chatbot` to `/chatbot/` and `/tools/chatbot` to `/tools/chatbot/`; the sole explicit legacy rule permanently redirects `/tools/chatbot/` to `/chatbot/`. The Tools hub may remain dormant for future utilities, but it should not occupy primary navigation until it contains multiple standalone tools.
 
 ## Recommended activation and loading boundaries
 

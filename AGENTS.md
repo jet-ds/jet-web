@@ -130,13 +130,13 @@ Jet's Ghost is a local-first technical showcase and experimental personal assist
 Current core `2.0.0` state:
 
 - The approved interface remains at `/tools/chatbot/`, noindexed and excluded from the sitemap.
-- `/chatbot` is an interim permanent redirect to `/tools/chatbot/`.
+- `/chatbot` is normalized by Vercel to `/chatbot/`; the single explicit interim rule redirects `/chatbot/` to `/tools/chatbot/`, whose noindexed prototype returns `200` without another redirect.
 - The prototype is presentation code only: no production corpus, model engine, or hosted generation endpoint is active.
 - `/api/chat` and the OpenRouter production credential remain removed.
 
 Approved `2.1.0` direction:
 
-- Move the semantic route to `/chatbot/` and redirect slashless and legacy Tools variants directly to it.
+- Move the semantic route to the canonical `200` document at `/chatbot/`; keep platform normalization for slashless variants and one explicit legacy `/tools/chatbot/` redirect to `/chatbot/`.
 - Replace Tools with Ghost in the existing navigation slot; keep `/tools/` dormant, noindexed, and out of primary navigation.
 - Use the pinned Gemma 4 E2B LiteRT-LM browser runtime only. Do not add E4B switching or a hosted fallback.
 - Preserve the explicit boundary: route rendering and compatibility checks do not authorize model/corpus download or GPU allocation. Only “Load Jet's Ghost” may start those operations; prompt assembly begins only when the visitor sends a message.

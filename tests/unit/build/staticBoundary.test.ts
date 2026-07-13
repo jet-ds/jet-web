@@ -52,7 +52,7 @@ describe('static production boundary', () => {
       trailingSlash: true,
       redirects: [
         {
-          source: '/chatbot',
+          source: '/chatbot/',
           destination: '/tools/chatbot/',
           permanent: true,
         },

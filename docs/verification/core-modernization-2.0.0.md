@@ -10,7 +10,7 @@
 - `/about`: exact permanent `308` to `/about/`
 - `/about/`: `200`, index-follow, exact canonical/`og:url` `https://jetsanchez.com/about/`, matching JSON-LD, and exactly one sitemap entry
 - Retired `/blog/the-future-of-ai/` and `/blog/building-with-astro/`: exact `404`, absent from internal links, sitemap, and RSS
-- `/chatbot`: interim core-`2.0.0` permanent redirect to noindexed `/tools/chatbot/` (reversed by Jet's Ghost `2.1.0`)
+- `/chatbot`: platform `308` to `/chatbot/`; `/chatbot/`: explicit permanent `308` to `/tools/chatbot/`; terminal `/tools/chatbot/`: `200`, no `Location`, and `noindex, nofollow` (reversed by Jet's Ghost `2.1.0`)
 - Draft route: absent
 - SSRN action: DOI-backed View action only
 - Default OpenGraph image: deterministic first-frame homepage hero JPEG, exact `1920x1080` metadata and alt text verified

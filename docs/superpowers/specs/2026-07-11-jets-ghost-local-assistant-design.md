@@ -26,9 +26,8 @@ The distinguishing product claim is that generation occurs locally in the visito
 
 The final 2.1.0 interface direction is the committed `JetsGhostExperience` prototype. Integration replaces its timers and canned response with production state, retrieval, streaming, citations, and cleanup; it does not redesign the approved layout, copy, responsive behavior, animations, or color roles.
 
-- `/chatbot/` is the `200` qualification and production document; its canonical URL is `https://jetsanchez.com/chatbot/`.
-- `/chatbot` permanently redirects directly to `/chatbot/` with status `308`.
-- `/tools/chatbot` and `/tools/chatbot/` each permanently redirect directly to `/chatbot/` with status `308`; no source takes an intermediate hop.
+- `/chatbot/` is the `200` qualification and production document; its canonical URL is `https://jetsanchez.com/chatbot/`, and platform trailing-slash normalization permanently redirects `/chatbot` to it with status `308`.
+- Platform trailing-slash normalization permanently redirects `/tools/chatbot` to `/tools/chatbot/` with status `308`; one explicit legacy rule then permanently redirects `/tools/chatbot/` to `/chatbot/` with status `308`. Both Tools variants therefore resolve permanently to the canonical Ghost document through one coherent platform-plus-explicit chain.
 - Jet's Ghost receives a dedicated Ghost dock item in place of Tools; adding another mobile dock item is not allowed.
 - `/tools/` remains directly reachable but dormant, noindexed, out of the sitemap, and absent from primary/no-script/structured navigation until it contains multiple standalone tools. `/tools` normalizes once to `/tools/`, and unrelated routes such as `/toolshed/` are unaffected.
 - `NAV_ITEMS`, primary navigation, structured navigation, no-script navigation, canonical, `og:url`, WebPage and SoftwareApplication IDs/URLs, and sitemap membership use trailing-slash HTML URLs consistently.
@@ -800,7 +799,7 @@ Build integration tests verify:
 - a content change produces a new corpus version and a version-matched index;
 - stale, incomplete, duplicated, or differently configured indexes fail closed.
 
-Route/navigation integration tests verify `/chatbot/` owns exact canonical and Open Graph URL `https://jetsanchez.com/chatbot/`, WebPage and SoftwareApplication IDs/URLs use that slashful base, and Production sitemap membership is exact. The Ghost dock item replaces Tools in interactive, no-script, and structured navigation with href `/chatbot/`; `/tools/` remains dormant and excluded; `/tools` normalizes to it without affecting `/toolshed/`; and production enforces the exact direct redirect matrix for `/chatbot`, `/tools/chatbot`, and `/tools/chatbot/` to `/chatbot/`.
+Route/navigation integration tests verify `/chatbot/` owns exact canonical and Open Graph URL `https://jetsanchez.com/chatbot/`, WebPage and SoftwareApplication IDs/URLs use that slashful base, and Production sitemap membership is exact. The Ghost dock item replaces Tools in interactive, no-script, and structured navigation with href `/chatbot/`; `/tools/` remains dormant and excluded; `/tools` normalizes to it without affecting `/toolshed/`; and production enforces the coherent route matrix: `/chatbot` normalizes to the `200` `/chatbot/` document, `/tools/chatbot` normalizes to `/tools/chatbot/`, and the one explicit legacy rule redirects `/tools/chatbot/` to `/chatbot/`.
 
 ### Real-model qualification
 
@@ -831,7 +830,7 @@ Jet's Ghost is a backward-compatible feature on the `2.0.0` modernized core and 
 
 | Signal | Release requirement |
 | --- | --- |
-| Route and IA | `/chatbot/` returns `200` with canonical `https://jetsanchez.com/chatbot/`; `/chatbot`, `/tools/chatbot`, and `/tools/chatbot/` each return one exact `308` to `/chatbot/`; Ghost href `/chatbot/` replaces Tools in every navigation representation; `/tools/` remains dormant, noindexed, and excluded |
+| Route and IA | `/chatbot/` returns `200` with canonical `https://jetsanchez.com/chatbot/`; platform normalization returns exact `308`s from `/chatbot` to `/chatbot/` and `/tools/chatbot` to `/tools/chatbot/`; the sole explicit legacy rule returns exact `308` from `/tools/chatbot/` to `/chatbot/`; Ghost href `/chatbot/` replaces Tools in every navigation representation; `/tools/` remains dormant, noindexed, and excluded |
 | Activation boundary | Route and compatibility check perform no LiteRT/corpus/index/model/engine work; only explicit Load crosses the boundary |
 | Corpus inclusion | 100% of tracked, published, assistant-enabled chunks; 0 ineligible chunks |
 | Index integrity | Exact corpus/config/MiniSearch/stemmer versions, verified byte hash, one indexed record per eligible chunk ID, and manifest/content agreement on full-corpus payload cost |
@@ -850,7 +849,7 @@ Jet's Ghost is a backward-compatible feature on the `2.0.0` modernized core and 
 
 There is no candidate-comparison gate, aggregate 90% score, or fallback selector. If a hard invariant or representative product requirement fails, `/chatbot/` remains noindexed and absent from the sitemap while that concrete defect is diagnosed in the rank-and-pack, prompt, Gemma, citation, runtime, or UX layer that caused it.
 
-The full six-case product review runs once on the available Mac against the local release candidate. Indexing changes are then qualified on a Git-bound, noindexed Vercel Preview with a two-case smoke: one supported grounded answer and one unsupported abstention, plus privacy and cleanup. Preview must prove `/chatbot/` remains `noindex` and absent from the sitemap. Only the exact previewed commit may be promoted. Production receives the same proportional two-case smoke plus route, SEO, network, citation/source, and lifecycle readback; it must prove `index, follow` and exactly one `/chatbot/` sitemap membership. Both final environments also verify `/about/` metadata and `/about` redirect, both retired blog `404`s and their sitemap/RSS absence, robots and sitemap XML endpoints, exact canonical/OG/JSON-LD agreement, and every direct redirect target. A failure keeps production on the prior noindexed state or triggers immediate rollback and blocks tagging. Neither deployment smoke repeats the full acceptance set or reopens retrieval evaluation.
+The full six-case product review runs once on the available Mac against the local release candidate. Indexing changes are then qualified on a Git-bound, noindexed Vercel Preview with a two-case smoke: one supported grounded answer and one unsupported abstention, plus privacy and cleanup. Preview must prove `/chatbot/` remains `noindex` and absent from the sitemap. Only the exact previewed commit may be promoted. Production receives the same proportional two-case smoke plus route, SEO, network, citation/source, and lifecycle readback; it must prove `index, follow` and exactly one `/chatbot/` sitemap membership. Both final environments also verify `/about/` metadata and `/about` redirect, both retired blog `404`s and their sitemap/RSS absence, robots and sitemap XML endpoints, exact canonical/OG/JSON-LD agreement, and every platform or explicit route-chain target. A failure keeps production on the prior noindexed state or triggers immediate rollback and blocks tagging. Neither deployment smoke repeats the full acceptance set or reopens retrieval evaluation.
 
 Jet's Ghost is ready for indexed release when:
 
@@ -859,7 +858,7 @@ Jet's Ghost is ready for indexed release when:
 - only Gemma 4 E2B is exposed;
 - the approved `d406ed46` interface is integrated at semantic route `/chatbot` with canonical URL `https://jetsanchez.com/chatbot/` without redesign;
 - Ghost replaces Tools in the dock, structured navigation, and no-script fallback without adding a mobile item;
-- `/chatbot`, `/tools/chatbot`, and `/tools/chatbot/` return exact direct `308`s to `/chatbot/`; dormant `/tools/` remains noindexed and out of navigation and sitemap while `/tools` normalizes once and `/toolshed/` remains unaffected;
+- `/chatbot` returns exact platform `308` to the canonical `200` `/chatbot/` document; `/tools/chatbot` returns exact platform `308` to `/tools/chatbot/`, whose sole explicit legacy rule returns exact `308` to `/chatbot/`; dormant `/tools/` remains noindexed and out of navigation and sitemap while `/tools` normalizes once and `/toolshed/` remains unaffected;
 - activation is explicit and communicates the approximate 2 GB download;
 - route entry and compatibility checking initiate no LiteRT import, corpus/index/model request, engine creation, or GPU allocation;
 - LiteRT's packaged runtime assets are served only from the pinned versioned same-origin path, loaded only after consent, and never fetched from the SDK's default CDN;

@@ -14,7 +14,7 @@
 
 - Begin only after the core modernization completion gate passes in production.
 - Integrate the approved interface prototype; do not redesign its layout, copy, responsive behavior, animation language, or color roles.
-- Serve the qualification/release document at `/chatbot/` with canonical URL `https://jetsanchez.com/chatbot/`; require `/chatbot`, `/tools/chatbot`, and `/tools/chatbot/` each to return one direct permanent `308` to `/chatbot/`.
+- Serve the qualification/release document at `/chatbot/` with canonical URL `https://jetsanchez.com/chatbot/`; require platform `308` normalization from `/chatbot` to `/chatbot/` and from `/tools/chatbot` to `/tools/chatbot/`, plus one explicit permanent `308` from `/tools/chatbot/` to `/chatbot/`.
 - Replace Tools with one dedicated Ghost item in dock, structured, and no-script navigation; do not add a mobile item.
 - Keep `/tools/` dormant, noindexed, out of the sitemap, and out of primary navigation until it contains multiple standalone tools. `/tools` normalizes once to `/tools/`; unrelated `/toolshed/` remains unaffected.
 - Keep the custom React interface; do not add `assistant-ui` in 2.1.0.
@@ -1235,7 +1235,7 @@ git commit -m "feat(chatbot): connect the approved local experience"
 - Modify: `README.md`
 
 **Interfaces:**
-- Produces: noindexed qualification shell at `/chatbot/` with canonical `https://jetsanchez.com/chatbot/`, the exact direct redirect matrix from all three legacy/slashless inputs, one Ghost navigation item replacing Tools, dormant `/tools/`, and accurate WebPage/SoftwareApplication metadata.
+- Produces: noindexed qualification shell at `/chatbot/` with canonical `https://jetsanchez.com/chatbot/`, the exact platform-plus-explicit route matrix for semantic and legacy variants, one Ghost navigation item replacing Tools, dormant `/tools/`, and accurate WebPage/SoftwareApplication metadata.
 - Consumes: approved `JetsGhostExperience`, canonical `NAV_ITEMS`, SoftwareApplication JSON-LD.
 
 - [ ] **Step 1: Move the approved experience to canonical `/chatbot/`**
@@ -1269,11 +1269,6 @@ Delete `src/pages/tools/chatbot.astro`. Reverse only the core-2.0 redirect while
   ],
   "redirects": [
     {
-      "source": "/tools/chatbot",
-      "destination": "/chatbot/",
-      "permanent": true
-    },
-    {
       "source": "/tools/chatbot/",
       "destination": "/chatbot/",
       "permanent": true
@@ -1282,9 +1277,9 @@ Delete `src/pages/tools/chatbot.astro`. Reverse only the core-2.0 redirect while
 }
 ```
 
-Do not retain a `/chatbot -> /tools/chatbot/` rule. Vercel's preserved trailing-slash normalization owns `/chatbot === 308` with exact `Location: /chatbot/`; the two explicit legacy rules each return exact `308` with the same direct location. Production/deployment tests must assert all three independently and must require the exact immutable cache header on `/assistant/runtime/litert-lm/0.14.0/litertlm_wasm_internal.wasm`; routine `astro preview` tests do not pretend to execute Vercel routing or headers.
+Do not retain a `/chatbot/ -> /tools/chatbot/` rule. Vercel's preserved trailing-slash normalization owns `/chatbot === 308` with exact `Location: /chatbot/`, and `/chatbot/` is the terminal `200` document. The platform also owns `/tools/chatbot === 308` with exact `Location: /tools/chatbot/`; the sole explicit legacy rule owns `/tools/chatbot/ === 308` with exact `Location: /chatbot/`. Production/deployment tests must assert all four rows independently and must require the exact immutable cache header on `/assistant/runtime/litert-lm/0.14.0/litertlm_wasm_internal.wasm`; routine `astro preview` tests do not pretend to execute Vercel routing or headers.
 
-Before changing the implementation, reverse the existing containment/deployment test expectations so they fail against the core-2.0 redirect. Update `verify-production-containment.ts` to retain the removed-API assertion that no handler or build artifact exists: slashless `POST /api/chat` returns exact `308` with resolved destination `https://jetsanchez.com/api/chat/`, followed by terminal `POST /api/chat/ === 404` with no `Location`. Continue asserting empty legacy Blob state, revoked/absent credentials, and deployment SHA while requiring `/chatbot`, `/tools/chatbot`, and `/tools/chatbot/` each to return exact `308` with resolved destination `https://jetsanchez.com/chatbot/`. Apply the same exact single-hop status/location matrix in `core-production.spec.ts`.
+Before changing the implementation, reverse the existing containment/deployment test expectations so they fail against the core-2.0 redirect. Update `verify-production-containment.ts` to retain the removed-API assertion that no handler or build artifact exists: slashless `POST /api/chat` returns exact `308` with resolved destination `https://jetsanchez.com/api/chat/`, followed by terminal `POST /api/chat/ === 404` with no `Location`. Continue asserting empty legacy Blob state, revoked/absent credentials, and deployment SHA while requiring the exact Ghost route matrix: `/chatbot === 308` to `/chatbot/`; terminal `/chatbot/ === 200` with no `Location`; `/tools/chatbot === 308` to `/tools/chatbot/`; and `/tools/chatbot/ === 308` to `/chatbot/`. Apply the same platform-plus-explicit status/location matrix in `core-production.spec.ts`.
 
 - [ ] **Step 3: Replace Tools with Ghost in canonical navigation**
 
@@ -1649,7 +1644,7 @@ const noindex = process.env.VERCEL_ENV !== 'production';
 
 Pass that value to `BaseLayout`. Use the same target guard in the sitemap filter: exact `/tools/` and descendants are always excluded; canonical `/chatbot/` remains excluded outside Production and enters the Production sitemap exactly once; unrelated `/toolshed/`-style routes remain unaffected. Update README from qualification to an available experimental first-class experience and include the measured support statement. Do not generalize beyond tested devices. Update the route test for the target guard and sitemap boundary. Make the deployment suite require `EXPECTED_JETS_GHOST_NOINDEX=1` for final Preview and `0` for Production, failing if the variable is absent, the meta-robots state disagrees, or exact `/chatbot/` sitemap membership is not the inverse.
 
-The deployment suite retains the core assertions and adds the complete route/SEO matrix: `/chatbot/ === 200`; `/chatbot === 308` with `Location: /chatbot/`; `/tools/chatbot === 308` with `Location: /chatbot/`; `/tools/chatbot/ === 308` with `Location: /chatbot/`; `/tools === 308` with `Location: /tools/`; `/tools/` is `noindex` and absent from sitemap/navigation; `/toolshed/` is not captured by a Tools rule. It also requires exact canonical/`og:url`/WebPage/SoftwareApplication trailing-slash agreement, Ghost href `/chatbot/` in primary/structured/no-script navigation, `/about` and `/about/` correctness, both retired canonical `404`s and their sitemap/RSS absence, and extension-correct `/robots.txt`, `/rss.xml`, and sitemap XML endpoints. Preview requires chatbot `noindex` plus zero sitemap membership; Production requires index-follow plus exactly one membership.
+The deployment suite retains the core assertions and adds the complete route/SEO matrix: terminal `/chatbot/ === 200` with no `Location`; `/chatbot === 308` with `Location: /chatbot/`; `/tools/chatbot === 308` with `Location: /tools/chatbot/`; `/tools/chatbot/ === 308` with `Location: /chatbot/`; `/tools === 308` with `Location: /tools/`; `/tools/` is `noindex` and absent from sitemap/navigation; `/toolshed/` is not captured by a Tools rule. It also requires exact canonical/`og:url`/WebPage/SoftwareApplication trailing-slash agreement, Ghost href `/chatbot/` in primary/structured/no-script navigation, `/about` and `/about/` correctness, both retired canonical `404`s and their sitemap/RSS absence, and extension-correct `/robots.txt`, `/rss.xml`, and sitemap XML endpoints. Preview requires chatbot `noindex` plus zero sitemap membership; Production requires index-follow plus exactly one membership.
 
 - [ ] **Step 4: Bump the minor version**
 
@@ -1721,7 +1716,7 @@ npx tsx scripts/verify-model-delivery.ts --transport-only --output=test-results/
 npx cross-env REAL_MODEL_BASE_URL="https://$CANDIDATE_URL" npm run smoke:jets-ghost
 ```
 
-This is a proportional two-case Preview smoke, not another full acceptance or 2 GB hash run. The transport-only check proves the pinned initial URL and durable redirect/origin/privacy policy; Task 13 Step 1 remains the byte-integrity proof. The smoke must prove one supported grounded answer with a valid citation and inspectable source, one unsupported abstention, privacy allowlist compliance, cleanup, exact canonical/OG/JSON-LD/navigation behavior, the complete direct redirect matrix, About correctness, both retired `404`s, robots/sitemap/RSS behavior, exact `Cache-Control: public, max-age=31536000, immutable` on one versioned LiteRT `.wasm` response, and Preview `noindex` with zero `/chatbot/` sitemap memberships. If it fails, do not promote; the public production route remains on the earlier hard-noindex deployment. Terminal output must contain no question, response, history, selected source text, complete signed URL or value, signature, policy, transient CDN path, sensitive header, or prompt-bearing request record.
+This is a proportional two-case Preview smoke, not another full acceptance or 2 GB hash run. The transport-only check proves the pinned initial URL and durable redirect/origin/privacy policy; Task 13 Step 1 remains the byte-integrity proof. The smoke must prove one supported grounded answer with a valid citation and inspectable source, one unsupported abstention, privacy allowlist compliance, cleanup, exact canonical/OG/JSON-LD/navigation behavior, the complete platform-plus-explicit route matrix, About correctness, both retired `404`s, robots/sitemap/RSS behavior, exact `Cache-Control: public, max-age=31536000, immutable` on one versioned LiteRT `.wasm` response, and Preview `noindex` with zero `/chatbot/` sitemap memberships. If it fails, do not promote; the public production route remains on the earlier hard-noindex deployment. Terminal output must contain no question, response, history, selected source text, complete signed URL or value, signature, policy, transient CDN path, sensitive header, or prompt-bearing request record.
 
 Only after the exact Preview passes may that exact commit be fast-forwarded/promoted to Production. If integration creates a merge/squash/rebase SHA, stop and repeat exact-Preview binding and the two-case Preview smoke for the new SHA. Repeat the one-Mac six-case qualification only if integration changed runtime code, corpus/index generation or content, context configuration, model/library pins, or lockfile resolution.
 
@@ -1749,7 +1744,7 @@ npx tsx scripts/verify-model-delivery.ts --transport-only --output=test-results/
 npx cross-env REAL_MODEL_BASE_URL=https://jetsanchez.com npm run smoke:jets-ghost
 ```
 
-Production readback must prove `/chatbot/` has no `noindex`, owns exact canonical/OG/WebPage/SoftwareApplication identity and exactly one sitemap membership, and serves the exact approved SHA; the three exact direct chatbot `308`s; Ghost href `/chatbot/` present and Tools absent from every navigation representation; dormant `/tools/` noindexed and excluded; About and both retired-route assertions; extension-correct robots/RSS/sitemap endpoints; the exact immutable cache header on one versioned LiteRT `.wasm` response; activation/model request ordering; trusted-origin/private model delivery; one supported grounded answer with a valid citation and inspectable source; one unsupported abstention; privacy allowlist compliance; and cleanup. This transport/smoke readback does not claim an independent hash of the LiteRT-executed browser copy, reopen retrieval comparison, repeat the six-case Mac qualification, or repeat the full artifact download. If it fails, keep production on the prior noindexed state or roll back immediately and do not tag. Keep sanitized deployment/model-delivery files local and uncommitted; they are operational readback, not release assets or a certification archive.
+Production readback must prove `/chatbot/` has no `noindex`, owns exact canonical/OG/WebPage/SoftwareApplication identity and exactly one sitemap membership, and serves the exact approved SHA; the exact platform-plus-explicit chatbot route matrix; Ghost href `/chatbot/` present and Tools absent from every navigation representation; dormant `/tools/` noindexed and excluded; About and both retired-route assertions; extension-correct robots/RSS/sitemap endpoints; the exact immutable cache header on one versioned LiteRT `.wasm` response; activation/model request ordering; trusted-origin/private model delivery; one supported grounded answer with a valid citation and inspectable source; one unsupported abstention; privacy allowlist compliance; and cleanup. This transport/smoke readback does not claim an independent hash of the LiteRT-executed browser copy, reopen retrieval comparison, repeat the six-case Mac qualification, or repeat the full artifact download. If it fails, keep production on the prior noindexed state or roll back immediately and do not tag. Keep sanitized deployment/model-delivery files local and uncommitted; they are operational readback, not release assets or a certification archive.
 
 - [ ] **Step 9: Record the deferred Search Console follow-up**
 
@@ -1782,7 +1777,7 @@ Expected: the local annotated tag and remote `v2.1.0` tag point to the exact Pro
 ```text
 [ ] Only Gemma 4 E2B is exposed
 [ ] Approved d406ed46 interface is integrated without redesign at semantic /chatbot with canonical https://jetsanchez.com/chatbot/
-[ ] /chatbot, /tools/chatbot, and /tools/chatbot/ return direct exact 308s to /chatbot/; Ghost href /chatbot/ replaces Tools in every navigation representation
+[ ] /chatbot returns platform 308 to terminal /chatbot/ 200; /tools/chatbot returns platform 308 to /tools/chatbot/, whose sole explicit legacy rule returns 308 to /chatbot/; Ghost href /chatbot/ replaces Tools in every navigation representation
 [ ] /tools normalizes once to dormant noindexed /tools/; /tools/ is absent from sitemap/navigation and /toolshed/ is unaffected
 [ ] Route entry and compatibility checking perform no LiteRT, corpus, index, model, engine, or prompt work
 [ ] Qualification independently downloads exactly 2,008,432,640 model bytes and hashes those bytes to the pinned SHA-256

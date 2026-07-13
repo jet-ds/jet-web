@@ -12,7 +12,17 @@ test('production preserves core containment and canonical redirects', async ({ r
 
   const chatbot = await request.get('/chatbot', { maxRedirects: 0 });
   expect(chatbot.status()).toBe(308);
-  expect(chatbot.headers().location).toBe('/tools/chatbot/');
+  expect(chatbot.headers().location).toBe('/chatbot/');
+
+  const chatbotRedirect = await request.get('/chatbot/', { maxRedirects: 0 });
+  expect(chatbotRedirect.status()).toBe(308);
+  expect(chatbotRedirect.headers().location).toBe('/tools/chatbot/');
+
+  const chatbotTerminal = await request.get('/tools/chatbot/', { maxRedirects: 0 });
+  expect(chatbotTerminal.status()).toBe(200);
+  expect(chatbotTerminal.headers().location).toBeUndefined();
+  expect(await chatbotTerminal.text())
+    .toContain('<meta name="robots" content="noindex, nofollow">');
 
   const about = await request.get('/about', { maxRedirects: 0 });
   expect(about.status()).toBe(308);
