@@ -121,6 +121,7 @@ describe('LiquidGlassDock', () => {
       expect(dock).not.toHaveAttribute('aria-hidden');
     });
 
+    setScrollY(0);
     viewport.isMobile = true;
     rerender(<LiquidGlassDock currentPath="/blog/post" />);
 
@@ -130,5 +131,20 @@ describe('LiquidGlassDock', () => {
       expect(dock).not.toHaveAttribute('inert');
       expect(dock).not.toHaveAttribute('aria-hidden');
     });
+  });
+
+  it('discovers a mobile page already scrolled before effects attach', async () => {
+    setScrollY(160);
+
+    render(<LiquidGlassDock currentPath="/blog/post" />);
+
+    const disclosure = await screen.findByRole('button', { name: 'Open navigation' });
+    const dock = document.querySelector('#site-navigation-dock');
+
+    expect(disclosure).toHaveAttribute('aria-expanded', 'false');
+    expect(disclosure).toHaveAttribute('aria-controls', 'site-navigation-dock');
+    expect(dock).toHaveAttribute('inert');
+    expect(dock).toHaveAttribute('aria-hidden', 'true');
+    expect(sessionStorage.getItem('dockScrolled')).toBe('true');
   });
 });

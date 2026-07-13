@@ -78,6 +78,7 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
     };
 
     window.addEventListener('scroll', handleFirstScroll, { passive: true });
+    handleFirstScroll();
     return () => window.removeEventListener('scroll', handleFirstScroll);
   }, [isMobile, hasScrolledOnPage, buttonDiscoveredInSession]);
 
