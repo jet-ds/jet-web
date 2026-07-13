@@ -16,6 +16,7 @@ import type { BrowserContextOptions } from '@playwright/test';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   captureProductionBaseline,
+  routePreviewRequest,
   type CaptureDependencies,
 } from '../../../scripts/capture-production-baseline';
 
@@ -265,6 +266,25 @@ afterEach(() => {
 });
 
 describe('production baseline capture safety', () => {
+  it('redacts request details when preview routing fails', async () => {
+    const privateRequestDetail = 'private-cookie-value';
+    const failingRoute = {
+      request: () => ({
+        url: () => 'https://preview.example/asset.js',
+        headers: () => ({ cookie: privateRequestDetail }),
+      }),
+      fetch: async () => {
+        throw new Error(`browser request failed cookie=${privateRequestDetail}`);
+      },
+      fulfill: async () => {},
+      continue: async () => {},
+    } as Parameters<typeof routePreviewRequest>[0];
+
+    await expect(
+      routePreviewRequest(failingRoute, new Set(['https://preview.example'])),
+    ).rejects.toThrow(/^PREVIEW_ROUTE_FAILED$/u);
+  });
+
   it('installs preview routing without context-wide headers', async () => {
     const fixture = makeFixture();
     const previewState: BrowserState = {

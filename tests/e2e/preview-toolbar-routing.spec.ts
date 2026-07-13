@@ -1,11 +1,8 @@
-// @vitest-environment node
-
 import { once } from 'node:events';
 import { createServer, type Server } from 'node:http';
 import type { AddressInfo } from 'node:net';
-import { chromium } from '@playwright/test';
-import { expect, it } from 'vitest';
-import { routePreviewRequest } from '../../../scripts/capture-production-baseline';
+import { expect, test } from '@playwright/test';
+import { routePreviewRequest } from '../../scripts/capture-production-baseline';
 
 type ReceivedHeaders = Map<string, Array<string | undefined>>;
 
@@ -32,7 +29,12 @@ function record(headers: ReceivedHeaders, path: string, value: string | undefine
   headers.set(path, [...(headers.get(path) ?? []), value]);
 }
 
-it('limits the preview header to the preview and provider origins', async () => {
+test('limits the preview header to the preview and provider origins', async (
+  { context },
+  testInfo,
+) => {
+  test.skip(testInfo.project.name !== 'chromium', 'Desktop Chromium covers routing behavior once.');
+
   const originAHeaders: ReceivedHeaders = new Map();
   const originBHeaders: ReceivedHeaders = new Map();
   const originCHeaders: ReceivedHeaders = new Map();
@@ -109,8 +111,6 @@ it('limits the preview header to the preview and provider origins', async () => 
   });
   const originA = await listen(originAServer);
 
-  const browser = await chromium.launch();
-  const context = await browser.newContext();
   try {
     const allowedOrigins = new Set([originA, originC]);
     await context.route('**/*', (requestRoute) => routePreviewRequest(
@@ -124,7 +124,7 @@ it('limits the preview header to the preview and provider origins', async () => 
 
     await page.goto(`${originA}/font-page`);
     expect(page.url()).toBe(`${originA}/font-page`);
-    expect(await page.locator('p').textContent()).toContain('cross-origin font request');
+    await expect(page.locator('p')).toContainText('cross-origin font request');
     expect(originAHeaders.get('/same-origin.js')).toEqual(['1']);
     expect(originCHeaders.get('/provider.js')).toEqual(['1']);
 
@@ -141,27 +141,7 @@ it('limits the preview header to the preview and provider origins', async () => 
     expect(originBHeaders.get('/landing')).toEqual([undefined]);
     expect(originBHeaders.get('/routing-test.woff2')).toEqual([undefined]);
   } finally {
-    await context.close();
-    await browser.close();
+    await context.unrouteAll({ behavior: 'wait' });
     await Promise.all([close(originAServer), close(originBServer), close(originCServer)]);
   }
-}, 15_000);
-
-it('redacts request details when preview routing fails', async () => {
-  const privateRequestDetail = 'private-cookie-value';
-  const failingRoute = {
-    request: () => ({
-      url: () => 'https://preview.example/asset.js',
-      headers: () => ({ cookie: privateRequestDetail }),
-    }),
-    fetch: async () => {
-      throw new Error(`browser request failed cookie=${privateRequestDetail}`);
-    },
-    fulfill: async () => {},
-    continue: async () => {},
-  } as Parameters<typeof routePreviewRequest>[0];
-
-  await expect(
-    routePreviewRequest(failingRoute, new Set(['https://preview.example'])),
-  ).rejects.toThrow(/^PREVIEW_ROUTE_FAILED$/u);
 });

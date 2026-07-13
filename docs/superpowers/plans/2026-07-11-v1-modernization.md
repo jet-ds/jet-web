@@ -367,6 +367,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests/e2e',
+  outputDir: 'test-results/playwright',
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
@@ -1708,7 +1709,7 @@ test('nested routes mark the canonical navigation item active', async ({ page })
 });
 ```
 
-Create `playwright.production.config.ts` with `testDir: './tests/deployment'`, no `webServer`, one Chromium project, and `baseURL: process.env.PRODUCTION_ORIGIN ?? 'https://jetsanchez.com'`. In `core-production.spec.ts`, use requests with `maxRedirects: 0` to require `POST /api/chat === 404`, the interim core-`2.0.0` `GET /chatbot === 308` with exact `location === '/tools/chatbot/'`, and `GET /about === 308` with exact `location === '/about/'`. Then require `/about/ === 200`, no `noindex`, exact canonical/`og:url`/WebPage URL and ID, and exactly one sitemap membership. Require both canonical retired paths to return exact `404`, never a redirect, and remain absent from sitemap/RSS. Also assert `/rss.xml`, `/robots.txt`, and one sitemap XML endpoint respond without an appended slash. The companion Jet's Ghost route-integration task intentionally updates only the chatbot matrix when the redirect is reversed.
+Create `playwright.production.config.ts` with `testDir: './tests/deployment'`, `outputDir: 'test-results/playwright'`, no `webServer`, one Chromium project, and `baseURL: process.env.PRODUCTION_ORIGIN ?? 'https://jetsanchez.com'`. In `core-production.spec.ts`, use requests with `maxRedirects: 0` to require `POST /api/chat === 404`, the interim core-`2.0.0` `GET /chatbot === 308` with exact `location === '/tools/chatbot/'`, and `GET /about === 308` with exact `location === '/about/'`. Then require `/about/ === 200`, no `noindex`, exact canonical/`og:url`/WebPage URL and ID, and exactly one sitemap membership. Require both canonical retired paths to return exact `404`, never a redirect, and remain absent from sitemap/RSS. Also assert `/rss.xml`, `/robots.txt`, and one sitemap XML endpoint respond without an appended slash. The companion Jet's Ghost route-integration task intentionally updates only the chatbot matrix when the redirect is reversed.
 
 Update `tests/unit/ops/productionContainment.test.ts` and `scripts/verify-production-containment.ts` so the core containment verifier expects resolved interim destination `https://jetsanchez.com/tools/chatbot/`; keep every existing deployment-SHA, Blob, credential, environment, and `/api/chat` assertion.
 
@@ -1817,6 +1818,8 @@ The completed workflow contains this second job:
 ```
 
 The production deployment suite is not run against the old production alias in pull-request CI. It is a required postdeployment gate in Task 12 and fails on any status or destination mismatch.
+
+Both Playwright configurations set `outputDir: 'test-results/playwright'`. Browser runs may clean only that disposable subdirectory; they must not own or erase preserved release evidence under `test-results/core-*`.
 
 - [ ] **Step 7: Run and commit**
 
@@ -2159,7 +2162,7 @@ The capture script refuses an output path inside the immutable baseline, require
 
 - [ ] **Step 6: Promote through the approved production workflow and read it back**
 
-Promote/merge only after the exact preview comparison passes, using a fast-forward/exact-commit workflow so the release commit remains the previewed SHA. After integration, require `test -d "test-results/core-2.0.0-candidate-$(git rev-parse HEAD)"`. If integration creates a merge/squash/rebase SHA, stop: that SHA is a new candidate, and Step 5's deployment binding and visual comparison must be rerun before production promotion or tagging. Wait for CI and the production alias to become ready.
+Promote/merge only after the exact preview comparison passes, using a fast-forward/exact-commit workflow so the release commit remains the previewed SHA. After integration, require `test -d "test-results/core-2.0.0-candidate-$(git rev-parse HEAD)"`. Both Playwright configurations isolate disposable output under `test-results/playwright`, so `verify:browser` and `verify:production` cannot clean the preserved `test-results/core-*` evidence. If integration creates a merge/squash/rebase SHA, stop: that SHA is a new candidate, and Step 5's deployment binding and visual comparison must be rerun before production promotion or tagging. Wait for CI and the production alias to become ready.
 
 Verify production with exact assertions and bind it to the same release commit. Raw Vercel responses again exist only in a private temporary directory; only sanitized projections feed verification:
 

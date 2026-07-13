@@ -1,6 +1,8 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
+import playwrightConfig from '../../../playwright.config';
+import productionPlaywrightConfig from '../../../playwright.production.config';
 
 const packageJson = JSON.parse(readFileSync('package.json', 'utf8')) as {
   scripts: Record<string, string>;
@@ -64,6 +66,11 @@ describe('static production boundary', () => {
       ['check-ignore', '--quiet', '--no-index', path],
       { cwd: process.cwd() },
     ).status === 0);
+  });
+
+  it('isolates disposable Playwright output from preserved release evidence', () => {
+    expect(playwrightConfig.outputDir).toBe('test-results/playwright');
+    expect(productionPlaywrightConfig.outputDir).toBe('test-results/playwright');
   });
 
 });
