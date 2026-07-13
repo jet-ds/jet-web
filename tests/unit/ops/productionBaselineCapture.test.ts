@@ -12,6 +12,7 @@ import {
 } from 'node:fs';
 import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
+import type { BrowserContextOptions } from '@playwright/test';
 import { afterEach, describe, expect, it } from 'vitest';
 import {
   captureProductionBaseline,
@@ -61,6 +62,7 @@ type BrowserCookie = {
 type BrowserState = {
   events: string[];
   cookies: BrowserCookie[];
+  contextOptions?: BrowserContextOptions[];
   cookieInstallFailure?: boolean;
   redirectedUrl?: string;
 };
@@ -116,7 +118,8 @@ function baselineCaptureArguments(fixture: Fixture, output: string): string[] {
 function makeBrowser(phase?: FailurePhase, state?: BrowserState) {
   let currentUrl = 'https://jet-preview.vercel.app/';
   return {
-    async newContext() {
+    async newContext(options: BrowserContextOptions) {
+      state?.contextOptions?.push(options);
       return {
         async addCookies(cookies: BrowserCookie[]) {
           state?.events.push('addCookies');
@@ -252,6 +255,35 @@ afterEach(() => {
 });
 
 describe('production baseline capture safety', () => {
+  it('sets the skip-toolbar header only on preview comparison contexts', async () => {
+    const fixture = makeFixture();
+    const previewState: BrowserState = { events: [], cookies: [], contextOptions: [] };
+
+    await captureProductionBaseline(
+      captureArguments(fixture),
+      dependenciesFor(fixture, undefined, null, {}, previewState),
+    );
+
+    expect(previewState.contextOptions).toHaveLength(routes.length * viewports.length);
+    for (const options of previewState.contextOptions ?? []) {
+      expect(options.extraHTTPHeaders).toEqual({ 'x-vercel-skip-toolbar': '1' });
+    }
+
+    const output = resolve(fixture.root, 'baseline-output');
+    const outputFixture = { ...fixture, candidate: output };
+    const productionState: BrowserState = { events: [], cookies: [], contextOptions: [] };
+
+    await captureProductionBaseline(
+      baselineCaptureArguments(fixture, output),
+      dependenciesFor(outputFixture, undefined, 'production', {}, productionState),
+    );
+
+    expect(productionState.contextOptions).toHaveLength(routes.length * viewports.length);
+    for (const options of productionState.contextOptions ?? []) {
+      expect(options).not.toHaveProperty('extraHTTPHeaders');
+    }
+  });
+
   it('installs a protected-preview cookie before every navigation without persisting it', async () => {
     const fixture = makeFixture();
     const browserState: BrowserState = { events: [], cookies: [] };

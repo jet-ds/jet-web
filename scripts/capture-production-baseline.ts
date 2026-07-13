@@ -432,7 +432,16 @@ export async function captureProductionBaseline(
       browser = await dependencies.launchBrowser();
       for (const route of ROUTES) {
         for (const viewport of VIEWPORTS) {
-          const context = await browser.newContext(viewport.context);
+          const contextOptions: BrowserContextOptions = compareTo
+            ? {
+              ...viewport.context,
+              extraHTTPHeaders: {
+                ...viewport.context.extraHTTPHeaders,
+                'x-vercel-skip-toolbar': '1',
+              },
+            }
+            : viewport.context;
+          const context = await browser.newContext(contextOptions);
           try {
             if (previewCookie) {
               try {
