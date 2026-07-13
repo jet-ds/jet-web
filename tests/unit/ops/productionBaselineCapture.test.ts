@@ -65,6 +65,7 @@ type BrowserState = {
   contextOptions?: BrowserContextOptions[];
   cookieInstallFailure?: boolean;
   redirectedUrl?: string;
+  routePatterns?: string[];
 };
 
 function makeFixture(): Fixture {
@@ -121,6 +122,13 @@ function makeBrowser(phase?: FailurePhase, state?: BrowserState) {
     async newContext(options: BrowserContextOptions) {
       state?.contextOptions?.push(options);
       return {
+        async route(pattern: string) {
+          state?.events.push('route');
+          state?.routePatterns?.push(pattern);
+        },
+        async unrouteAll(options: { behavior: 'wait' }) {
+          state?.events.push(`unroute:${options.behavior}`);
+        },
         async addCookies(cookies: BrowserCookie[]) {
           state?.events.push('addCookies');
           if (state?.cookieInstallFailure) {
@@ -162,7 +170,9 @@ function makeBrowser(phase?: FailurePhase, state?: BrowserState) {
             },
           };
         },
-        async close() {},
+        async close() {
+          state?.events.push('close');
+        },
       };
     },
     async close() {
@@ -255,9 +265,14 @@ afterEach(() => {
 });
 
 describe('production baseline capture safety', () => {
-  it('sets the skip-toolbar header only on preview comparison contexts', async () => {
+  it('installs preview routing without context-wide headers', async () => {
     const fixture = makeFixture();
-    const previewState: BrowserState = { events: [], cookies: [], contextOptions: [] };
+    const previewState: BrowserState = {
+      events: [],
+      cookies: [],
+      contextOptions: [],
+      routePatterns: [],
+    };
 
     await captureProductionBaseline(
       captureArguments(fixture),
@@ -266,12 +281,43 @@ describe('production baseline capture safety', () => {
 
     expect(previewState.contextOptions).toHaveLength(routes.length * viewports.length);
     for (const options of previewState.contextOptions ?? []) {
-      expect(options.extraHTTPHeaders).toEqual({ 'x-vercel-skip-toolbar': '1' });
+      expect(options).not.toHaveProperty('extraHTTPHeaders');
     }
+    expect(previewState.routePatterns).toEqual(
+      Array(routes.length * viewports.length).fill('**/*'),
+    );
+  });
+
+  it('installs preview request routing before every navigation', async () => {
+    const fixture = makeFixture();
+    const previewState: BrowserState = { events: [], cookies: [] };
+
+    await captureProductionBaseline(
+      captureArguments(fixture),
+      dependenciesFor(fixture, undefined, null, {}, previewState),
+    );
+
+    expect(previewState.events).toEqual(
+      routes.flatMap(() => viewports.flatMap(() => [
+        'route',
+        'goto',
+        'unroute:wait',
+        'close',
+      ])),
+    );
+  });
+
+  it('does not install request routing for immutable production baselines', async () => {
+    const fixture = makeFixture();
 
     const output = resolve(fixture.root, 'baseline-output');
     const outputFixture = { ...fixture, candidate: output };
-    const productionState: BrowserState = { events: [], cookies: [], contextOptions: [] };
+    const productionState: BrowserState = {
+      events: [],
+      cookies: [],
+      contextOptions: [],
+      routePatterns: [],
+    };
 
     await captureProductionBaseline(
       baselineCaptureArguments(fixture, output),
@@ -282,6 +328,10 @@ describe('production baseline capture safety', () => {
     for (const options of productionState.contextOptions ?? []) {
       expect(options).not.toHaveProperty('extraHTTPHeaders');
     }
+    expect(productionState.routePatterns).toEqual([]);
+    expect(productionState.events).toEqual(
+      routes.flatMap(() => viewports.flatMap(() => ['goto', 'close'])),
+    );
   });
 
   it('installs a protected-preview cookie before every navigation without persisting it', async () => {
@@ -303,7 +353,13 @@ describe('production baseline capture safety', () => {
     );
 
     expect(browserState.events).toEqual(
-      routes.flatMap(() => viewports.flatMap(() => ['addCookies', 'goto'])),
+      routes.flatMap(() => viewports.flatMap(() => [
+        'route',
+        'addCookies',
+        'goto',
+        'unroute:wait',
+        'close',
+      ])),
     );
     expect(browserState.cookies).toHaveLength(routes.length * viewports.length);
     expect(browserState.cookies).toEqual(expect.arrayContaining([{

@@ -13,7 +13,12 @@ import {
 } from 'node:fs';
 import { fileURLToPath } from 'node:url';
 import { basename, dirname, isAbsolute, relative, resolve } from 'node:path';
-import { chromium, devices, type BrowserContextOptions } from '@playwright/test';
+import {
+  chromium,
+  devices,
+  type APIResponse,
+  type BrowserContextOptions,
+} from '@playwright/test';
 
 type JsonObject = Record<string, unknown>;
 
@@ -45,6 +50,42 @@ type CaptureLocator = {
   allTextContents(): Promise<string[]>;
 };
 
+type CaptureRoute = {
+  request(): {
+    url(): string;
+    headers(): Record<string, string>;
+  };
+  fetch(options: {
+    headers: Record<string, string>;
+    maxRedirects: 0;
+  }): Promise<APIResponse>;
+  fulfill(options: { response: APIResponse }): Promise<void>;
+  continue(): Promise<void>;
+};
+
+export async function routePreviewRequest(
+  requestRoute: CaptureRoute,
+  origin: string,
+): Promise<void> {
+  try {
+    const request = requestRoute.request();
+    if (new URL(request.url()).origin === origin) {
+      const response = await requestRoute.fetch({
+        headers: {
+          ...request.headers(),
+          'x-vercel-skip-toolbar': '1',
+        },
+        maxRedirects: 0,
+      });
+      await requestRoute.fulfill({ response });
+      return;
+    }
+    await requestRoute.continue();
+  } catch {
+    throw new Error('PREVIEW_ROUTE_FAILED');
+  }
+}
+
 type CapturePage = {
   goto(url: string, options: { waitUntil: 'networkidle' }): Promise<CaptureResponse | null>;
   title(): Promise<string>;
@@ -54,6 +95,8 @@ type CapturePage = {
 };
 
 type CaptureContext = {
+  route(pattern: string, handler: (route: CaptureRoute) => Promise<void>): Promise<void>;
+  unrouteAll(options: { behavior: 'wait' }): Promise<void>;
   addCookies(cookies: Array<{
     name: string;
     value: string;
@@ -432,17 +475,13 @@ export async function captureProductionBaseline(
       browser = await dependencies.launchBrowser();
       for (const route of ROUTES) {
         for (const viewport of VIEWPORTS) {
-          const contextOptions: BrowserContextOptions = compareTo
-            ? {
-              ...viewport.context,
-              extraHTTPHeaders: {
-                ...viewport.context.extraHTTPHeaders,
-                'x-vercel-skip-toolbar': '1',
-              },
-            }
-            : viewport.context;
-          const context = await browser.newContext(contextOptions);
+          const context = await browser.newContext(viewport.context);
           try {
+            if (compareTo) {
+              await context.route('**/*', (requestRoute) => (
+                routePreviewRequest(requestRoute, origin)
+              ));
+            }
             if (previewCookie) {
               try {
                 await context.addCookies([{
@@ -499,7 +538,11 @@ export async function captureProductionBaseline(
               screenshot,
             });
           } finally {
-            await context.close();
+            try {
+              if (compareTo) await context.unrouteAll({ behavior: 'wait' });
+            } finally {
+              await context.close();
+            }
           }
         }
       }
