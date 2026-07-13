@@ -4,13 +4,12 @@ import BaseLayout from '../../components/layout/BaseLayout.astro';
 import PageWrapper from '../../components/layout/PageWrapper.astro';
 import Container from '../../components/ui/Container.astro';
 import BlogCard from '../../components/blog/BlogCard.astro';
+import { isPublished } from '../../content/policy';
 import { sortBlogPosts } from '../../utils/sortByDate';
 import { getAllTags } from '../../utils/filterByTag';
 
 // Fetch all published blog posts
-const allPosts = await getCollection('blog', ({ data }) => {
-  return data.draft !== true;
-});
+const allPosts = await getCollection('blog', ({ data }) => isPublished(data));
 
 // Sort posts by date (newest first)
 const sortedPosts = sortBlogPosts(allPosts);

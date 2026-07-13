@@ -11,6 +11,11 @@
 
 import { z } from 'zod';
 
+const publicationFields = {
+  status: z.enum(['draft', 'published']),
+  assistant: z.boolean().default(false),
+};
+
 /**
  * Blog post frontmatter schema
  */
@@ -21,7 +26,7 @@ export const blogSchema = z.object({
   updatedDate: z.coerce.date().optional(),
   author: z.string().default('Jet Sanchez'),
   tags: z.array(z.string()).default([]),
-  draft: z.boolean().default(false),
+  ...publicationFields,
   image: z.object({
     url: z.string(),
     alt: z.string(),
@@ -37,6 +42,7 @@ export const worksSchema = z.object({
   type: z.enum(['research', 'project', 'other']),
   date: z.coerce.date(),
   tags: z.array(z.string()).default([]),
+  ...publicationFields,
   featured: z.boolean().default(false),
   image: z.object({
     url: z.string(),

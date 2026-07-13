@@ -2,13 +2,12 @@
 import { getCollection, render, type CollectionEntry } from 'astro:content';
 import BlogLayout from '../../layouts/BlogLayout.astro';
 import TableOfContents from '../../components/blog/TableOfContents.astro';
+import { isPublished } from '../../content/policy';
 import { getReadingTime } from '../../utils/readingTime';
 
 // Generate static paths for all blog posts
 export async function getStaticPaths() {
-  const blogPosts = await getCollection('blog', ({ data }) => {
-    return data.draft !== true;
-  });
+  const blogPosts = await getCollection('blog', ({ data }) => isPublished(data));
 
   return blogPosts.map((post) => ({
     params: { slug: post.id },
@@ -26,7 +25,7 @@ const { Content, headings } = await render(post);
 const readingTime = getReadingTime(post.body || '');
 
 // Get previous and next posts (optional navigation)
-const allPosts = await getCollection('blog', ({ data }) => data.draft !== true);
+const allPosts = await getCollection('blog', ({ data }) => isPublished(data));
 const sortedPosts = allPosts.sort((a, b) =>
   new Date(b.data.pubDate).getTime() - new Date(a.data.pubDate).getTime()
 );

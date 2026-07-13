@@ -4,10 +4,11 @@ import BaseLayout from '../../components/layout/BaseLayout.astro';
 import PageWrapper from '../../components/layout/PageWrapper.astro';
 import Container from '../../components/ui/Container.astro';
 import WorkCard from '../../components/works/WorkCard.astro';
+import { isPublished } from '../../content/policy';
 import { sortWorks } from '../../utils/sortByDate';
 
 // Fetch all works
-const allWorks = await getCollection('works');
+const allWorks = await getCollection('works', ({ data }) => isPublished(data));
 
 // Sort works by date (newest first)
 const sortedWorks = sortWorks(allWorks);

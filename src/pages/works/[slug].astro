@@ -1,10 +1,11 @@
 ---
 import { getCollection, render, type CollectionEntry } from 'astro:content';
 import WorkLayout from '../../layouts/WorkLayout.astro';
+import { isPublished } from '../../content/policy';
 
 // Generate static paths for all works
 export async function getStaticPaths() {
-  const works = await getCollection('works');
+  const works = await getCollection('works', ({ data }) => isPublished(data));
 
   return works.map((work) => ({
     params: { slug: work.id },

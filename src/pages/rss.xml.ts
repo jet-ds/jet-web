@@ -1,13 +1,12 @@
 import rss from '@astrojs/rss';
 import { getCollection } from 'astro:content';
 import { SITE } from '../config/site';
+import { isPublished } from '../content/policy';
 import type { APIContext } from 'astro';
 
 export async function GET(context: APIContext) {
   // Get all published blog posts
-  const blog = await getCollection('blog', ({ data }) => {
-    return data.draft !== true;
-  });
+  const blog = await getCollection('blog', ({ data }) => isPublished(data));
 
   // Sort by date (newest first)
   const sortedPosts = blog.sort((a, b) => {

@@ -10,15 +10,16 @@ import Tag from '../components/ui/Tag.astro';
 import OptimizedImage from '../components/ui/OptimizedImage.astro';
 import Grainient from '../components/ui/Grainient';
 import { SITE, SOCIAL_LINKS } from '../config/site';
+import { isPublished } from '../content/policy';
 
 // Fetch latest blog posts (limit to 3)
-const allBlogPosts = await getCollection('blog', ({ data }) => data.draft !== true);
+const allBlogPosts = await getCollection('blog', ({ data }) => isPublished(data));
 const latestPosts = allBlogPosts
   .sort((a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime())
   .slice(0, 3);
 
 // Fetch featured works
-const allWorks = await getCollection('works');
+const allWorks = await getCollection('works', ({ data }) => isPublished(data));
 const featuredWorks = allWorks
   .filter((work) => work.data.featured === true)
   .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
