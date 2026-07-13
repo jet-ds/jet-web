@@ -1,3 +1,5 @@
+> **Completed historical implementation log.** Archived on 2026-07-13. Current architecture is defined by the [v1 modernization design](../../../superpowers/specs/2026-07-11-v1-modernization-design.md).
+
 # Implementation Log
 
 ## Phase 1: Foundation & Project Setup

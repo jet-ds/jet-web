@@ -1,3 +1,5 @@
+> **Completed historical TODO.** Resolved on 2026-07-13 by the committed [default OpenGraph image](../../../../public/images/og-default.jpg), its [deterministic capture script](../../../../scripts/capture-og-image.ts), and the canonical [image workflow](../../../../AGENTS.md#image-workflow).
+
 # TODO
 
 ## SEO Enhancements

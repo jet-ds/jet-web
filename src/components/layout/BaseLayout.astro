@@ -15,6 +15,8 @@ export interface Props {
   description?: string;
   image?: string;
   imageAlt?: string;
+  imageWidth?: number;
+  imageHeight?: number;
   canonicalURL?: string;
   type?: 'website' | 'article' | 'profile';
   publishedTime?: string;
@@ -32,6 +34,8 @@ const {
   description = SITE.description,
   image,
   imageAlt,
+  imageWidth,
+  imageHeight,
   canonicalURL,
   type = 'website',
   publishedTime,
@@ -50,6 +54,8 @@ const seoProps = generateSEOProps({
   description,
   image,
   imageAlt,
+  imageWidth,
+  imageHeight,
   canonicalURL: canonicalURL || getCanonicalURL(Astro.url.pathname),
   type,
   publishedTime,

@@ -1,0 +1,62 @@
+{
+  "schemaVersion": "1.0.0",
+  "archiveDate": "2026-07-13",
+  "entries": [
+    {
+      "sourcePath": "EMBEDDING_STORAGE_RESEARCH.md",
+      "archivePath": "docs/archive/jets-ghost/legacy-rag/embedding-storage-research.md",
+      "status": "superseded",
+      "successorPath": "docs/superpowers/specs/2026-07-11-jets-ghost-local-assistant-design.md",
+      "sourceSha256": "9415f65df1073d5e003fdd4ea60f512e697ebdf6a6b832de01856c46ad6279ef",
+      "archiveSha256": "f8d2c38b6a84b29c69d60a5d60cbfc4bf35ecfc42f614397f392a37074a1ac21"
+    },
+    {
+      "sourcePath": "docs/jets-ghost-v1.5-spec.md",
+      "archivePath": "docs/archive/jets-ghost/legacy-rag/jets-ghost-v1.5-spec.md",
+      "status": "superseded",
+      "successorPath": "docs/superpowers/specs/2026-07-11-jets-ghost-local-assistant-design.md",
+      "sourceSha256": "c92304d12e685399beb0531749b0f178b53776e7a78f960bf48c9785a6c8e739",
+      "archiveSha256": "a0a868b07f15c52aefb1f4d62c3b55552a4536ab26a911469ce147b77b1e39c5"
+    },
+    {
+      "sourcePath": "docs/rag-chatbot-implementation-review.md",
+      "archivePath": "docs/archive/jets-ghost/legacy-rag/rag-chatbot-implementation-review.md",
+      "status": "superseded",
+      "successorPath": "docs/superpowers/specs/2026-07-11-jets-ghost-local-assistant-design.md",
+      "sourceSha256": "28ac557f54075082b0e318d401b21bac8371609f728fd7343b4019f86e72151f",
+      "archiveSha256": "6ab8591e8e8c6bce622dcc868a6b17937a5aec347a44db6834a8b8b873d01491"
+    },
+    {
+      "sourcePath": "docs/liquid-glass-dock-v2-log.md",
+      "archivePath": "docs/archive/site/implementation-logs/liquid-glass-dock-v2.md",
+      "status": "historical",
+      "successorPath": "docs/superpowers/specs/2026-07-11-v1-modernization-design.md",
+      "sourceSha256": "41cc96317cbaadc427b4494a2e6f9aeebd69370a428830a6f36b628799a0ff32",
+      "archiveSha256": "397373385ea65fe7e4b979c872d48fc1f5b2c360cca05f6eca04e30710dcb34f"
+    },
+    {
+      "sourcePath": "Untracked/docs/emdash-news-theme-spec.md",
+      "archivePath": "docs/archive/deferred-concepts/emdash-news-theme-spec.md",
+      "status": "deferred",
+      "successorPath": "docs/superpowers/specs/2026-07-11-v1-modernization-design.md",
+      "sourceSha256": "da68b14d3c85f6d51b262dd6af6a840307e221a08ca45f85b4e3d6add25c48c2",
+      "archiveSha256": "f118f002d124511e8b1bf64e72fbe87a4d3f56261392d8dc63535429b2f45044"
+    },
+    {
+      "sourcePath": "Untracked/docs/page-analyzer-spec.md",
+      "archivePath": "docs/archive/deferred-concepts/page-analyzer-spec.md",
+      "status": "deferred",
+      "successorPath": "docs/superpowers/specs/2026-07-11-v1-modernization-design.md",
+      "sourceSha256": "f91b13d46df2e2bdef66c5c38107357223257eddac144a49de69faeb8ef2b928",
+      "archiveSha256": "8278977a8a15983ee96e00e4ec6d9798c7f090b9070abd3ab9998e8a9bc34cf2"
+    },
+    {
+      "sourcePath": "Untracked/docs/schema-visualizer-spec.md",
+      "archivePath": "docs/archive/deferred-concepts/schema-visualizer-spec.md",
+      "status": "deferred",
+      "successorPath": "docs/superpowers/specs/2026-07-11-v1-modernization-design.md",
+      "sourceSha256": "80ab161095add322d4cf177338ebcc0faa915c3d6e8786b0053a49f1864109ee",
+      "archiveSha256": "7e67869a7977eb5f456e0feee6ed536724128cca550c8967aaa4e376127a6d97"
+    }
+  ]
+}

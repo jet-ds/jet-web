@@ -1,3 +1,5 @@
+> **Completed historical implementation log.** Archived on 2026-07-13. The canonical successor is the [local-assistant design](../../../superpowers/specs/2026-07-11-jets-ghost-local-assistant-design.md).
+
 # RAG Chatbot - Implementation Log
 
 > Implementation of database-less RAG chatbot system

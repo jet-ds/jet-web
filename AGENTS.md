@@ -1,419 +1,189 @@
-# jetsanchez.com - Agent Memory
+# jetsanchez.com contributor instructions
 
-> Project memory file for agentic coding tools.
+`AGENTS.md` is the canonical repository guide for human and automated contributors. `CLAUDE.md` is a compatibility symlink to this file.
 
-## Project Overview
+## Project
 
-Modern personal website and blog built with Astro, MDX, and React. Features a dark mode design with blue theming, full SEO optimization, and deployment on Vercel.
+jetsanchez.com is Jet Sanchez's personal website, writing archive, research portfolio, and home for local-first AI experiments. It uses Astro 5, MDX, React 19 islands, Tailwind CSS 3, strict TypeScript, and Vercel static hosting.
 
-**Key Sections**: Home, About, Blog, Works (showcasing research papers and projects), Contact
+Primary routes are Home, About, Blog, Works, Tools, and Contact. The current core-modernization release keeps the approved Jet's Ghost prototype inert at `/tools/chatbot/`; the companion `2.1.0` work makes it a first-class experience at `/chatbot/`.
 
-## Frequently Used Commands
+## Runtime and commands
+
+Use Node.js 24.x and npm. `package.json` is authoritative for executable commands.
 
 ```bash
-# Development
-npm run dev              # Start dev server at http://localhost:4321
-npm run build            # Build for production
-npm run preview          # Preview production build locally
-
-# Code Quality
-npm run astro check      # Type-check Astro files
-npm run lint             # Run ESLint (if configured)
-
-# Content
-# Blog posts: src/data/blog/*.mdx
-# Works: src/data/works/*.mdx
-
-# Image Management
-npm run upload-image blog/image.jpg   # Upload blog image to Vercel Blob
-npm run upload-image works/image.png  # Upload works image to Vercel Blob
-# Images: public/images-staging/{blog,works}/*.{jpg,png,webp,avif}
-# See docs/image-workflow.md for detailed guide
+npm install
+npm run dev
+npm run check
+npm run test
+npm run test:e2e
+npm run verify:content
+npm run verify:docs
+npm run verify:build-purity
+npm run build
+npm run preview
+npm run verify
 ```
 
-## Tech Stack
+Other intentional commands include `verify:browser`, `verify:production`, `validate-images`, `upload-image`, and `capture:og`. Do not document or invoke a script that is not present in `package.json`.
 
-- **Astro**: v5.x (latest: v5.16.5) - Static site generator
-- **React**: v19.x (latest: v19.2.3) - Interactive components only
-- **Tailwind CSS**: v3.4.18 - Styling (using v3.x for reliability)
-- **TypeScript**: v5.9.x - Type safety
-- **MDX**: Rich content with embedded components
-- **Deployment**: Vercel
+The production build is pure. `npm run build` may validate repository inputs and write local build output, but it must not upload files, modify credentials, call deployment APIs, or perform any other external write.
 
-## Code Style & Conventions
+## Architecture
 
-### General
-- **Indentation**: 2 spaces (no tabs)
-- **Line endings**: LF (Unix-style)
-- **Quotes**: Single quotes for strings, double quotes for JSX attributes
-- **Semicolons**: Required
-- **TypeScript**: Strict mode enabled
-- **Versioning**: Follow [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
-  - `package.json` is the authoritative application version.
-  - The Semantic Versioning starting point is `1.0.0`.
-  - Use `v<major>.<minor>.<patch>` release tags.
-  - Content-only and documentation-only deployments do not require a version change unless they accompany an application release.
-- **Commits**: Follow [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/).
-  - Format: `type(optional-scope)!: description`.
-  - Common types: `feat`, `fix`, `docs`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, `revert`.
-  - Use `!` and a `BREAKING CHANGE:` footer for incompatible changes.
-  - Commit bodies describe intent, constraints, and verification when useful.
-  - Do not add Claude, Codex, agent, co-author, or generated-by attribution unless a human explicitly requests it for that commit.
+- Prefer Astro components for static presentation and React only for stateful browser interactions.
+- Content sources live in `src/data/blog/` and `src/data/works/`; loaders are defined in `src/content/config.ts`, with shared schemas in `src/schemas/content.ts`.
+- Use `getCollection()` and `getEntry()` for type-safe content access.
+- Shared site metadata and navigation live in `src/config/site.ts`.
+- `BaseLayout` owns the page-level WebPage schema. Content pages add their specific linked schema, such as BlogPosting, ScholarlyArticle, SoftwareApplication, or CreativeWork.
+- Use trailing-slash canonical URLs throughout page metadata, navigation, sitemap output, and structured data.
+- Vercel serves the static Astro output. Do not add a server adapter or hosted generation fallback without a newly approved architecture decision.
 
-### File Naming
-- Components: PascalCase (e.g., `BlogCard.astro`, `ThemeToggle.tsx`)
-- Utilities: camelCase (e.g., `readingTime.ts`, `formatDate.ts`)
-- Custom Hooks: camelCase with `use` prefix (e.g., `useTheme.ts`, `useDarkMode.ts`)
-- Content: kebab-case (e.g., `my-first-post.mdx`)
-- Config files: Standard naming (e.g., `astro.config.mjs`, `tailwind.config.mjs`)
+## Code conventions
 
-### Component Structure
-- **Astro components**: Use `.astro` extension for static components
-- **React components**: Use `.tsx` extension for interactive components (islands)
-- **Layouts**: Place in `src/layouts/` or `src/components/layout/`
-- **Minimize JavaScript**: Prefer Astro components over React when possible
+- Use 2-space indentation, LF line endings, single quotes in TypeScript, double quotes for JSX attributes, and semicolons.
+- Keep TypeScript strict. Avoid `any`; when an external boundary requires it, narrow the value immediately and explain the exception.
+- Name components with PascalCase, utilities and hooks with camelCase, hooks with a `use` prefix, and MDX content with kebab-case.
+- Keep components focused and prefer composition over prop drilling.
+- Preserve semantic HTML, keyboard access, visible focus, descriptive labels, reduced-motion behavior, and responsive layouts.
+- External links that open a new tab need `rel="noopener noreferrer"`.
 
-### Tailwind CSS (v3.4.18)
-- Use `tailwind.config.mjs` for theme customization (JavaScript-based config)
-- Configure content paths: `content: ['./src/**/*.{astro,html,js,jsx,md,mdx,svelte,ts,tsx,vue}']`
-- Dark mode: Use `class` strategy with `.dark` class
-- Custom colors: Define in `theme.extend.colors` in config
-- Custom utilities: Use `@layer components` or `@layer utilities` in global.css
+## Design system
 
-### Content Collections (Astro Loader API)
-- **Type-safe**: All content must follow schemas defined in `src/schemas/content.ts` and loaded via `src/content/config.ts`
-- **Content location**: `src/data/blog/` and `src/data/works/` (loaded via glob loader)
-- **Blog schema**: title, description, pubDate, tags, author, draft (optional), image (optional)
-- **Works schema**: title, description, type ('research' | 'project' | 'other'), date, tags, links, image (optional), venue (research), abstract (research)
-- **Image field**: `{ url: string, alt: string }` - URL from Vercel Blob, descriptive alt text required
-- **Frontmatter**: Use YAML frontmatter at top of MDX files
+- Use semantic color tokens from `src/styles/global.css` and `tailwind.config.mjs`; do not hard-code the underlying OKLCH scale in components.
+- Slate blue is the primary interactive family. Mustard is an accent for deliberate calls to action, progress, particles, and citation emphasis.
+- Use Utopia fluid type and spacing tokens. Prefer `px-gutter`, `py-section`, `py-section-lg`, `p-card`, and fluid gap/type tokens over breakpoint-based spacing.
+- Use `svh` for viewport-height layouts. Responsive utilities are acceptable when behavior, rather than spacing, genuinely changes.
+- Preserve the Liquid Glass dock's specialized compatibility behavior.
+- Dark mode uses the `.dark` class, persisted visitor choice, system preference fallback, and the early head script that prevents a theme flash.
 
-## Project Architecture
+## Content policy
 
-### Directory Structure
-```
-/
-├── public/              # Static assets (favicon, robots.txt, images)
-├── src/
-│   ├── components/      # Reusable components
-│   │   ├── layout/      # Header, Footer, Navigation, BaseLayout
-│   │   ├── seo/         # SEO, StructuredData components
-│   │   ├── ui/          # Button, Card, Tag, etc.
-│   │   ├── blog/        # Blog-specific components
-│   │   ├── works/       # Works-specific components
-│   │   └── navigation/  # Dock and mobile menu components
-│   ├── content/
-│   │   └── config.ts    # Content loader configuration (Astro Loader API)
-│   ├── data/            # Content source files
-│   │   ├── blog/        # Blog posts (.mdx)
-│   │   └── works/       # Work items (.mdx)
-│   ├── schemas/
-│   │   └── content.ts   # Shared content schemas (blog, works)
-│   ├── hooks/           # Custom React hooks
-│   ├── layouts/         # Page layouts (alternative to components/layout)
-│   ├── pages/           # File-based routing
-│   │   ├── index.astro  # Home
-│   │   ├── about.astro
-│   │   ├── contact.astro
-│   │   ├── blog/
-│   │   │   ├── index.astro      # Blog list
-│   │   │   └── [slug].astro     # Blog post detail
-│   │   └── works/
-│   │       ├── index.astro      # Works list
-│   │       └── [slug].astro     # Work detail
-│   ├── styles/          # Global styles
-│   │   └── global.css   # Tailwind imports + custom CSS
-│   ├── utils/           # Helper functions
-│   └── config/          # Site configuration (metadata, social links)
-├── docs/                # Project documentation
-│   ├── project-spec.md          # Technical specification
-│   └── image-workflow.md        # Image upload and management guide
-├── public/              # Public static assets
-│   └── images-staging/  # Image staging before Blob upload
-│       ├── blog/        # Blog post images
-│       ├── works/       # Works images
-│       └── README.md    # Staging directory usage guide
-├── scripts/             # Build and utility scripts
-│   └── upload-image.ts  # Upload images to Vercel Blob
-├── astro.config.mjs     # Astro configuration
-├── tailwind.config.mjs  # Tailwind v3.x configuration
-├── tsconfig.json        # TypeScript configuration
-├── package.json
-├── AGENTS.md            # Canonical instructions for agents and contributors
-├── CLAUDE.md -> AGENTS.md
-└── README.md
+All blog and work records are MDX under `src/data/` and must satisfy the shared schema. Publication state is explicit and required:
+
+```yaml
+status: draft
+assistant: false
 ```
 
-### Key Patterns
-- **Islands Architecture**: Use React only for interactive components (theme toggle, forms). Keep most components as Astro for performance
-- **Content Collections**: Always use `getCollection()` and `getEntry()` for type-safe content access
-- **SEO Component**: Reusable `<SEO />` component for all pages with meta tags, OpenGraph, Twitter Cards
-- **Structured Data Architecture**:
-  - BaseLayout owns WebPage schema generation (single source of truth)
-  - Content pages provide specific schemas: BlogPosting (blog), ScholarlyArticle (research), SoftwareApplication (chatbot), CreativeWork (projects)
-  - Entity linking: Use @id with fragment identifiers (`${url}#webpage`, `${url}#blogposting`, etc.)
-  - Homepage uses WebSite + Person schemas (no WebPage) via `suppressWebPage={true}` prop
-- **Layouts**: Use layout components for consistent structure across pages
+- Public content requires `status: published`.
+- Jet's Ghost inclusion requires both `status: published` and `assistant: true`.
+- Draft, untracked, malformed, or implicitly configured content must never enter the production site or assistant corpus.
+- Blog fields include title, description, publication date, author, tags, publication state, assistant eligibility, and optional image metadata.
+- Work fields include title, description, type, date, tags, publication state, assistant eligibility, optional featured/image/link fields, and type-specific research or project fields.
+- Every content image requires a stable URL and descriptive `alt` text.
+- Run `npm run verify:content` after changing frontmatter or content-policy code.
 
-## Design System
+## Image workflow
 
-### OKLCH Color System
+`AGENTS.md` is the sole active image-workflow authority. The upload script is the only checked-in command authorized to mutate Vercel Blob.
 
-The site uses OKLCH color space for perceptually uniform colors that work consistently across light and dark modes.
+### Prepare
 
-**Color Scales (Radix-style 1-11 numbering):**
+- Supported source formats are `jpg`, `jpeg`, `png`, `webp`, `avif`, and `gif`.
+- Stage files in exactly one lane: `public/images-staging/about/`, `public/images-staging/blog/`, or `public/images-staging/works/`.
+- Use a descriptive kebab-case slug tied to the destination page or content slug, for example `local-ai-retrieval.jpg`.
+- Blog and work featured images should be `16:9` and under 2 MB before upload.
+- The current About portrait lane uses `3:4`, with `1200x1600` as the reference size.
+- Do not replace the `.gitkeep` files with a second workflow document.
 
-**Brand (Slate Blue)** - Primary interactive elements
-- Scale: oklch(0.9755 0.0045 258.32) → oklch(0.27 0.0235 256.43)
-- Usage: Links, buttons, interactive states
-- 11 steps from lightest (#f5f7fa) to darkest (#1f2732)
+### Upload
 
-**Accent (Mustard Yellow)** - Highlights, CTAs
-- Scale: oklch(0.9873 0.0262 102.21) → oklch(0.2852 0.0664 52.21)
-- Usage: Call-to-action buttons, highlights, special emphasis
-- 11 steps from lightest (#fefce8) to darkest (#431f05)
+Set `BLOB_READ_WRITE_TOKEN` in `.env.local`, then run:
 
-**Neutral (Neutral Blue/Slate Grey)** - Base UI, text, backgrounds
-- Scale: oklch(0.9764 0.0045 214.33) → oklch(0.3151 0.0143 256.78)
-- Usage: Text hierarchy, borders, backgrounds
-- 11 steps from lightest (#f4f8f9) to darkest (#2d3239)
-
-**Semantic Color Tokens:**
-
-These semantic tokens automatically adapt to light/dark mode via CSS variables:
-
-Background hierarchy:
-- `bg-bg-base` - Page background (neutral.1 / brand.11)
-- `bg-bg-subtle` - Subtle backgrounds (neutral.2 / brand.10)
-- `bg-bg-ui` - UI element backgrounds (neutral.3 / brand.9)
-- `bg-bg-hover` - Hover states (neutral.4 / brand.8)
-- `bg-bg-active` - Active states (neutral.5 / brand.7)
-
-Text hierarchy:
-- `text-text-primary` - Headings (neutral.11 / neutral.1)
-- `text-text-secondary` - Body text (neutral.9 / neutral.4)
-- `text-text-tertiary` - Muted text (neutral.7 / neutral.6)
-- `text-text-disabled` - Disabled state (neutral.5 / neutral.7)
-
-Brand/Interactive:
-- `bg-brand-base` - Primary brand color
-- `bg-brand-hover` - Brand hover state
-- `bg-brand-subtle` - Subtle brand backgrounds
-- `text-brand-text` - Brand text color
-
-Accent:
-- `bg-accent-base` - Accent color
-- `bg-accent-hover` - Accent hover state
-- `text-accent-text` - Accent text color
-
-**Dark Mode Behavior:**
-- Light mode: Uses lower scale numbers (1-5 for backgrounds, 9-11 for text)
-- Dark mode: Inverts scale (11 for darkest bg, 1 for lightest text)
-- All semantic tokens defined in `src/styles/global.css` under `:root` and `.dark`
-- Theme toggle persists to localStorage
-
-**Implementation:**
-- Color scales defined in `tailwind.config.mjs`
-- Semantic tokens as CSS variables in `src/styles/global.css`
-- Always use semantic tokens (not direct scale values) in components
-
-**Special Cases:**
-- Navigation dock (LiquidGlassDock/GlassSurface) uses custom glass morphism implementation with specialized backdrop-filter effects and browser compatibility handling
-
-### Dark Mode Implementation
-- Use Tailwind's `dark:` variant for styling
-- Theme toggle: React component with localStorage persistence
-- System preference detection: `prefers-color-scheme`
-- Prevent flash: Inline script in `<head>` to set `.dark` class before render
-
-### Typography
-- Define custom font families in Tailwind config
-- Responsive typography using Tailwind's responsive utilities
-- Reading time calculation for blog posts
-
-### Utopia Fluid Design System
-
-The site uses the Utopia fluid design system for spacing and typography, providing smooth viewport-based scaling without breakpoint jumps.
-
-**Configuration:**
-- Viewport range: 320px → 1440px
-- Base size: 16px → 17px
-- Type scale: 1.125 (Major Second) → 1.2 (Minor Third)
-- Optimized for 1080p displays where viewport ~1280-1519px
-
-**Spacing Philosophy:**
-All spacing uses fluid scales. Never use responsive breakpoints for spacing (`md:py-*`, `lg:px-*`).
-
-**Semantic spacing tokens (use these first):**
-- `px-gutter` - Container padding (16px → 17px base × 0.9821 + 0.0893vw)
-- `py-section` - Section spacing (via `--space-l-xl`)
-- `py-section-lg` - Large sections (via `--space-xl-2xl`)
-- `p-card` - Card padding (via `--space-m-l`)
-- `gap-m` - Grid gaps (1.5rem → 1.625rem)
-
-**T-shirt size tokens:**
-- Single values: `3xs`, `2xs`, `xs`, `s`, `m`, `l`, `xl`, `2xl`, `3xl`, `4xl`, `5xl`
-- Space pairs (dramatic scaling): `s-m`, `m-l`, `l-xl`, `xl-2xl`, `2xl-3xl`
-- Extended: `5xs`, `4xs` (static 0.25rem), `s-l` custom pair
-
-**Typography scale:**
-- `text-7xl` - Hero headings (~36px → ~61px)
-- `text-5xl` - Page headings (~29px → ~42px)
-- `text-3xl` - Section headings (~23px → ~29px)
-- `text-xl` - Card titles (~20px → ~24px)
-- `text-base` - Body text (16px → 17px)
-- `text-sm` - Metadata (~14px → ~14px)
-
-**Component patterns:**
-
-Page layout:
-```astro
-<PageWrapper spacing="default">
-  <Container size="lg">
-    <!-- content -->
-  </Container>
-</PageWrapper>
+```bash
+npm run upload-image blog/local-ai-retrieval.jpg
+npm run upload-image works/research-project.png
+npm run upload-image about/about-hero.jpg
 ```
 
-Sections:
-```astro
-<Section spacing="default" background="subtle">
-  <Container size="lg">
-    <!-- content -->
-  </Container>
-</Section>
+The command reads only from `public/images-staging/<type>/`, hashes the bytes, uploads to `images/<type>/<slug>-<hash>.<ext>`, and returns the immutable public URL. Do not call Vercel Blob write APIs from a build, content loader, page, or ad hoc replacement script.
+
+### Reference
+
+For blog and work records, copy the returned URL into the matching file under `src/data/blog/` or `src/data/works/`:
+
+```yaml
+image:
+  url: "https://example.public.blob.vercel-storage.com/images/blog/example-12345678.jpg"
+  alt: "A descriptive account of the visible image"
 ```
 
-Hero sections:
-```astro
-<Section spacing="none" class="min-h-[75svh] flex items-center">
-  <Container size="lg">
-    <!-- hero content -->
-  </Container>
-</Section>
-```
+The About portrait is not content frontmatter. Update the direct `OptimizedImage` source in `src/pages/about.astro`, retaining the actual dimensions and descriptive alternative text.
 
-**Important:**
-- Avoid responsive spacing variants - use fluid tokens
-- Use viewport units (`svh`) for hero sections, not fixed spacing
-- Some responsive utilities remain for functional reasons (dock positioning)
+### Verify and clean up
 
-## SEO Best Practices
+1. Run `npm run validate-images` when remote content-image references change.
+2. Run `npm run build`, then inspect the affected page with `npm run preview` at representative desktop and mobile widths in light and dark mode.
+3. Confirm the intended crop, intrinsic dimensions, alternative text, and production Blob response.
+4. A changed file produces a new hash URL rather than overwriting the old object. Update every repository reference and verify the replacement before any explicit operator-side deletion of the obsolete Blob.
+5. The upload script does not delete or replace old objects. Blob removal is a separate external operation and must not occur while a live page or deployment references the URL.
+6. Remove the local staged source after the new URL is adopted and verified; leave each lane's `.gitkeep` in place.
 
-### Required for All Pages
-- Unique `<title>` tag (50-60 characters)
-- Meta description (150-160 characters)
-- Canonical URL
-- OpenGraph tags (og:title, og:description, og:image, og:url)
-- Twitter Card tags
+The default social image is the committed `public/images/og-default.jpg`. Recreate it only through `npm run capture:og -- --overwrite`, visually inspect the result, and retain the exact shared metadata contract in `src/config/site.ts`.
 
-### Content Pages (Blog, Works)
-- JSON-LD structured data (BlogPosting for blog posts, ScholarlyArticle for research papers)
-- Proper heading hierarchy (single h1, nested h2-h6)
-- Alt text for all images
-- Reading time for blog posts
-- Research papers: Include `abstract` and `venue` fields in frontmatter
+## Jet's Ghost
 
-### Automated
-- Sitemap generation (via @astrojs/sitemap)
-- RSS feed for blog (via @astrojs/rss)
-- robots.txt in public/
+Jet's Ghost is a local-first technical showcase and experimental personal assistant, not a general website-support widget.
 
-## Development Workflow
+Current core `2.0.0` state:
 
-### Starting a New Feature
-1. Reference the spec: Check @docs/project-spec.md for architectural decisions
-2. Identify which phase the feature belongs to
-3. Create/modify components following the established patterns
-4. Ensure TypeScript types are correct
-5. Test in both light and dark modes
-6. Verify responsive design (mobile, tablet, desktop)
+- The approved interface remains at `/tools/chatbot/`, noindexed and excluded from the sitemap.
+- `/chatbot` is an interim permanent redirect to `/tools/chatbot/`.
+- The prototype is presentation code only: no production corpus, model engine, or hosted generation endpoint is active.
+- `/api/chat` and the OpenRouter production credential remain removed.
 
-### Adding Blog Content
-1. Create new `.mdx` file in `src/data/blog/`
-2. Add required frontmatter (title, description, pubDate, tags, author)
-3. Write content using MDX (can embed React components)
-4. Build to verify content collection validation
-5. Check reading time calculation and metadata display
+Approved `2.1.0` direction:
 
-### Adding Work Items
-1. Create new `.mdx` file in `src/data/works/`
-2. Add required frontmatter (title, description, type, date)
-3. For research papers: Include `type: "research"`, `venue`, `abstract`, and links (SSRN, PDF) - generates ScholarlyArticle schema
-4. For projects: Include `type: "project"`, `technologies`, `repository`, `demo` - generates CreativeWork schema
-5. Verify display in works list and detail pages
+- Move the semantic route to `/chatbot/` and redirect slashless and legacy Tools variants directly to it.
+- Replace Tools with Ghost in the existing navigation slot; keep `/tools/` dormant, noindexed, and out of primary navigation.
+- Use the pinned Gemma 4 E2B LiteRT-LM browser runtime only. Do not add E4B switching or a hosted fallback.
+- Preserve the explicit boundary: route rendering and compatibility checks do not authorize model/corpus download or GPU allocation. Only “Load Jet's Ghost” may start those operations; prompt assembly begins only when the visitor sends a message.
+- Use the immutable, versioned eligible corpus and one deterministic MiniSearch rank-and-pack pipeline with provenance and citations. Embeddings, Gemma reranking, PGlite, pgvector, EntityDB, and the legacy multi-stage RAG implementation are not part of the approved production path.
+- Keep `/chatbot/` noindexed until the model, quality, lifecycle, privacy, accessibility, browser, and deployment qualification gates pass.
 
-### Pre-Deployment Checklist
-- Run `npm run build` successfully
-- Run `npm run astro check` with no errors
-- Test all navigation links
-- Verify dark mode toggle works
-- Check responsive design on multiple screen sizes
-- Validate SEO meta tags (use browser dev tools)
-- Test performance (Lighthouse score 90+)
+Treat [the approved chat experience](./docs/jets-ghost-chat-experience.md) and prototype commit `d406ed46dfc7cccfa95d0003fcae30f5b9373690` as the UI and interaction source of truth. Integrate it; do not redesign it during runtime work.
 
-## Review Criteria & Quality Standards
+## SEO and release behavior
 
-### Code Quality
-- **TypeScript**: No `any` types unless absolutely necessary
-- **Accessibility**: Semantic HTML, proper ARIA labels, keyboard navigation
-- **Performance**: Minimize JavaScript bundle, lazy load images
-- **SEO**: All pages must have proper meta tags and structured data
-- **Responsive**: Mobile-first approach, test on multiple breakpoints
+- Every public page needs a unique title, description, canonical URL, OpenGraph URL/image, Twitter metadata, and correct linked JSON-LD identities.
+- Canonical routes use trailing slashes. Slashless variants normalize with permanent redirects.
+- `/about/` remains index-follow, canonical, and present in the sitemap; `/about` redirects to it.
+- Retired `/blog/the-future-of-ai` and `/blog/building-with-astro/` routes remain intentional 404 responses and must not appear in internal links, RSS, or the sitemap.
+- The final Jet's Ghost release must verify route redirects, canonical/OpenGraph/JSON-LD agreement, navigation, robots, sitemap, RSS exclusions, and index state against the deployed site before Search Console follow-up.
+- Do not request indexing for a prototype, Preview deployment, or RSS feed. Search Console validation happens only after verified production deployment and recrawl.
 
-### Content Quality
-- Blog posts must have meaningful descriptions for SEO
-- All images must have descriptive alt text
-- External links should open in new tab with `rel="noopener noreferrer"`
-- Code blocks should have language specification for syntax highlighting
+## Testing and verification
 
-### Component Guidelines
-- Keep components focused and single-purpose
-- Prefer composition over prop drilling
-- Document complex components with comments
-- Reusable components go in `src/components/ui/`
+Tests are organized by boundary:
 
-## Common Issues & Solutions
+- `tests/unit/` covers utilities, content policy, components, and operational scripts.
+- `tests/e2e/` covers built-site behavior in Playwright.
+- `tests/deployment/` covers Vercel and production-only routing or header behavior.
+- `tests/jets-ghost-experience.test.ts` protects the approved interface contract.
 
-### Tailwind Not Applying Styles
-- Check content paths in `tailwind.config.mjs` include your file type
-- Ensure `@tailwind` directives are imported in global.css
-- Restart dev server after config changes
+For ordinary changes, run the smallest focused RED test first, implement, rerun it GREEN, then run `npm run verify`. Add `npm run verify:browser`, build-purity, deployment, real-device, or production checks in proportion to the boundary changed. Do not claim a deployed behavior from an Astro preview test.
 
-### Content Collection Errors
-- Verify frontmatter matches schema in `src/schemas/content.ts`
-- Check date formats (use ISO 8601: YYYY-MM-DD)
-- Ensure required fields are present
-- Content files are in `src/data/` not `src/content/`
+Before deployment, verify light and dark modes, keyboard/focus behavior, responsive layouts, navigation, metadata, structured data, and the affected production route. Preserve existing user changes in a dirty worktree and do not broaden the commit beyond the approved task.
 
-### Dark Mode Flash (FOUC)
-- Inline script must run before body renders
-- Check localStorage key matches between script and toggle component
-- Verify `dark` class is applied to `<html>` element
+## Versioning and commits
 
-### Build Errors
-- Run `npm run astro check` for detailed TypeScript errors
-- Check for circular dependencies
-- Ensure all imports have correct extensions
+- Follow [Semantic Versioning 2.0.0](https://semver.org/spec/v2.0.0.html).
+- `package.json` is the authoritative application version. The current versioning baseline starts at `1.0.0`; use annotated `v<major>.<minor>.<patch>` release tags.
+- Content-only or documentation-only deployments do not require a version change unless they accompany an application release.
+- Follow [Conventional Commits 1.0.0](https://www.conventionalcommits.org/en/v1.0.0/): `type(optional-scope)!: description`.
+- Common types are `feat`, `fix`, `docs`, `refactor`, `perf`, `test`, `build`, `ci`, `chore`, and `revert`.
+- Mark incompatible changes with `!` and a `BREAKING CHANGE:` footer. Use commit bodies to record intent, constraints, and verification where useful.
+- Do not add automated-tool, co-author, or generated-by attribution unless a human explicitly requests it for that commit.
 
-## Important Notes
+## Canonical documentation
 
-- **Spec is source of truth**: Always reference @docs/project-spec.md for architectural decisions and implementation phases
-- **Tailwind v3.x**: Using v3.4.18 for reliability. Do NOT use v4.0 patterns (CSS-first config, @theme directive)
-- **Astro Islands**: React components are automatically islands. Use `client:*` directives wisely
-- **Content is in MDX**: All blog posts and works are MDX files, not markdown
-- **Type safety**: Content Collections provide runtime validation and TypeScript types
-- **SEO is critical**: This is a personal/professional site, SEO optimization is a priority
+- [Core modernization design](./docs/superpowers/specs/2026-07-11-v1-modernization-design.md)
+- [Core modernization implementation plan](./docs/superpowers/plans/2026-07-11-v1-modernization.md)
+- [Jet's Ghost local-assistant design](./docs/superpowers/specs/2026-07-11-jets-ghost-local-assistant-design.md)
+- [Jet's Ghost implementation plan](./docs/superpowers/plans/2026-07-11-jets-ghost-local-assistant.md)
+- [Approved Jet's Ghost chat experience](./docs/jets-ghost-chat-experience.md)
+- [Documentation archive](./docs/archive/README.md)
 
-## External References
-
-- Project Specification: @docs/project-spec.md
-- Astro Documentation: https://docs.astro.build
-- Tailwind v3 Documentation: https://v3.tailwindcss.com
-- React 19 Documentation: https://react.dev
-- MDX Documentation: https://mdxjs.com
-
----
-
-**Last Updated**: 2026-01-28
-**Spec Version**: 1.5
+Historical documents under `docs/archive/` are evidence, not current instructions. Do not cite an archived design as the active target when a canonical successor is listed.

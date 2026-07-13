@@ -1,245 +1,98 @@
-# Personal Website & Blog
+# jetsanchez.com
 
-A modern, minimal personal website and blog built with Astro, MDX, and React. Features a dark mode design with blue theming, full SEO optimization, and perfect performance scores.
+Personal website, writing archive, research portfolio, and local-first AI experiments for Jet Sanchez.
 
-[![Lighthouse Performance](https://img.shields.io/badge/Lighthouse-100%2F100-brightgreen)](https://developers.google.com/web/tools/lighthouse)
-[![Built with Astro](https://img.shields.io/badge/Built%20with-Astro-FF5D01)](https://astro.build)
+Production: [jetsanchez.com](https://jetsanchez.com)
 
-## ✨ Features
+## Architecture
 
-- 🎨 **Modern Design**: Clean, minimal aesthetic with dark mode support
-- ⚡️ **Perfect Performance**: 100/100 Lighthouse score with excellent Core Web Vitals
-- 📝 **MDX Blog**: Rich content with embedded React components
-- 🔬 **Works Showcase**: Flexible system for research papers and projects
-- 🎯 **SEO Optimized**: Complete meta tags, OpenGraph, structured data, RSS feed
-- 🌙 **Dark Mode**: Persistent theme with system preference detection
-- 📱 **Fully Responsive**: Mobile-first design that works on all devices
-- 🚀 **Fast Loading**: Minimal JavaScript (~68 kB gzipped), system fonts, optimized images
-- ♿️ **Accessible**: Semantic HTML, ARIA labels, keyboard navigation
+The site is a statically generated Astro application deployed on Vercel. MDX content lives in `src/data/`, Astro renders the public pages, and React is reserved for interactive islands. Tailwind CSS and the shared semantic token system provide the visual foundation.
 
-## 🚀 Quick Start
+The production build is pure: it validates repository content and writes the static `dist/` output without mutating external services. Vercel Blob uploads are a separate, explicit authoring operation.
 
-### Prerequisites
+## Requirements
 
-- Node.js 18+ and npm
+- Node.js 24.x
+- npm
 
-### Installation
+## Development
+
+Install dependencies and start the local server:
 
 ```bash
-# Clone the repository
-git clone <your-repo-url>
-cd jet-web
-
-# Install dependencies
 npm install
-
-# Start development server
 npm run dev
 ```
 
-Open [http://localhost:4321](http://localhost:4321) to view the site.
+The development site is available at [http://localhost:4321](http://localhost:4321).
 
-## 📦 Project Structure
+| Command | Purpose |
+| --- | --- |
+| `npm run dev` | Start the Astro development server. |
+| `npm run check` | Run Astro and TypeScript checks. |
+| `npm run test` | Run the unit and component test suite. |
+| `npm run test:e2e` | Run the Playwright browser suite. |
+| `npm run verify:content` | Validate publication policy and tracked content. |
+| `npm run verify:docs` | Validate links in active Markdown documentation. |
+| `npm run verify:build-purity` | Prove the build does not perform external writes. |
+| `npm run build` | Validate content and build the production site. |
+| `npm run preview` | Serve the built site locally. |
+| `npm run verify` | Run the standard local and CI verification gate. |
+| `npm run upload-image <type>/<file>` | Explicitly upload a staged image to Vercel Blob. |
+| `npm run capture:og` | Recreate the default OpenGraph image with explicit overwrite consent. |
 
-```
-/
-├── public/              # Static assets
-├── src/
-│   ├── components/      # Reusable components
-│   │   ├── layout/      # Header, Footer, Navigation
-│   │   ├── seo/         # SEO, StructuredData
-│   │   ├── ui/          # Button, Card, Tag, etc.
-│   │   ├── blog/        # Blog-specific components
-│   │   └── works/       # Works-specific components
-│   ├── content/         # Content Collections (MDX)
-│   │   ├── config.ts    # Schema definitions
-│   │   ├── blog/        # Blog posts
-│   │   └── works/       # Work items
-│   ├── layouts/         # Page layouts
-│   ├── pages/           # File-based routing
-│   ├── styles/          # Global styles
-│   ├── utils/           # Helper functions
-│   └── config/          # Site configuration
-├── docs/                # Project documentation
-├── astro.config.mjs     # Astro configuration
-├── tailwind.config.mjs  # Tailwind configuration
-└── package.json
-```
+## Verification
 
-## 🛠️ Development Commands
-
-| Command                | Action                                       |
-| :--------------------- | :------------------------------------------- |
-| `npm install`          | Install dependencies                          |
-| `npm run dev`          | Start dev server at `localhost:4321`         |
-| `npm run build`        | Build production site to `./dist/`           |
-| `npm run preview`      | Preview production build locally             |
-| `npm run astro check`  | Type-check Astro files                       |
-
-## ✍️ Content Management
-
-### Adding Blog Posts
-
-Create a new `.mdx` file in `src/content/blog/`:
-
-```mdx
----
-title: "Your Post Title"
-description: "A brief description for SEO"
-pubDate: 2025-12-18
-author: "Your Name"
-tags: ["astro", "web-dev"]
-draft: false
----
-
-Your content here with full MDX support!
-```
-
-### Adding Work Items
-
-Create a new `.mdx` file in `src/content/works/`:
-
-```mdx
----
-title: "Your Work Title"
-description: "A brief description"
-type: "research" # or "project" or "other"
-date: 2025-12-18
-tags: ["ai", "research"]
-featured: true
-links:
-  - label: "View on SSRN"
-    url: "https://papers.ssrn.com/..."
-venue: "Conference/Journal Name" # for research
----
-
-Your work content here!
-```
-
-### Content Schemas
-
-- **Blog Posts**: title, description, pubDate, author, tags, draft (optional), image (optional)
-- **Works**: title, description, type, date, tags, featured, links, venue (research), technologies (projects)
-
-All content is type-safe and validated at build time.
-
-## 🚀 Deployment
-
-### Deploy to Vercel (Recommended)
-
-#### Using Vercel CLI (Preview):
+Run the standard gate before committing:
 
 ```bash
-# Install Vercel CLI
-npm i -g vercel
-
-# Deploy preview
-vercel
-
-# Deploy to production
-vercel --prod
+npm run verify
 ```
 
-#### Using GitHub Integration:
+Browser and external-state checks remain separate because they are slower or require a real deployment:
 
-1. Push your code to GitHub
-2. Import your repository on [Vercel](https://vercel.com)
-3. Vercel auto-detects Astro and configures everything
-4. Deploy!
-
-Vercel automatically configures:
-- Build command: `npm run build`
-- Output directory: `dist`
-- Install command: `npm install`
-
-### Other Platforms
-
-The site works on any static hosting platform (Netlify, Cloudflare Pages, GitHub Pages, etc.)
-
-## 🎨 Customization
-
-### Site Configuration
-
-Update `src/config/site.ts`:
-
-```typescript
-export const SITE = {
-  title: 'Your Name',
-  description: 'Your site description',
-  author: 'Your Name',
-  email: 'your@email.com',
-  siteUrl: 'https://yoursite.com',
-};
-
-export const SOCIAL_LINKS = {
-  github: 'https://github.com/yourusername',
-  linkedin: 'https://linkedin.com/in/yourusername',
-  twitter: 'https://twitter.com/yourusername',
-  ssrn: 'https://papers.ssrn.com/...',
-};
+```bash
+npm run verify:browser
+npm run verify:production
 ```
 
-### Update Site URL
+## Content
 
-Update `site` in `astro.config.mjs`:
+Blog posts and work records are MDX files in `src/data/blog/` and `src/data/works/`. Their frontmatter is validated by the schemas in `src/schemas/content.ts`.
 
-```javascript
-export default defineConfig({
-  site: 'https://yoursite.com',
-  // ... other config
-});
+Every content record declares publication and assistant eligibility explicitly:
+
+```yaml
+status: draft
+assistant: false
 ```
 
-### Styling
+Publication requires `status: published`. Inclusion in the Jet's Ghost corpus additionally requires `assistant: true`. Draft, untracked, malformed, or implicitly configured content must not enter the production site or assistant corpus.
 
-- Global styles: `src/styles/global.css`
-- Tailwind config: `tailwind.config.mjs`
-- Dark mode colors: Configured in Tailwind config
+## Images
 
-## 📊 Performance
+Stage authoring images under `public/images-staging/`, then use the explicit upload command to create an immutable Vercel Blob URL. The complete naming, sizing, upload, replacement, verification, and cleanup workflow is maintained in [AGENTS.md](./AGENTS.md#image-workflow).
 
-- **Lighthouse Score**: 100/100
-- **First Contentful Paint**: 1.2s
-- **Largest Contentful Paint**: 1.5s
-- **Total Blocking Time**: 0ms
-- **Cumulative Layout Shift**: 0
-- **JavaScript Bundle**: ~68 kB (gzipped)
+The default social image is committed at `public/images/og-default.jpg` and can be reproduced with the checked-in capture script.
 
-## 🛡️ SEO Features
+## Jet's Ghost
 
-- ✅ Semantic HTML
-- ✅ Meta tags (title, description, author)
-- ✅ OpenGraph tags (Facebook, LinkedIn)
-- ✅ Twitter Cards
-- ✅ Canonical URLs
-- ✅ Structured data (JSON-LD)
-- ✅ Sitemap (auto-generated)
-- ✅ RSS feed
-- ✅ robots.txt
+Jet's Ghost is a local-first experimental assistant and a first-class site experience, not a hosted support widget. The current core-modernization state keeps the approved interface prototype inert and noindexed at `/tools/chatbot/`, with `/chatbot` temporarily redirecting to it. It has no production model, corpus, engine, or hosted generation path.
 
-## 🏗️ Tech Stack
+The planned `2.1.0` integration moves the experience to canonical `/chatbot/`, adds the pinned Gemma 4 E2B LiteRT-LM runtime and deterministic cited retrieval, and keeps activation, compatibility checks, model download, and resource lifecycle under explicit visitor control. It remains noindexed until the release qualification gate passes.
 
-- **Framework**: [Astro](https://astro.build) v5.16.6
-- **UI Library**: [React](https://react.dev) v19.2.3 (for interactive components)
-- **Styling**: [Tailwind CSS](https://tailwindcss.com) v3.4.18
-- **Content**: [MDX](https://mdxjs.com) with Content Collections
-- **Type Safety**: [TypeScript](https://www.typescriptlang.org)
-- **Deployment**: [Vercel](https://vercel.com)
+## Deployment
 
-## 📄 Documentation
+Vercel builds the repository as a static Astro site using Node 24. A release must pass the repository verification gate before deployment; production-only routing, containment, metadata, and indexing behavior are then verified against the deployed URL.
 
-- [Project Specification](docs/project-spec.md) - Complete technical specification
-- [Implementation Log](docs/implementation-log.md) - Phase-by-phase development log
-- [Claude Code Memory](CLAUDE.md) - Quick reference for Claude Code
+Do not introduce network writes into `npm run build`. Image uploads, credential changes, release promotion, and Search Console actions are explicit operator steps outside the build.
 
-## 📝 License
+## Documentation
 
-This project is open source and available under the [MIT License](LICENSE).
-
-## 🙏 Acknowledgments
-
-Built with [Astro](https://astro.build), styled with [Tailwind CSS](https://tailwindcss.com), and deployed on [Vercel](https://vercel.com).
-
----
-
-**Last Updated**: 2025-12-18
+- [Core modernization design](./docs/superpowers/specs/2026-07-11-v1-modernization-design.md)
+- [Core modernization implementation plan](./docs/superpowers/plans/2026-07-11-v1-modernization.md)
+- [Jet's Ghost local-assistant design](./docs/superpowers/specs/2026-07-11-jets-ghost-local-assistant-design.md)
+- [Jet's Ghost implementation plan](./docs/superpowers/plans/2026-07-11-jets-ghost-local-assistant.md)
+- [Approved Jet's Ghost chat experience](./docs/jets-ghost-chat-experience.md)
+- [Documentation archive](./docs/archive/README.md)
+- [Agent and contributor guidance](./AGENTS.md)

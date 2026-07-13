@@ -1,3 +1,5 @@
+> **Superseded workflow.** Archived on 2026-07-13. Follow the canonical [image workflow in AGENTS.md](../../../../AGENTS.md#image-workflow).
+
 # Image Staging Directory
 
 This directory is used for staging images before uploading them to Vercel Blob storage.

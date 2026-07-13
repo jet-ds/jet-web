@@ -15,6 +15,14 @@ export const SITE = {
   email: 'jetsanchezzz@gmail.com',
   siteUrl: 'https://jetsanchez.com',
   ga4MeasurementId: 'G-71J4JTMLJE',
+  defaultOpenGraphImage: {
+    path: '/images/og-default.jpg',
+    url: 'https://jetsanchez.com/images/og-default.jpg',
+    width: 1920,
+    height: 1080,
+    alt: "Jet Sanchez's homepage hero with a blue and mustard Grainient background",
+    maxBytes: 2_000_000,
+  },
 } as const;
 
 export const SOCIAL_LINKS = {

@@ -1,3 +1,5 @@
+> **Superseded workflow.** Archived on 2026-07-13. Follow the canonical [image workflow in AGENTS.md](../../../../AGENTS.md#image-workflow).
+
 # Image Workflow Guide
 
 This guide covers how to add featured images to blog posts and works using Vercel Blob storage.

@@ -5,6 +5,8 @@ export interface SEOProps {
   description: string;
   image?: string;
   imageAlt?: string;
+  imageWidth?: number;
+  imageHeight?: number;
   canonicalURL?: string;
   type?: 'website' | 'article' | 'profile';
   publishedTime?: string;
@@ -53,12 +55,15 @@ export function getCanonicalURL(path: string): string {
  */
 export function generateSEOProps(props: Partial<SEOProps>): SEOProps {
   const canonicalURL = props.canonicalURL || getCanonicalURL(props.canonicalURL || '/');
+  const usesDefaultImage = props.image === undefined;
 
   return {
     title: props.title || SITE.title,
     description: props.description || SITE.description,
-    image: props.image || `${SITE.siteUrl}/images/og-default.jpg`,
-    imageAlt: props.imageAlt,
+    image: props.image || SITE.defaultOpenGraphImage.url,
+    imageAlt: usesDefaultImage ? SITE.defaultOpenGraphImage.alt : props.imageAlt,
+    imageWidth: usesDefaultImage ? SITE.defaultOpenGraphImage.width : props.imageWidth,
+    imageHeight: usesDefaultImage ? SITE.defaultOpenGraphImage.height : props.imageHeight,
     canonicalURL,
     type: props.type || 'website',
     publishedTime: props.publishedTime,

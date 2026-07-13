@@ -11,6 +11,13 @@ const routes = [
   '/contact/',
 ];
 
+const defaultOpenGraphImage = {
+  url: 'https://jetsanchez.com/images/og-default.jpg',
+  width: '1920',
+  height: '1080',
+  alt: "Jet Sanchez's homepage hero with a blue and mustard Grainient background",
+} as const;
+
 for (const route of routes) {
   test(`${route} renders one main heading`, async ({ page }) => {
     await page.goto(route);
@@ -26,6 +33,27 @@ test('research exposes one DOI-backed action', async ({ page }) => {
   const action = page.getByRole('link', { name: 'View on SSRN' });
   await expect(action).toHaveAttribute('href', 'https://doi.org/10.2139/ssrn.5395309');
   await expect(page.getByRole('link', { name: 'Download PDF' })).toHaveCount(0);
+});
+
+test('homepage serves the default social image and exact metadata', async ({ page, request }) => {
+  await page.goto('/');
+  await expect(page.locator('meta[property="og:image"]'))
+    .toHaveAttribute('content', defaultOpenGraphImage.url);
+  await expect(page.locator('meta[property="og:image:width"]'))
+    .toHaveAttribute('content', defaultOpenGraphImage.width);
+  await expect(page.locator('meta[property="og:image:height"]'))
+    .toHaveAttribute('content', defaultOpenGraphImage.height);
+  await expect(page.locator('meta[property="og:image:alt"]'))
+    .toHaveAttribute('content', defaultOpenGraphImage.alt);
+  await expect(page.locator('meta[name="twitter:image"]'))
+    .toHaveAttribute('content', defaultOpenGraphImage.url);
+  await expect(page.locator('meta[name="twitter:image:alt"]'))
+    .toHaveAttribute('content', defaultOpenGraphImage.alt);
+
+  const response = await request.get('/images/og-default.jpg');
+  expect(response.status()).toBe(200);
+  expect(response.headers()['content-type']).toContain('image/jpeg');
+  expect((await response.body()).subarray(0, 2)).toEqual(Buffer.from([0xff, 0xd8]));
 });
 
 test('theme choice persists across navigation', async ({ page }) => {

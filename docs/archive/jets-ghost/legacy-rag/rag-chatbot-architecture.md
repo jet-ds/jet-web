@@ -1,3 +1,5 @@
+> **Superseded Jet's Ghost architecture.** Archived on 2026-07-13. The canonical successor is the [local-assistant design](../../../superpowers/specs/2026-07-11-jets-ghost-local-assistant-design.md).
+
 # Database-Less RAG Chatbot Architecture - Viability Assessment
 
 **Status**: Research Complete

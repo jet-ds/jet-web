@@ -1,3 +1,5 @@
+> **Superseded project specification.** Archived on 2026-07-13. The canonical successor is the [v1 modernization design](../../superpowers/specs/2026-07-11-v1-modernization-design.md).
+
 # Personal Website & Blog - Project Specification & Implementation Plan
 
 ## Project Overview

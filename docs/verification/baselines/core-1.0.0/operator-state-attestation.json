@@ -5,10 +5,26 @@
     "sha256": "a1720e20d0d1f8c3fe1a80bbf04c9ebec9cbeda72a3664af1d6f11d48f7d3ff5",
     "entryCount": 9
   },
+  "approvedTask11Inventory": {
+    "sha256": "bfb24289db491e75886ba0ba4fba48eb2d46348ad6f107cd3b9b2c7da64a7914",
+    "entryCount": 8
+  },
   "authorizedArchiveSources": [
     {
       "path": "EMBEDDING_STORAGE_RESEARCH.md",
       "sha256": "9415f65df1073d5e003fdd4ea60f512e697ebdf6a6b832de01856c46ad6279ef"
+    },
+    {
+      "path": "Untracked/docs/emdash-news-theme-spec.md",
+      "sha256": "da68b14d3c85f6d51b262dd6af6a840307e221a08ca45f85b4e3d6add25c48c2"
+    },
+    {
+      "path": "Untracked/docs/page-analyzer-spec.md",
+      "sha256": "f91b13d46df2e2bdef66c5c38107357223257eddac144a49de69faeb8ef2b928"
+    },
+    {
+      "path": "Untracked/docs/schema-visualizer-spec.md",
+      "sha256": "80ab161095add322d4cf177338ebcc0faa915c3d6e8786b0053a49f1864109ee"
     },
     {
       "path": "docs/jets-ghost-v1.5-spec.md",

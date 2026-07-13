@@ -1,3 +1,5 @@
+> **Superseded Jet's Ghost plan.** Archived on 2026-07-13. The canonical successor is the [local-assistant plan](../../../superpowers/plans/2026-07-11-jets-ghost-local-assistant.md).
+
 # Database-Less RAG Chatbot - Implementation Plan
 
 **Status**: Implementation Ready (Revised)

@@ -1,3 +1,5 @@
+> **Superseded migration record.** Archived on 2026-07-13. The canonical successor is the [v1 modernization design](../../superpowers/specs/2026-07-11-v1-modernization-design.md).
+
 # V2 Migration — Implementation Log
 
 A running log of decisions made and work completed during the v1 → v2 migration. Appended chronologically.
