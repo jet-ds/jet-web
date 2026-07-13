@@ -155,9 +155,9 @@ Using the private state, create `operator-state-attestation.json` with only:
 }
 ```
 
-Sort the four authorized records by path and calculate `entryCount` from the NUL-delimited private inventory. The attestation contains no absolute path and no unrelated untracked filename. Validate it against the private files before use. No listed user file is copied into the worktree except the four superseded documents explicitly authorized for archival in Task 11. At the end of every task, recalculate the original checkout's NUL-delimited inventory and compare its digest/count with the private state; stop on drift before controlled cleanup.
+Sort the four authorized records by path and calculate `entryCount` from the NUL-delimited private inventory. The attestation contains no absolute path and no unrelated untracked filename. Validate it against the private files before use. No listed user file is copied into the worktree except the four superseded documents explicitly authorized for archival in Task 11. Through Task 10, recalculate the original checkout's NUL-delimited inventory at the end of every task and compare its digest/count with the private state; stop on drift.
 
-This is the initial Task 0 allowlist and records the approval state at isolation time. A later explicit Task 11 decision expands the allowlist to eight non-canonical documentation artifacts. Task 11 must hash the four added exact paths, update both the private allowlist and committed attestation, revalidate them against the unchanged nine-entry inventory, and only then read or copy those added sources. The active Codex article is never added.
+This is the initial Task 0 allowlist and records the approval state at isolation time. A later explicit Task 11 decision expands the allowlist to seven non-canonical documentation artifacts by adding the three deferred-concept paths. Afterward, the user intentionally removes the local Lighthouse report and relocates the active Codex article. Task 11 must preserve and validate `original-status.z` and its nine-entry attestation as immutable historical evidence, not compare current state to or overwrite that snapshot. Hash the three added archive sources, write the current eight-entry status to private mode-`0600` `task-11-approved-status.txt`, add a separate `approvedTask11Inventory` digest/count to the committed attestation, and compare current state against that approved Task 11 snapshot from this point forward. The active Codex article is never added to the archive allowlist.
 
 No commit occurs in Task 0; Task 1 establishes the commit policy and commits only this non-identifying attestation.
 
@@ -1862,7 +1862,6 @@ git commit -m "fix(seo): align canonical route identities"
 - Adopt authorized untracked historical docs into: `docs/archive/jets-ghost/legacy-rag/`
 - Adopt authorized untracked dock log into: `docs/archive/site/implementation-logs/liquid-glass-dock-v2.md`
 - Adopt authorized deferred concepts into: `docs/archive/deferred-concepts/`
-- Adopt authorized local audit into: `docs/archive/site/audits/localhost-2025-12-18-lighthouse-report.html`
 - Modify: `package.json`
 - Modify: `package-lock.json`
 
@@ -1956,7 +1955,7 @@ docs/rag-chatbot-implementation-log.md
 Place site history under `docs/archive/site/` and RAG history under `docs/archive/jets-ghost/legacy-rag/`. Do not move either active Superpowers design/plan or `docs/jets-ghost-chat-experience.md`.
 
 ```bash
-mkdir -p docs/archive/{deferred-concepts,site/{audits,implementation-logs,todos,workflows},jets-ghost/legacy-rag}
+mkdir -p docs/archive/{deferred-concepts,site/{implementation-logs,todos,workflows},jets-ghost/legacy-rag}
 git mv TODO.md docs/archive/site/todos/default-opengraph-image.md
 git mv docs/image-workflow.md docs/archive/site/workflows/image-workflow.md
 git mv public/images-staging/README.md docs/archive/site/workflows/image-staging-readme.md
@@ -1989,30 +1988,28 @@ Untracked/docs/page-analyzer-spec.md
   -> docs/archive/deferred-concepts/page-analyzer-spec.md
 Untracked/docs/schema-visualizer-spec.md
   -> docs/archive/deferred-concepts/schema-visualizer-spec.md
-Untracked/localhost_2025-12-18_17-30-02.report.html
-  -> docs/archive/site/audits/localhost-2025-12-18-lighthouse-report.html
 ```
 
-The script reads only those eight files from the inventoried original checkout, verifies each against the private `$OPERATOR_STATE_DIR/authorized-archive-source-hashes.txt`, refuses symlinks or changed/missing sources, and writes source/archived SHA-256 values to `docs/archive/archive-manifest.json`. Expand the committed attestation to the same exact eight path/hash pairs and update the private hash allowlist without changing the original nine-entry inventory. Markdown destinations preserve their substantive bodies behind a generated historical/deferred banner and successor link; verify mode removes only that exact banner before hashing the archived body. The self-contained HTML Lighthouse report is copied byte-for-byte, so its archive/body hash equals its source hash and its status is recorded in the archive index and manifest rather than by rewriting the report. The script never reads or copies `Untracked/src/data/blog/how-to-install-and-get-started-with-codex-cli-2026.mdx`.
+The script reads only those seven Markdown files from the inventoried original checkout, verifies each against the private `$OPERATOR_STATE_DIR/authorized-archive-source-hashes.txt`, refuses symlinks or changed/missing sources, and writes source/archived SHA-256 values to `docs/archive/archive-manifest.json`. Expand the committed attestation to the same exact seven path/hash pairs and add `approvedTask11Inventory` for private `task-11-approved-status.txt`; do not replace the immutable Task 0 `inventory` record. Markdown destinations preserve their substantive bodies behind a generated historical/deferred banner and successor link; verify mode removes only that exact banner before hashing the archived body. The script never reads or copies `Untracked/how-to-install-and-get-started-with-codex-cli-2026.mdx`.
 
-The same exact map owns a later `--cleanup --release-ref=<tag>` mode; there is no standalone `rm` workflow. Cleanup first performs every check without mutation: all eight sources are regular untracked files with the recorded hashes; the ref is an annotated tag; the archive-manifest introduction is its ancestor; and the current original-worktree porcelain inventory exactly matches the Task 0 inventory. Read `docs/archive/archive-manifest.json` and every mapped destination as tagged blobs through Git at `release-ref`, hash those tagged bytes, strip only the exact generated Markdown banners where required, and require the tagged manifest/source/archive hashes to agree. Current-worktree files are not cleanup evidence. Then remove only the eight mapped sources, prove the new inventory equals the original inventory minus exactly those eight records, and report the removed paths. Use private mode-`0600` byte backups and restore all eight on any unlink/postcondition failure so a partial cleanup is not accepted. The expected remaining inventory is exactly the active Codex article draft.
+The same exact map owns a later `--cleanup --release-ref=<tag>` mode; there is no standalone `rm` workflow. Cleanup first performs every check without mutation: all seven sources are regular untracked files with the recorded hashes; the ref is an annotated tag; the archive-manifest introduction is its ancestor; and the current original-worktree porcelain inventory exactly matches the approved Task 11 inventory. Read `docs/archive/archive-manifest.json` and every mapped destination as tagged blobs through Git at `release-ref`, hash those tagged bytes, strip only the exact generated Markdown banners, and require the tagged manifest/source/archive hashes to agree. Current-worktree files are not cleanup evidence. Then remove only the seven mapped sources, prove the new inventory equals the approved Task 11 inventory minus exactly those seven records, and report the removed paths. Use private mode-`0600` byte backups and restore all seven on any unlink/postcondition failure so a partial cleanup is not accepted. The expected remaining inventory is exactly `?? Untracked/how-to-install-and-get-started-with-codex-cli-2026.mdx`.
 
-Test the archive script through injected filesystem/Git adapters in `tests/unit/ops/archiveLegacyDocs.test.ts`. Cover the exact eight-path map, Markdown banners, byte-exact HTML creation and verification, source-hash drift, archived-body drift, symlinks, missing/unexpected files, proof that the active article is never opened, a release ref that does not contain the archive commit, tagged-manifest/tagged-blob drift even when the worktree copy passes, a pre-cleanup inventory mismatch, successful removal of exactly eight paths with the article remaining, and rollback after an injected unlink/postcondition failure.
+Test the archive script through injected filesystem/Git adapters in `tests/unit/ops/archiveLegacyDocs.test.ts`. Cover the exact seven-path map, Markdown banners, both immutable Task 0 and approved Task 11 inventory attestations, source-hash drift, archived-body drift, symlinks, missing/unexpected files, proof that the relocated active article is never opened, a release ref that does not contain the archive commit, tagged-manifest/tagged-blob drift even when the worktree copy passes, a pre-cleanup inventory mismatch, successful removal of exactly seven paths with the article remaining, and rollback after an injected unlink/postcondition failure.
 
-Recover `ORIGINAL_ROOT` from the private `original-root.txt`, assert it is an absolute Git worktree path, and pass the private source-hash and NUL-delimited inventory paths explicitly to the script. Validate the committed attestation against those private inputs before create or verify mode. Do not delete the original untracked copies yet; cleanup occurs only after the archive commit is integrated and included in an annotated release tag.
+Recover `ORIGINAL_ROOT` from the private `original-root.txt` and assert it is an absolute Git worktree path. Pass private `original-status.z` as the immutable NUL-delimited Task 0 inventory and `task-11-approved-status.txt` as the sorted, newline-delimited current Task 11 inventory; parse and hash each format without normalizing or conflating them. Pass the private source-hash path explicitly and validate the committed attestation against all three private inputs before create or verify mode. Do not delete the original untracked copies yet; cleanup occurs only after the archive commit is integrated and included in an annotated release tag.
 
 ```bash
 GIT_COMMON_DIR=$(cd "$(git rev-parse --git-common-dir)" && pwd -P)
 OPERATOR_STATE_DIR="$GIT_COMMON_DIR/codex/v1-modernization"
 ORIGINAL_ROOT=$(cat "$OPERATOR_STATE_DIR/original-root.txt")
 test -n "$ORIGINAL_ROOT" && test "${ORIGINAL_ROOT#/}" != "$ORIGINAL_ROOT"
-npx tsx scripts/archive-legacy-docs.ts --create --source-root="$ORIGINAL_ROOT" --source-hashes="$OPERATOR_STATE_DIR/authorized-archive-source-hashes.txt" --inventory="$OPERATOR_STATE_DIR/original-status.z" --attestation=docs/verification/baselines/core-1.0.0/operator-state-attestation.json
-npx tsx scripts/archive-legacy-docs.ts --verify --source-root="$ORIGINAL_ROOT" --source-hashes="$OPERATOR_STATE_DIR/authorized-archive-source-hashes.txt" --inventory="$OPERATOR_STATE_DIR/original-status.z" --attestation=docs/verification/baselines/core-1.0.0/operator-state-attestation.json
+npx tsx scripts/archive-legacy-docs.ts --create --source-root="$ORIGINAL_ROOT" --source-hashes="$OPERATOR_STATE_DIR/authorized-archive-source-hashes.txt" --initial-inventory="$OPERATOR_STATE_DIR/original-status.z" --inventory="$OPERATOR_STATE_DIR/task-11-approved-status.txt" --attestation=docs/verification/baselines/core-1.0.0/operator-state-attestation.json
+npx tsx scripts/archive-legacy-docs.ts --verify --source-root="$ORIGINAL_ROOT" --source-hashes="$OPERATOR_STATE_DIR/authorized-archive-source-hashes.txt" --initial-inventory="$OPERATOR_STATE_DIR/original-status.z" --inventory="$OPERATOR_STATE_DIR/task-11-approved-status.txt" --attestation=docs/verification/baselines/core-1.0.0/operator-state-attestation.json
 ```
 
 - [ ] **Step 6: Index the archive and repair references**
 
-`docs/archive/README.md` lists every archived path, original path, reason/status, date, and canonical successor. Add a visible banner with a correct relative successor link to every moved tracked Markdown document and every adopted Markdown document; keep the HTML audit byte-exact and place its status in the index. Update README, AGENTS, both active Superpowers designs, both active Superpowers plans, and all remaining live links so no canonical documentation points at an obsolete path.
+`docs/archive/README.md` lists every archived path, original path, reason/status, date, and canonical successor. Add a visible banner with a correct relative successor link to every moved tracked Markdown document and every adopted Markdown document. Update README, AGENTS, both active Superpowers designs, both active Superpowers plans, and all remaining live links so no canonical documentation points at an obsolete path.
 
 Install the parser dependencies as exact regular dependencies because both the checked-in verification script and the later corpus builder use them:
 
@@ -2036,7 +2033,7 @@ GIT_COMMON_DIR=$(cd "$(git rev-parse --git-common-dir)" && pwd -P)
 OPERATOR_STATE_DIR="$GIT_COMMON_DIR/codex/v1-modernization"
 ORIGINAL_ROOT=$(cat "$OPERATOR_STATE_DIR/original-root.txt")
 test -n "$ORIGINAL_ROOT" && test "${ORIGINAL_ROOT#/}" != "$ORIGINAL_ROOT"
-npx tsx scripts/archive-legacy-docs.ts --verify --source-root="$ORIGINAL_ROOT" --source-hashes="$OPERATOR_STATE_DIR/authorized-archive-source-hashes.txt" --inventory="$OPERATOR_STATE_DIR/original-status.z" --attestation=docs/verification/baselines/core-1.0.0/operator-state-attestation.json
+npx tsx scripts/archive-legacy-docs.ts --verify --source-root="$ORIGINAL_ROOT" --source-hashes="$OPERATOR_STATE_DIR/authorized-archive-source-hashes.txt" --initial-inventory="$OPERATOR_STATE_DIR/original-status.z" --inventory="$OPERATOR_STATE_DIR/task-11-approved-status.txt" --attestation=docs/verification/baselines/core-1.0.0/operator-state-attestation.json
 npm run test -- tests/unit/ops/archiveLegacyDocs.test.ts
 npm run test -- tests/unit/ops/docLinks.test.ts
 npm run test -- tests/unit/seo/defaultOpenGraphImage.test.ts
@@ -2044,12 +2041,12 @@ npm run verify:docs
 npm run test:e2e -- tests/e2e/site.spec.ts
 ```
 
-Expected: no stale claims, all documented commands exist, the default social image and metadata are exact, all eight non-canonical documentation sources verify against the archive, the active Codex article remains untouched, and the original inventory has not yet changed.
+Expected: no stale claims, all documented commands exist, the default social image and metadata are exact, all seven non-canonical documentation sources verify against the archive, the relocated active Codex article remains untouched, the immutable Task 0 snapshot still verifies, and the current inventory still equals the approved Task 11 snapshot.
 
 - [ ] **Step 8: Commit the canonical documentation, OpenGraph asset, and archive**
 
 ```bash
-git add README.md AGENTS.md package.json package-lock.json src/config/site.ts src/utils/seo.ts src/components/seo/SEO.astro src/components/layout/BaseLayout.astro public/images/og-default.jpg public/images-staging/about/.gitkeep public/images-staging/blog/.gitkeep public/images-staging/works/.gitkeep scripts/capture-og-image.ts scripts/archive-legacy-docs.ts scripts/verify-doc-links.ts tests/unit/seo/defaultOpenGraphImage.test.ts tests/unit/ops/archiveLegacyDocs.test.ts tests/unit/ops/docLinks.test.ts tests/e2e/site.spec.ts docs/verification/baselines/core-1.0.0/operator-state-attestation.json docs/archive/README.md docs/archive/archive-manifest.json docs/archive/site/todos/default-opengraph-image.md docs/archive/site/workflows/image-workflow.md docs/archive/site/workflows/image-staging-readme.md docs/archive/site/project-spec-v1.md docs/archive/site/project-spec-v2.md docs/archive/site/v2-migration-log.md docs/archive/site/audits/localhost-2025-12-18-lighthouse-report.html docs/archive/site/implementation-logs/site-launch.md docs/archive/site/implementation-logs/liquid-glass-dock-v1.md docs/archive/site/implementation-logs/liquid-glass-dock-v2.md docs/archive/jets-ghost/legacy-rag/rag-chatbot-architecture.md docs/archive/jets-ghost/legacy-rag/rag-chatbot-implementation-plan.md docs/archive/jets-ghost/legacy-rag/rag-chatbot-implementation-log.md docs/archive/jets-ghost/legacy-rag/embedding-storage-research.md docs/archive/jets-ghost/legacy-rag/jets-ghost-v1.5-spec.md docs/archive/jets-ghost/legacy-rag/rag-chatbot-implementation-review.md docs/archive/deferred-concepts/emdash-news-theme-spec.md docs/archive/deferred-concepts/page-analyzer-spec.md docs/archive/deferred-concepts/schema-visualizer-spec.md docs/superpowers/specs/2026-07-11-v1-modernization-design.md docs/superpowers/specs/2026-07-11-jets-ghost-local-assistant-design.md docs/superpowers/plans/2026-07-11-v1-modernization.md docs/superpowers/plans/2026-07-11-jets-ghost-local-assistant.md
+git add README.md AGENTS.md package.json package-lock.json src/config/site.ts src/utils/seo.ts src/components/seo/SEO.astro src/components/layout/BaseLayout.astro public/images/og-default.jpg public/images-staging/about/.gitkeep public/images-staging/blog/.gitkeep public/images-staging/works/.gitkeep scripts/capture-og-image.ts scripts/archive-legacy-docs.ts scripts/verify-doc-links.ts tests/unit/seo/defaultOpenGraphImage.test.ts tests/unit/ops/archiveLegacyDocs.test.ts tests/unit/ops/docLinks.test.ts tests/e2e/site.spec.ts docs/verification/baselines/core-1.0.0/operator-state-attestation.json docs/archive/README.md docs/archive/archive-manifest.json docs/archive/site/todos/default-opengraph-image.md docs/archive/site/workflows/image-workflow.md docs/archive/site/workflows/image-staging-readme.md docs/archive/site/project-spec-v1.md docs/archive/site/project-spec-v2.md docs/archive/site/v2-migration-log.md docs/archive/site/implementation-logs/site-launch.md docs/archive/site/implementation-logs/liquid-glass-dock-v1.md docs/archive/site/implementation-logs/liquid-glass-dock-v2.md docs/archive/jets-ghost/legacy-rag/rag-chatbot-architecture.md docs/archive/jets-ghost/legacy-rag/rag-chatbot-implementation-plan.md docs/archive/jets-ghost/legacy-rag/rag-chatbot-implementation-log.md docs/archive/jets-ghost/legacy-rag/embedding-storage-research.md docs/archive/jets-ghost/legacy-rag/jets-ghost-v1.5-spec.md docs/archive/jets-ghost/legacy-rag/rag-chatbot-implementation-review.md docs/archive/deferred-concepts/emdash-news-theme-spec.md docs/archive/deferred-concepts/page-analyzer-spec.md docs/archive/deferred-concepts/schema-visualizer-spec.md docs/superpowers/specs/2026-07-11-v1-modernization-design.md docs/superpowers/specs/2026-07-11-jets-ghost-local-assistant-design.md docs/superpowers/plans/2026-07-11-v1-modernization.md docs/superpowers/plans/2026-07-11-jets-ghost-local-assistant.md
 git commit -m "docs: establish canonical project documentation"
 ```
 
@@ -2236,10 +2233,9 @@ docs/liquid-glass-dock-v2-log.md
 Untracked/docs/emdash-news-theme-spec.md
 Untracked/docs/page-analyzer-spec.md
 Untracked/docs/schema-visualizer-spec.md
-Untracked/localhost_2025-12-18_17-30-02.report.html
 ```
 
-Do not remove or modify any other untracked file. The script itself must confirm the remaining original-worktree status differs from the Task 0 inventory only by absence of these eight archived paths and that the sole remaining record is the active Codex article draft.
+Do not remove or modify any other untracked file. The script itself must confirm the remaining original-worktree status differs from the approved Task 11 inventory only by absence of these seven archived paths and that the sole remaining record is `?? Untracked/how-to-install-and-get-started-with-codex-cli-2026.mdx`.
 
 ```bash
 GIT_COMMON_DIR=$(cd "$(git rev-parse --git-common-dir)" && pwd -P)
@@ -2247,7 +2243,7 @@ OPERATOR_STATE_DIR="$GIT_COMMON_DIR/codex/v1-modernization"
 ORIGINAL_ROOT=$(cat "$OPERATOR_STATE_DIR/original-root.txt")
 test -n "$ORIGINAL_ROOT" && test "${ORIGINAL_ROOT#/}" != "$ORIGINAL_ROOT"
 git -C "$ORIGINAL_ROOT" rev-parse --is-inside-work-tree >/dev/null
-npx tsx scripts/archive-legacy-docs.ts --cleanup --release-ref=v2.0.0 --source-root="$ORIGINAL_ROOT" --source-hashes="$OPERATOR_STATE_DIR/authorized-archive-source-hashes.txt" --inventory="$OPERATOR_STATE_DIR/original-status.z" --attestation=docs/verification/baselines/core-1.0.0/operator-state-attestation.json
+npx tsx scripts/archive-legacy-docs.ts --cleanup --release-ref=v2.0.0 --source-root="$ORIGINAL_ROOT" --source-hashes="$OPERATOR_STATE_DIR/authorized-archive-source-hashes.txt" --initial-inventory="$OPERATOR_STATE_DIR/original-status.z" --inventory="$OPERATOR_STATE_DIR/task-11-approved-status.txt" --attestation=docs/verification/baselines/core-1.0.0/operator-state-attestation.json
 git -C "$ORIGINAL_ROOT" status --porcelain=v1 -uall
 ```
 
@@ -2265,7 +2261,7 @@ Before starting the Jet's Ghost implementation plan, confirm:
 [ ] Build is static and side-effect-free
 [ ] README and AGENTS.md are canonical and accurate
 [ ] Superseded tracked and authorized untracked docs are indexed under docs/archive
-[ ] The eight authorized non-canonical source copies were removed by guarded archive cleanup
+[ ] The seven authorized non-canonical source copies were removed by guarded archive cleanup
 [ ] The active Codex article remains untouched and is the sole remaining original-worktree draft
 [ ] The first-frame homepage hero is the verified 1920x1080 default OpenGraph image and the completed TODO is archived
 [ ] Committed provider evidence is sanitized and downloaded release artifacts match the tagged SHA-256 manifest
