@@ -97,8 +97,8 @@ This approach has the smallest migration surface and creates a credible long-ter
 
 Core modernization `2.0.0` and Jet's Ghost `2.1.0` deliberately own different route states:
 
-- During `2.0.0` containment, the approved interface prototype from commit `d406ed46dfc7cccfa95d0003fcae30f5b9373690` remains noindexed at `/tools/chatbot`, and `/chatbot` temporarily redirects there. The prototype is preserved as inert product-design code: it has no production corpus, model, engine, or hosted generation path.
-- During `2.1.0` integration, `/chatbot` becomes the canonical production route, `/tools/chatbot` permanently redirects to it, Ghost replaces Tools in the existing dock slot, and `/tools` becomes dormant, noindexed, absent from the sitemap, and absent from primary navigation.
+- During `2.0.0` containment, the approved interface prototype from commit `d406ed46dfc7cccfa95d0003fcae30f5b9373690` remains noindexed at `/tools/chatbot/`, and the semantic route `/chatbot` temporarily redirects there. The prototype is preserved as inert product-design code: it has no production corpus, model, engine, or hosted generation path. The core trailing-slash correction does not reverse or index it early.
+- During `2.1.0` integration, `/chatbot` becomes the semantic production route with emitted canonical URL `https://jetsanchez.com/chatbot/`; `/tools/chatbot` and `/tools/chatbot/` permanently redirect directly to `/chatbot/`; Ghost replaces Tools in the existing dock slot; and `/tools/` becomes dormant, noindexed, absent from the sitemap, and absent from primary navigation.
 
 The companion design and plan own that coordinated reversal. Canonical URLs, sitemap policy, structured data, dock and no-script navigation, deployment assertions, and containment/regression tests change together; the interface is integrated rather than redesigned.
 
@@ -190,7 +190,7 @@ Containment is the first implementation milestone and is performed before featur
 6. Verify the old artifact URLs return 404 and `POST /api/chat` cannot invoke generation.
 7. Delete the remaining obsolete objects under the Blob `chatbot/` prefix after recording their pathname inventory in the implementation evidence. Git history and archived design documents are the preservation mechanism.
 
-Containment readback is an assertion, not a visual inspection. Evidence records the complete pre-delete Blob pathname inventory, proves the prefix is empty afterward, probes every recorded URL, requires exactly `404` for `POST /api/chat`, requires exactly `308` and `Location: /tools/chatbot` for the interim core-`2.0.0` redirect, proves the credential name is absent from every Vercel scope, and identifies the production deployment ID plus Git commit that produced the response.
+Initial containment readback is an assertion, not a visual inspection. Evidence records the complete pre-delete Blob pathname inventory, proves the prefix is empty afterward, probes every recorded URL, requires exactly `404` for `POST /api/chat`, requires exactly `308` and `Location: /tools/chatbot` for the Task 3 containment redirect as deployed, proves the credential name is absent from every Vercel scope, and identifies the production deployment ID plus Git commit that produced the response. The later Task 10 canonical work updates that still-interim destination to `/tools/chatbot/` before the final `2.0.0` release gate; it does not rewrite the earlier evidence.
 
 Raw Vercel CLI/API responses are transient secrets-adjacent inputs, never repository evidence. Each is written only to a mode-`0600` temporary file created under a mode-`0700` temporary directory, transformed into a schema-allowlisted projection, scanned recursively for forbidden keys and secret-like values, and deleted before any `git add`. Committed environment evidence contains names, types, scopes, targets, and optional Git branches only; it never contains values, encrypted values, headers, cookies, build environment objects, or provider response residue.
 
@@ -202,7 +202,7 @@ Previously cached public data cannot be recalled from a visitor's browser. Conta
 
 ### Runtime mode
 
-After `/api/chat` is removed, the site returns to static Astro output. For core `2.0.0`, `/chatbot` becomes a true platform redirect to the approved noindexed prototype at `/tools/chatbot` through `vercel.json`, allowing the old `src/pages/chatbot.astro`, its server-rendering exception, and the Vercel server adapter to be removed if no other dynamic route remains. The companion `2.1.0` plan later moves the prototype to static `/chatbot` and reverses this redirect without reintroducing a server adapter.
+After `/api/chat` is removed, the site returns to static Astro output. Task 3 first deploys `/chatbot` as a true platform redirect to the approved noindexed prototype at `/tools/chatbot` through `vercel.json`, allowing the old `src/pages/chatbot.astro`, its server-rendering exception, and the Vercel server adapter to be removed if no other dynamic route remains. Task 10 retains that interim direction while normalizing its destination to `/tools/chatbot/` for final core `2.0.0`. The companion `2.1.0` plan later moves the prototype to static `/chatbot/` and reverses this redirect without reintroducing a server adapter.
 
 ### Deterministic scripts
 
@@ -305,7 +305,7 @@ The README contains only:
 - the no-script navigation fallback;
 - active-route calculation.
 
-Presentation-only properties such as gradients can live on the same typed item or in a keyed visual map, but route identity is not duplicated.
+Canonical human-facing hrefs in `NAV_ITEMS` end in `/`, except the root `/`. Active-route calculation normalizes that form without letting home match globally and continues to match nested routes such as `/blog/example/` to `/blog/`. Presentation-only properties such as gradients can live on the same typed item or in a keyed visual map, but route identity is not duplicated.
 
 ### 3. Research link correctness
 
@@ -343,9 +343,15 @@ The `Download PDF` action is removed. Citation text also uses the HTTPS DOI URL.
 - Replace `any` in structured-data construction with a discriminated typed schema builder.
 - Generate navigation structured data from `NAV_ITEMS`.
 - Omit `twitter:creator` unless a real Twitter/X handle is configured; never derive it from a display name.
-- Keep canonical URLs HTTPS-only.
-- Verify sitemap, RSS, robots, canonical tags, Open Graph, Twitter cards, and JSON-LD against representative routes.
-- Keep the approved prototype at `/tools/chatbot` noindexed and out of the sitemap during core `2.0.0`. In `2.1.0`, keep `/tools` dormant and excluded, move Jet's Ghost to canonical `/chatbot`, and remove the exact `/chatbot` exclusion only after the local-assistant release gate passes.
+- Keep canonical URLs HTTPS-only and use trailing slashes for every human-facing HTML route. `/` remains stable. Machine endpoints such as the removed `/api/chat` contract and extension-bearing `/rss.xml`, `/robots.txt`, sitemap XML, corpus JSON, and LiteRT `.js`/`.wasm` assets are never rewritten into HTML-style URLs.
+- Configure Astro with `trailingSlash: 'always'`, configure Vercel with `"trailingSlash": true`, and make `getCanonicalURL()` emit exactly one trailing slash for human-facing HTML routes. These settings have distinct build-output and platform-normalization roles and must agree.
+- Require canonical tags, `og:url`, WebPage/content entity IDs and URLs, sitemap HTML entries, structured navigation, no-script navigation, and ordinary primary navigation to use the same trailing-slash identity.
+- Require `/about` to return one permanent `308` directly to `/about/`. Require `/about/` to return `200`, expose `index, follow`, emit exact canonical and `og:url` `https://jetsanchez.com/about/`, link JSON-LD to that URL, and appear exactly once in the sitemap.
+- Keep `/blog/the-future-of-ai/` and `/blog/building-with-astro/` retired. Their canonical paths return `404`; generic slashless normalization may precede the first path's final `404`, but neither route redirects to home or another content page. Both remain absent from repository internal-link targets, sitemap, and RSS.
+- Verify sitemap, RSS, robots, canonical tags, Open Graph, Twitter cards, JSON-LD, redirect targets, and the retired-route exclusions against representative routes.
+- Keep the approved prototype at `/tools/chatbot/` noindexed and out of the sitemap during core `2.0.0`. In `2.1.0`, keep `/tools/` dormant and excluded, move Jet's Ghost to semantic route `/chatbot` with canonical URL `https://jetsanchez.com/chatbot/`, and remove the exact chatbot exclusion only after the local-assistant release gate passes.
+
+The live Google Search Console Page indexing report for `sc-domain:jetsanchez.com`, last updated `2026-06-30`, recorded 16 not-indexed URLs: six expected slashless alternate canonicals, three expected HTTP/www redirects, two intentionally retired blog routes, and five crawled/currently-not-indexed URLs (`/about/`, `/about`, `/chatbot`, `/chatbot/`, and `/rss.xml`). The extra `http://www` hop is not an indexing blocker and is not a modernization prerequisite. After exact production verification, request indexing for `/about/` only. Do not request indexing for the noindexed prototype or RSS, and do not validate intentional `404`s, expected alternate-canonical exclusions, or expected HTTP/www redirect exclusions. Search Console validation and monitoring begin only after recrawl and report refresh; the release is judged first by exact production responses and metadata, not a stale report.
 
 ### 7. Dependency and dead-code cleanup
 
@@ -376,10 +382,11 @@ Minimum unit coverage protects:
 
 Minimum browser coverage protects:
 
-- home, about, blog index/detail, works index/detail, tools, contact, and RSS routes;
+- home, about, blog index/detail, works index/detail, tools, contact, and RSS routes, using trailing slashes for human-facing HTML and preserving machine endpoint extensions;
 - theme persistence;
 - dock keyboard navigation and mobile disclosure;
-- the interim core-`2.0.0` `/chatbot` redirect and the companion `2.1.0` reversal to `/tools/chatbot` redirecting to canonical `/chatbot`;
+- the interim core-`2.0.0` `/chatbot` redirect to noindexed `/tools/chatbot/` and the companion `2.1.0` reversal in which `/chatbot` redirects once to canonical `/chatbot/` while both `/tools/chatbot` forms redirect directly there;
+- `/about` redirecting once to `/about/`, exact canonical/OG/JSON-LD/sitemap agreement on `/about/`, and both retired blog canonicals returning `404` while remaining absent from internal links, sitemap, and RSS;
 - absence of published draft routes;
 - SSRN DOI action;
 - representative metadata and JSON-LD;
@@ -412,10 +419,11 @@ The later implementation plan must respect these dependencies:
 6. Introduce the explicit content contract and migrate tracked entries before replacing filters.
 7. Make the build pure before adding the new knowledge package.
 8. Establish automated verification before broad component or accessibility changes.
-9. Complete and release the breaking core modernization as `2.0.0` independently of Jet's Ghost.
-10. Integrate the approved Jet's Ghost interface without redesign, reverse the interim route and navigation state as one coordinated change, and release it through the separate plan as `2.1.0`.
-11. Remove historical runtime dependencies only after no active code imports them.
-12. Rewrite the README after its documented commands and architecture are implemented.
+9. Complete the trailing-slash canonical contract and its local/deployment assertions, then release the breaking core modernization as `2.0.0` independently of Jet's Ghost.
+10. After exact core production verification, request Search Console indexing for `/about/` only; wait for recrawl/report refresh before interpreting or validating the report.
+11. Integrate the approved Jet's Ghost interface without redesign, reverse the interim route and navigation state as one coordinated change, and release it through the separate plan as `2.1.0`.
+12. Remove historical runtime dependencies only after no active code imports them.
+13. Rewrite the README after its documented commands and architecture are implemented.
 
 ## Release criteria
 
@@ -428,7 +436,9 @@ The core modernization is complete when:
 - production verification rejects untracked published entries;
 - `npm run build` makes no remote writes and changes no tracked or nonignored untracked source/configuration file;
 - `npm run verify` passes on Node 24 in CI;
-- the core-`2.0.0` site deploys as static output with the documented interim `/chatbot` 308 redirect to the noindexed `/tools/chatbot` prototype, ready for the companion plan's coordinated reversal;
+- the core-`2.0.0` site deploys as static output with Astro and Vercel trailing-slash settings aligned, exact canonical/OG/JSON-LD/navigation/sitemap agreement for HTML routes, extension-correct machine endpoints, and the documented interim `/chatbot` 308 redirect to the noindexed `/tools/chatbot/` prototype, ready for the companion plan's coordinated reversal;
+- `/about` redirects once with `308` to the verified indexable `/about/`; both retired blog canonicals return `404` and remain absent from internal links, sitemap, and RSS;
+- after exact production verification, Search Console indexing is requested only for `/about/`, with report validation deferred until recrawl/report refresh and no requests or validation for the excluded classes above;
 - the DOI-backed SSRN action is the only research action;
 - `origin/main` Grainient performance behavior is preserved and reduced motion is supported;
 - representative routes pass browser smoke and automated accessibility checks;
@@ -446,7 +456,7 @@ The repository contains user-owned untracked drafts and specifications. Implemen
 
 ### Static adapter removal or route reversal changes redirect behavior
 
-Move the containment redirect to Vercel configuration and require its documented `308` status plus exact `Location` before removing the server adapter. In `2.1.0`, reverse source and destination only in the same change that establishes `/chatbot` canonical metadata and updates sitemap, navigation, and deployment tests.
+Move the containment redirect to Vercel configuration and require its documented `308` status plus Task 3's exact `Location: /tools/chatbot` before removing the server adapter. Task 10 later changes only that still-interim destination to `/tools/chatbot/` as part of core canonical normalization. In `2.1.0`, reverse source and destination only in the same change that establishes canonical `https://jetsanchez.com/chatbot/` metadata and updates sitemap, navigation, and deployment tests. Keep the final Ghost redirect matrix single-hop: `/chatbot` to `/chatbot/`, and both `/tools/chatbot` forms directly to `/chatbot/`.
 
 ### Content-state migration accidentally unpublishes content
 

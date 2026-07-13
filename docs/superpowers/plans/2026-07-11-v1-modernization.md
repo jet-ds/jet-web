@@ -4,7 +4,7 @@
 
 **Goal:** Modernize the existing Astro site in place, contain the retired chatbot exposure, enforce explicit content publication, add verification, and preserve the site's visual identity.
 
-**Architecture:** The site becomes a deterministic static Astro build deployed on Vercel. Astro content collections remain authoritative, shared predicates govern publication and assistant inclusion, and React remains limited to interactive islands. Core `2.0.0` preserves the approved noindexed Jet's Ghost interface prototype at `/tools/chatbot` behind an interim `/chatbot` redirect; the companion `2.1.0` plan integrates its real local runtime at canonical `/chatbot` and reverses the route, navigation, and indexing state together.
+**Architecture:** The site becomes a deterministic static Astro build deployed on Vercel. Astro content collections remain authoritative, shared predicates govern publication and assistant inclusion, and React remains limited to interactive islands. Core `2.0.0` establishes trailing-slash canonical HTML URLs while preserving the approved noindexed Jet's Ghost interface prototype at `/tools/chatbot/` behind an interim `/chatbot` redirect; the companion `2.1.0` plan integrates its real local runtime at semantic route `/chatbot` with canonical URL `https://jetsanchez.com/chatbot/` and reverses the route, navigation, and indexing state together.
 
 **Tech Stack:** Astro 5, MDX, React 19, TypeScript 5.9, Tailwind CSS 3.4, Vitest, Playwright, axe-core, Vercel, Node.js 24.
 
@@ -21,7 +21,7 @@
 - Application versioning follows Semantic Versioning 2.0.0 from baseline `1.0.0`.
 - The intentionally incompatible modernization releases as `2.0.0`; Jet's Ghost later targets `2.1.0`.
 - Preserve the Jet's Ghost interface, copy, responsive behavior, animation language, and activation boundary from `docs/jets-ghost-chat-experience.md` and commit `d406ed46dfc7cccfa95d0003fcae30f5b9373690`; this plan contains exposure but does not redesign the prototype.
-- Treat `/chatbot` to `/tools/chatbot` as an interim core-`2.0.0` containment redirect. The companion plan owns the final `/tools/chatbot` to `/chatbot` reversal, Ghost-for-Tools navigation replacement, and `/tools` dormancy.
+- Task 3 first contains `/chatbot` at `/tools/chatbot` exactly as deployed and recorded. Task 10 changes only that still-interim destination to `/tools/chatbot/` as part of the core trailing-slash contract; it must not reverse or index the prototype early. The companion plan owns the final reversal to `/chatbot/`, Ghost-for-Tools navigation replacement, and `/tools/` dormancy.
 - Non-merge commits follow Conventional Commits 1.0.0 and require no agent attribution.
 - Never stage or rewrite unrelated user-owned untracked files.
 - Perform all implementation in a clean worktree created from the reviewer-approved documentation commit; leave the original checkout untouched.
@@ -67,8 +67,8 @@
 
 ### Deployment
 
-- `vercel.json` — interim core-`2.0.0` containment redirect, reversed by the Jet's Ghost `2.1.0` plan.
-- `astro.config.mjs` — static Astro configuration without the Vercel server adapter.
+- `vercel.json` — interim core-`2.0.0` containment redirect plus platform trailing-slash normalization, with only the redirect reversed by the Jet's Ghost `2.1.0` plan.
+- `astro.config.mjs` — static Astro configuration without the Vercel server adapter and with trailing-slash HTML output.
 
 ---
 
@@ -1155,7 +1155,7 @@ export function isActiveNavItem(currentPath: string, href: string): boolean {
 }
 ```
 
-Preserve the existing Tools item during core `2.0.0`; it remains the interim route to the noindexed prototype. The companion `2.1.0` plan replaces that same record with Ghost pointing to `/chatbot`, so the dock item count does not grow.
+Preserve the existing Tools item during core `2.0.0`; it remains the interim route to the noindexed prototype. Task 10 converts all canonical `NAV_ITEMS` HTML hrefs to trailing-slash form and updates active matching as part of the site-wide contract. The companion `2.1.0` plan replaces that same record with Ghost pointing to `/chatbot/`, so the dock item count does not grow.
 
 - [ ] **Step 3: Remove the local dock array**
 
@@ -1252,8 +1252,8 @@ describe('structured data', () => {
   it('links a scholarly article to its canonical webpage', () => {
     const schema = buildStructuredData({
       type: 'scholarlyarticle',
-      id: 'https://jetsanchez.com/works/rch#scholarlyarticle',
-      url: 'https://jetsanchez.com/works/rch',
+      id: 'https://jetsanchez.com/works/rch/#scholarlyarticle',
+      url: 'https://jetsanchez.com/works/rch/',
       headline: 'RCH',
       description: 'Research description',
       datePublished: '2025-08-27T00:00:00.000Z',
@@ -1262,7 +1262,7 @@ describe('structured data', () => {
     expect(schema['@type']).toBe('ScholarlyArticle');
     expect(schema.mainEntityOfPage).toEqual({
       '@type': 'WebPage',
-      '@id': 'https://jetsanchez.com/works/rch#webpage',
+      '@id': 'https://jetsanchez.com/works/rch/#webpage',
     });
   });
 });
@@ -1544,14 +1544,23 @@ git commit -m "refactor(chatbot): remove retired RAG runtime"
 ### Task 10: Add browser regression and accessibility coverage
 
 **Files:**
+- Create: `tests/unit/seo/canonicalURL.test.ts`
 - Create: `tests/e2e/site.spec.ts`
 - Create: `tests/e2e/accessibility.spec.ts`
 - Create: `tests/deployment/core-production.spec.ts`
 - Create: `playwright.production.config.ts`
+- Modify: `astro.config.mjs`
+- Modify: `vercel.json`
+- Modify: `src/utils/seo.ts`
+- Modify: `src/config/site.ts`
+- Modify: `tests/unit/navigation/navigation.test.ts`
+- Modify: `tests/unit/ops/productionContainment.test.ts`
+- Modify: `scripts/verify-production-containment.ts`
+- Modify: `.github/workflows/verify.yml`
 - Modify: `package.json`
 
 **Interfaces:**
-- Produces: route, redirect, theme, metadata, keyboard, mobile-disclosure, and axe verification.
+- Produces: one trailing-slash canonical contract for human-facing HTML plus route, redirect, theme, metadata, sitemap/RSS exclusion, keyboard, mobile-disclosure, and axe verification.
 - Consumes: built static output through `playwright.config.ts` and deployed production through `playwright.production.config.ts`.
 
 - [ ] **Step 1: Install the Playwright browser**
@@ -1562,7 +1571,37 @@ Run:
 npx playwright install chromium
 ```
 
-- [ ] **Step 2: Create route and correctness tests**
+- [ ] **Step 2: Implement and unit-test the site-wide canonical contract**
+
+Create `tests/unit/seo/canonicalURL.test.ts` before changing implementation. Require these exact results:
+
+```ts
+expect(getCanonicalURL('/')).toBe('https://jetsanchez.com/');
+expect(getCanonicalURL('/about')).toBe('https://jetsanchez.com/about/');
+expect(getCanonicalURL('/about/')).toBe('https://jetsanchez.com/about/');
+expect(getCanonicalURL('/blog/example///')).toBe('https://jetsanchez.com/blog/example/');
+expect(getCanonicalURL('/rss.xml')).toBe('https://jetsanchez.com/rss.xml');
+expect(getCanonicalURL('/robots.txt')).toBe('https://jetsanchez.com/robots.txt');
+expect(getCanonicalURL('/sitemap-index.xml')).toBe('https://jetsanchez.com/sitemap-index.xml');
+expect(getCanonicalURL('/assistant/runtime/litert-lm/0.14.0/runtime.wasm')).toBe(
+  'https://jetsanchez.com/assistant/runtime/litert-lm/0.14.0/runtime.wasm',
+);
+expect(getCanonicalURL('/api/chat')).toBe('https://jetsanchez.com/api/chat');
+```
+
+Update `getCanonicalURL()` so it constructs a URL against `SITE.siteUrl`, strips query/hash state, keeps `/` stable, preserves `/api/` paths and extension-bearing final path segments, and otherwise removes repeated terminal slashes before appending exactly one `/`. This utility owns emitted canonical URL shape; it does not rewrite fetch or API request paths.
+
+Add `trailingSlash: 'always'` beside `site` in `astro.config.mjs`; this makes Astro emit directory-style HTML routes. Merge `"trailingSlash": true` at the top level of the existing `vercel.json`; this makes Vercel normalize incoming human-facing paths. Preserve the interim `/chatbot` redirect direction while changing its Task 3 destination from `/tools/chatbot` to `/tools/chatbot/`; this is canonical normalization, not the Ghost route reversal. Change neither `/api/chat` nor the extension-bearing machine endpoints. Keep the existing `$schema` and redirect array intact.
+
+Convert every human-facing `NAV_ITEMS` href to trailing-slash form, except `/`. Update `isActiveNavItem()` to normalize both arguments to one trailing slash before comparing and to match descendants only for non-root items. Extend `tests/unit/navigation/navigation.test.ts` with exact root, exact section, slashless current-path, trailing-slash current-path, nested-route, and `/toolshed/` non-match cases.
+
+Run the focused red/green gate:
+
+```bash
+npm run test -- tests/unit/seo/canonicalURL.test.ts tests/unit/navigation/navigation.test.ts
+```
+
+- [ ] **Step 3: Create route and correctness tests**
 
 Create `tests/e2e/site.spec.ts`:
 
@@ -1571,25 +1610,27 @@ import { expect, test } from '@playwright/test';
 
 const routes = [
   '/',
-  '/about',
-  '/blog',
-  '/blog/how-to-install-claude-code-cli-2026',
-  '/works',
-  '/works/recursive-convergence-hypothesis',
-  '/tools',
-  '/contact',
+  '/about/',
+  '/blog/',
+  '/blog/how-to-install-claude-code-cli-2026/',
+  '/works/',
+  '/works/recursive-convergence-hypothesis/',
+  '/tools/',
+  '/contact/',
 ];
 
 for (const route of routes) {
   test(`${route} renders one main heading`, async ({ page }) => {
     await page.goto(route);
     await expect(page.locator('h1')).toHaveCount(1);
-    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', /^https:\/\/jetsanchez\.com/);
+    const expected = new URL(route, 'https://jetsanchez.com').toString();
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', expected);
+    await expect(page.locator('meta[property="og:url"]')).toHaveAttribute('content', expected);
   });
 }
 
 test('research exposes one DOI-backed action', async ({ page }) => {
-  await page.goto('/works/recursive-convergence-hypothesis');
+  await page.goto('/works/recursive-convergence-hypothesis/');
   const action = page.getByRole('link', { name: 'View on SSRN' });
   await expect(action).toHaveAttribute('href', 'https://doi.org/10.2139/ssrn.5395309');
   await expect(page.getByRole('link', { name: 'Download PDF' })).toHaveCount(0);
@@ -1598,7 +1639,7 @@ test('research exposes one DOI-backed action', async ({ page }) => {
 test('theme choice persists across navigation', async ({ page }) => {
   await page.goto('/');
   await page.getByRole('button', { name: /switch to dark mode/i }).click();
-  await page.goto('/about');
+  await page.goto('/about/');
   await expect(page.locator('html')).toHaveClass(/dark/);
 });
 
@@ -1612,27 +1653,56 @@ test('machine-readable routes are available', async ({ request }) => {
   expect(sitemapIndex.ok() || sitemapPage.ok()).toBe(true);
 });
 
+test('about metadata and sitemap use one canonical URL', async ({ page, request }) => {
+  const canonical = 'https://jetsanchez.com/about/';
+  await page.goto('/about/');
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'index, follow');
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', canonical);
+  await expect(page.locator('meta[property="og:url"]')).toHaveAttribute('content', canonical);
+  const schemas = await page.locator('script[type="application/ld+json"]').allTextContents();
+  const serialized = schemas.map((schema) => JSON.stringify(JSON.parse(schema))).join('\n');
+  expect(serialized).toContain(`${canonical}#webpage`);
+  expect(serialized).toContain(`"url":"${canonical}"`);
+  const sitemap = await request.get('/sitemap-0.xml');
+  const matches = (await sitemap.text()).match(/https:\/\/jetsanchez\.com\/about\//g) ?? [];
+  expect(matches).toHaveLength(1);
+});
+
+test('retired routes stay retired and out of feeds', async ({ request }) => {
+  for (const route of ['/blog/the-future-of-ai/', '/blog/building-with-astro/']) {
+    expect((await request.get(route)).status()).toBe(404);
+  }
+  const sitemap = await (await request.get('/sitemap-0.xml')).text();
+  const rss = await (await request.get('/rss.xml')).text();
+  for (const slug of ['the-future-of-ai', 'building-with-astro']) {
+    expect(sitemap).not.toContain(slug);
+    expect(rss).not.toContain(slug);
+  }
+});
+
 test('content pages expose parseable typed JSON-LD', async ({ page }) => {
-  await page.goto('/works/recursive-convergence-hypothesis');
+  await page.goto('/works/recursive-convergence-hypothesis/');
   const schemas = await page.locator('script[type="application/ld+json"]').allTextContents();
   const parsed = schemas.map((schema) => JSON.parse(schema) as { '@type'?: string });
   expect(parsed.some((schema) => schema['@type'] === 'ScholarlyArticle')).toBe(true);
 });
 
 test('draft routes are absent', async ({ request }) => {
-  const response = await request.get('/blog/how-to-install-and-get-started-with-codex-cli-2026');
+  const response = await request.get('/blog/how-to-install-and-get-started-with-codex-cli-2026/');
   expect(response.status()).toBe(404);
 });
 
 test('nested routes mark the canonical navigation item active', async ({ page }) => {
-  await page.goto('/blog/how-to-install-claude-code-cli-2026');
+  await page.goto('/blog/how-to-install-claude-code-cli-2026/');
   await expect(page.getByRole('link', { name: 'Blog', exact: true })).toHaveAttribute('aria-current', 'page');
 });
 ```
 
-Create `playwright.production.config.ts` with `testDir: './tests/deployment'`, no `webServer`, one Chromium project, and `baseURL: process.env.PRODUCTION_ORIGIN ?? 'https://jetsanchez.com'`. In `core-production.spec.ts`, use the request fixture with `maxRedirects: 0` to require `POST /api/chat === 404` and the interim core-`2.0.0` `GET /chatbot === 308` with `location === '/tools/chatbot'`. Also assert the homepage and one sitemap respond `200`. This suite runs only after the target deployment is aliased; the companion Jet's Ghost route-integration task intentionally updates this assertion when the redirect is reversed.
+Create `playwright.production.config.ts` with `testDir: './tests/deployment'`, no `webServer`, one Chromium project, and `baseURL: process.env.PRODUCTION_ORIGIN ?? 'https://jetsanchez.com'`. In `core-production.spec.ts`, use requests with `maxRedirects: 0` to require `POST /api/chat === 404`, the interim core-`2.0.0` `GET /chatbot === 308` with exact `location === '/tools/chatbot/'`, and `GET /about === 308` with exact `location === '/about/'`. Then require `/about/ === 200`, no `noindex`, exact canonical/`og:url`/WebPage URL and ID, and exactly one sitemap membership. Require both canonical retired paths to return exact `404`, never a redirect, and remain absent from sitemap/RSS. Also assert `/rss.xml`, `/robots.txt`, and one sitemap XML endpoint respond without an appended slash. The companion Jet's Ghost route-integration task intentionally updates only the chatbot matrix when the redirect is reversed.
 
-- [ ] **Step 3: Create accessibility tests**
+Update `tests/unit/ops/productionContainment.test.ts` and `scripts/verify-production-containment.ts` so the core containment verifier expects resolved interim destination `https://jetsanchez.com/tools/chatbot/`; keep every existing deployment-SHA, Blob, credential, environment, and `/api/chat` assertion.
+
+- [ ] **Step 4: Create accessibility tests**
 
 Create `tests/e2e/accessibility.spec.ts`:
 
@@ -1640,7 +1710,7 @@ Create `tests/e2e/accessibility.spec.ts`:
 import AxeBuilder from '@axe-core/playwright';
 import { expect, test } from '@playwright/test';
 
-for (const route of ['/', '/blog', '/works', '/tools/chatbot']) {
+for (const route of ['/', '/blog/', '/works/', '/tools/chatbot/']) {
   test(`${route} has no serious axe violations`, async ({ page }) => {
     await page.goto(route);
     const results = await new AxeBuilder({ page })
@@ -1702,7 +1772,7 @@ test('mobile disclosure exposes and restores controlled state', async ({ page },
 
 Color contrast remains a separate manual/browser check because the WebGL background makes automated sampling unreliable; do not claim it passed axe.
 
-- [ ] **Step 4: Add browser verification to the full command**
+- [ ] **Step 5: Add browser verification to the full command**
 
 Set:
 
@@ -1716,7 +1786,7 @@ Set:
 
 Keep routine `verify` browser-free for fast local and Vercel builds; CI adds a separate browser job.
 
-- [ ] **Step 5: Add an executable browser job to `.github/workflows/verify.yml`**
+- [ ] **Step 6: Add an executable browser job to `.github/workflows/verify.yml`**
 
 The completed workflow contains this second job:
 
@@ -1738,12 +1808,13 @@ The completed workflow contains this second job:
 
 The production deployment suite is not run against the old production alias in pull-request CI. It is a required postdeployment gate in Task 12 and fails on any status or destination mismatch.
 
-- [ ] **Step 6: Run and commit**
+- [ ] **Step 7: Run and commit**
 
 ```bash
 npm run test:e2e
-git add tests/e2e/site.spec.ts tests/e2e/accessibility.spec.ts tests/deployment/core-production.spec.ts playwright.production.config.ts package.json .github/workflows/verify.yml
-git commit -m "test(e2e): cover core routes and accessibility"
+if rg -n '/blog/(the-future-of-ai|building-with-astro)/?' src; then exit 1; fi
+git add astro.config.mjs vercel.json src/utils/seo.ts src/config/site.ts tests/unit/seo/canonicalURL.test.ts tests/unit/navigation/navigation.test.ts tests/unit/ops/productionContainment.test.ts scripts/verify-production-containment.ts tests/e2e/site.spec.ts tests/e2e/accessibility.spec.ts tests/deployment/core-production.spec.ts playwright.production.config.ts package.json .github/workflows/verify.yml
+git commit -m "fix(seo): align canonical route identities"
 ```
 
 ### Task 11: Make documentation canonical and rewrite the README
@@ -1953,7 +2024,11 @@ Create `docs/verification/core-modernization-2.0.0.md` containing:
 - OpenRouter key: revoked and absent from Vercel
 - `/api/chat`: unavailable in production
 - Legacy chatbot Blob prefix: empty
-- `/chatbot`: interim core-`2.0.0` permanent redirect to `/tools/chatbot` (reversed by Jet's Ghost `2.1.0`)
+- Canonical contract: Astro `trailingSlash: 'always'`; Vercel `"trailingSlash": true`; HTML canonical/OG/JSON-LD/navigation/sitemap URLs agree; machine endpoints retain their exact extensions
+- `/about`: exact permanent `308` to `/about/`
+- `/about/`: `200`, index-follow, exact canonical/`og:url` `https://jetsanchez.com/about/`, matching JSON-LD, and exactly one sitemap entry
+- Retired `/blog/the-future-of-ai/` and `/blog/building-with-astro/`: exact `404`, absent from internal links, sitemap, and RSS
+- `/chatbot`: interim core-`2.0.0` permanent redirect to noindexed `/tools/chatbot/` (reversed by Jet's Ghost `2.1.0`)
 - Draft route: absent
 - SSRN action: DOI-backed View action only
 - Grainient: 24fps, hidden/offscreen pause, reduced-motion fallback verified
@@ -2030,11 +2105,17 @@ rm -rf "$EVIDENCE_TMP"
 trap - EXIT HUP INT TERM
 ```
 
-Expected: the deployment is `READY`, production-targeted, and built from `EXPECTED_SHA`; home and sitemap return `200`; `POST /api/chat` returns exactly `404`; the interim core-`2.0.0` `/chatbot` route returns exactly `308` to `/tools/chatbot`; Blob and credential assertions remain satisfied.
+Expected: the deployment is `READY`, production-targeted, and built from `EXPECTED_SHA`; home, robots, RSS, and extension-correct sitemap endpoints respond as specified; `POST /api/chat` returns exactly `404`; the interim core-`2.0.0` `/chatbot` route returns exactly `308` to `/tools/chatbot/`; `/about` returns one exact `308` to `/about/`; `/about/` returns `200`, index-follow, exact canonical/OG/JSON-LD identity, and one sitemap membership; both retired canonical blog routes return exact `404` and remain absent from internal links, sitemap, and RSS; Blob and credential assertions remain satisfied.
 
 Keep the deployment/result JSON and visual candidate directory uncommitted. Committing a self-referential deployment ID would create a new SHA and invalidate the binding it records.
 
-- [ ] **Step 7: Checksum, tag, publish, and download-verify release evidence**
+- [ ] **Step 7: Request only the approved Search Console indexing action**
+
+Only after Step 6's exact production response, metadata, sitemap, deployment-SHA, and containment readback passes, use URL Inspection for `https://jetsanchez.com/about/` in the `sc-domain:jetsanchez.com` property and request indexing for that URL only. Record the request time in the operator's Search Console follow-up notes; do not add another repository artifact or make the request a substitute for production verification.
+
+Do not request indexing for `/tools/chatbot/`, `/chatbot`, `/chatbot/`, or `/rss.xml`. Do not start validation for the two intentional `404`s, six expected slashless alternate-canonical exclusions, or three expected HTTP/www redirect exclusions. The extra `http://www` hop is not a modernization prerequisite. Wait for recrawl and Page indexing report refresh before interpreting or validating Search Console state; a stale report does not block tagging once the exact production gate is green.
+
+- [ ] **Step 8: Checksum, tag, publish, and download-verify release evidence**
 
 Package the visual evidence, calculate reproducible SHA-256 records, and include the checksum-manifest digest in the annotated tag. Create the GitHub Release as a draft, download and verify every uploaded asset, and publish only after readback passes. These commands require the same explicit authorization as any other tag push or GitHub Release mutation:
 
@@ -2066,7 +2147,7 @@ trap - EXIT HUP INT TERM
 
 Expected: `gh release create --draft --verify-tag` proves the annotated tag already exists remotely; all seven named assets download from the authenticated draft; `shasum -c` passes; the downloaded checksum manifest matches the digest in the tag; and only then does `gh release edit` publish it. Do not commit any release artifact back into the tagged tree. If upload/readback fails, leave the release as a draft and do not continue to archive cleanup.
 
-- [ ] **Step 8: Remove superseded untracked source copies after archive integration**
+- [ ] **Step 9: Remove superseded untracked source copies after archive integration**
 
 Only after the archive commit is reachable from the deployed/tagged `2.0.0` commit and the downloaded release evidence passes, use the archive script's guarded cleanup mode. It owns and removes exactly:
 
@@ -2107,6 +2188,10 @@ Before starting the Jet's Ghost implementation plan, confirm:
 [ ] Active unrelated untracked drafts remain untouched
 [ ] Committed provider evidence is sanitized and downloaded release artifacts match the tagged SHA-256 manifest
 [ ] Existing visual identity is unchanged
-[ ] The approved Jet's Ghost prototype from d406ed46 remains intact and noindexed at /tools/chatbot
-[ ] The 2.1.0 handoff explicitly moves it to canonical /chatbot, reverses the redirect, replaces Tools with Ghost, and makes /tools dormant
+[ ] Astro/Vercel trailing-slash settings, canonical/OG/JSON-LD, every navigation representation, and sitemap HTML URLs agree; machine endpoints remain extension-correct
+[ ] /about is one exact 308 to /about/; /about/ is index-follow with exact metadata and one sitemap entry
+[ ] Both retired blog canonicals return 404 and remain absent from internal links, sitemap, and RSS
+[ ] Search Console indexing was requested for /about/ only after exact production verification; excluded classes were not requested or validated, and report judgment waits for recrawl/refresh
+[ ] The approved Jet's Ghost prototype from d406ed46 remains intact and noindexed at /tools/chatbot/
+[ ] The 2.1.0 handoff explicitly moves it to semantic /chatbot with canonical https://jetsanchez.com/chatbot/, reverses the redirect, replaces Tools with Ghost, and makes /tools/ dormant
 ```

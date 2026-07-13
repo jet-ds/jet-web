@@ -16,7 +16,7 @@
 
 ## Product definition
 
-Jet's Ghost is a local-first technical showcase and experimental personal assistant grounded in Jet Sanchez's published work. It is a first-class site experience at `/chatbot`, not a general-purpose support widget or a child of Tools.
+Jet's Ghost is a local-first technical showcase and experimental personal assistant grounded in Jet Sanchez's published work. Its semantic route is `/chatbot`, and every emitted canonical identity uses `https://jetsanchez.com/chatbot/`. It is not a general-purpose support widget or a child of Tools.
 
 Ordinary visitors should still encounter a coherent, honest experience: the model does not load automatically, the approximately 2 GB browser model download is disclosed before activation, browser capabilities are checked, failures are explained, and unsupported visitors can continue using the rest of the site normally.
 
@@ -26,10 +26,12 @@ The distinguishing product claim is that generation occurs locally in the visito
 
 The final 2.1.0 interface direction is the committed `JetsGhostExperience` prototype. Integration replaces its timers and canned response with production state, retrieval, streaming, citations, and cleanup; it does not redesign the approved layout, copy, responsive behavior, animations, or color roles.
 
-- `/chatbot` is the canonical production route.
-- `/tools/chatbot` permanently redirects to `/chatbot` with status `308`.
+- `/chatbot/` is the `200` qualification and production document; its canonical URL is `https://jetsanchez.com/chatbot/`.
+- `/chatbot` permanently redirects directly to `/chatbot/` with status `308`.
+- `/tools/chatbot` and `/tools/chatbot/` each permanently redirect directly to `/chatbot/` with status `308`; no source takes an intermediate hop.
 - Jet's Ghost receives a dedicated Ghost dock item in place of Tools; adding another mobile dock item is not allowed.
-- `/tools` remains directly reachable but dormant, noindexed, out of the sitemap, and absent from primary/no-script/structured navigation until it contains multiple standalone tools.
+- `/tools/` remains directly reachable but dormant, noindexed, out of the sitemap, and absent from primary/no-script/structured navigation until it contains multiple standalone tools. `/tools` normalizes once to `/tools/`, and unrelated routes such as `/toolshed/` are unaffected.
+- `NAV_ITEMS`, primary navigation, structured navigation, no-script navigation, canonical, `og:url`, WebPage and SoftwareApplication IDs/URLs, and sitemap membership use trailing-slash HTML URLs consistently.
 - The experience fills the viewport while retaining the Liquid Glass dock as the site-level escape hatch.
 - The implementation remains custom React. `assistant-ui` is deliberately excluded from 2.1.0 because its thread, branching, editing, persistence, attachment, and tool abstractions do not simplify this focused session-only product.
 - Suggested questions disappear after the conversation begins; user turns use a compact surface; assistant responses remain unboxed; sources render directly beneath the response that used them.
@@ -638,7 +640,7 @@ The prompt assembler receives a `SelectionResult`, never a search implementation
     "documentId": "blog:example",
     "sectionId": "blog:example#heading",
     "title": "Example",
-    "url": "https://jetsanchez.com/blog/example",
+    "url": "https://jetsanchez.com/blog/example/",
     "heading": "Heading",
     "content": "Normalized source text"
   }
@@ -788,7 +790,7 @@ Browser tests with the fake runtime cover:
 - zero prompt-bearing network requests;
 - response-local source links and invalid-citation handling.
 
-One production-path browser test loads `/chatbot` without the fake-runtime query seam, does not activate it, and proves capability, LiteRT, corpus, index, and model work do not start. A second test clicks only “Check compatibility” and proves the same heavy resources remain untouched. Fake-runtime tests then enforce the complete origin/path/method/body allowlist after explicit load consent. A ClientRouter test navigates away while ready, generating, and unloading, and asserts conversation-before-knowledge-before-engine cleanup plus suppression of late stream events.
+One production-path browser test loads `/chatbot/` without the fake-runtime query seam, does not activate it, and proves capability, LiteRT, corpus, index, and model work do not start. A second test clicks only “Check compatibility” and proves the same heavy resources remain untouched. Fake-runtime tests then enforce the complete origin/path/method/body allowlist after explicit load consent. A ClientRouter test navigates away while ready, generating, and unloading, and asserts conversation-before-knowledge-before-engine cleanup plus suppression of late stream events.
 
 Build integration tests verify:
 
@@ -798,7 +800,7 @@ Build integration tests verify:
 - a content change produces a new corpus version and a version-matched index;
 - stale, incomplete, duplicated, or differently configured indexes fail closed.
 
-Route/navigation integration tests verify `/chatbot` owns its canonical, Open Graph URL, SoftwareApplication URL/ID, and eventual sitemap entry; the Ghost dock item replaces Tools in interactive, no-script, and structured navigation; `/tools` remains dormant and excluded; and production returns exactly `308` from `/tools/chatbot` to `/chatbot`.
+Route/navigation integration tests verify `/chatbot/` owns exact canonical and Open Graph URL `https://jetsanchez.com/chatbot/`, WebPage and SoftwareApplication IDs/URLs use that slashful base, and Production sitemap membership is exact. The Ghost dock item replaces Tools in interactive, no-script, and structured navigation with href `/chatbot/`; `/tools/` remains dormant and excluded; `/tools` normalizes to it without affecting `/toolshed/`; and production enforces the exact direct redirect matrix for `/chatbot`, `/tools/chatbot`, and `/tools/chatbot/` to `/chatbot/`.
 
 ### Real-model qualification
 
@@ -829,7 +831,7 @@ Jet's Ghost is a backward-compatible feature on the `2.0.0` modernized core and 
 
 | Signal | Release requirement |
 | --- | --- |
-| Route and IA | `/chatbot` canonical/indexable; `/tools/chatbot` exact `308` to `/chatbot`; Ghost replaces Tools in every primary navigation representation; `/tools` remains dormant and excluded |
+| Route and IA | `/chatbot/` returns `200` with canonical `https://jetsanchez.com/chatbot/`; `/chatbot`, `/tools/chatbot`, and `/tools/chatbot/` each return one exact `308` to `/chatbot/`; Ghost href `/chatbot/` replaces Tools in every navigation representation; `/tools/` remains dormant, noindexed, and excluded |
 | Activation boundary | Route and compatibility check perform no LiteRT/corpus/index/model/engine work; only explicit Load crosses the boundary |
 | Corpus inclusion | 100% of tracked, published, assistant-enabled chunks; 0 ineligible chunks |
 | Index integrity | Exact corpus/config/MiniSearch/stemmer versions, verified byte hash, one indexed record per eligible chunk ID, and manifest/content agreement on full-corpus payload cost |
@@ -846,18 +848,18 @@ Jet's Ghost is a backward-compatible feature on the `2.0.0` modernized core and 
 | Lifecycle | Stop, New session/reset, unload, reload, and route-away recovery pass on the tested Mac; no active engine/conversation survives; no repeatable device loss or unrecovered cleanup failure; immediate WASM/GPU reclamation is not claimed |
 | Privacy | 100% of observed requests satisfy the exact allowlist and contain no conversation-derived data |
 
-There is no candidate-comparison gate, aggregate 90% score, or fallback selector. If a hard invariant or representative product requirement fails, canonical `/chatbot` remains noindexed while that concrete defect is diagnosed in the rank-and-pack, prompt, Gemma, citation, runtime, or UX layer that caused it.
+There is no candidate-comparison gate, aggregate 90% score, or fallback selector. If a hard invariant or representative product requirement fails, `/chatbot/` remains noindexed and absent from the sitemap while that concrete defect is diagnosed in the rank-and-pack, prompt, Gemma, citation, runtime, or UX layer that caused it.
 
-The full six-case product review runs once on the available Mac against the local release candidate. Indexing changes are then qualified on a Git-bound, noindexed Vercel Preview with a two-case smoke: one supported grounded answer and one unsupported abstention, plus privacy and cleanup. Only the exact previewed commit may be promoted. Production receives the same proportional two-case smoke plus route, SEO, network, citation/source, and lifecycle readback; a failure triggers immediate rollback and blocks tagging. Neither deployment smoke repeats the full acceptance set or reopens retrieval evaluation.
+The full six-case product review runs once on the available Mac against the local release candidate. Indexing changes are then qualified on a Git-bound, noindexed Vercel Preview with a two-case smoke: one supported grounded answer and one unsupported abstention, plus privacy and cleanup. Preview must prove `/chatbot/` remains `noindex` and absent from the sitemap. Only the exact previewed commit may be promoted. Production receives the same proportional two-case smoke plus route, SEO, network, citation/source, and lifecycle readback; it must prove `index, follow` and exactly one `/chatbot/` sitemap membership. Both final environments also verify `/about/` metadata and `/about` redirect, both retired blog `404`s and their sitemap/RSS absence, robots and sitemap XML endpoints, exact canonical/OG/JSON-LD agreement, and every direct redirect target. A failure keeps production on the prior noindexed state or triggers immediate rollback and blocks tagging. Neither deployment smoke repeats the full acceptance set or reopens retrieval evaluation.
 
 Jet's Ghost is ready for indexed release when:
 
 - the core modernization content policy and pure build are deployed;
 - the OpenRouter endpoint and credential are gone;
 - only Gemma 4 E2B is exposed;
-- the approved `d406ed46` interface is integrated at canonical `/chatbot` without redesign;
+- the approved `d406ed46` interface is integrated at semantic route `/chatbot` with canonical URL `https://jetsanchez.com/chatbot/` without redesign;
 - Ghost replaces Tools in the dock, structured navigation, and no-script fallback without adding a mobile item;
-- `/tools/chatbot` returns exact `308` to `/chatbot`, and dormant `/tools` remains out of navigation and sitemap;
+- `/chatbot`, `/tools/chatbot`, and `/tools/chatbot/` return exact direct `308`s to `/chatbot/`; dormant `/tools/` remains noindexed and out of navigation and sitemap while `/tools` normalizes once and `/toolshed/` remains unaffected;
 - activation is explicit and communicates the approximate 2 GB download;
 - route entry and compatibility checking initiate no LiteRT import, corpus/index/model request, engine creation, or GPU allocation;
 - LiteRT's packaged runtime assets are served only from the pinned versioned same-origin path, loaded only after consent, and never fetched from the SDK's default CDN;
@@ -870,11 +872,13 @@ Jet's Ghost is ready for indexed release when:
 - conversation exhaustion preserves the transcript and requires an explicit new session instead of dropping earlier turns;
 - all six product-acceptance cases have one reviewed causal diagnosis and release disposition on the tested Mac;
 - the tool passes keyboard, reduced-motion, live-region, and responsive checks;
-- canonical `/chatbot` has accurate metadata and may be removed from `noindex`;
+- canonical `https://jetsanchez.com/chatbot/` has matching canonical, `og:url`, WebPage/SoftwareApplication IDs and URLs, and may be removed from `noindex` only by the Production release switch after all gates pass;
 - model/library license and attribution requirements are reviewed, implemented, and documented;
 - the exact noindexed Preview and promoted Production deployment pass their two-case real-model smokes before the normal `v2.1.0` tag is pushed.
 
 The license gate inventories the exact Gemma model revision, its model card and Gemma terms, `@litert-lm/core`, `minisearch@7.2.0`, `stemmer@2.0.1`, and transitive notices, redistribution/caching implications, and any attribution or acceptable-use disclosure required in the repository or public UI. Evidence records the reviewed URLs, versions, hashes, review date, and where each required notice is rendered. `noindex` is not removed while any required notice or permission remains unresolved.
+
+Google Search Console follows deployment truth rather than controlling release. Never request indexing while Jet's Ghost is a prototype or Preview, and do not request indexing for RSS. This release plan makes no `/chatbot/` indexing request. Only after the verified Production deployment and a subsequent recrawl/Page indexing report refresh may the operator inspect and monitor `/chatbot/`. Do not validate the intentional retired-route `404`s, expected slashless alternate-canonical exclusions, or expected HTTP/www redirect exclusions. A stale report is not evidence that the Task 13 release switch or redirect matrix failed.
 
 ## Future evolution without rewrite
 
