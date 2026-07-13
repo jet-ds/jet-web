@@ -488,10 +488,13 @@ git commit -m "test: establish verification harness"
 - Create: `scripts/verify-production-containment.ts`
 - Create: `docs/verification/containment/`
 - Create: `vercel.json`
+- Modify: `tests/unit/ops/vercelEvidence.test.ts`
+- Modify: `scripts/sanitize-vercel-evidence.ts`
 - Modify: `package.json`
 - Modify: `package-lock.json`
 - Modify: `astro.config.mjs`
 - Modify: `.gitignore`
+- Modify: `src/utils/artifact-loader.ts`
 - Delete: `src/pages/api/chat.ts`
 - Delete: `src/pages/chatbot.astro`
 - Preserve unchanged: `src/pages/tools/chatbot.astro`, `src/features/jets-ghost/JetsGhostExperience.tsx`, `src/features/jets-ghost/experience.ts`, `tests/jets-ghost-experience.test.ts`
@@ -584,6 +587,8 @@ playwright-report/
 test-results/
 ```
 
+Replace the now-orphaned `src/utils/artifact-loader.ts` implementation with an explicitly inert compatibility seam until Task 9 removes the retired runtime. Preserve the `checkCache()` and `fetchArtifacts()` signatures required by dead legacy modules, but make `checkCache()` always return `null` and make `fetchArtifacts()` immediately throw a non-recoverable typed `ChatbotError` stating that hosted artifacts are retired. The seam must not import generated artifact config, open IndexedDB, reuse cached artifacts, or fetch hosted artifacts.
+
 Extend `staticBoundary.test.ts` with an injected `git check-ignore` assertion for one child path beneath each directory. This makes build-purity exclusions explicit rather than assuming the current repository already ignores them.
 
 Create `vercel.json`:
@@ -619,7 +624,11 @@ Expected: the interface tests pass, the prototype remains noindexed, and it has 
 
 Create `scripts/verify-build-purity.ts`. It must obtain the NUL-delimited union of tracked and nonignored untracked files with `git ls-files --cached --others --exclude-standard -z`, hash each file's bytes, capture `git status --porcelain=v1 -uall`, run `npm run build` without a shell, repeat both snapshots, and fail with changed paths if either snapshot differs. Ignored build outputs such as `dist/`, `.astro/`, `node_modules/`, Playwright results, and coverage are naturally excluded; no source/config exception is permitted.
 
-Write `tests/unit/ops/chatbotContainment.test.ts` and `tests/unit/ops/productionContainment.test.ts` before their scripts. `contain-chatbot-blobs.ts` receives injected list/delete/fetch/time dependencies, defaults to a read-only dry run, and requires `--execute` for deletion. Tests cover all pagination, the three known URLs, additional matching objects, an already-empty prefix, refusal without `--execute`, cache-busted exact-`404` probes, bounded relist retries, and canonical before/after evidence. `verify-production-containment.ts` receives injected fetch/file readers and tests every status, redirect, deployment-SHA, environment, revocation, and Blob assertion—including one failing test per boundary. Neither test may call Vercel, Blob, OpenRouter, or the public site.
+Write `tests/unit/ops/chatbotContainment.test.ts` and `tests/unit/ops/productionContainment.test.ts` before their scripts. Refactor `scripts/sanitize-vercel-evidence.ts` so importing it has no CLI side effect and it exports the same Blob-inventory safety validator and canonical serializer used by `verify-safe`; cover that import boundary in `tests/unit/ops/vercelEvidence.test.ts`. `contain-chatbot-blobs.ts` receives injected list/delete/fetch/time plus evidence-exists/read/write and stdout dependencies, defaults to a read-only dry run, and requires `--execute` for deletion. Before stdout, evidence writes, or Blob deletion, validate every current or saved Blob inventory in memory with the shared Task 2 sanitizer rules, including credential-shaped/high-entropy canaries and exact Blob URL rules. A dry run writes the canonical safe current inventory and classified state to stdout and performs no mutation.
+
+Containment execution is an explicit restartable state machine. `FRESH` requires a nonempty current inventory containing all three known objects and no saved before evidence; it atomically creates canonical before evidence without overwriting an existing path, then deletes the full inventory. `RESUME` requires a sanitizer-safe saved before inventory containing all three known objects and a nonempty current inventory that is an exact subset of that proof; it preserves the before file byte-for-byte and deletes only the remaining objects. `ALREADY_CONTAINED` requires an empty current inventory plus the same complete valid before proof; it preserves that proof, validates or creates canonical empty after evidence as needed, and probes every URL from the original before inventory. Empty or partial current state without the complete saved proof fails without output, overwrite, deletion, or probe. Existing valid before evidence is never overwritten. Tests cover complete pagination, additional matching objects, all three states, missing proof, unsafe saved/current/after evidence, interrupted deletion and restartable resume, bounded relists, and cache-busted exact-`404` probes.
+
+`verify-production-containment.ts` receives injected fetch/file readers and result-exists/writer boundaries. It accepts only the normalized exact origin `https://jetsanchez.com`, rejecting every other HTTPS origin before any evidence read or fetch. It refuses a pre-existing result path before reads/fetches and uses atomic no-overwrite creation for canonical sanitizer-safe output. Tests preserve stale-result sentinels and cover every status, redirect, deployment-SHA, environment, revocation, Blob-safety, and Blob assertion—including one failing test per boundary. No test may call Vercel, Blob, OpenRouter, or the public site.
 
 Implement both scripts until those tests pass. This step finishes the scripts that Step 6 stages; the following steps only execute the already-committed tools against authorized external systems.
 
@@ -646,7 +655,7 @@ Expected: tests, check, and build pass; the build changes no tracked, staged, or
 - [ ] **Step 6: Commit the static containment code**
 
 ```bash
-git add package.json package-lock.json astro.config.mjs .gitignore vercel.json tests/unit/build/staticBoundary.test.ts tests/unit/ops/chatbotContainment.test.ts tests/unit/ops/productionContainment.test.ts scripts/verify-build-purity.ts scripts/contain-chatbot-blobs.ts scripts/verify-production-containment.ts
+git add package.json package-lock.json astro.config.mjs .gitignore vercel.json src/utils/artifact-loader.ts tests/unit/build/staticBoundary.test.ts tests/unit/ops/chatbotContainment.test.ts tests/unit/ops/productionContainment.test.ts tests/unit/ops/vercelEvidence.test.ts scripts/verify-build-purity.ts scripts/contain-chatbot-blobs.ts scripts/verify-production-containment.ts scripts/sanitize-vercel-evidence.ts docs/superpowers/plans/2026-07-11-v1-modernization.md
 git add -u src/pages/api/chat.ts src/pages/chatbot.astro
 git commit -m "fix(security)!: retire hosted chatbot endpoint" -m "BREAKING CHANGE: The public /api/chat generation endpoint is removed."
 ```

@@ -3,6 +3,11 @@ dist/
 # generated types
 .astro/
 
+# generated verification output
+coverage/
+playwright-report/
+test-results/
+
 # dependencies
 node_modules/
 
@@ -18,8 +23,6 @@ pnpm-debug.log*
 .env.local
 .env.production
 
-# chatbot artifacts (generated URLs, not secrets but build-specific)
-src/config/chatbot-artifacts.json
 test-config.json
 
 # macOS-specific files

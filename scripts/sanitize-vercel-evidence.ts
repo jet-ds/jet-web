@@ -1,7 +1,15 @@
 import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
 import { dirname, resolve } from 'node:path';
+import { fileURLToPath } from 'node:url';
 
 type JsonObject = Record<string, unknown>;
+
+export type SafeBlobInventoryEntry = {
+  pathname: string;
+  url: string;
+  size: number;
+  uploadedAt: string;
+};
 
 const KNOWN_BLOB_HOST = 'vyge4wbmw8jgd8rh.public.blob.vercel-storage.com';
 const SANITIZING_MODES = new Set([
@@ -215,6 +223,8 @@ function canonicalize(value: unknown): unknown {
 function canonicalJson(value: unknown): string {
   return `${JSON.stringify(canonicalize(value), null, 2)}\n`;
 }
+
+export { canonicalJson as canonicalEvidenceJson };
 
 function projectInspect(input: unknown): JsonObject {
   const object = requireObject(input, 'INVALID_INSPECT_INPUT');
@@ -508,12 +518,20 @@ function validateContainmentResult(value: unknown): void {
   requireUtcTimestamp(object.verifiedAt, 'INVALID_VERIFIED_AT');
 }
 
-function assertSafeEvidence(value: unknown): void {
+export function assertSafeBlobInventory(
+  value: unknown,
+): asserts value is SafeBlobInventoryEntry[] {
   assertNoSensitiveContent(value);
+  if (!Array.isArray(value)) fail('INVALID_BLOB_INVENTORY');
+  validateBlobInventory(value);
+}
+
+export function assertSafeEvidence(value: unknown): void {
   if (Array.isArray(value)) {
-    validateBlobInventory(value);
+    assertSafeBlobInventory(value);
     return;
   }
+  assertNoSensitiveContent(value);
   const object = requireObject(value);
   if ('aliases' in object) {
     validateInspect(object);
@@ -607,4 +625,6 @@ function main(): void {
   }
 }
 
-main();
+if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+  main();
+}

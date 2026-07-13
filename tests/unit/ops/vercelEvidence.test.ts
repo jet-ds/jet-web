@@ -81,6 +81,22 @@ afterEach(() => {
 });
 
 describe('Vercel evidence sanitizer', () => {
+  it('is import-safe for shared in-memory validation', () => {
+    const result = spawnSync(
+      process.execPath,
+      [
+        tsx,
+        '--eval',
+        `import(${JSON.stringify(sanitizer)}).catch((error) => { console.error(error); process.exitCode = 1; })`,
+      ],
+      { cwd: projectRoot, encoding: 'utf8' },
+    );
+
+    expect(result.status).toBe(0);
+    expect(result.stdout).toBe('');
+    expect(result.stderr).toBe('');
+  });
+
   it('projects inspect evidence from approved fields and sorts aliases', () => {
     const { result, outputPath } = runCli('sanitize-inspect', {
       id: 'dpl_approved123',
