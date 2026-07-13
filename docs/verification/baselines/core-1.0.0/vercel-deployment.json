@@ -1,0 +1,16 @@
+{
+  "createdAt": 1775923805825,
+  "gitSource": {
+    "ref": "main",
+    "sha": "c0d158c2f1ba73c879890fd2a8269f633d1f2d04",
+    "type": "github"
+  },
+  "id": "dpl_CGda64PagRyvnuFcRwokTCXT738a",
+  "project": {
+    "id": "prj_rP5mR8VAQ8Ex44dTRv90sdtyCA7H",
+    "name": "jet-web"
+  },
+  "readyState": "READY",
+  "target": "production",
+  "url": "jet-mnnyczpfp-jet-sanchezs-projects.vercel.app"
+}
