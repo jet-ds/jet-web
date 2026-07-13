@@ -283,16 +283,27 @@ The README contains only:
 - verification and deployment expectations;
 - links to the canonical Superpowers designs and maintained operational docs.
 
+The implemented image workflow is part of canonical `AGENTS.md`, not a separate active guide. It covers the existing `blog`, `works`, and `about` staging lanes; every format accepted by the upload script; `16:9` featured-content guidance; the About page's `3:4` portrait guidance; the explicit Vercel Blob upload mutation; environment requirements; current `src/data/` frontmatter; alt text; verification; replacement/removal; and cleanup. After that material is integrated, move both `docs/image-workflow.md` and the duplicative publicly deployable `public/images-staging/README.md` into `docs/archive/site/workflows/`. Keep the empty `about/`, `blog/`, and `works/` staging directories through `.gitkeep` files so a fresh checkout retains the operational shape without creating another documentation authority. README links its Images section to `AGENTS.md`.
+
+### Default OpenGraph image
+
+Resolve the launch-era `TODO.md` rather than carrying it forward as an active backlog file. The default social image is a checked-in `1920x1080` JPEG captured from the homepage hero in its normal light theme. The capture uses a `1920x1080` viewport at device scale `1`, clears theme state, freezes Grainient animation timestamps at `iTime = 0`, requires the intended Brawler and Work Sans font faces to load, and waits for a capture-only WebGL draw signal rather than canvas insertion alone. It then captures the first viewport with the visible navigation dock. This produces the intended first-frame hero composition without depending on screenshot or remote-font fallback timing.
+
+The asset lives at `public/images/og-default.jpg`. Default SEO props expose its absolute production URL, accurate dimensions, and descriptive alt text. Custom content images emit dimensions only when their real dimensions are known; the default image's dimensions are not asserted for unrelated assets. A checked-in capture script makes regeneration explicit, while automated tests verify the committed JPEG type, dimensions, size ceiling, default metadata, and built-page OpenGraph/Twitter tags. After those gates pass, move `TODO.md` into the historical archive as completed work.
+
 ## Core modernization workstreams
 
 ### 1. Canonical documentation
 
 - This design and its companion become the active target specifications.
-- Create `docs/archive/README.md` as the index of superseded specifications, completed implementation logs, and retired research.
+- Create `docs/archive/README.md` as the index of superseded specifications, completed TODOs, deferred concepts, historical audits, superseded workflows, implementation logs, and retired research.
 - Move the v1/v2 project specifications and migration logs into `docs/archive/site/`, and move retired RAG architecture/plans/logs/reviews/research into `docs/archive/jets-ghost/legacy-rag/`.
-- The user has explicitly approved adoption and archival of four superseded untracked documents: `EMBEDDING_STORAGE_RESEARCH.md`, `docs/jets-ghost-v1.5-spec.md`, `docs/rag-chatbot-implementation-review.md`, and `docs/liquid-glass-dock-v2-log.md`. Preserve each substantive body, record its source SHA-256, add status/successor context in the archive, and remove the obsolete source copy only after the archive is reachable from the released commit. Cleanup revalidates both source and archived-body hashes, operates on this exact allowlist, and proves the original worktree inventory changed only by removal of those four paths.
+- The user has explicitly approved adoption and archival of all eight non-canonical untracked documentation artifacts: the four previously identified historical records (`EMBEDDING_STORAGE_RESEARCH.md`, `docs/jets-ghost-v1.5-spec.md`, `docs/rag-chatbot-implementation-review.md`, and `docs/liquid-glass-dock-v2-log.md`), three deferred design concepts under `Untracked/docs/`, and the historical local Lighthouse report under `Untracked/`. Preserve each substantive body, record its source SHA-256, and add status/successor context in the archive index. Markdown documents also receive a generated status banner; the self-contained HTML report remains byte-exact and receives its context from the archive index and manifest.
+- Remove the eight obsolete source copies only after the archive is reachable from the released commit. Cleanup revalidates every source and archived-body hash, operates on this exact allowlist, and proves the original worktree inventory changed only by removal of those eight paths. The active unpublished Codex article remains at `Untracked/src/data/blog/how-to-install-and-get-started-with-codex-cli-2026.mdx`; it is governed by the explicit content policy and is never included in production or the assistant corpus implicitly.
 - Move completed Liquid Glass and launch implementation logs into `docs/archive/site/implementation-logs/` while retaining links from the archive index.
-- Do not archive unrelated untracked specifications merely because they are untracked. The EmDash Newsroom exercise and Page Analyzer/Schema Visualizer proposals remain separate active drafts unless a later decision supersedes them.
+- Archive the deferred EmDash Newsroom, Page Analyzer, and Schema Visualizer concepts under the neutral `docs/archive/deferred-concepts/` taxonomy. The archive index records EmDash as a separate public-theme concept and Page Analyzer/Schema Visualizer as deferred site-Tools concepts, with accurate status and successor context for each. They remain available as historical inputs but are not canonical product commitments or active implementation authorities.
+- After the default OpenGraph asset is implemented and verified, move the completed root `TODO.md` into `docs/archive/site/todos/` with its resolution and successor links.
+- After the complete, corrected image workflow is present in `AGENTS.md`, move the two superseded image guides into `docs/archive/site/workflows/` with `AGENTS.md` as their canonical successor.
 - Replace `README.md` with the professional structure defined in the repository-governance section.
 - Update repository instructions after implementation so future agents use the new content and verification contracts.
 
@@ -349,6 +360,7 @@ The `Download PDF` action is removed. Citation text also uses the HTTPS DOI URL.
 - Require `/about` to return one permanent `308` directly to `/about/`. Require `/about/` to return `200`, expose `index, follow`, emit exact canonical and `og:url` `https://jetsanchez.com/about/`, link JSON-LD to that URL, and appear exactly once in the sitemap.
 - Keep `/blog/the-future-of-ai/` and `/blog/building-with-astro/` retired. Their canonical paths return `404`; generic slashless normalization may precede the first path's final `404`, but neither route redirects to home or another content page. Both remain absent from repository internal-link targets, sitemap, and RSS.
 - Verify sitemap, RSS, robots, canonical tags, Open Graph, Twitter cards, JSON-LD, redirect targets, and the retired-route exclusions against representative routes.
+- Verify the default OpenGraph image is a checked-in `1920x1080` JPEG below the documented size ceiling, and that pages without a custom image emit its exact URL, dimensions, and alt text.
 - Keep the approved prototype at `/tools/chatbot/` noindexed and out of the sitemap during core `2.0.0`. In `2.1.0`, keep `/tools/` dormant and excluded, move Jet's Ghost to semantic route `/chatbot` with canonical URL `https://jetsanchez.com/chatbot/`, and remove the exact chatbot exclusion only after the local-assistant release gate passes.
 
 The live Google Search Console Page indexing report for `sc-domain:jetsanchez.com`, last updated `2026-06-30`, recorded 16 not-indexed URLs: six expected slashless alternate canonicals, three expected HTTP/www redirects, two intentionally retired blog routes, and five crawled/currently-not-indexed URLs (`/about/`, `/about`, `/chatbot`, `/chatbot/`, and `/rss.xml`). The extra `http://www` hop is not an indexing blocker and is not a modernization prerequisite. After exact production verification, request indexing for `/about/` only. Do not request indexing for the noindexed prototype or RSS, and do not validate intentional `404`s, expected alternate-canonical exclusions, or expected HTTP/www redirect exclusions. Search Console validation and monitoring begin only after recrawl and report refresh; the release is judged first by exact production responses and metadata, not a stale report.
@@ -424,6 +436,7 @@ The later implementation plan must respect these dependencies:
 11. Integrate the approved Jet's Ghost interface without redesign, reverse the interim route and navigation state as one coordinated change, and release it through the separate plan as `2.1.0`.
 12. Remove historical runtime dependencies only after no active code imports them.
 13. Rewrite the README after its documented commands and architecture are implemented.
+14. Resolve the default OpenGraph image TODO before archiving the completed TODO record and finalizing canonical documentation.
 
 ## Release criteria
 
@@ -446,13 +459,14 @@ The core modernization is complete when:
 - every committed deployment/environment evidence file is a sanitizer-approved allowlisted projection, and every release readback artifact has a published SHA-256 that is verified after downloading it from the release;
 - `AGENTS.md` is canonical, `CLAUDE.md` points to it, the recorded pre-modernization baseline is `1.0.0`, the released application is `2.0.0`, and commit instructions require Conventional Commits without agent attribution;
 - the README is concise, professional, and accurate to the implemented system;
+- the deterministic first-frame homepage hero is checked in as the verified default OpenGraph image and the completed TODO is archived;
 - the visual and editorial character remains materially unchanged.
 
 ## Risks and mitigations
 
 ### Dirty working tree during baseline synchronization
 
-The repository contains user-owned untracked drafts and specifications. Implementation must inventory them, create a clean worktree from the approved commit, leave the original checkout untouched, and stage only explicit paths. The only exception is the user-authorized, hash-verified archival copy and post-integration cleanup of four named historical documents; it never includes active content or active tool specifications. If the clean checkout cannot reproduce a build because a private untracked draft was previously affecting it, record that baseline defect instead of rewriting the draft.
+The repository contains user-owned untracked drafts and specifications. Implementation must inventory them, create a clean worktree from the approved commit, leave the original checkout untouched, and stage only explicit paths. The only exceptions are the user-authorized, hash-verified archival copy and post-integration cleanup of the eight named non-canonical documentation artifacts. Cleanup hashes the manifest and every archived destination blob from the annotated release ref itself before removing originals; current-worktree copies are not sufficient evidence. The active Codex article is not part of that allowlist and remains untouched. If the clean checkout cannot reproduce a build because a private untracked draft was previously affecting it, record that baseline defect instead of rewriting the draft.
 
 ### Static adapter removal or route reversal changes redirect behavior
 

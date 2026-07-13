@@ -157,6 +157,8 @@ Using the private state, create `operator-state-attestation.json` with only:
 
 Sort the four authorized records by path and calculate `entryCount` from the NUL-delimited private inventory. The attestation contains no absolute path and no unrelated untracked filename. Validate it against the private files before use. No listed user file is copied into the worktree except the four superseded documents explicitly authorized for archival in Task 11. At the end of every task, recalculate the original checkout's NUL-delimited inventory and compare its digest/count with the private state; stop on drift before controlled cleanup.
 
+This is the initial Task 0 allowlist and records the approval state at isolation time. A later explicit Task 11 decision expands the allowlist to eight non-canonical documentation artifacts. Task 11 must hash the four added exact paths, update both the private allowlist and committed attestation, revalidate them against the unchanged nine-entry inventory, and only then read or copy those added sources. The active Codex article is never added.
+
 No commit occurs in Task 0; Task 1 establishes the commit policy and commits only this non-identifying attestation.
 
 ---
@@ -1830,12 +1832,27 @@ git commit -m "fix(seo): align canonical route identities"
 **Files:**
 - Rewrite: `README.md`
 - Modify: `AGENTS.md`
+- Modify: `src/config/site.ts`
+- Modify: `src/utils/seo.ts`
+- Modify: `src/components/seo/SEO.astro`
+- Modify: `src/components/layout/BaseLayout.astro`
+- Modify: `tests/e2e/site.spec.ts`
+- Create: `tests/unit/seo/defaultOpenGraphImage.test.ts`
+- Create: `scripts/capture-og-image.ts`
+- Create: `public/images/og-default.jpg`
 - Create: `docs/archive/README.md`
 - Create: `docs/archive/archive-manifest.json`
 - Create: `scripts/archive-legacy-docs.ts`
 - Create: `scripts/verify-doc-links.ts`
 - Create: `tests/unit/ops/archiveLegacyDocs.test.ts`
 - Create: `tests/unit/ops/docLinks.test.ts`
+- Modify: `docs/verification/baselines/core-1.0.0/operator-state-attestation.json`
+- Create: `public/images-staging/about/.gitkeep`
+- Create: `public/images-staging/blog/.gitkeep`
+- Create: `public/images-staging/works/.gitkeep`
+- Move tracked: `TODO.md` -> `docs/archive/site/todos/default-opengraph-image.md`
+- Move tracked: `docs/image-workflow.md` -> `docs/archive/site/workflows/image-workflow.md`
+- Move tracked: `public/images-staging/README.md` -> `docs/archive/site/workflows/image-staging-readme.md`
 - Move tracked: `docs/project-spec.md` -> `docs/archive/site/project-spec-v1.md`
 - Move tracked: `docs/project-spec-v2.md` -> `docs/archive/site/project-spec-v2.md`
 - Move tracked: `docs/v2-migration-log.md` -> `docs/archive/site/v2-migration-log.md`
@@ -1844,6 +1861,8 @@ git commit -m "fix(seo): align canonical route identities"
 - Move tracked RAG docs into: `docs/archive/jets-ghost/legacy-rag/`
 - Adopt authorized untracked historical docs into: `docs/archive/jets-ghost/legacy-rag/`
 - Adopt authorized untracked dock log into: `docs/archive/site/implementation-logs/liquid-glass-dock-v2.md`
+- Adopt authorized deferred concepts into: `docs/archive/deferred-concepts/`
+- Adopt authorized local audit into: `docs/archive/site/audits/localhost-2025-12-18-lighthouse-report.html`
 - Modify: `package.json`
 - Modify: `package-lock.json`
 
@@ -1851,7 +1870,41 @@ git commit -m "fix(seo): align canonical route identities"
 - Produces: one canonical architecture path and accurate public contributor documentation.
 - Consumes: implemented commands and approved Superpowers designs.
 
-- [ ] **Step 1: Write the professional README**
+- [ ] **Step 1: Resolve the default OpenGraph image TODO**
+
+Add a focused RED suite in `tests/unit/seo/defaultOpenGraphImage.test.ts`. Require one shared default-image contract to expose:
+
+```ts
+{
+  path: '/images/og-default.jpg',
+  url: 'https://jetsanchez.com/images/og-default.jpg',
+  width: 1920,
+  height: 1080,
+  alt: "Jet Sanchez's homepage hero with a blue and mustard Grainient background",
+  maxBytes: 2_000_000,
+}
+```
+
+The test reads the committed asset, verifies its JPEG signature, parses its start-of-frame dimensions without an image-processing dependency, requires `1920x1080`, and enforces the size ceiling. It also proves `generateSEOProps({})` uses the exact URL, dimensions, and alt while custom images do not inherit false default dimensions or alt text.
+
+Create `scripts/capture-og-image.ts` and add `"capture:og": "tsx scripts/capture-og-image.ts"`. The script builds the site, starts a local Astro preview on an available loopback port, launches pinned Playwright Chromium, and always tears both browser and preview down. It refuses non-loopback origins and output paths outside `public/images/`. Capture `/` with viewport `1920x1080`, device scale `1`, light color scheme, no reduced motion, and cleared theme storage. Before application code runs, wrap `requestAnimationFrame` so every callback receives the same timestamp; Grainient's first rendered callback therefore remains at `iTime = 0`. In the same capture-only init script, wrap `WebGL2RenderingContext.drawArrays` and set a page flag only after the original draw call returns. Wait for that completed-draw flag—not canvas insertion alone—plus the `h1` and navigation dock before capture. Because subsequent RAF callbacks receive the same timestamp, the shader remains on that rendered first frame.
+
+Font readiness is a hard gate. Call `document.fonts.load(...)` for Brawler `700` and the Work Sans weights used by the hero/dock, require each call to return loaded `FontFace` records, and require matching `document.fonts.check(...)` results. Fail with an actionable error on a remote-font timeout or fallback; never accept a screenshot rendered with substitute fonts. Then write a quality-90 JPEG of the first viewport to `public/images/og-default.jpg`. Verify the output's type, dimensions, and size before accepting it. `--overwrite` is required once the destination exists.
+
+Update the shared SEO contract, `BaseLayout.astro`, and `SEO.astro` so the default image emits exact OpenGraph/Twitter URL, `1920`/`1080` dimensions, and alt text. `BaseLayout` accepts and forwards optional `imageWidth`/`imageHeight`; only emit dimensions for custom images when callers provide real values. Extend `tests/e2e/site.spec.ts` to prove the built homepage metadata and local static asset response.
+
+Run RED, generate the asset, then GREEN:
+
+```bash
+npm run test -- tests/unit/seo/defaultOpenGraphImage.test.ts
+npm run capture:og
+npm run test -- tests/unit/seo/defaultOpenGraphImage.test.ts
+npm run test:e2e -- tests/e2e/site.spec.ts
+```
+
+After every assertion passes, mark `TODO.md` ready for the tracked-archive move owned by Step 4. Its completed-work banner links to the committed asset, capture script, and canonical image workflow in `AGENTS.md`.
+
+- [ ] **Step 2: Write the professional README**
 
 Use exactly these top-level sections:
 
@@ -1884,13 +1937,15 @@ and explain that publication requires `status: published`, while assistant inclu
 
 Remove emoji, badges, “perfect performance,” hard-coded Lighthouse metrics, generic cloning tutorials, stale `src/content` paths, and unsupported bundle-size claims.
 
-- [ ] **Step 2: Update `AGENTS.md` to the implemented truth**
+- [ ] **Step 3: Update `AGENTS.md` to the implemented truth**
 
 Update commands, content fields, static deployment, test locations, pure-build rule, Jet's Ghost status, its approved interface source, the interim core route state and final `2.1.0` route direction, canonical specs, and versioning rules. Remove references to `draft?: boolean`, server OpenRouter generation, v2 as target, and Claude attribution.
 
-- [ ] **Step 3: Move tracked legacy documents into a real archive**
+Fold the complete implemented image workflow into `AGENTS.md`: every upload-script-supported source format (`jpg`, `jpeg`, `png`, `webp`, `avif`, `gif`); `16:9` and under-`2 MB` guidance for blog/work featured images; the current About portrait lane and its `3:4`/`1200x1600` guidance; `public/images-staging/{about,blog,works}/`; slug-based naming; `npm run upload-image <type>/<file>` as the only explicit Blob mutation; required `BLOB_READ_WRITE_TOKEN`; returned immutable hashed URL; current `src/data/{blog,works}` frontmatter with descriptive `alt`; the About page's direct optimized-image usage; build/preview verification; replacement/removal behavior; and staging cleanup. Correct every stale `src/content` example. `AGENTS.md` becomes the sole active workflow authority, README's Images section points there, and the two historical image guides move in Step 4. Preserve all three empty staging directories with `.gitkeep` files rather than a second instructional README.
 
-Create the target directories, then use explicit `git mv` commands for the tracked v1/v2 specifications, migration/launch logs, Liquid Glass v1 log, and these RAG records:
+- [ ] **Step 4: Move tracked legacy documents into a real archive**
+
+Create the target directories, then use explicit `git mv` commands for the completed TODO, superseded image guides, tracked v1/v2 specifications, migration/launch logs, Liquid Glass v1 log, and these RAG records:
 
 ```text
 docs/rag-chatbot-architecture.md
@@ -1898,10 +1953,13 @@ docs/rag-chatbot-implementation-plan.md
 docs/rag-chatbot-implementation-log.md
 ```
 
-Place site history under `docs/archive/site/` and RAG history under `docs/archive/jets-ghost/legacy-rag/`. Do not move `docs/image-workflow.md` or either active Superpowers design/plan.
+Place site history under `docs/archive/site/` and RAG history under `docs/archive/jets-ghost/legacy-rag/`. Do not move either active Superpowers design/plan or `docs/jets-ghost-chat-experience.md`.
 
 ```bash
-mkdir -p docs/archive/site/implementation-logs docs/archive/jets-ghost/legacy-rag
+mkdir -p docs/archive/{deferred-concepts,site/{audits,implementation-logs,todos,workflows},jets-ghost/legacy-rag}
+git mv TODO.md docs/archive/site/todos/default-opengraph-image.md
+git mv docs/image-workflow.md docs/archive/site/workflows/image-workflow.md
+git mv public/images-staging/README.md docs/archive/site/workflows/image-staging-readme.md
 git mv docs/project-spec.md docs/archive/site/project-spec-v1.md
 git mv docs/project-spec-v2.md docs/archive/site/project-spec-v2.md
 git mv docs/v2-migration-log.md docs/archive/site/v2-migration-log.md
@@ -1912,9 +1970,9 @@ git mv docs/rag-chatbot-implementation-plan.md docs/archive/jets-ghost/legacy-ra
 git mv docs/rag-chatbot-implementation-log.md docs/archive/jets-ghost/legacy-rag/rag-chatbot-implementation-log.md
 ```
 
-- [ ] **Step 4: Adopt only the explicitly authorized untracked historical documents**
+- [ ] **Step 5: Adopt every authorized non-canonical untracked document and no active content**
 
-Create `scripts/archive-legacy-docs.ts` with an exact source-to-destination map for:
+Create `scripts/archive-legacy-docs.ts` with this exact source-to-destination map:
 
 ```text
 EMBEDDING_STORAGE_RESEARCH.md
@@ -1925,15 +1983,23 @@ docs/rag-chatbot-implementation-review.md
   -> docs/archive/jets-ghost/legacy-rag/rag-chatbot-implementation-review.md
 docs/liquid-glass-dock-v2-log.md
   -> docs/archive/site/implementation-logs/liquid-glass-dock-v2.md
+Untracked/docs/emdash-news-theme-spec.md
+  -> docs/archive/deferred-concepts/emdash-news-theme-spec.md
+Untracked/docs/page-analyzer-spec.md
+  -> docs/archive/deferred-concepts/page-analyzer-spec.md
+Untracked/docs/schema-visualizer-spec.md
+  -> docs/archive/deferred-concepts/schema-visualizer-spec.md
+Untracked/localhost_2025-12-18_17-30-02.report.html
+  -> docs/archive/site/audits/localhost-2025-12-18-lighthouse-report.html
 ```
 
-The script reads those files from the inventoried original checkout, verifies each against the private `$OPERATOR_STATE_DIR/authorized-archive-source-hashes.txt`, refuses symlinks or changed/missing sources, copies its substantive body, prepends the correct historical/superseded banner and active-successor link, and writes source/archived SHA-256 values to `docs/archive/archive-manifest.json`. It also verifies that those four path/hash pairs match the committed non-identifying attestation. Verify mode removes only the exact generated banner before hashing the archived body and requires it to equal the recorded source hash. The script never reads or copies the active Codex article, EmDash Newsroom exercise, Page Analyzer spec, or Schema Visualizer spec.
+The script reads only those eight files from the inventoried original checkout, verifies each against the private `$OPERATOR_STATE_DIR/authorized-archive-source-hashes.txt`, refuses symlinks or changed/missing sources, and writes source/archived SHA-256 values to `docs/archive/archive-manifest.json`. Expand the committed attestation to the same exact eight path/hash pairs and update the private hash allowlist without changing the original nine-entry inventory. Markdown destinations preserve their substantive bodies behind a generated historical/deferred banner and successor link; verify mode removes only that exact banner before hashing the archived body. The self-contained HTML Lighthouse report is copied byte-for-byte, so its archive/body hash equals its source hash and its status is recorded in the archive index and manifest rather than by rewriting the report. The script never reads or copies `Untracked/src/data/blog/how-to-install-and-get-started-with-codex-cli-2026.mdx`.
 
-The same exact map owns a later `--cleanup --release-ref=<tag>` mode; there is no standalone `rm` workflow. Cleanup first performs every check without mutation: all four sources are regular untracked files with the recorded hashes, all four archived bodies match, the tag is annotated and contains the archived paths, the commit that introduced `archive-manifest.json` is an ancestor of the tag, and the current original-worktree porcelain inventory exactly matches the Task 0 inventory. It then removes only the four mapped sources, proves the new inventory equals the original inventory minus exactly those four records, and reports the removed paths. Use private byte backups and restore all four on any unlink/postcondition failure so a partial cleanup is not accepted.
+The same exact map owns a later `--cleanup --release-ref=<tag>` mode; there is no standalone `rm` workflow. Cleanup first performs every check without mutation: all eight sources are regular untracked files with the recorded hashes; the ref is an annotated tag; the archive-manifest introduction is its ancestor; and the current original-worktree porcelain inventory exactly matches the Task 0 inventory. Read `docs/archive/archive-manifest.json` and every mapped destination as tagged blobs through Git at `release-ref`, hash those tagged bytes, strip only the exact generated Markdown banners where required, and require the tagged manifest/source/archive hashes to agree. Current-worktree files are not cleanup evidence. Then remove only the eight mapped sources, prove the new inventory equals the original inventory minus exactly those eight records, and report the removed paths. Use private mode-`0600` byte backups and restore all eight on any unlink/postcondition failure so a partial cleanup is not accepted. The expected remaining inventory is exactly the active Codex article draft.
 
-Test the archive script through injected filesystem/Git adapters in `tests/unit/ops/archiveLegacyDocs.test.ts`. Cover exact-map creation and verification, source-hash drift, archived-body drift, symlinks, missing/unexpected files, a release ref that does not contain the archive commit, a pre-cleanup inventory mismatch, successful removal of exactly four paths, and rollback after an injected unlink/postcondition failure.
+Test the archive script through injected filesystem/Git adapters in `tests/unit/ops/archiveLegacyDocs.test.ts`. Cover the exact eight-path map, Markdown banners, byte-exact HTML creation and verification, source-hash drift, archived-body drift, symlinks, missing/unexpected files, proof that the active article is never opened, a release ref that does not contain the archive commit, tagged-manifest/tagged-blob drift even when the worktree copy passes, a pre-cleanup inventory mismatch, successful removal of exactly eight paths with the article remaining, and rollback after an injected unlink/postcondition failure.
 
-Recover `ORIGINAL_ROOT` from the private `original-root.txt`, assert it is an absolute Git worktree path, and pass the private source-hash and NUL-delimited inventory paths explicitly to the script. Validate the committed attestation against those private inputs before create or verify mode. Do not delete the original untracked copies yet; cleanup occurs only after the archive commit is integrated.
+Recover `ORIGINAL_ROOT` from the private `original-root.txt`, assert it is an absolute Git worktree path, and pass the private source-hash and NUL-delimited inventory paths explicitly to the script. Validate the committed attestation against those private inputs before create or verify mode. Do not delete the original untracked copies yet; cleanup occurs only after the archive commit is integrated and included in an annotated release tag.
 
 ```bash
 GIT_COMMON_DIR=$(cd "$(git rev-parse --git-common-dir)" && pwd -P)
@@ -1944,9 +2010,9 @@ npx tsx scripts/archive-legacy-docs.ts --create --source-root="$ORIGINAL_ROOT" -
 npx tsx scripts/archive-legacy-docs.ts --verify --source-root="$ORIGINAL_ROOT" --source-hashes="$OPERATOR_STATE_DIR/authorized-archive-source-hashes.txt" --inventory="$OPERATOR_STATE_DIR/original-status.z" --attestation=docs/verification/baselines/core-1.0.0/operator-state-attestation.json
 ```
 
-- [ ] **Step 5: Index the archive and repair references**
+- [ ] **Step 6: Index the archive and repair references**
 
-`docs/archive/README.md` lists every archived path, original path, reason/status, date, and canonical successor. Add a visible banner with a correct relative successor link to every moved tracked document. Update README, AGENTS, both active Superpowers designs, both active Superpowers plans, and all remaining live links so no canonical documentation points at an obsolete path.
+`docs/archive/README.md` lists every archived path, original path, reason/status, date, and canonical successor. Add a visible banner with a correct relative successor link to every moved tracked Markdown document and every adopted Markdown document; keep the HTML audit byte-exact and place its status in the index. Update README, AGENTS, both active Superpowers designs, both active Superpowers plans, and all remaining live links so no canonical documentation points at an obsolete path.
 
 Install the parser dependencies as exact regular dependencies because both the checked-in verification script and the later corpus builder use them:
 
@@ -1958,12 +2024,12 @@ Then create `scripts/verify-doc-links.ts` and `tests/unit/ops/docLinks.test.ts`.
 
 Add `"verify:docs": "tsx scripts/verify-doc-links.ts"` and include it in `npm run verify` so future link drift fails CI.
 
-- [ ] **Step 6: Verify documentation facts and archive integrity**
+- [ ] **Step 7: Verify documentation facts, OpenGraph output, and archive integrity**
 
 Run:
 
 ```bash
-for script in dev check test test:e2e verify:content build verify upload-image; do node -e "const p=require('./package.json'); if(!p.scripts['$script']) process.exit(1)"; done
+for script in dev check test test:e2e verify:content build verify upload-image capture:og; do node -e "const p=require('./package.json'); if(!p.scripts['$script']) process.exit(1)"; done
 if rg -n "0\.0\.1|src/content/blog|src/content/works|Perfect Performance|Claude attribution|Download PDF" README.md AGENTS.md; then exit 1; fi
 test "$(readlink CLAUDE.md)" = "AGENTS.md"
 GIT_COMMON_DIR=$(cd "$(git rev-parse --git-common-dir)" && pwd -P)
@@ -1973,15 +2039,17 @@ test -n "$ORIGINAL_ROOT" && test "${ORIGINAL_ROOT#/}" != "$ORIGINAL_ROOT"
 npx tsx scripts/archive-legacy-docs.ts --verify --source-root="$ORIGINAL_ROOT" --source-hashes="$OPERATOR_STATE_DIR/authorized-archive-source-hashes.txt" --inventory="$OPERATOR_STATE_DIR/original-status.z" --attestation=docs/verification/baselines/core-1.0.0/operator-state-attestation.json
 npm run test -- tests/unit/ops/archiveLegacyDocs.test.ts
 npm run test -- tests/unit/ops/docLinks.test.ts
+npm run test -- tests/unit/seo/defaultOpenGraphImage.test.ts
 npm run verify:docs
+npm run test:e2e -- tests/e2e/site.spec.ts
 ```
 
-Expected: no stale claims and all documented commands exist.
+Expected: no stale claims, all documented commands exist, the default social image and metadata are exact, all eight non-canonical documentation sources verify against the archive, the active Codex article remains untouched, and the original inventory has not yet changed.
 
-- [ ] **Step 7: Commit the canonical documentation and archive**
+- [ ] **Step 8: Commit the canonical documentation, OpenGraph asset, and archive**
 
 ```bash
-git add README.md AGENTS.md package.json package-lock.json scripts/archive-legacy-docs.ts scripts/verify-doc-links.ts tests/unit/ops/archiveLegacyDocs.test.ts tests/unit/ops/docLinks.test.ts docs/archive/README.md docs/archive/archive-manifest.json docs/archive/site/project-spec-v1.md docs/archive/site/project-spec-v2.md docs/archive/site/v2-migration-log.md docs/archive/site/implementation-logs/site-launch.md docs/archive/site/implementation-logs/liquid-glass-dock-v1.md docs/archive/site/implementation-logs/liquid-glass-dock-v2.md docs/archive/jets-ghost/legacy-rag/rag-chatbot-architecture.md docs/archive/jets-ghost/legacy-rag/rag-chatbot-implementation-plan.md docs/archive/jets-ghost/legacy-rag/rag-chatbot-implementation-log.md docs/archive/jets-ghost/legacy-rag/embedding-storage-research.md docs/archive/jets-ghost/legacy-rag/jets-ghost-v1.5-spec.md docs/archive/jets-ghost/legacy-rag/rag-chatbot-implementation-review.md docs/superpowers/specs/2026-07-11-v1-modernization-design.md docs/superpowers/specs/2026-07-11-jets-ghost-local-assistant-design.md docs/superpowers/plans/2026-07-11-v1-modernization.md docs/superpowers/plans/2026-07-11-jets-ghost-local-assistant.md
+git add README.md AGENTS.md package.json package-lock.json src/config/site.ts src/utils/seo.ts src/components/seo/SEO.astro src/components/layout/BaseLayout.astro public/images/og-default.jpg public/images-staging/about/.gitkeep public/images-staging/blog/.gitkeep public/images-staging/works/.gitkeep scripts/capture-og-image.ts scripts/archive-legacy-docs.ts scripts/verify-doc-links.ts tests/unit/seo/defaultOpenGraphImage.test.ts tests/unit/ops/archiveLegacyDocs.test.ts tests/unit/ops/docLinks.test.ts tests/e2e/site.spec.ts docs/verification/baselines/core-1.0.0/operator-state-attestation.json docs/archive/README.md docs/archive/archive-manifest.json docs/archive/site/todos/default-opengraph-image.md docs/archive/site/workflows/image-workflow.md docs/archive/site/workflows/image-staging-readme.md docs/archive/site/project-spec-v1.md docs/archive/site/project-spec-v2.md docs/archive/site/v2-migration-log.md docs/archive/site/audits/localhost-2025-12-18-lighthouse-report.html docs/archive/site/implementation-logs/site-launch.md docs/archive/site/implementation-logs/liquid-glass-dock-v1.md docs/archive/site/implementation-logs/liquid-glass-dock-v2.md docs/archive/jets-ghost/legacy-rag/rag-chatbot-architecture.md docs/archive/jets-ghost/legacy-rag/rag-chatbot-implementation-plan.md docs/archive/jets-ghost/legacy-rag/rag-chatbot-implementation-log.md docs/archive/jets-ghost/legacy-rag/embedding-storage-research.md docs/archive/jets-ghost/legacy-rag/jets-ghost-v1.5-spec.md docs/archive/jets-ghost/legacy-rag/rag-chatbot-implementation-review.md docs/archive/deferred-concepts/emdash-news-theme-spec.md docs/archive/deferred-concepts/page-analyzer-spec.md docs/archive/deferred-concepts/schema-visualizer-spec.md docs/superpowers/specs/2026-07-11-v1-modernization-design.md docs/superpowers/specs/2026-07-11-jets-ghost-local-assistant-design.md docs/superpowers/plans/2026-07-11-v1-modernization.md docs/superpowers/plans/2026-07-11-jets-ghost-local-assistant.md
 git commit -m "docs: establish canonical project documentation"
 ```
 
@@ -2039,6 +2107,7 @@ Create `docs/verification/core-modernization-2.0.0.md` containing:
 - `/chatbot`: interim core-`2.0.0` permanent redirect to noindexed `/tools/chatbot/` (reversed by Jet's Ghost `2.1.0`)
 - Draft route: absent
 - SSRN action: DOI-backed View action only
+- Default OpenGraph image: deterministic first-frame homepage hero JPEG, exact `1920x1080` metadata and alt text verified
 - Grainient: 24fps, hidden/offscreen pause, reduced-motion fallback verified
 - Visual baseline: preview-to-baseline comparison is a required release artifact; it is not claimed complete in this commit
 - Postdeployment binding and artifact checksums: required in the `v2.0.0` annotated tag and downloaded release readback
@@ -2164,9 +2233,13 @@ EMBEDDING_STORAGE_RESEARCH.md
 docs/jets-ghost-v1.5-spec.md
 docs/rag-chatbot-implementation-review.md
 docs/liquid-glass-dock-v2-log.md
+Untracked/docs/emdash-news-theme-spec.md
+Untracked/docs/page-analyzer-spec.md
+Untracked/docs/schema-visualizer-spec.md
+Untracked/localhost_2025-12-18_17-30-02.report.html
 ```
 
-Do not remove or modify any other untracked file. The script itself must confirm the remaining original-worktree status differs from the Task 0 inventory only by absence of these four archived paths.
+Do not remove or modify any other untracked file. The script itself must confirm the remaining original-worktree status differs from the Task 0 inventory only by absence of these eight archived paths and that the sole remaining record is the active Codex article draft.
 
 ```bash
 GIT_COMMON_DIR=$(cd "$(git rev-parse --git-common-dir)" && pwd -P)
@@ -2192,8 +2265,9 @@ Before starting the Jet's Ghost implementation plan, confirm:
 [ ] Build is static and side-effect-free
 [ ] README and AGENTS.md are canonical and accurate
 [ ] Superseded tracked and authorized untracked docs are indexed under docs/archive
-[ ] The four authorized superseded source copies were removed by guarded archive cleanup
-[ ] Active unrelated untracked drafts remain untouched
+[ ] The eight authorized non-canonical source copies were removed by guarded archive cleanup
+[ ] The active Codex article remains untouched and is the sole remaining original-worktree draft
+[ ] The first-frame homepage hero is the verified 1920x1080 default OpenGraph image and the completed TODO is archived
 [ ] Committed provider evidence is sanitized and downloaded release artifacts match the tagged SHA-256 manifest
 [ ] Existing visual identity is unchanged
 [ ] Astro/Vercel trailing-slash settings, canonical/OG/JSON-LD, every navigation representation, and sitemap HTML URLs agree; machine endpoints remain extension-correct
