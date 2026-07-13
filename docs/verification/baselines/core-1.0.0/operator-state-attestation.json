@@ -1,0 +1,26 @@
+{
+  "schemaVersion": "1.0.0",
+  "approvedSha": "e09f3bdcc435e260557bca967dedc8f46e14d6b4",
+  "inventory": {
+    "sha256": "a1720e20d0d1f8c3fe1a80bbf04c9ebec9cbeda72a3664af1d6f11d48f7d3ff5",
+    "entryCount": 9
+  },
+  "authorizedArchiveSources": [
+    {
+      "path": "EMBEDDING_STORAGE_RESEARCH.md",
+      "sha256": "9415f65df1073d5e003fdd4ea60f512e697ebdf6a6b832de01856c46ad6279ef"
+    },
+    {
+      "path": "docs/jets-ghost-v1.5-spec.md",
+      "sha256": "c92304d12e685399beb0531749b0f178b53776e7a78f960bf48c9785a6c8e739"
+    },
+    {
+      "path": "docs/liquid-glass-dock-v2-log.md",
+      "sha256": "41cc96317cbaadc427b4494a2e6f9aeebd69370a428830a6f36b628799a0ff32"
+    },
+    {
+      "path": "docs/rag-chatbot-implementation-review.md",
+      "sha256": "28ac557f54075082b0e318d401b21bac8371609f728fd7343b4019f86e72151f"
+    }
+  ]
+}

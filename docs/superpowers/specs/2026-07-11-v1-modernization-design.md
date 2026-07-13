@@ -223,7 +223,7 @@ Downloading external model or font assets during a browser session is runtime be
 
 ### Version and CI policy
 
-- Pin the supported runtime to Node.js `22.x` in `package.json` and a repository version file.
+- Pin the supported runtime to Node.js `24.x` in `package.json` and a repository version file.
 - Keep `package-lock.json` authoritative and use `npm ci` in CI.
 - Add a GitHub Actions workflow that runs `npm ci` and `npm run verify` on pull requests and pushes to `main`.
 - The production deployment consumes only a commit that passed the same verification command.
@@ -275,7 +275,7 @@ The README contains only:
 
 - project purpose and production URL;
 - architecture summary;
-- Node 22 setup;
+- Node 24 setup;
 - authoritative commands;
 - content authoring and explicit publication/assistant policy;
 - image workflow;
@@ -427,7 +427,7 @@ The core modernization is complete when:
 - all public and assistant content follows the explicit status policy;
 - production verification rejects untracked published entries;
 - `npm run build` makes no remote writes and changes no tracked or nonignored untracked source/configuration file;
-- `npm run verify` passes on Node 22 in CI;
+- `npm run verify` passes on Node 24 in CI;
 - the core-`2.0.0` site deploys as static output with the documented interim `/chatbot` 308 redirect to the noindexed `/tools/chatbot` prototype, ready for the companion plan's coordinated reversal;
 - the DOI-backed SSRN action is the only research action;
 - `origin/main` Grainient performance behavior is preserved and reduced motion is supported;

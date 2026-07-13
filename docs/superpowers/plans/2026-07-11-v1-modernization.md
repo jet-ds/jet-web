@@ -6,7 +6,7 @@
 
 **Architecture:** The site becomes a deterministic static Astro build deployed on Vercel. Astro content collections remain authoritative, shared predicates govern publication and assistant inclusion, and React remains limited to interactive islands. Core `2.0.0` preserves the approved noindexed Jet's Ghost interface prototype at `/tools/chatbot` behind an interim `/chatbot` redirect; the companion `2.1.0` plan integrates its real local runtime at canonical `/chatbot` and reverses the route, navigation, and indexing state together.
 
-**Tech Stack:** Astro 5, MDX, React 19, TypeScript 5.9, Tailwind CSS 3.4, Vitest, Playwright, axe-core, Vercel, Node.js 22.
+**Tech Stack:** Astro 5, MDX, React 19, TypeScript 5.9, Tailwind CSS 3.4, Vitest, Playwright, axe-core, Vercel, Node.js 24.
 
 ## Global Constraints
 
@@ -38,7 +38,7 @@
 - `AGENTS.md` — canonical repository instructions.
 - `CLAUDE.md` — relative symlink to `AGENTS.md`.
 - `docs/archive/` — indexed historical specifications, research, and completed implementation logs.
-- `.nvmrc` — Node 22 selection.
+- `.nvmrc` — Node 24 selection.
 - `package.json` / `package-lock.json` — application version, engines, commands, and dependencies.
 
 ### Content policy
@@ -56,7 +56,7 @@
 - `tests/setup.ts` — DOM matcher setup.
 - `tests/e2e/site.spec.ts` — route, metadata, redirect, theme, and SSRN checks.
 - `tests/e2e/accessibility.spec.ts` — axe and keyboard checks.
-- `.github/workflows/verify.yml` — Node 22 CI.
+- `.github/workflows/verify.yml` — Node 24 CI.
 - `docs/verification/baselines/core-1.0.0/` — immutable pre-modernization production screenshots and metadata manifest.
 
 ### Shared UI and metadata
@@ -172,7 +172,7 @@ No commit occurs in Task 0; Task 1 establishes the commit policy and commits onl
 - Modify: `package-lock.json`
 
 **Interfaces:**
-- Produces: canonical instructions at `AGENTS.md`, compatibility link at `CLAUDE.md`, application version `1.0.0`, Node engine `22.x`.
+- Produces: canonical instructions at `AGENTS.md`, compatibility link at `CLAUDE.md`, application version `1.0.0`, Node engine `24.x`.
 - Consumes: current `CLAUDE.md` contents and current `AGENTS.md -> CLAUDE.md` link.
 
 - [ ] **Step 1: Record the current link and version state**
@@ -236,7 +236,7 @@ Also update the directory tree line to:
 Create `.nvmrc` with:
 
 ```text
-22
+24
 ```
 
 Update `package.json`:
@@ -246,7 +246,7 @@ Update `package.json`:
   "name": "jet-web",
   "version": "1.0.0",
   "engines": {
-    "node": "22.x"
+    "node": "24.x"
   }
 }
 ```
@@ -257,7 +257,7 @@ Run:
 npm install --package-lock-only --ignore-scripts
 ```
 
-Expected: the root package in `package-lock.json` is `1.0.0` and includes Node `22.x`.
+Expected: the root package in `package-lock.json` is `1.0.0` and includes Node `24.x`.
 
 - [ ] **Step 5: Verify the canonical-file and governance contract**
 
@@ -269,7 +269,7 @@ test ! -L AGENTS.md
 test -L CLAUDE.md
 test "$(readlink CLAUDE.md)" = "AGENTS.md"
 cmp AGENTS.md CLAUDE.md
-node -e "const p=require('./package.json'); if(p.version!=='1.0.0'||p.engines.node!=='22.x') process.exit(1)"
+node -e "const p=require('./package.json'); if(p.version!=='1.0.0'||p.engines.node!=='24.x') process.exit(1)"
 rg -n "Semantic Versioning 2.0.0|Conventional Commits 1.0.0|Do not add Claude" AGENTS.md
 ```
 
@@ -1068,7 +1068,7 @@ jobs:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
       - run: npm ci
       - run: npm run verify
@@ -1717,7 +1717,7 @@ The completed workflow contains this second job:
       - uses: actions/checkout@v4
       - uses: actions/setup-node@v4
         with:
-          node-version: 22
+          node-version: 24
           cache: npm
       - run: npm ci
       - run: npx playwright install --with-deps chromium
@@ -1782,7 +1782,7 @@ Production: [jetsanchez.com](https://jetsanchez.com)
 ## Documentation
 ```
 
-Requirements state Node 22 and npm. The command table contains only commands present in `package.json`. Content examples use:
+Requirements state Node 24 and npm. The command table contains only commands present in `package.json`. Content examples use:
 
 ```yaml
 status: draft
@@ -1935,7 +1935,7 @@ Create `docs/verification/core-modernization-2.0.0.md` containing:
 ```markdown
 # Core Modernization 2.0.0 Verification
 
-- Node: `22.x`
+- Node: `24.x`
 - `npm run verify`: passed
 - `npm run verify:browser`: passed
 - OpenRouter key: revoked and absent from Vercel
