@@ -2130,7 +2130,7 @@ test -n "$CANDIDATE_URL"
 umask 077
 EVIDENCE_TMP=$(mktemp -d)
 chmod 700 "$EVIDENCE_TMP"
-trap 'rm -rf "$EVIDENCE_TMP"' EXIT HUP INT TERM
+trap 'unset VERCEL_PREVIEW_BYPASS_COOKIE 2>/dev/null || true; rm -rf "$EVIDENCE_TMP"' EXIT HUP INT TERM
 npx --yes vercel@55.0.0 inspect "$CANDIDATE_URL" --wait --timeout=5m --format=json > "$EVIDENCE_TMP/candidate-inspect.raw.json"
 npx tsx scripts/sanitize-vercel-evidence.ts sanitize-inspect --input="$EVIDENCE_TMP/candidate-inspect.raw.json" --output="$EVIDENCE_TMP/candidate-inspect.json"
 CANDIDATE_DEPLOYMENT_ID=$(EVIDENCE_TMP="$EVIDENCE_TMP" node -e "const d=require(process.env.EVIDENCE_TMP+'/candidate-inspect.json'); process.stdout.write(d.id)")
@@ -2140,7 +2140,17 @@ EXPECTED_SHA="$EXPECTED_SHA" EVIDENCE_TMP="$EVIDENCE_TMP" node -e "const d=requi
 CANDIDATE_OUTPUT="test-results/core-2.0.0-candidate-$EXPECTED_SHA"
 test "$CANDIDATE_OUTPUT" != "docs/verification/baselines/core-1.0.0"
 test ! -e "$CANDIDATE_OUTPUT"
-npx tsx scripts/capture-production-baseline.ts --origin="https://$CANDIDATE_URL" --expected-commit="$EXPECTED_SHA" --deployment="$EVIDENCE_TMP/candidate-deployment.json" --output="$CANDIDATE_OUTPUT" --compare-to=docs/verification/baselines/core-1.0.0
+BYPASS_HEADERS="$EVIDENCE_TMP/candidate-bypass.headers"
+npx --yes vercel@55.0.0 curl / --deployment "https://$CANDIDATE_URL" --yes -- --silent --show-error --header 'x-vercel-set-bypass-cookie: true' --dump-header "$BYPASS_HEADERS" --output /dev/null > /dev/null
+chmod 600 "$BYPASS_HEADERS"
+export VERCEL_PREVIEW_BYPASS_COOKIE="$(BYPASS_HEADERS="$BYPASS_HEADERS" node -e "const fs=require('node:fs'); const lines=fs.readFileSync(process.env.BYPASS_HEADERS,'utf8').split(/\\r?\\n/u); const cookies=lines.filter((line)=>/^set-cookie:/iu.test(line)).map((line)=>line.slice(line.indexOf(':')+1).trim().split(';',1)[0]); const matches=cookies.filter((cookie)=>/^_vercel_jwt=/u.test(cookie)); if(matches.length!==1) process.exit(1); process.stdout.write(matches[0])")"
+test -n "$VERCEL_PREVIEW_BYPASS_COOKIE"
+CAPTURE_STATUS=0
+npx tsx scripts/capture-production-baseline.ts --origin="https://$CANDIDATE_URL" --expected-commit="$EXPECTED_SHA" --deployment="$EVIDENCE_TMP/candidate-deployment.json" --output="$CANDIDATE_OUTPUT" --compare-to=docs/verification/baselines/core-1.0.0 --preview-cookie-env=VERCEL_PREVIEW_BYPASS_COOKIE || CAPTURE_STATUS=$?
+unset VERCEL_PREVIEW_BYPASS_COOKIE
+rm -f "$BYPASS_HEADERS"
+unset BYPASS_HEADERS
+test "$CAPTURE_STATUS" -eq 0
 rm -rf "$EVIDENCE_TMP"
 trap - EXIT HUP INT TERM
 ```

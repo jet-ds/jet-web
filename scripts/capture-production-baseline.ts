@@ -54,6 +54,14 @@ type CapturePage = {
 };
 
 type CaptureContext = {
+  addCookies(cookies: Array<{
+    name: string;
+    value: string;
+    url: string;
+    httpOnly: true;
+    secure: true;
+    sameSite: 'Lax';
+  }>): Promise<void>;
   newPage(): Promise<CapturePage>;
   close(): Promise<void>;
 };
@@ -64,6 +72,7 @@ type CaptureBrowser = {
 };
 
 export type CaptureDependencies = {
+  environment: Readonly<Record<string, string | undefined>>;
   fileSystem: {
     copyFileSync: typeof copyFileSync;
     existsSync: typeof existsSync;
@@ -137,12 +146,42 @@ function parseArguments(arguments_: string[]): Map<string, string> {
     if (!match || options.has(match[1])) throw new Error('INVALID_ARGUMENT');
     options.set(match[1], match[2]);
   }
-  const allowed = new Set(['origin', 'expected-commit', 'deployment', 'output', 'compare-to']);
+  const allowed = new Set([
+    'origin',
+    'expected-commit',
+    'deployment',
+    'output',
+    'compare-to',
+    'preview-cookie-env',
+  ]);
   if ([...options.keys()].some((key) => !allowed.has(key))) throw new Error('INVALID_ARGUMENT');
   for (const key of ['origin', 'expected-commit', 'deployment', 'output']) {
     if (!options.has(key)) throw new Error(`MISSING_${key.toUpperCase().replaceAll('-', '_')}`);
   }
   return options;
+}
+
+function requirePreviewCookie(
+  environmentName: string,
+  environment: Readonly<Record<string, string | undefined>>,
+): { name: string; value: string } {
+  if (!/^[A-Z][A-Z0-9_]{0,127}$/u.test(environmentName)) {
+    throw new Error('INVALID_PREVIEW_COOKIE_ENV_NAME');
+  }
+  const cookie = environment[environmentName];
+  if (cookie === undefined) throw new Error('MISSING_PREVIEW_COOKIE');
+  const separator = cookie.indexOf('=');
+  const name = separator < 0 ? '' : cookie.slice(0, separator);
+  const value = separator < 0 ? '' : cookie.slice(separator + 1);
+  if (
+    !/^[A-Za-z0-9_][A-Za-z0-9_.-]{0,127}$/u.test(name)
+    || value.length === 0
+    || value.length > 4_096
+    || !/^[\u0021\u0023-\u002B\u002D-\u003A\u003C-\u005B\u005D-\u007E]+$/u.test(value)
+  ) {
+    throw new Error('INVALID_PREVIEW_COOKIE');
+  }
+  return { name, value };
 }
 
 function requireOrigin(value: string): string {
@@ -326,6 +365,7 @@ function comparisonFor(
 }
 
 const defaultDependencies: CaptureDependencies = {
+  environment: process.env,
   fileSystem: {
     copyFileSync,
     existsSync,
@@ -351,6 +391,13 @@ export async function captureProductionBaseline(
   const deploymentPath = resolve(options.get('deployment')!);
   const output = resolve(options.get('output')!);
   const compareTo = options.has('compare-to') ? resolve(options.get('compare-to')!) : undefined;
+  const previewCookieEnvironment = options.get('preview-cookie-env');
+  if (previewCookieEnvironment !== undefined && !compareTo) {
+    throw new Error('PREVIEW_COOKIE_REQUIRES_COMPARISON');
+  }
+  const previewCookie = previewCookieEnvironment === undefined
+    ? undefined
+    : requirePreviewCookie(previewCookieEnvironment, dependencies.environment);
   if (compareTo) assertComparisonPaths(output, compareTo, dependencies.fileSystem);
 
   const manifestPath = resolve(output, 'manifest.json');
@@ -387,10 +434,32 @@ export async function captureProductionBaseline(
         for (const viewport of VIEWPORTS) {
           const context = await browser.newContext(viewport.context);
           try {
+            if (previewCookie) {
+              try {
+                await context.addCookies([{
+                  ...previewCookie,
+                  url: origin,
+                  httpOnly: true,
+                  secure: true,
+                  sameSite: 'Lax',
+                }]);
+              } catch {
+                throw new Error('PREVIEW_COOKIE_INSTALL_FAILED');
+              }
+            }
             const page = await context.newPage();
             const requestedUrl = new URL(route.route, `${origin}/`).toString();
             const response = await page.goto(requestedUrl, { waitUntil: 'networkidle' });
             if (!response) throw new Error('MISSING_DOCUMENT_RESPONSE');
+            let navigatedOrigin: string;
+            try {
+              navigatedOrigin = new URL(page.url()).origin;
+            } catch {
+              throw new Error('CROSS_ORIGIN_NAVIGATION');
+            }
+            if (navigatedOrigin !== origin) {
+              throw new Error('CROSS_ORIGIN_NAVIGATION');
+            }
             const status = response.status();
             if (status !== 200) throw new Error(`UNEXPECTED_ROUTE_STATUS route=${route.route} status=${status}`);
             const responseHtml = await response.body();

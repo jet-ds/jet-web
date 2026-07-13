@@ -49,6 +49,22 @@ type Fixture = {
   deployment: string;
 };
 
+type BrowserCookie = {
+  name: string;
+  value: string;
+  url: string;
+  httpOnly: true;
+  secure: true;
+  sameSite: 'Lax';
+};
+
+type BrowserState = {
+  events: string[];
+  cookies: BrowserCookie[];
+  cookieInstallFailure?: boolean;
+  redirectedUrl?: string;
+};
+
 function makeFixture(): Fixture {
   const root = mkdtempSync(resolve(tmpdir(), 'production-baseline-test-'));
   temporaryDirectories.push(root);
@@ -80,7 +96,7 @@ function makeFixture(): Fixture {
 
 function captureArguments(fixture: Fixture, baseline = fixture.baseline, output = fixture.candidate): string[] {
   return [
-    '--origin=https://jetsanchez.com',
+    '--origin=https://jet-preview.vercel.app',
     `--expected-commit=${expectedCommit}`,
     `--deployment=${fixture.deployment}`,
     `--output=${output}`,
@@ -97,15 +113,23 @@ function baselineCaptureArguments(fixture: Fixture, output: string): string[] {
   ];
 }
 
-function makeBrowser(phase?: FailurePhase) {
-  let currentUrl = 'https://jetsanchez.com/';
+function makeBrowser(phase?: FailurePhase, state?: BrowserState) {
+  let currentUrl = 'https://jet-preview.vercel.app/';
   return {
     async newContext() {
       return {
+        async addCookies(cookies: BrowserCookie[]) {
+          state?.events.push('addCookies');
+          if (state?.cookieInstallFailure) {
+            throw new Error(`browser rejected ${cookies[0]?.value}`);
+          }
+          state?.cookies.push(...cookies);
+        },
         async newPage() {
           return {
             async goto(url: string) {
-              currentUrl = url;
+              state?.events.push('goto');
+              currentUrl = state?.redirectedUrl ?? url;
               if (phase === 'capture') throw new Error('INJECTED_CAPTURE_FAILURE');
               return {
                 status: () => 200,
@@ -148,6 +172,8 @@ function dependenciesFor(
   fixture: Fixture,
   phase?: FailurePhase,
   deploymentTarget: 'production' | null = null,
+  environment: Readonly<Record<string, string | undefined>> = {},
+  browserState?: BrowserState,
 ): CaptureDependencies {
   const screenshotDirectory = resolve(fixture.candidate, 'screenshots');
   const candidateDeployment = resolve(fixture.candidate, 'deployment.json');
@@ -193,9 +219,10 @@ function dependenciesFor(
 
   return {
     fileSystem,
+    environment,
     async launchBrowser() {
       if (phase === 'launch') throw new Error('INJECTED_LAUNCH_FAILURE');
-      return makeBrowser(phase);
+      return makeBrowser(phase, browserState);
     },
     verifyDeployment() {
       return {
@@ -225,6 +252,147 @@ afterEach(() => {
 });
 
 describe('production baseline capture safety', () => {
+  it('installs a protected-preview cookie before every navigation without persisting it', async () => {
+    const fixture = makeFixture();
+    const browserState: BrowserState = { events: [], cookies: [] };
+    const cookieEnvironment = 'VERCEL_PREVIEW_BYPASS_COOKIE';
+    const cookieName = '_vercel_jwt';
+    const cookieValue = 'private-test-cookie-value';
+
+    await captureProductionBaseline(
+      [...captureArguments(fixture), `--preview-cookie-env=${cookieEnvironment}`],
+      dependenciesFor(
+        fixture,
+        undefined,
+        null,
+        { [cookieEnvironment]: `${cookieName}=${cookieValue}` },
+        browserState,
+      ),
+    );
+
+    expect(browserState.events).toEqual(
+      routes.flatMap(() => viewports.flatMap(() => ['addCookies', 'goto'])),
+    );
+    expect(browserState.cookies).toHaveLength(routes.length * viewports.length);
+    expect(browserState.cookies).toEqual(expect.arrayContaining([{
+      name: cookieName,
+      value: cookieValue,
+      url: 'https://jet-preview.vercel.app',
+      httpOnly: true,
+      secure: true,
+      sameSite: 'Lax',
+    }]));
+    const artifactText = ['manifest.json', 'comparison.json', 'deployment.json']
+      .map((file) => readFileSync(resolve(fixture.candidate, file), 'utf8'))
+      .join('\n');
+    expect(artifactText).not.toContain(cookieEnvironment);
+    expect(artifactText).not.toContain(cookieName);
+    expect(artifactText).not.toContain(cookieValue);
+  });
+
+  it('rejects a missing protected-preview cookie without exposing candidate output', async () => {
+    const fixture = makeFixture();
+
+    await expect(captureProductionBaseline(
+      [...captureArguments(fixture), '--preview-cookie-env=VERCEL_PREVIEW_BYPASS_COOKIE'],
+      dependenciesFor(fixture),
+    )).rejects.toThrow('MISSING_PREVIEW_COOKIE');
+    expect(existsSync(fixture.candidate)).toBe(false);
+  });
+
+  it('redacts a browser cookie-install failure and removes candidate output', async () => {
+    const fixture = makeFixture();
+    const browserState: BrowserState = {
+      events: [],
+      cookies: [],
+      cookieInstallFailure: true,
+    };
+
+    await expect(captureProductionBaseline(
+      [...captureArguments(fixture), '--preview-cookie-env=VERCEL_PREVIEW_BYPASS_COOKIE'],
+      dependenciesFor(
+        fixture,
+        undefined,
+        null,
+        { VERCEL_PREVIEW_BYPASS_COOKIE: '_vercel_jwt=private-test-cookie-value' },
+        browserState,
+      ),
+    )).rejects.toThrow(/^PREVIEW_COOKIE_INSTALL_FAILED$/u);
+    expect(existsSync(fixture.candidate)).toBe(false);
+  });
+
+  it.each([
+    'lowercase_name',
+    'VERCEL-PREVIEW-COOKIE',
+    '1VERCEL_PREVIEW_COOKIE',
+  ])('rejects invalid protected-preview environment name %s', async (environmentName) => {
+    const fixture = makeFixture();
+
+    await expect(captureProductionBaseline(
+      [...captureArguments(fixture), `--preview-cookie-env=${environmentName}`],
+      dependenciesFor(fixture, undefined, null, { [environmentName]: 'safe=value' }),
+    )).rejects.toThrow('INVALID_PREVIEW_COOKIE_ENV_NAME');
+    expect(existsSync(fixture.candidate)).toBe(false);
+  });
+
+  it.each([
+    'name-only',
+    '_vercel_jwt=',
+    'bad name=value',
+    '_vercel_jwt=value,second=cookie',
+    '_vercel_jwt=value;second=cookie',
+    '_vercel_jwt=value\r\ninjected=true',
+  ])('rejects invalid protected-preview cookie input without echoing it', async (cookieInput) => {
+    const fixture = makeFixture();
+
+    const capture = captureProductionBaseline(
+      [...captureArguments(fixture), '--preview-cookie-env=VERCEL_PREVIEW_BYPASS_COOKIE'],
+      dependenciesFor(
+        fixture,
+        undefined,
+        null,
+        { VERCEL_PREVIEW_BYPASS_COOKIE: cookieInput },
+      ),
+    );
+    await expect(capture).rejects.toThrow(/^INVALID_PREVIEW_COOKIE$/u);
+    expect(existsSync(fixture.candidate)).toBe(false);
+  });
+
+  it('forbids the protected-preview cookie option in production-baseline mode', async () => {
+    const fixture = makeFixture();
+    const output = resolve(fixture.root, 'baseline-output');
+    const outputFixture = { ...fixture, candidate: output };
+
+    await expect(captureProductionBaseline(
+      [
+        ...baselineCaptureArguments(fixture, output),
+        '--preview-cookie-env=VERCEL_PREVIEW_BYPASS_COOKIE',
+      ],
+      dependenciesFor(
+        outputFixture,
+        undefined,
+        'production',
+        { VERCEL_PREVIEW_BYPASS_COOKIE: '_vercel_jwt=private-test-cookie-value' },
+      ),
+    )).rejects.toThrow('PREVIEW_COOKIE_REQUIRES_COMPARISON');
+    expect(existsSync(output)).toBe(false);
+  });
+
+  it('rejects a cross-origin SSO redirect and removes all candidate output', async () => {
+    const fixture = makeFixture();
+    const browserState: BrowserState = {
+      events: [],
+      cookies: [],
+      redirectedUrl: 'https://vercel.com/login',
+    };
+
+    await expect(captureProductionBaseline(
+      captureArguments(fixture),
+      dependenciesFor(fixture, undefined, null, {}, browserState),
+    )).rejects.toThrow(/^CROSS_ORIGIN_NAVIGATION$/u);
+    expect(existsSync(fixture.candidate)).toBe(false);
+  });
+
   it('accepts ready exact-SHA preview evidence for candidate comparison', async () => {
     const fixture = makeFixture();
 
