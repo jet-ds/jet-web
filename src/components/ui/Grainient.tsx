@@ -1,5 +1,10 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Mesh, Program, Renderer, Triangle } from 'ogl';
+import {
+  getGrainientRendererAction,
+  type GrainientRendererConditions,
+  type GrainientRendererSnapshot,
+} from '../../utils/grainientLifecycle';
 
 interface GrainientProps {
   timeSpeed?: number;
@@ -231,164 +236,220 @@ const Grainient: React.FC<GrainientProps> = ({
     if (!containerRef.current) return;
 
     let renderer: Renderer | null = null;
+    let geometry: Triangle | null = null;
+    let program: Program | null = null;
+    let mesh: Mesh | null = null;
     let ro: ResizeObserver | null = null;
-    let io: IntersectionObserver | null = null;
-    let handleVisibilityChange: (() => void) | null = null;
     let raf = 0;
     let canvas: HTMLCanvasElement | null = null;
     const container = containerRef.current;
     const targetFps = 24;
     const frameInterval = 1000 / targetFps;
-    let isInViewport = true;
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    let reducedMotion = mediaQuery.matches;
+    let isInViewport = false;
+    let mounted = true;
     let running = false;
+    let webglFailed = false;
     let elapsedSeconds = 0;
     let lastTickTime = 0;
     let lastRenderTime = 0;
 
-    try {
-      renderer = new Renderer({
-        webgl: 2,
-        alpha: true,
-        antialias: false,
-        dpr: Math.min(window.devicePixelRatio || 1, 2),
-      });
-
-      const gl = renderer.gl;
-      canvas = gl.canvas as HTMLCanvasElement;
-      canvas.style.width = '100%';
-      canvas.style.height = '100%';
-      canvas.style.display = 'block';
-      container.insertBefore(canvas, container.firstChild);
-
-      const geometry = new Triangle(gl);
-      const program = new Program(gl, {
-        vertex,
-        fragment,
-        uniforms: {
-          iTime: { value: 0 },
-          iResolution: { value: new Float32Array([1, 1]) },
-          uTimeSpeed: { value: timeSpeed },
-          uColorBalance: { value: colorBalance },
-          uWarpStrength: { value: warpStrength },
-          uWarpFrequency: { value: warpFrequency },
-          uWarpSpeed: { value: warpSpeed },
-          uWarpAmplitude: { value: warpAmplitude },
-          uBlendAngle: { value: blendAngle },
-          uBlendSoftness: { value: blendSoftness },
-          uRotationAmount: { value: rotationAmount },
-          uNoiseScale: { value: noiseScale },
-          uGrainAmount: { value: grainAmount },
-          uGrainScale: { value: grainScale },
-          uGrainAnimated: { value: grainAnimated ? 1.0 : 0.0 },
-          uContrast: { value: contrast },
-          uGamma: { value: gamma },
-          uSaturation: { value: saturation },
-          uCenterOffset: { value: new Float32Array([centerX, centerY]) },
-          uZoom: { value: zoom },
-          uColor1: { value: new Float32Array(cssColorToRgb(resolvedColor1)) },
-          uColor2: { value: new Float32Array(cssColorToRgb(resolvedColor2)) },
-          uColor3: { value: new Float32Array(cssColorToRgb(color3)) },
-        },
-      });
-
-      const mesh = new Mesh(gl, { geometry, program });
-
-      const setSize = () => {
-        const rect = container.getBoundingClientRect();
-        const width = Math.max(1, Math.floor(rect.width));
-        const height = Math.max(1, Math.floor(rect.height));
-        renderer?.setSize(width, height);
-        const res = (program.uniforms.iResolution as { value: Float32Array }).value;
-        res[0] = gl.drawingBufferWidth;
-        res[1] = gl.drawingBufferHeight;
-      };
-
-      ro = new ResizeObserver(setSize);
-      ro.observe(container);
-      setSize();
-
-      const canRun = () => !document.hidden && isInViewport;
-
-      const stopLoop = () => {
-        running = false;
-        cancelAnimationFrame(raf);
-      };
-
-      const loop = (t: number) => {
-        if (!running) return;
-
-        if (lastTickTime === 0) {
-          lastTickTime = t;
-        }
-
-        const dt = t - lastTickTime;
-        lastTickTime = t;
-        elapsedSeconds += dt * 0.001;
-
-        if (lastRenderTime === 0 || t - lastRenderTime >= frameInterval) {
-          lastRenderTime = t;
-          (program.uniforms.iTime as { value: number }).value = elapsedSeconds;
-          renderer?.render({ scene: mesh });
-        }
-
-        raf = requestAnimationFrame(loop);
-      };
-
-      const startLoop = () => {
-        if (running) return;
-        running = true;
-        lastTickTime = 0;
-        lastRenderTime = 0;
-        raf = requestAnimationFrame(loop);
-      };
-
-      const updateLoopState = () => {
-        if (canRun()) {
-          startLoop();
-          return;
-        }
-        stopLoop();
-      };
-
-      io = new IntersectionObserver(
-        ([entry]) => {
-          isInViewport = entry.isIntersecting;
-          updateLoopState();
-        },
-        {
-          root: null,
-          threshold: 0.01,
-        },
-      );
-      io.observe(container);
-
-      handleVisibilityChange = () => {
-        updateLoopState();
-      };
-      document.addEventListener('visibilitychange', handleVisibilityChange);
-
-      updateLoopState();
-      setIsWebglAvailable(true);
-    } catch {
-      // Revert to the previous plain hero look if WebGL2 is unavailable.
-      setIsWebglAvailable(false);
-    }
-
-    return () => {
+    const stopLoop = () => {
+      if (!running) return;
       running = false;
       cancelAnimationFrame(raf);
-      if (handleVisibilityChange) {
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
+      raf = 0;
+    };
+
+    const loop = (t: number) => {
+      if (!running || !program || !renderer || !mesh) return;
+
+      if (lastTickTime === 0) {
+        lastTickTime = t;
       }
+
+      const dt = t - lastTickTime;
+      lastTickTime = t;
+      elapsedSeconds += dt * 0.001;
+
+      if (lastRenderTime === 0 || t - lastRenderTime >= frameInterval) {
+        lastRenderTime = t;
+        (program.uniforms.iTime as { value: number }).value = elapsedSeconds;
+        renderer.render({ scene: mesh });
+      }
+
+      raf = requestAnimationFrame(loop);
+    };
+
+    const startLoop = () => {
+      if (running || !renderer || !program || !mesh) return;
+      running = true;
+      lastTickTime = 0;
+      lastRenderTime = 0;
+      raf = requestAnimationFrame(loop);
+    };
+
+    const disposeRenderer = () => {
+      if (!renderer) return;
+
+      const activeRenderer = renderer;
+      stopLoop();
       ro?.disconnect();
-      io?.disconnect();
-      if (canvas) {
-        try {
-          container.removeChild(canvas);
-        } catch {
-          // Ignore
-        }
+      ro = null;
+
+      if (canvas?.parentNode === container) {
+        container.removeChild(canvas);
       }
+
+      geometry?.remove();
+      program?.remove();
+      activeRenderer.gl.getExtension('WEBGL_lose_context')?.loseContext();
+      canvas = null;
+      geometry = null;
+      mesh = null;
+      program = null;
+      renderer = null;
+    };
+
+    const initializeRenderer = (): boolean => {
+      if (renderer || !mounted || webglFailed) return false;
+
+      try {
+        renderer = new Renderer({
+          webgl: 2,
+          alpha: true,
+          antialias: false,
+          dpr: Math.min(window.devicePixelRatio || 1, 2),
+        });
+
+        const gl = renderer.gl;
+        canvas = gl.canvas as HTMLCanvasElement;
+        canvas.style.width = '100%';
+        canvas.style.height = '100%';
+        canvas.style.display = 'block';
+        container.insertBefore(canvas, container.firstChild);
+
+        geometry = new Triangle(gl);
+        program = new Program(gl, {
+          vertex,
+          fragment,
+          uniforms: {
+            iTime: { value: 0 },
+            iResolution: { value: new Float32Array([1, 1]) },
+            uTimeSpeed: { value: timeSpeed },
+            uColorBalance: { value: colorBalance },
+            uWarpStrength: { value: warpStrength },
+            uWarpFrequency: { value: warpFrequency },
+            uWarpSpeed: { value: warpSpeed },
+            uWarpAmplitude: { value: warpAmplitude },
+            uBlendAngle: { value: blendAngle },
+            uBlendSoftness: { value: blendSoftness },
+            uRotationAmount: { value: rotationAmount },
+            uNoiseScale: { value: noiseScale },
+            uGrainAmount: { value: grainAmount },
+            uGrainScale: { value: grainScale },
+            uGrainAnimated: { value: grainAnimated ? 1.0 : 0.0 },
+            uContrast: { value: contrast },
+            uGamma: { value: gamma },
+            uSaturation: { value: saturation },
+            uCenterOffset: { value: new Float32Array([centerX, centerY]) },
+            uZoom: { value: zoom },
+            uColor1: { value: new Float32Array(cssColorToRgb(resolvedColor1)) },
+            uColor2: { value: new Float32Array(cssColorToRgb(resolvedColor2)) },
+            uColor3: { value: new Float32Array(cssColorToRgb(color3)) },
+          },
+        });
+        mesh = new Mesh(gl, { geometry, program });
+
+        const setSize = () => {
+          if (!renderer || !program) return;
+          const rect = container.getBoundingClientRect();
+          const width = Math.max(1, Math.floor(rect.width));
+          const height = Math.max(1, Math.floor(rect.height));
+          renderer.setSize(width, height);
+          const res = (program.uniforms.iResolution as { value: Float32Array }).value;
+          res[0] = gl.drawingBufferWidth;
+          res[1] = gl.drawingBufferHeight;
+        };
+
+        ro = new ResizeObserver(setSize);
+        ro.observe(container);
+        setSize();
+        setIsWebglAvailable(true);
+        return true;
+      } catch {
+        disposeRenderer();
+        webglFailed = true;
+        // Revert to the previous plain hero look if WebGL2 is unavailable.
+        setIsWebglAvailable(false);
+        return false;
+      }
+    };
+
+    const reconcileRenderer = () => {
+      if (webglFailed) return;
+
+      const previous: GrainientRendererSnapshot = {
+        rendererInitialized: renderer !== null,
+        loopRunning: running,
+      };
+      const next: GrainientRendererConditions = {
+        mounted,
+        documentHidden: document.hidden,
+        inViewport: isInViewport,
+        reducedMotion,
+      };
+
+      switch (getGrainientRendererAction(previous, next)) {
+        case 'initialize':
+          if (initializeRenderer()) reconcileRenderer();
+          break;
+        case 'start-loop':
+          startLoop();
+          break;
+        case 'stop-loop':
+          stopLoop();
+          break;
+        case 'dispose':
+          disposeRenderer();
+          break;
+        case 'none':
+          break;
+      }
+    };
+
+    const io = new IntersectionObserver(
+      ([entry]) => {
+        isInViewport = entry.isIntersecting;
+        reconcileRenderer();
+      },
+      {
+        root: null,
+        threshold: 0.01,
+      },
+    );
+    io.observe(container);
+
+    const handleVisibilityChange = () => {
+      reconcileRenderer();
+    };
+    document.addEventListener('visibilitychange', handleVisibilityChange);
+
+    const handleReducedMotionChange = (event: MediaQueryListEvent) => {
+      reducedMotion = event.matches;
+      reconcileRenderer();
+    };
+    mediaQuery.addEventListener('change', handleReducedMotionChange);
+
+    reconcileRenderer();
+
+    return () => {
+      mounted = false;
+      reconcileRenderer();
+      mediaQuery.removeEventListener('change', handleReducedMotionChange);
+      document.removeEventListener('visibilitychange', handleVisibilityChange);
+      io.disconnect();
     };
   }, [
     timeSpeed,
