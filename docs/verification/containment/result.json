@@ -1,0 +1,128 @@
+{
+  "blobs": {
+    "afterCount": 0,
+    "beforeCount": 24,
+    "probes": [
+      {
+        "pathname": "chatbot/chunks-13212a5e669e36e2.bin",
+        "status": 404
+      },
+      {
+        "pathname": "chatbot/chunks-65c17fc5232e9d8e.bin",
+        "status": 404
+      },
+      {
+        "pathname": "chatbot/chunks-7b5c229d90141591.bin",
+        "status": 404
+      },
+      {
+        "pathname": "chatbot/chunks-8189cd0029572a64.bin",
+        "status": 404
+      },
+      {
+        "pathname": "chatbot/chunks-858c085f2b5b753c.bin",
+        "status": 404
+      },
+      {
+        "pathname": "chatbot/chunks-d6f95a309e53a449.bin",
+        "status": 404
+      },
+      {
+        "pathname": "chatbot/chunks-d70520113a820db7.bin",
+        "status": 404
+      },
+      {
+        "pathname": "chatbot/embeddings-13212a5e669e36e2.bin",
+        "status": 404
+      },
+      {
+        "pathname": "chatbot/embeddings-65c17fc5232e9d8e.bin",
+        "status": 404
+      },
+      {
+        "pathname": "chatbot/embeddings-7b5c229d90141591.bin",
+        "status": 404
+      },
+      {
+        "pathname": "chatbot/embeddings-8189cd0029572a64.bin",
+        "status": 404
+      },
+      {
+        "pathname": "chatbot/embeddings-858c085f2b5b753c.bin",
+        "status": 404
+      },
+      {
+        "pathname": "chatbot/embeddings-d6f95a309e53a449.bin",
+        "status": 404
+      },
+      {
+        "pathname": "chatbot/embeddings-d70520113a820db7.bin",
+        "status": 404
+      },
+      {
+        "pathname": "chatbot/manifest-13212a5e669e36e2.json",
+        "status": 404
+      },
+      {
+        "pathname": "chatbot/manifest-65c17fc5232e9d8e.json",
+        "status": 404
+      },
+      {
+        "pathname": "chatbot/manifest-7b5c229d90141591.json",
+        "status": 404
+      },
+      {
+        "pathname": "chatbot/manifest-8189cd0029572a64.json",
+        "status": 404
+      },
+      {
+        "pathname": "chatbot/manifest-858c085f2b5b753c.json",
+        "status": 404
+      },
+      {
+        "pathname": "chatbot/manifest-d6f95a309e53a449.json",
+        "status": 404
+      },
+      {
+        "pathname": "chatbot/manifest-d70520113a820db7.json",
+        "status": 404
+      },
+      {
+        "pathname": "chatbot/test-chunks-83e19e15022de405.bin",
+        "status": 404
+      },
+      {
+        "pathname": "chatbot/test-embeddings-83e19e15022de405.bin",
+        "status": 404
+      },
+      {
+        "pathname": "chatbot/test-manifest-83e19e15022de405.json",
+        "status": 404
+      }
+    ]
+  },
+  "credentialRevoked": true,
+  "deployment": {
+    "gitSha": "1c7616685b9afe52a7e6e065f06d4f7bd700e76e",
+    "id": "dpl_HzmZ9NYMX9jHMsjuNhuPMsri8HwH",
+    "readyState": "READY",
+    "target": "production"
+  },
+  "environmentNameAbsent": {
+    "development": true,
+    "preview": true,
+    "production": true
+  },
+  "routes": [
+    {
+      "path": "/api/chat",
+      "status": 404
+    },
+    {
+      "destination": "https://jetsanchez.com/tools/chatbot",
+      "path": "/chatbot",
+      "status": 308
+    }
+  ],
+  "verifiedAt": "2026-07-13T05:50:00.349Z"
+}

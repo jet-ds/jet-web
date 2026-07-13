@@ -1,0 +1,146 @@
+[
+  {
+    "pathname": "chatbot/chunks-13212a5e669e36e2.bin",
+    "size": 11396,
+    "uploadedAt": "2026-01-17T14:15:22.000Z",
+    "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/chatbot/chunks-13212a5e669e36e2.bin"
+  },
+  {
+    "pathname": "chatbot/chunks-65c17fc5232e9d8e.bin",
+    "size": 17276,
+    "uploadedAt": "2026-01-18T07:39:18.000Z",
+    "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/chatbot/chunks-65c17fc5232e9d8e.bin"
+  },
+  {
+    "pathname": "chatbot/chunks-7b5c229d90141591.bin",
+    "size": 4789,
+    "uploadedAt": "2026-01-08T09:35:39.000Z",
+    "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/chatbot/chunks-7b5c229d90141591.bin"
+  },
+  {
+    "pathname": "chatbot/chunks-8189cd0029572a64.bin",
+    "size": 13835,
+    "uploadedAt": "2026-04-16T05:43:42.000Z",
+    "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/chatbot/chunks-8189cd0029572a64.bin"
+  },
+  {
+    "pathname": "chatbot/chunks-858c085f2b5b753c.bin",
+    "size": 5120,
+    "uploadedAt": "2026-01-12T14:35:47.000Z",
+    "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/chatbot/chunks-858c085f2b5b753c.bin"
+  },
+  {
+    "pathname": "chatbot/chunks-d6f95a309e53a449.bin",
+    "size": 5381,
+    "uploadedAt": "2026-01-08T10:18:34.000Z",
+    "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/chatbot/chunks-d6f95a309e53a449.bin"
+  },
+  {
+    "pathname": "chatbot/chunks-d70520113a820db7.bin",
+    "size": 22133,
+    "uploadedAt": "2026-04-11T16:27:56.000Z",
+    "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/chatbot/chunks-d70520113a820db7.bin"
+  },
+  {
+    "pathname": "chatbot/embeddings-13212a5e669e36e2.bin",
+    "size": 17664,
+    "uploadedAt": "2026-01-17T14:15:21.000Z",
+    "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/chatbot/embeddings-13212a5e669e36e2.bin"
+  },
+  {
+    "pathname": "chatbot/embeddings-65c17fc5232e9d8e.bin",
+    "size": 23040,
+    "uploadedAt": "2026-01-18T07:39:18.000Z",
+    "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/chatbot/embeddings-65c17fc5232e9d8e.bin"
+  },
+  {
+    "pathname": "chatbot/embeddings-7b5c229d90141591.bin",
+    "size": 8448,
+    "uploadedAt": "2026-01-08T09:35:38.000Z",
+    "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/chatbot/embeddings-7b5c229d90141591.bin"
+  },
+  {
+    "pathname": "chatbot/embeddings-8189cd0029572a64.bin",
+    "size": 17664,
+    "uploadedAt": "2026-04-16T05:43:42.000Z",
+    "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/chatbot/embeddings-8189cd0029572a64.bin"
+  },
+  {
+    "pathname": "chatbot/embeddings-858c085f2b5b753c.bin",
+    "size": 6144,
+    "uploadedAt": "2026-01-12T14:35:46.000Z",
+    "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/chatbot/embeddings-858c085f2b5b753c.bin"
+  },
+  {
+    "pathname": "chatbot/embeddings-d6f95a309e53a449.bin",
+    "size": 6144,
+    "uploadedAt": "2026-01-08T10:18:34.000Z",
+    "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/chatbot/embeddings-d6f95a309e53a449.bin"
+  },
+  {
+    "pathname": "chatbot/embeddings-d70520113a820db7.bin",
+    "size": 31488,
+    "uploadedAt": "2026-04-11T16:27:54.000Z",
+    "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/chatbot/embeddings-d70520113a820db7.bin"
+  },
+  {
+    "pathname": "chatbot/manifest-13212a5e669e36e2.json",
+    "size": 13779,
+    "uploadedAt": "2026-01-17T14:15:23.000Z",
+    "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/chatbot/manifest-13212a5e669e36e2.json"
+  },
+  {
+    "pathname": "chatbot/manifest-65c17fc5232e9d8e.json",
+    "size": 18548,
+    "uploadedAt": "2026-01-18T07:39:19.000Z",
+    "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/chatbot/manifest-65c17fc5232e9d8e.json"
+  },
+  {
+    "pathname": "chatbot/manifest-7b5c229d90141591.json",
+    "size": 5974,
+    "uploadedAt": "2026-01-08T09:35:40.000Z",
+    "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/chatbot/manifest-7b5c229d90141591.json"
+  },
+  {
+    "pathname": "chatbot/manifest-8189cd0029572a64.json",
+    "size": 15066,
+    "uploadedAt": "2026-04-16T05:43:43.000Z",
+    "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/chatbot/manifest-8189cd0029572a64.json"
+  },
+  {
+    "pathname": "chatbot/manifest-858c085f2b5b753c.json",
+    "size": 4652,
+    "uploadedAt": "2026-01-12T14:35:48.000Z",
+    "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/chatbot/manifest-858c085f2b5b753c.json"
+  },
+  {
+    "pathname": "chatbot/manifest-d6f95a309e53a449.json",
+    "size": 4598,
+    "uploadedAt": "2026-01-08T10:18:35.000Z",
+    "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/chatbot/manifest-d6f95a309e53a449.json"
+  },
+  {
+    "pathname": "chatbot/manifest-d70520113a820db7.json",
+    "size": 26934,
+    "uploadedAt": "2026-04-11T16:27:58.000Z",
+    "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/chatbot/manifest-d70520113a820db7.json"
+  },
+  {
+    "pathname": "chatbot/test-chunks-83e19e15022de405.bin",
+    "size": 49,
+    "uploadedAt": "2025-12-26T14:53:03.000Z",
+    "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/chatbot/test-chunks-83e19e15022de405.bin"
+  },
+  {
+    "pathname": "chatbot/test-embeddings-83e19e15022de405.bin",
+    "size": 768,
+    "uploadedAt": "2025-12-26T14:53:01.000Z",
+    "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/chatbot/test-embeddings-83e19e15022de405.bin"
+  },
+  {
+    "pathname": "chatbot/test-manifest-83e19e15022de405.json",
+    "size": 748,
+    "uploadedAt": "2025-12-26T14:53:04.000Z",
+    "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/chatbot/test-manifest-83e19e15022de405.json"
+  }
+]

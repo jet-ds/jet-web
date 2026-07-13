@@ -1,0 +1,14 @@
+{
+  "envs": [
+    {
+      "key": "BLOB_READ_WRITE_TOKEN",
+      "target": [
+        "development",
+        "preview",
+        "production"
+      ],
+      "type": "encrypted"
+    }
+  ],
+  "scope": "preview"
+}
