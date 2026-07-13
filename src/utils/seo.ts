@@ -19,13 +19,31 @@ export interface SEOProps {
  * @returns Full canonical URL
  */
 export function getCanonicalURL(path: string): string {
-  const siteUrl = SITE.siteUrl.endsWith('/')
-    ? SITE.siteUrl.slice(0, -1)
-    : SITE.siteUrl;
+  const siteURL = new URL(SITE.siteUrl);
+  const canonicalURL = new URL(path, `${siteURL.origin}/`);
 
-  const cleanPath = path.startsWith('/') ? path : `/${path}`;
+  if (
+    canonicalURL.origin !== siteURL.origin
+    || canonicalURL.username !== ''
+    || canonicalURL.password !== ''
+  ) {
+    throw new TypeError('Cross-origin canonical URL is not allowed');
+  }
 
-  return `${siteUrl}${cleanPath}`;
+  canonicalURL.search = '';
+  canonicalURL.hash = '';
+  canonicalURL.pathname = canonicalURL.pathname.replace(/\/{2,}/gu, '/');
+
+  const pathWithoutTrailingSlashes = canonicalURL.pathname.replace(/\/+$/u, '') || '/';
+  const finalSegment = pathWithoutTrailingSlashes.split('/').at(-1) ?? '';
+  const isMachineEndpoint = pathWithoutTrailingSlashes.startsWith('/api/')
+    || finalSegment.includes('.');
+
+  canonicalURL.pathname = pathWithoutTrailingSlashes === '/' || isMachineEndpoint
+    ? pathWithoutTrailingSlashes
+    : `${pathWithoutTrailingSlashes}/`;
+
+  return canonicalURL.toString();
 }
 
 /**

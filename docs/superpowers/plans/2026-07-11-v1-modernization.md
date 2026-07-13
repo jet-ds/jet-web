@@ -1558,10 +1558,12 @@ git commit -m "refactor(chatbot): remove retired RAG runtime"
 - Modify: `src/utils/seo.ts`
 - Modify: `src/config/site.ts`
 - Modify: `tests/unit/navigation/navigation.test.ts`
+- Modify: `tests/unit/build/staticBoundary.test.ts`
 - Modify: `tests/unit/ops/productionContainment.test.ts`
 - Modify: `scripts/verify-production-containment.ts`
 - Modify: `.github/workflows/verify.yml`
 - Modify: `package.json`
+- Modify: `docs/superpowers/plans/2026-07-11-v1-modernization.md`
 
 **Interfaces:**
 - Produces: one trailing-slash canonical contract for human-facing HTML plus route, redirect, theme, metadata, sitemap/RSS exclusion, keyboard, mobile-disclosure, and axe verification.
@@ -1597,12 +1599,14 @@ Update `getCanonicalURL()` so it constructs a URL against `SITE.siteUrl`, strips
 
 Add `trailingSlash: 'always'` beside `site` in `astro.config.mjs`; this makes Astro emit directory-style HTML routes. Merge `"trailingSlash": true` at the top level of the existing `vercel.json`; this makes Vercel normalize incoming human-facing paths. Preserve the interim `/chatbot` redirect direction while changing its Task 3 destination from `/tools/chatbot` to `/tools/chatbot/`; this is canonical normalization, not the Ghost route reversal. Change neither `/api/chat` nor the extension-bearing machine endpoints. Keep the existing `$schema` and redirect array intact.
 
+Update `tests/unit/build/staticBoundary.test.ts` so its exact `vercel.json` assertion includes the existing `$schema`, top-level `trailingSlash: true`, and the permanent interim `/chatbot` to `/tools/chatbot/` redirect. Preserve every other static production-boundary assertion.
+
 Convert every human-facing `NAV_ITEMS` href to trailing-slash form, except `/`. Update `isActiveNavItem()` to normalize both arguments to one trailing slash before comparing and to match descendants only for non-root items. Extend `tests/unit/navigation/navigation.test.ts` with exact root, exact section, slashless current-path, trailing-slash current-path, nested-route, and `/toolshed/` non-match cases.
 
 Run the focused red/green gate:
 
 ```bash
-npm run test -- tests/unit/seo/canonicalURL.test.ts tests/unit/navigation/navigation.test.ts
+npm run test -- tests/unit/seo/canonicalURL.test.ts tests/unit/navigation/navigation.test.ts tests/unit/build/staticBoundary.test.ts tests/unit/ops/productionContainment.test.ts
 ```
 
 - [ ] **Step 3: Create route and correctness tests**
@@ -1817,7 +1821,7 @@ The production deployment suite is not run against the old production alias in p
 ```bash
 npm run test:e2e
 if rg -n '/blog/(the-future-of-ai|building-with-astro)/?' src; then exit 1; fi
-git add astro.config.mjs vercel.json src/utils/seo.ts src/config/site.ts tests/unit/seo/canonicalURL.test.ts tests/unit/navigation/navigation.test.ts tests/unit/ops/productionContainment.test.ts scripts/verify-production-containment.ts tests/e2e/site.spec.ts tests/e2e/accessibility.spec.ts tests/deployment/core-production.spec.ts playwright.production.config.ts package.json .github/workflows/verify.yml
+git add astro.config.mjs vercel.json src/utils/seo.ts src/config/site.ts tests/unit/seo/canonicalURL.test.ts tests/unit/navigation/navigation.test.ts tests/unit/build/staticBoundary.test.ts tests/unit/ops/productionContainment.test.ts scripts/verify-production-containment.ts tests/e2e/site.spec.ts tests/e2e/accessibility.spec.ts tests/deployment/core-production.spec.ts playwright.production.config.ts package.json .github/workflows/verify.yml docs/superpowers/plans/2026-07-11-v1-modernization.md
 git commit -m "fix(seo): align canonical route identities"
 ```
 

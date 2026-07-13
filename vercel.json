@@ -1,9 +1,10 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
+  "trailingSlash": true,
   "redirects": [
     {
       "source": "/chatbot",
-      "destination": "/tools/chatbot",
+      "destination": "/tools/chatbot/",
       "permanent": true
     }
   ]

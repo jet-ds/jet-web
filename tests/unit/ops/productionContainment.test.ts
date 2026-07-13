@@ -73,7 +73,7 @@ function makeFixture(): Fixture {
     [paths.preview, { scope: 'preview', envs: [] }],
     [paths.development, { scope: 'development', envs: [] }],
   ]);
-  const routeStatuses = { api: 404, redirect: 308, destination: '/tools/chatbot', blob: 404 };
+  const routeStatuses = { api: 404, redirect: 308, destination: '/tools/chatbot/', blob: 404 };
   const writes = new Map<string, string>();
   const reads: string[] = [];
   const fetches: Array<{ url: string; init: RequestInit | undefined }> = [];
@@ -132,7 +132,7 @@ describe('production containment verification', () => {
         {
           path: '/chatbot',
           status: 308,
-          destination: 'https://jetsanchez.com/tools/chatbot',
+          destination: 'https://jetsanchez.com/tools/chatbot/',
         },
       ],
       blobs: {

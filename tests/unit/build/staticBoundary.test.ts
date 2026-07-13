@@ -41,16 +41,17 @@ describe('static production boundary', () => {
     expect(readFileSync('.gitignore', 'utf8')).not.toContain('src/config/chatbot-artifacts.json');
   });
 
-  it('uses the exact interim permanent chatbot redirect', () => {
+  it('uses exact trailing-slash normalization with the interim permanent chatbot redirect', () => {
     const vercelConfig = existsSync('vercel.json')
       ? JSON.parse(readFileSync('vercel.json', 'utf8')) as unknown
       : undefined;
     expect(vercelConfig).toEqual({
       $schema: 'https://openapi.vercel.sh/vercel.json',
+      trailingSlash: true,
       redirects: [
         {
           source: '/chatbot',
-          destination: '/tools/chatbot',
+          destination: '/tools/chatbot/',
           permanent: true,
         },
       ],

@@ -10,6 +10,7 @@ import partytown from '@astrojs/partytown';
 // https://astro.build/config
 export default defineConfig({
   site: 'https://jetsanchez.com',
+  trailingSlash: 'always',
   integrations: [
     react(),
     mdx(),

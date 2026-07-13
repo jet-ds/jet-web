@@ -292,7 +292,7 @@ export async function verifyProductionContainment(
     options.origin,
     chatbotResponse.headers.get('location'),
   );
-  const expectedDestination = new URL('/tools/chatbot', `${options.origin}/`).toString();
+  const expectedDestination = new URL('/tools/chatbot/', `${options.origin}/`).toString();
   if (redirectDestination !== expectedDestination) fail('CHATBOT_REDIRECT_DESTINATION_MISMATCH');
 
   const timestamp = dependencies.now().getTime();
