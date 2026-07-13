@@ -77,7 +77,6 @@ const fullImageURL = image?.startsWith('http') ? image : `${SITE.siteUrl}${image
     {imageAlt && <meta name="twitter:image:alt" content={imageAlt} />}
   </>
 )}
-{SITE.author && <meta name="twitter:creator" content={`@${SITE.author}`} />}
 
 <!-- Search Engine -->
 <meta name="robots" content={noindex ? 'noindex, nofollow' : 'index, follow'} />
