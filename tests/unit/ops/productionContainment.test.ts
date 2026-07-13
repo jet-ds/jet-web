@@ -9,6 +9,7 @@ import {
 const expectedCommit = 'c0d158c2f1ba73c879890fd2a8269f633d1f2d04';
 const blobOrigin = 'https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com';
 const resultPath = 'docs/verification/containment/result.json';
+const releaseResultPath = 'test-results/core-2.0.0-release-result.json';
 const paths = {
   deployment: 'deployment.json',
   revocation: 'revocation.json',
@@ -19,8 +20,11 @@ const paths = {
   development: 'env-development.json',
 };
 
-function argumentsForFixture(origin = 'https://jetsanchez.com'): string[] {
-  return [
+function argumentsForFixture(
+  origin = 'https://jetsanchez.com',
+  output?: string,
+): string[] {
+  const arguments_ = [
     `--origin=${origin}`,
     `--expected-commit=${expectedCommit}`,
     `--deployment=${paths.deployment}`,
@@ -31,6 +35,8 @@ function argumentsForFixture(origin = 'https://jetsanchez.com'): string[] {
     `--env=${paths.preview}`,
     `--env=${paths.development}`,
   ];
+  if (output !== undefined) arguments_.push(`--output=${output}`);
+  return arguments_;
 }
 
 function blob(pathname: string) {
@@ -61,6 +67,7 @@ type Fixture = {
   reads: string[];
   fetches: Array<{ url: string; init: RequestInit | undefined }>;
   resultState: { exists: boolean };
+  resultChecks: string[];
   dependencies: ProductionContainmentDependencies;
 };
 
@@ -102,9 +109,10 @@ function makeFixture(): Fixture {
   const reads: string[] = [];
   const fetches: Array<{ url: string; init: RequestInit | undefined }> = [];
   const resultState = { exists: false };
+  const resultChecks: string[] = [];
   const dependencies = {
     resultExists(path: string) {
-      expect(path).toBe(resultPath);
+      resultChecks.push(path);
       return resultState.exists;
     },
     readFile(path) {
@@ -176,7 +184,16 @@ function makeFixture(): Fixture {
     },
     now: () => new Date('2026-07-13T04:05:06.789Z'),
   } as ProductionContainmentDependencies;
-  return { files, routeStatuses, writes, reads, fetches, resultState, dependencies };
+  return {
+    files,
+    routeStatuses,
+    writes,
+    reads,
+    fetches,
+    resultState,
+    resultChecks,
+    dependencies,
+  };
 }
 
 let fixture: Fixture;
@@ -230,6 +247,7 @@ describe('production containment verification', () => {
     });
     expect(fixture.writes.get('docs/verification/containment/result.json'))
       .toBe(canonicalEvidenceJson(result));
+    expect(fixture.resultChecks).toEqual([resultPath]);
 
     const apiRedirectRequest = fixture.fetches.find(
       ({ url }) => new URL(url).pathname === '/api/chat',
@@ -263,6 +281,25 @@ describe('production containment verification', () => {
     ))).toBe(true);
   });
 
+  it('writes an explicit output path without touching the historical default', async () => {
+    const result = await verifyProductionContainment(
+      argumentsForFixture('https://jetsanchez.com', releaseResultPath),
+      fixture.dependencies,
+    );
+
+    expect(fixture.resultChecks).toEqual([releaseResultPath]);
+    expect(fixture.writes.get(releaseResultPath)).toBe(canonicalEvidenceJson(result));
+    expect(fixture.writes.has(resultPath)).toBe(false);
+  });
+
+  it('defaults an omitted output path to the historical containment result', async () => {
+    const result = await verifyProductionContainment(argumentsForFixture(), fixture.dependencies);
+
+    expect(fixture.resultChecks).toEqual([resultPath]);
+    expect(fixture.writes.get(resultPath)).toBe(canonicalEvidenceJson(result));
+    expect(fixture.writes.has(releaseResultPath)).toBe(false);
+  });
+
   it.each([
     'https://www.jetsanchez.com',
     'https://review-invalid.example',
@@ -290,6 +327,38 @@ describe('production containment verification', () => {
     expect(fixture.reads).toEqual([]);
     expect(fixture.fetches).toEqual([]);
     expect(fixture.writes.get(resultPath)).toBe(sentinel);
+  });
+
+  it('refuses a pre-existing explicit output before evidence reads or fetches', async () => {
+    const sentinel = '{"release":"preserve"}\n';
+    fixture.resultState.exists = true;
+    fixture.writes.set(releaseResultPath, sentinel);
+
+    await expect(verifyProductionContainment(
+      argumentsForFixture('https://jetsanchez.com', releaseResultPath),
+      fixture.dependencies,
+    )).rejects.toThrow('RESULT_ALREADY_EXISTS');
+
+    expect(fixture.resultChecks).toEqual([releaseResultPath]);
+    expect(fixture.reads).toEqual([]);
+    expect(fixture.fetches).toEqual([]);
+    expect(fixture.writes.get(releaseResultPath)).toBe(sentinel);
+    expect(fixture.writes.has(resultPath)).toBe(false);
+  });
+
+  it.each([
+    ['duplicate output', [`--output=${releaseResultPath}`, '--output=second-result.json']],
+    ['empty output', ['--output=']],
+  ])('rejects %s before evidence reads or fetches', async (_label, outputArguments) => {
+    await expect(verifyProductionContainment(
+      [...argumentsForFixture(), ...outputArguments],
+      fixture.dependencies,
+    )).rejects.toThrow('INVALID_ARGUMENT');
+
+    expect(fixture.resultChecks).toEqual([]);
+    expect(fixture.reads).toEqual([]);
+    expect(fixture.fetches).toEqual([]);
+    expect(fixture.writes.size).toBe(0);
   });
 
   it('rejects unsafe preserved before evidence before fetch or result output', async () => {

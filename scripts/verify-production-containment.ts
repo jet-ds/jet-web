@@ -77,10 +77,11 @@ function parseArguments(arguments_: string[]): {
   blobBefore: string;
   blobAfter: string;
   environments: string[];
+  output: string;
 } {
   const singular = new Map<string, string>();
   const environments: string[] = [];
-  const allowed = new Set([
+  const required = new Set([
     'origin',
     'expected-commit',
     'deployment',
@@ -88,6 +89,7 @@ function parseArguments(arguments_: string[]): {
     'blob-before',
     'blob-after',
   ]);
+  const allowed = new Set([...required, 'output']);
 
   for (const argument of arguments_) {
     const match = /^--([a-z-]+)=(.+)$/u.exec(argument);
@@ -102,7 +104,7 @@ function parseArguments(arguments_: string[]): {
     }
   }
 
-  for (const key of allowed) {
+  for (const key of required) {
     if (!singular.has(key)) fail(`MISSING_${key.toUpperCase().replaceAll('-', '_')}`);
   }
   if (environments.length !== REQUIRED_SCOPES.length) fail('INVALID_ENVIRONMENT_EVIDENCE_COUNT');
@@ -118,6 +120,7 @@ function parseArguments(arguments_: string[]): {
     blobBefore: singular.get('blob-before')!,
     blobAfter: singular.get('blob-after')!,
     environments,
+    output: singular.get('output') ?? RESULT_PATH,
   };
 }
 
@@ -265,7 +268,7 @@ export async function verifyProductionContainment(
   dependencies: ProductionContainmentDependencies,
 ): Promise<ProductionContainmentResult> {
   const options = parseArguments(arguments_);
-  if (dependencies.resultExists(RESULT_PATH)) fail('RESULT_ALREADY_EXISTS');
+  if (dependencies.resultExists(options.output)) fail('RESULT_ALREADY_EXISTS');
   const deployment = assertDeployment(
     readJson(options.deployment, dependencies),
     options.expectedCommit,
@@ -395,7 +398,7 @@ export async function verifyProductionContainment(
   } catch {
     fail('UNSAFE_CONTAINMENT_RESULT');
   }
-  dependencies.writeResult(RESULT_PATH, canonicalEvidenceJson(result));
+  dependencies.writeResult(options.output, canonicalEvidenceJson(result));
   return result;
 }
 
