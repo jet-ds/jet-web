@@ -22,6 +22,8 @@ import {
 
 type JsonObject = Record<string, unknown>;
 
+const PREVIEW_TOOLBAR_PROVIDER_ORIGIN = 'https://vercel.live';
+
 type ViewportDefinition = {
   name: 'desktop' | 'mobile';
   context: BrowserContextOptions;
@@ -65,11 +67,11 @@ type CaptureRoute = {
 
 export async function routePreviewRequest(
   requestRoute: CaptureRoute,
-  origin: string,
+  allowedOrigins: ReadonlySet<string>,
 ): Promise<void> {
   try {
     const request = requestRoute.request();
-    if (new URL(request.url()).origin === origin) {
+    if (allowedOrigins.has(new URL(request.url()).origin)) {
       const response = await requestRoute.fetch({
         headers: {
           ...request.headers(),
@@ -441,6 +443,10 @@ export async function captureProductionBaseline(
   const previewCookie = previewCookieEnvironment === undefined
     ? undefined
     : requirePreviewCookie(previewCookieEnvironment, dependencies.environment);
+  const previewToolbarAllowedOrigins = new Set([
+    origin,
+    PREVIEW_TOOLBAR_PROVIDER_ORIGIN,
+  ]);
   if (compareTo) assertComparisonPaths(output, compareTo, dependencies.fileSystem);
 
   const manifestPath = resolve(output, 'manifest.json');
@@ -479,7 +485,7 @@ export async function captureProductionBaseline(
           try {
             if (compareTo) {
               await context.route('**/*', (requestRoute) => (
-                routePreviewRequest(requestRoute, origin)
+                routePreviewRequest(requestRoute, previewToolbarAllowedOrigins)
               ));
             }
             if (previewCookie) {

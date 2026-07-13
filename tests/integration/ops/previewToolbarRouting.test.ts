@@ -32,9 +32,10 @@ function record(headers: ReceivedHeaders, path: string, value: string | undefine
   headers.set(path, [...(headers.get(path) ?? []), value]);
 }
 
-it('does not propagate the preview header through redirects or into cross-origin fonts', async () => {
+it('limits the preview header to the preview and provider origins', async () => {
   const originAHeaders: ReceivedHeaders = new Map();
   const originBHeaders: ReceivedHeaders = new Map();
+  const originCHeaders: ReceivedHeaders = new Map();
 
   const originBServer = createServer((request, response) => {
     const path = request.url ?? '/';
@@ -61,6 +62,23 @@ it('does not propagate the preview header through redirects or into cross-origin
   });
   const originB = await listen(originBServer);
 
+  const originCServer = createServer((request, response) => {
+    const path = request.url ?? '/';
+    record(
+      originCHeaders,
+      path,
+      request.headers['x-vercel-skip-toolbar'] as string | undefined,
+    );
+    if (path === '/provider.js') {
+      response.writeHead(200, { 'content-type': 'text/javascript; charset=utf-8' });
+      response.end('document.documentElement.dataset.provider = "true";');
+      return;
+    }
+    response.writeHead(404);
+    response.end();
+  });
+  const originC = await listen(originCServer);
+
   const originAServer = createServer((request, response) => {
     const path = request.url ?? '/';
     record(
@@ -77,6 +95,7 @@ it('does not propagate the preview header through redirects or into cross-origin
       response.writeHead(200, { 'content-type': 'text/html; charset=utf-8' });
       response.end(`<!doctype html>
         <script src="/same-origin.js"></script>
+        <script src="${originC}/provider.js"></script>
         <p>Exercise the cross-origin font request.</p>`);
       return;
     }
@@ -93,7 +112,11 @@ it('does not propagate the preview header through redirects or into cross-origin
   const browser = await chromium.launch();
   const context = await browser.newContext();
   try {
-    await context.route('**/*', (requestRoute) => routePreviewRequest(requestRoute, originA));
+    const allowedOrigins = new Set([originA, originC]);
+    await context.route('**/*', (requestRoute) => routePreviewRequest(
+      requestRoute,
+      allowedOrigins,
+    ));
     const page = await context.newPage();
 
     await page.goto(`${originA}/redirect`);
@@ -103,6 +126,7 @@ it('does not propagate the preview header through redirects or into cross-origin
     expect(page.url()).toBe(`${originA}/font-page`);
     expect(await page.locator('p').textContent()).toContain('cross-origin font request');
     expect(originAHeaders.get('/same-origin.js')).toEqual(['1']);
+    expect(originCHeaders.get('/provider.js')).toEqual(['1']);
 
     const fontPage = await context.newPage();
     const fontUrl = `${originB}/routing-test.woff2`;
@@ -119,7 +143,7 @@ it('does not propagate the preview header through redirects or into cross-origin
   } finally {
     await context.close();
     await browser.close();
-    await Promise.all([close(originAServer), close(originBServer)]);
+    await Promise.all([close(originAServer), close(originBServer), close(originCServer)]);
   }
 }, 15_000);
 
@@ -138,6 +162,6 @@ it('redacts request details when preview routing fails', async () => {
   } as Parameters<typeof routePreviewRequest>[0];
 
   await expect(
-    routePreviewRequest(failingRoute, 'https://preview.example'),
+    routePreviewRequest(failingRoute, new Set(['https://preview.example'])),
   ).rejects.toThrow(/^PREVIEW_ROUTE_FAILED$/u);
 });
