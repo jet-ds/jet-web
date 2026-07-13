@@ -941,6 +941,8 @@ Expected before commit: only the explicit paths above are staged; the original c
 - Create: `tests/integration/content/untrackedBuild.test.ts`
 - Create: `.github/workflows/verify.yml`
 - Modify: `package.json`
+- Modify tracked content: `src/data/works/recursive-convergence-hypothesis.mdx`
+- Modify: `docs/superpowers/plans/2026-07-11-v1-modernization.md`
 
 **Interfaces:**
 - Produces: `validateContentRecords(records)`, `npm run verify:content`, `npm run verify`.
@@ -1028,7 +1030,25 @@ main().catch((error: unknown) => {
 });
 ```
 
-- [ ] **Step 4: Add verification scripts**
+- [ ] **Step 4: Correct the published research URLs before enabling the strict gate**
+
+In `recursive-convergence-hypothesis.mdx`, keep only:
+
+```yaml
+links:
+  - label: "View on SSRN"
+    url: "https://doi.org/10.2139/ssrn.5395309"
+```
+
+Use the same HTTPS DOI in the citation body:
+
+```text
+https://doi.org/10.2139/ssrn.5395309
+```
+
+This already-approved correction moves forward from Task 7 because the existing HTTP DOI and placeholder PDF link must not weaken or bypass the strict production URL gate. Task 7 retains its structured-data and SEO work and verifies this correction in the built output, but does not repeat or stage the content edit.
+
+- [ ] **Step 5: Add verification scripts**
 
 Set:
 
@@ -1042,7 +1062,7 @@ Set:
 
 This makes content verification part of the actual Vercel and local production build, not only an optional CI command. Task 3's static-boundary test must assert that `build` contains `astro build` and contains neither embedding work nor network mutation; it must not require the script to equal a fixed string.
 
-- [ ] **Step 5: Add and run the isolated untracked-build integration test**
+- [ ] **Step 6: Add and run the isolated untracked-build integration test**
 
 Create `tests/integration/content/untrackedBuild.test.ts`. In a `try/finally`, it creates a unique directory with `mkdtemp()`, initializes a Git repository, writes the smallest valid blog/works fixture, stages only those baseline files with `git add --`, then writes an **untracked** `published + assistant:true` MDX entry. No fixture commit or Git identity is required. Invoke `scripts/verify-content.ts --root=<fixture>` in a child process using the repository's pinned `tsx` executable. A test-only wrapper writes an Astro-step sentinel only when that validator exits `0`, matching the production `verify:content && astro build` ordering without a shell; assert exit `1`, the path-qualified `published-untracked` diagnostic, and absence of the sentinel file. Remove the entire fixture directory in `finally`, including after assertion failure. Never copy or read the user's active Codex draft.
 
@@ -1057,7 +1077,7 @@ npm run verify
 
 Expected: all pass in the clean worktree; the isolated fixture proves an untracked eligible source stops the production command chain before Astro generation.
 
-- [ ] **Step 6: Add `.github/workflows/verify.yml`**
+- [ ] **Step 7: Add `.github/workflows/verify.yml`**
 
 ```yaml
 name: Verify
@@ -1083,10 +1103,10 @@ jobs:
       - run: npm run verify
 ```
 
-- [ ] **Step 7: Commit**
+- [ ] **Step 8: Commit**
 
 ```bash
-git add src/content/validation.ts src/content/gitTracking.ts scripts/verify-content.ts tests/unit/content/validation.test.ts tests/integration/content/untrackedBuild.test.ts .github/workflows/verify.yml package.json
+git add src/content/validation.ts src/content/gitTracking.ts scripts/verify-content.ts tests/unit/content/validation.test.ts tests/integration/content/untrackedBuild.test.ts .github/workflows/verify.yml package.json src/data/works/recursive-convergence-hypothesis.mdx docs/superpowers/plans/2026-07-11-v1-modernization.md
 git commit -m "ci: enforce production content and build checks"
 ```
 
@@ -1208,14 +1228,13 @@ git add src/config/site.ts src/components/navigation/LiquidGlassDock.tsx src/com
 git commit -m "refactor(navigation): centralize route configuration"
 ```
 
-### Task 7: Correct research links and typed metadata
+### Task 7: Correct typed structured metadata
 
 **Files:**
 - Create: `src/utils/structuredData.ts`
 - Create: `tests/unit/seo/structuredData.test.ts`
 - Modify: `src/components/seo/StructuredData.astro`
 - Modify: `src/components/seo/SEO.astro`
-- Modify: `src/data/works/recursive-convergence-hypothesis.mdx`
 
 **Interfaces:**
 - Produces: `buildStructuredData(props)` returning JSON-safe typed data.
@@ -1315,23 +1334,7 @@ Delete this line from `SEO.astro`:
 
 Do not add a replacement until a real handle is configured.
 
-- [ ] **Step 4: Fix the research action and citation**
-
-In `recursive-convergence-hypothesis.mdx`, keep only:
-
-```yaml
-links:
-  - label: "View on SSRN"
-    url: "https://doi.org/10.2139/ssrn.5395309"
-```
-
-Use this URL in the citation body:
-
-```text
-https://doi.org/10.2139/ssrn.5395309
-```
-
-- [ ] **Step 5: Verify**
+- [ ] **Step 4: Verify**
 
 Run:
 
@@ -1345,10 +1348,10 @@ if rg -n "Download PDF|twitter:creator|http://dx.doi.org" dist; then exit 1; fi
 
 Expected: the DOI appears; obsolete metadata does not.
 
-- [ ] **Step 6: Commit**
+- [ ] **Step 5: Commit**
 
 ```bash
-git add src/utils/structuredData.ts src/components/seo/StructuredData.astro src/components/seo/SEO.astro src/data/works/recursive-convergence-hypothesis.mdx tests/unit/seo/structuredData.test.ts
+git add src/utils/structuredData.ts src/components/seo/StructuredData.astro src/components/seo/SEO.astro tests/unit/seo/structuredData.test.ts
 git commit -m "fix(seo): correct research and structured metadata"
 ```
 
