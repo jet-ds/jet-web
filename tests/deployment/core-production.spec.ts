@@ -1,8 +1,14 @@
 import { expect, test } from '@playwright/test';
 
 test('production preserves core containment and canonical redirects', async ({ request }) => {
-  const api = await request.post('/api/chat', { maxRedirects: 0 });
-  expect(api.status()).toBe(404);
+  const apiRedirect = await request.post('/api/chat', { maxRedirects: 0 });
+  expect(apiRedirect.status()).toBe(308);
+  expect(new URL(apiRedirect.headers().location, 'https://jetsanchez.com').toString())
+    .toBe('https://jetsanchez.com/api/chat/');
+
+  const apiTerminal = await request.post('/api/chat/', { maxRedirects: 0 });
+  expect(apiTerminal.status()).toBe(404);
+  expect(apiTerminal.headers().location).toBeUndefined();
 
   const chatbot = await request.get('/chatbot', { maxRedirects: 0 });
   expect(chatbot.status()).toBe(308);

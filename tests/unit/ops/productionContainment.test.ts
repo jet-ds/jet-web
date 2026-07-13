@@ -44,7 +44,15 @@ function blob(pathname: string) {
 
 type Fixture = {
   files: Map<string, unknown>;
-  routeStatuses: { api: number; redirect: number; destination: string | null; blob: number };
+  routeStatuses: {
+    apiRedirect: number;
+    apiDestination: string | null;
+    apiTerminal: number;
+    apiTerminalDestination: string | null;
+    redirect: number;
+    destination: string | null;
+    blob: number;
+  };
   writes: Map<string, string>;
   reads: string[];
   fetches: Array<{ url: string; init: RequestInit | undefined }>;
@@ -73,7 +81,15 @@ function makeFixture(): Fixture {
     [paths.preview, { scope: 'preview', envs: [] }],
     [paths.development, { scope: 'development', envs: [] }],
   ]);
-  const routeStatuses = { api: 404, redirect: 308, destination: '/tools/chatbot/', blob: 404 };
+  const routeStatuses = {
+    apiRedirect: 308,
+    apiDestination: '/api/chat/',
+    apiTerminal: 404,
+    apiTerminalDestination: null,
+    redirect: 308,
+    destination: '/tools/chatbot/',
+    blob: 404,
+  };
   const writes = new Map<string, string>();
   const reads: string[] = [];
   const fetches: Array<{ url: string; init: RequestInit | undefined }> = [];
@@ -95,7 +111,22 @@ function makeFixture(): Fixture {
       fetches.push({ url, init });
       const parsed = new URL(url);
       if (parsed.hostname === 'jetsanchez.com' && parsed.pathname === '/api/chat') {
-        return { status: routeStatuses.api, headers: { get: () => null } };
+        return {
+          status: routeStatuses.apiRedirect,
+          headers: {
+            get: (name) => name.toLowerCase() === 'location' ? routeStatuses.apiDestination : null,
+          },
+        };
+      }
+      if (parsed.hostname === 'jetsanchez.com' && parsed.pathname === '/api/chat/') {
+        return {
+          status: routeStatuses.apiTerminal,
+          headers: {
+            get: (name) => (
+              name.toLowerCase() === 'location' ? routeStatuses.apiTerminalDestination : null
+            ),
+          },
+        };
       }
       if (parsed.hostname === 'jetsanchez.com' && parsed.pathname === '/chatbot') {
         return {
@@ -128,7 +159,12 @@ describe('production containment verification', () => {
         target: 'production',
       },
       routes: [
-        { path: '/api/chat', status: 404 },
+        {
+          path: '/api/chat',
+          status: 308,
+          destination: 'https://jetsanchez.com/api/chat/',
+        },
+        { path: '/api/chat/', status: 404 },
         {
           path: '/chatbot',
           status: 308,
@@ -151,9 +187,17 @@ describe('production containment verification', () => {
     expect(fixture.writes.get('docs/verification/containment/result.json'))
       .toBe(canonicalEvidenceJson(result));
 
-    const apiRequest = fixture.fetches.find(({ url }) => new URL(url).pathname === '/api/chat');
+    const apiRedirectRequest = fixture.fetches.find(
+      ({ url }) => new URL(url).pathname === '/api/chat',
+    );
+    const apiTerminalRequest = fixture.fetches.find(
+      ({ url }) => new URL(url).pathname === '/api/chat/',
+    );
     const redirectRequest = fixture.fetches.find(({ url }) => new URL(url).pathname === '/chatbot');
-    expect(apiRequest?.init).toMatchObject({ method: 'POST', redirect: 'manual', cache: 'no-store' });
+    expect(apiRedirectRequest?.init)
+      .toMatchObject({ method: 'POST', redirect: 'manual', cache: 'no-store' });
+    expect(apiTerminalRequest?.init)
+      .toMatchObject({ method: 'POST', redirect: 'manual', cache: 'no-store' });
     expect(redirectRequest?.init).toMatchObject({ method: 'GET', redirect: 'manual', cache: 'no-store' });
     const blobRequests = fixture.fetches.filter(({ url }) => new URL(url).hostname === new URL(blobOrigin).hostname);
     expect(blobRequests).toHaveLength(3);
@@ -203,10 +247,28 @@ describe('production containment verification', () => {
     expect(fixture.writes.size).toBe(0);
   });
 
-  it('fails when POST /api/chat is not exactly 404', async () => {
-    fixture.routeStatuses.api = 405;
+  it('fails when slashless POST /api/chat is not exactly 308', async () => {
+    fixture.routeStatuses.apiRedirect = 404;
     await expect(verifyProductionContainment(argumentsForFixture(), fixture.dependencies))
-      .rejects.toThrow('CHAT_API_STATUS_NOT_404');
+      .rejects.toThrow('CHAT_API_REDIRECT_STATUS_NOT_308');
+  });
+
+  it('fails when slashless POST /api/chat does not resolve to /api/chat/', async () => {
+    fixture.routeStatuses.apiDestination = '/api/chat-v2/';
+    await expect(verifyProductionContainment(argumentsForFixture(), fixture.dependencies))
+      .rejects.toThrow('CHAT_API_REDIRECT_DESTINATION_MISMATCH');
+  });
+
+  it('fails when terminal POST /api/chat/ is not exactly 404', async () => {
+    fixture.routeStatuses.apiTerminal = 410;
+    await expect(verifyProductionContainment(argumentsForFixture(), fixture.dependencies))
+      .rejects.toThrow('CHAT_API_TERMINAL_STATUS_NOT_404');
+  });
+
+  it('fails when terminal POST /api/chat/ redirects again', async () => {
+    fixture.routeStatuses.apiTerminalDestination = '/api/chat//';
+    await expect(verifyProductionContainment(argumentsForFixture(), fixture.dependencies))
+      .rejects.toThrow('CHAT_API_TERMINAL_REDIRECT_PRESENT');
   });
 
   it('fails when /chatbot is not exactly 308', async () => {
@@ -280,9 +342,9 @@ describe('production containment verification', () => {
   });
 
   it('does not write a result after any failed assertion', async () => {
-    fixture.routeStatuses.api = 500;
+    fixture.routeStatuses.apiRedirect = 500;
     await expect(verifyProductionContainment(argumentsForFixture(), fixture.dependencies))
-      .rejects.toThrow('CHAT_API_STATUS_NOT_404');
+      .rejects.toThrow('CHAT_API_REDIRECT_STATUS_NOT_308');
     expect(fixture.writes.size).toBe(0);
   });
 });

@@ -1709,7 +1709,7 @@ test('nested routes mark the canonical navigation item active', async ({ page })
 });
 ```
 
-Create `playwright.production.config.ts` with `testDir: './tests/deployment'`, `outputDir: 'test-results/playwright'`, no `webServer`, one Chromium project, and `baseURL: process.env.PRODUCTION_ORIGIN ?? 'https://jetsanchez.com'`. In `core-production.spec.ts`, use requests with `maxRedirects: 0` to require `POST /api/chat === 404`, the interim core-`2.0.0` `GET /chatbot === 308` with exact `location === '/tools/chatbot/'`, and `GET /about === 308` with exact `location === '/about/'`. Then require `/about/ === 200`, no `noindex`, exact canonical/`og:url`/WebPage URL and ID, and exactly one sitemap membership. Require both canonical retired paths to return exact `404`, never a redirect, and remain absent from sitemap/RSS. Also assert `/rss.xml`, `/robots.txt`, and one sitemap XML endpoint respond without an appended slash. The companion Jet's Ghost route-integration task intentionally updates only the chatbot matrix when the redirect is reversed.
+Create `playwright.production.config.ts` with `testDir: './tests/deployment'`, `outputDir: 'test-results/playwright'`, no `webServer`, one Chromium project, and `baseURL: process.env.PRODUCTION_ORIGIN ?? 'https://jetsanchez.com'`. In `core-production.spec.ts`, use requests with `maxRedirects: 0` to require slashless `POST /api/chat === 308` with exact resolved destination `https://jetsanchez.com/api/chat/`, followed by terminal `POST /api/chat/ === 404` with no `Location`; no API handler or build artifact exists. Also require the interim core-`2.0.0` `GET /chatbot === 308` with exact `location === '/tools/chatbot/'`, and `GET /about === 308` with exact `location === '/about/'`. Then require `/about/ === 200`, no `noindex`, exact canonical/`og:url`/WebPage URL and ID, and exactly one sitemap membership. Require both canonical retired paths to return exact `404`, never a redirect, and remain absent from sitemap/RSS. Also assert `/rss.xml`, `/robots.txt`, and one sitemap XML endpoint respond without an appended slash. The companion Jet's Ghost route-integration task intentionally updates only the chatbot matrix when the redirect is reversed.
 
 Update `tests/unit/ops/productionContainment.test.ts` and `scripts/verify-production-containment.ts` so the core containment verifier expects resolved interim destination `https://jetsanchez.com/tools/chatbot/`; keep every existing deployment-SHA, Blob, credential, environment, and `/api/chat` assertion.
 
@@ -2098,7 +2098,7 @@ Create `docs/verification/core-modernization-2.0.0.md` containing:
 - `npm run verify`: passed
 - `npm run verify:browser`: passed
 - OpenRouter key: revoked and absent from Vercel
-- `/api/chat`: unavailable in production
+- `/api/chat`: no handler or build artifact exists; slashless `POST /api/chat` returns exact `308` to `/api/chat/`, then `POST /api/chat/` returns terminal exact `404` with no `Location`
 - Legacy chatbot Blob prefix: empty
 - Canonical contract: Astro `trailingSlash: 'always'`; Vercel `"trailingSlash": true`; HTML canonical/OG/JSON-LD/navigation/sitemap URLs agree; machine endpoints retain their exact extensions
 - `/about`: exact permanent `308` to `/about/`
@@ -2192,7 +2192,7 @@ rm -rf "$EVIDENCE_TMP"
 trap - EXIT HUP INT TERM
 ```
 
-Expected: the deployment is `READY`, production-targeted, and built from `EXPECTED_SHA`; home, robots, RSS, and extension-correct sitemap endpoints respond as specified; `POST /api/chat` returns exactly `404`; the interim core-`2.0.0` `/chatbot` route returns exactly `308` to `/tools/chatbot/`; `/about` returns one exact `308` to `/about/`; `/about/` returns `200`, index-follow, exact canonical/OG/JSON-LD identity, and one sitemap membership; both retired canonical blog routes return exact `404` and remain absent from internal links, sitemap, and RSS; Blob and credential assertions remain satisfied.
+Expected: the deployment is `READY`, production-targeted, and built from `EXPECTED_SHA`; home, robots, RSS, and extension-correct sitemap endpoints respond as specified; no `/api/chat` handler or build artifact exists, slashless `POST /api/chat` returns exact `308` to `https://jetsanchez.com/api/chat/`, and `POST /api/chat/` returns terminal exact `404` with no `Location`; the interim core-`2.0.0` `/chatbot` route returns exactly `308` to `/tools/chatbot/`; `/about` returns one exact `308` to `/about/`; `/about/` returns `200`, index-follow, exact canonical/OG/JSON-LD identity, and one sitemap membership; both retired canonical blog routes return exact `404` and remain absent from internal links, sitemap, and RSS; Blob and credential assertions remain satisfied.
 
 Keep the deployment/result JSON and visual candidate directory uncommitted. Committing a self-referential deployment ID would create a new SHA and invalidate the binding it records.
 

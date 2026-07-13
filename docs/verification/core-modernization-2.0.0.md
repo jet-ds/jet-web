@@ -4,7 +4,7 @@
 - `npm run verify`: passed
 - `npm run verify:browser`: passed
 - OpenRouter key: revoked and absent from Vercel
-- `/api/chat`: unavailable in production
+- `/api/chat`: no handler or build artifact exists; slashless `POST /api/chat` returns exact `308` to `/api/chat/`, then `POST /api/chat/` returns terminal exact `404` with no `Location`
 - Legacy chatbot Blob prefix: empty
 - Canonical contract: Astro `trailingSlash: 'always'`; Vercel `"trailingSlash": true`; HTML canonical/OG/JSON-LD/navigation/sitemap URLs agree; machine endpoints retain their exact extensions
 - `/about`: exact permanent `308` to `/about/`

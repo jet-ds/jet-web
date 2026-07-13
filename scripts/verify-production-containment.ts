@@ -251,12 +251,12 @@ function cacheBustedUrl(url: string, timestamp: number, index: number): string {
   return parsed.toString();
 }
 
-function resolveRedirect(origin: string, location: string | null): string {
-  if (!location) fail('CHATBOT_REDIRECT_DESTINATION_MISMATCH');
+function resolveRedirect(origin: string, location: string | null, rule: string): string {
+  if (!location) fail(rule);
   try {
     return new URL(location, `${origin}/`).toString();
   } catch {
-    fail('CHATBOT_REDIRECT_DESTINATION_MISMATCH');
+    fail(rule);
   }
 }
 
@@ -277,11 +277,29 @@ export async function verifyProductionContainment(
   const before = assertBlobInventory(readJson(options.blobBefore, dependencies), 'before');
   const after = assertBlobInventory(readJson(options.blobAfter, dependencies), 'after');
 
-  const apiResponse = await dependencies.fetch(
+  const apiRedirectResponse = await dependencies.fetch(
     new URL('/api/chat', `${options.origin}/`).toString(),
     { method: 'POST', redirect: 'manual', cache: 'no-store' },
   );
-  if (apiResponse.status !== 404) fail('CHAT_API_STATUS_NOT_404');
+  if (apiRedirectResponse.status !== 308) fail('CHAT_API_REDIRECT_STATUS_NOT_308');
+  const apiRedirectDestination = resolveRedirect(
+    options.origin,
+    apiRedirectResponse.headers.get('location'),
+    'CHAT_API_REDIRECT_DESTINATION_MISMATCH',
+  );
+  const expectedApiDestination = new URL('/api/chat/', `${options.origin}/`).toString();
+  if (apiRedirectDestination !== expectedApiDestination) {
+    fail('CHAT_API_REDIRECT_DESTINATION_MISMATCH');
+  }
+
+  const apiTerminalResponse = await dependencies.fetch(
+    apiRedirectDestination,
+    { method: 'POST', redirect: 'manual', cache: 'no-store' },
+  );
+  if (apiTerminalResponse.status !== 404) fail('CHAT_API_TERMINAL_STATUS_NOT_404');
+  if (apiTerminalResponse.headers.get('location') !== null) {
+    fail('CHAT_API_TERMINAL_REDIRECT_PRESENT');
+  }
 
   const chatbotResponse = await dependencies.fetch(
     new URL('/chatbot', `${options.origin}/`).toString(),
@@ -291,6 +309,7 @@ export async function verifyProductionContainment(
   const redirectDestination = resolveRedirect(
     options.origin,
     chatbotResponse.headers.get('location'),
+    'CHATBOT_REDIRECT_DESTINATION_MISMATCH',
   );
   const expectedDestination = new URL('/tools/chatbot/', `${options.origin}/`).toString();
   if (redirectDestination !== expectedDestination) fail('CHATBOT_REDIRECT_DESTINATION_MISMATCH');
@@ -312,7 +331,12 @@ export async function verifyProductionContainment(
   const result: ProductionContainmentResult = {
     deployment,
     routes: [
-      { path: '/api/chat', status: apiResponse.status },
+      {
+        path: '/api/chat',
+        status: apiRedirectResponse.status,
+        destination: apiRedirectDestination,
+      },
+      { path: '/api/chat/', status: apiTerminalResponse.status },
       { path: '/chatbot', status: chatbotResponse.status, destination: redirectDestination },
     ],
     blobs: {
