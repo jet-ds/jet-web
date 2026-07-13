@@ -25,8 +25,6 @@
     "@astrojs/mdx": "^4.3.13",
     "@astrojs/partytown": "^2.1.4",
     "@astrojs/react": "^4.4.2",
-    "@huggingface/transformers": "^3.8.1",
-    "@petamoriken/float16": "^3.9.3",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19.2.3",
     "@vercel/blob": "^2.0.0",
@@ -34,13 +32,10 @@
     "dotenv": "^17.2.3",
     "framer-motion": "^12.23.26",
     "gray-matter": "^4.0.3",
-    "idb": "^8.0.3",
     "lucide-react": "^0.562.0",
-    "minisearch": "^7.2.0",
     "ogl": "^1.0.11",
     "react": "^19.2.3",
-    "react-dom": "^19.2.3",
-    "zustand": "^5.0.9"
+    "react-dom": "^19.2.3"
   },
   "devDependencies": {
     "@astrojs/check": "^0.9.6",

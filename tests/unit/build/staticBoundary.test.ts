@@ -1,14 +1,12 @@
 import { spawnSync } from 'node:child_process';
 import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
-import { checkCache, fetchArtifacts } from '../../../src/utils/artifact-loader';
 
 const packageJson = JSON.parse(readFileSync('package.json', 'utf8')) as {
   scripts: Record<string, string>;
   dependencies: Record<string, string>;
 };
 const astroConfig = readFileSync('astro.config.mjs', 'utf8');
-const artifactLoader = readFileSync('src/utils/artifact-loader.ts', 'utf8');
 
 type CheckIgnore = (path: string) => boolean;
 
@@ -39,6 +37,7 @@ describe('static production boundary', () => {
     expect(existsSync('src/pages/api/chat.ts')).toBe(false);
     expect(existsSync('src/pages/chatbot.astro')).toBe(false);
     expect(existsSync('src/config/chatbot-artifacts.json')).toBe(false);
+    expect(existsSync('src/utils/artifact-loader.ts')).toBe(false);
     expect(readFileSync('.gitignore', 'utf8')).not.toContain('src/config/chatbot-artifacts.json');
   });
 
@@ -66,24 +65,4 @@ describe('static production boundary', () => {
     ).status === 0);
   });
 
-  it('keeps the orphaned artifact loader inert without hosted config, cache, or fetch access', async () => {
-    expect(artifactLoader).not.toContain('chatbot-artifacts.json');
-    expect(artifactLoader).not.toContain("from 'idb'");
-    expect(artifactLoader).not.toMatch(/\bfetch\s*\(/u);
-    await expect(checkCache()).resolves.toBeNull();
-
-    const legacyCache = {
-      buildHash: 'retired',
-      timestamp: 0,
-      embeddings: new ArrayBuffer(0),
-      manifest: {} as never,
-      chunks: [],
-    };
-    await expect(fetchArtifacts(legacyCache)).rejects.toMatchObject({
-      name: 'ChatbotError',
-      type: 'artifacts-fetch-failed',
-      message: 'Hosted chatbot artifacts are retired.',
-      recoverable: false,
-    });
-  });
 });

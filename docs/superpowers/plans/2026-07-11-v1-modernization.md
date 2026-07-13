@@ -1483,8 +1483,10 @@ git commit -m "fix(a11y): respect reduced motion in Grainient"
 - Delete: `src/utils/fp16.ts`
 - Delete: `src/utils/retry.ts`
 - Delete: `src/workers/retrieval.worker.ts`
+- Modify: `tests/unit/build/staticBoundary.test.ts`
 - Modify: `package.json`
 - Modify: `package-lock.json`
+- Modify: `docs/superpowers/plans/2026-07-11-v1-modernization.md`
 
 **Interfaces:**
 - Produces: no active imports or dependencies from the retired chatbot.
@@ -1497,7 +1499,7 @@ This cleanup targets only the retired RAG/runtime paths listed below. Preserve `
 Run:
 
 ```bash
-rg -n "components/chatbot|useChatbot|services/(generation|initialization|retrieval|rrf)|artifact-loader|retrieval.worker|types/chatbot" src --glob '!src/components/chatbot/**' --glob '!src/hooks/useChatbot.ts' --glob '!src/services/**' --glob '!src/stores/chatbot.ts' --glob '!src/types/chatbot.ts' --glob '!src/utils/artifact-loader.ts' --glob '!src/workers/**'
+rg -n "components/chatbot|useChatbot|services/(generation|initialization|retrieval|rrf)|artifact-loader|retrieval.worker|types/chatbot" src scripts --glob '!scripts/build-embeddings.ts' --glob '!scripts/content-loader.ts' --glob '!src/components/chatbot/**' --glob '!src/hooks/useChatbot.ts' --glob '!src/services/generation.ts' --glob '!src/services/initialization.ts' --glob '!src/services/retrieval.ts' --glob '!src/services/rrf.ts' --glob '!src/stores/chatbot.ts' --glob '!src/types/chatbot.ts' --glob '!src/utils/artifact-loader.ts' --glob '!src/utils/chunking.ts' --glob '!src/utils/fp16.ts' --glob '!src/utils/retry.ts' --glob '!src/workers/retrieval.worker.ts'
 ```
 
 Expected: no output.
@@ -1510,6 +1512,8 @@ Run the following only after the import audit is empty:
 git rm scripts/build-embeddings.ts scripts/content-loader.ts src/hooks/useChatbot.ts src/services/generation.ts src/services/initialization.ts src/services/retrieval.ts src/services/rrf.ts src/stores/chatbot.ts src/types/chatbot.ts src/utils/artifact-loader.ts src/utils/chunking.ts src/utils/fp16.ts src/utils/retry.ts src/workers/retrieval.worker.ts
 git rm -r src/components/chatbot
 ```
+
+Update `tests/unit/build/staticBoundary.test.ts` to replace Task 3's temporary inert artifact-loader seam assertions with an exact absence assertion for `src/utils/artifact-loader.ts`. Remove the deleted module's import, source read, and behavior test; keep the rest of the static production-boundary coverage unchanged.
 
 Do not delete the historical design documents.
 
@@ -1537,7 +1541,7 @@ Expected: verification passes and the import scan is empty.
 - [ ] **Step 5: Commit**
 
 ```bash
-git add package.json package-lock.json
+git add package.json package-lock.json tests/unit/build/staticBoundary.test.ts docs/superpowers/plans/2026-07-11-v1-modernization.md
 git commit -m "refactor(chatbot): remove retired RAG runtime"
 ```
 
