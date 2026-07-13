@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState } from 'react';
 import { motion } from 'framer-motion';
-import { Home, User, FileText, Briefcase, Wrench, Mail, Moon, Sun, Plus } from 'lucide-react';
+import { Moon, Sun, Plus } from 'lucide-react';
 import GlassSurface from './GlassSurface';
 import { useTheme } from '../../hooks/useTheme';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
+import { isActiveNavItem, NAV_ITEMS } from '../../config/site';
 
 const DOCK_SCROLLED_KEY = 'dockScrolled';
 
@@ -14,6 +15,7 @@ interface LiquidGlassDockProps {
 export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
   const dockRef = useRef<HTMLDivElement>(null);
   const themeIconRef = useRef<HTMLButtonElement>(null);
+  const disclosureButtonRef = useRef<HTMLButtonElement>(null);
 
   // Tracks initial mount to prevent race condition with sessionStorage read
   const isInitialMount = useRef(true);
@@ -152,21 +154,26 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
     </div>
   );
 
-  const navItems = [
-    { id: 'home', label: 'Home', href: '/', icon: Home, gradient: 'from-blue-600 to-blue-400' },
-    { id: 'about', label: 'About', href: '/about', icon: User, gradient: 'from-purple-600 to-purple-400' },
-    { id: 'blog', label: 'Blog', href: '/blog', icon: FileText, gradient: 'from-green-600 to-green-400' },
-    { id: 'works', label: 'Works', href: '/works', icon: Briefcase, gradient: 'from-orange-600 to-orange-400' },
-    { id: 'tools', label: 'Tools', href: '/tools', icon: Wrench, gradient: 'from-indigo-600 to-indigo-400' },
-    { id: 'contact', label: 'Contact', href: '/contact', icon: Mail, gradient: 'from-red-600 to-red-400' },
-  ];
-
   // Determine if Plus/X button should show (pure derivation)
   const shouldShowButton = hasScrolledOnPage || buttonDiscoveredInSession;
+  const isDockClosedOnMobile = isMobile && !dockVisible;
+
+  const handleDisclosureClick = () => {
+    if (dockVisible) {
+      setDockVisible(false);
+      disclosureButtonRef.current?.focus();
+      return;
+    }
+
+    setDockVisible(true);
+  };
 
   return (
     <>
       <motion.div
+        id="site-navigation-dock"
+        inert={isDockClosedOnMobile ? true : undefined}
+        aria-hidden={isDockClosedOnMobile ? true : undefined}
         className='fixed bottom-4 md:top-4 left-1/2 z-50'
         initial={{ x: '-50%' }}
         animate={isMobile ? {
@@ -188,20 +195,23 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
           backgroundOpacity={0.33}
           brightness={50}
           opacity={0.9}
-          className={`px-2 py-3 md:px-3 md:py-6 !overflow-visible ${isMobile && !dockVisible ? 'pointer-events-none' : 'pointer-events-auto'}`}
+          className={`px-2 py-3 md:px-3 md:py-6 !overflow-visible ${isDockClosedOnMobile ? 'pointer-events-none' : 'pointer-events-auto'}`}
         >
           <div ref={dockRef} className='flex items-end space-x-2 md:space-x-6 overflow-visible'>
-            {navItems.map((item) => {
+            {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
-              const isActive = currentPath === item.href || (item.href !== '/' && currentPath.startsWith(item.href));
+              const isActive = isActiveNavItem(currentPath, item.href);
 
               return (
                 <a
                   key={item.id}
                   href={item.href}
+                  aria-current={isActive ? 'page' : undefined}
+                  aria-label={item.label}
+                  tabIndex={isDockClosedOnMobile ? -1 : undefined}
                   onMouseEnter={() => !isMobile && setHoveredIcon(item.id)}
                   onMouseLeave={() => !isMobile && setHoveredIcon(null)}
-                  className='relative dock-icon-container'
+                  className='relative dock-icon-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-base focus-visible:ring-offset-2 focus-visible:ring-offset-bg-base rounded-xl'
                   style={{ transformOrigin: 'bottom center' }}
                 >
                   <div className={`w-10 h-10 md:w-14 md:h-14 bg-gradient-to-t ${item.gradient} rounded-lg md:rounded-xl flex items-center justify-center shadow-lg transition-transform ${isActive ? 'ring-2 ring-white/50' : ''}`}>
@@ -221,6 +231,7 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
               onClick={toggleTheme}
               onMouseEnter={() => !isMobile && setHoveredIcon('theme')}
               onMouseLeave={() => !isMobile && setHoveredIcon(null)}
+              tabIndex={isDockClosedOnMobile ? -1 : undefined}
               className='relative dock-icon-container'
               style={{ transformOrigin: 'bottom center' }}
               aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
@@ -240,6 +251,7 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
 
       {isMobile && shouldShowButton && buttonLeftPosition !== null && (
         <motion.button
+          ref={disclosureButtonRef}
           className='fixed z-50'
           style={{
             left: buttonLeftPosition,
@@ -253,7 +265,9 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
             x: '-50%',
           }}
           transition={{ duration: 0.3, ease: 'easeInOut' }}
-          onClick={() => setDockVisible(!dockVisible)}
+          onClick={handleDisclosureClick}
+          aria-expanded={dockVisible}
+          aria-controls="site-navigation-dock"
           aria-label={dockVisible ? 'Close navigation' : 'Open navigation'}
         >
           <GlassSurface

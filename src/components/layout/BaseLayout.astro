@@ -6,7 +6,7 @@ import StructuredData from '../seo/StructuredData.astro';
 import GoogleAnalytics from '../seo/GoogleAnalytics.astro';
 import DockWrapper from '../navigation/DockWrapper.astro';
 import Footer from './Footer.astro';
-import { SITE } from '../../config/site';
+import { NAV_ITEMS, SITE } from '../../config/site';
 import { generateSEOProps, getCanonicalURL } from '../../utils/seo';
 import '../../styles/global.css';
 
@@ -57,6 +57,11 @@ const seoProps = generateSEOProps({
   author,
   tags,
 });
+
+const navigationElements = NAV_ITEMS.map((item) => ({
+  name: item.label,
+  url: new URL(item.href, SITE.siteUrl).toString(),
+}));
 ---
 
 <!doctype html>
@@ -88,14 +93,7 @@ const seoProps = generateSEOProps({
     <!-- Site Navigation -->
     <StructuredData
       type="navigation"
-      navigationElements={[
-        { name: 'Home', url: SITE.siteUrl },
-        { name: 'About', url: `${SITE.siteUrl}/about` },
-        { name: 'Blog', url: `${SITE.siteUrl}/blog` },
-        { name: 'Works', url: `${SITE.siteUrl}/works` },
-        { name: 'Tools', url: `${SITE.siteUrl}/tools` },
-        { name: 'Contact', url: `${SITE.siteUrl}/contact` },
-      ]}
+      navigationElements={navigationElements}
     />
 
     <!-- Fonts -->
@@ -130,12 +128,11 @@ const seoProps = generateSEOProps({
       <nav class="fixed top-0 left-0 right-0 z-50 bg-surface-base/90 backdrop-blur-sm border-b border-border-default">
         <div class="max-w-7xl mx-auto px-4 py-4">
           <ul class="flex flex-wrap items-center justify-center gap-6">
-            <li><a href="/" class="text-text-primary hover:text-brand-base">Home</a></li>
-            <li><a href="/about" class="text-text-primary hover:text-brand-base">About</a></li>
-            <li><a href="/blog" class="text-text-primary hover:text-brand-base">Blog</a></li>
-            <li><a href="/works" class="text-text-primary hover:text-brand-base">Works</a></li>
-            <li><a href="/tools" class="text-text-primary hover:text-brand-base">Tools</a></li>
-            <li><a href="/contact" class="text-text-primary hover:text-brand-base">Contact</a></li>
+            {NAV_ITEMS.map((item) => (
+              <li>
+                <a href={item.href} class="text-text-primary hover:text-brand-base">{item.label}</a>
+              </li>
+            ))}
           </ul>
         </div>
       </nav>
