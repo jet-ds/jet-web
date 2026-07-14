@@ -216,6 +216,124 @@ describe('LiteRT-LM Gemma runtime', () => {
     expect(calls).toEqual(['first.delete', 'engine.createConversation']);
   });
 
+  it('waits for a deferred replacement, deletes the stale result, then unloads the engine', async () => {
+    const calls: string[] = [];
+    const first = fakeConversation(streamFrom([]), calls, 'first');
+    const stale = fakeConversation(streamFrom([]), calls, 'stale');
+    const replacement = deferred<FakeConversation>();
+    const engine = fakeEngine([], calls);
+    engine.createConversation
+      .mockResolvedValueOnce(first)
+      .mockImplementationOnce(async () => {
+        calls.push('replacement.start');
+        const conversation = await replacement.promise;
+        calls.push('replacement.end');
+        return conversation;
+      });
+    const { runtime } = runtimeHarness({ engines: [engine] });
+
+    await runtime.load({});
+    await runtime.createSession([{ role: 'system', content: 'First' }]);
+    const replacing = runtime.createSession([{ role: 'system', content: 'Replacement' }]);
+    await vi.waitFor(() => expect(calls).toContain('replacement.start'));
+    calls.length = 0;
+
+    const unloading = runtime.unload();
+    await Promise.resolve();
+    expect(engine.delete).not.toHaveBeenCalled();
+    replacement.resolve(stale);
+
+    await replacing;
+    await unloading;
+    expect(calls).toEqual([
+      'replacement.end',
+      'stale.delete',
+      'engine.delete',
+    ]);
+    await expect(runtime.generate('Question', { onText: () => undefined }))
+      .rejects.toMatchObject({ code: 'generation-failed' });
+  });
+
+  it('waits for deferred session creation during reset and deletes the stale conversation', async () => {
+    const stale = fakeConversation();
+    const creation = deferred<FakeConversation>();
+    const engine = fakeEngine([]);
+    engine.createConversation.mockImplementationOnce(async () => creation.promise);
+    const { runtime } = runtimeHarness({ engines: [engine] });
+
+    await runtime.load({});
+    const creating = runtime.createSession([{ role: 'system', content: 'Pending' }]);
+    await vi.waitFor(() => expect(engine.createConversation).toHaveBeenCalledTimes(1));
+    let resetSettled = false;
+    const resetting = runtime.reset().then(() => {
+      resetSettled = true;
+    });
+    await Promise.resolve();
+    expect(resetSettled).toBe(false);
+
+    creation.resolve(stale);
+    await creating;
+    await resetting;
+
+    expect(stale.delete).toHaveBeenCalledTimes(1);
+    expect(engine.delete).not.toHaveBeenCalled();
+    await expect(runtime.generate('Question', { onText: () => undefined }))
+      .rejects.toMatchObject({ code: 'generation-failed' });
+  });
+
+  it('keeps stale session cleanup pending when reset observes a deletion failure', async () => {
+    const stale = fakeConversation();
+    stale.delete
+      .mockRejectedValueOnce(new Error('PRIVATE_STALE_SESSION'))
+      .mockResolvedValueOnce(undefined);
+    const creation = deferred<FakeConversation>();
+    const engine = fakeEngine([]);
+    engine.createConversation.mockImplementationOnce(async () => creation.promise);
+    const { runtime } = runtimeHarness({ engines: [engine] });
+
+    await runtime.load({});
+    const creating = runtime.createSession([]);
+    await vi.waitFor(() => expect(engine.createConversation).toHaveBeenCalledTimes(1));
+    const resetting = runtime.reset();
+    creation.resolve(stale);
+
+    await expect(creating).rejects.toMatchObject({
+      code: 'engine-cleanup-failed',
+      cleanupFailures: ['conversation'],
+    });
+    await expect(resetting).rejects.toMatchObject({
+      code: 'engine-cleanup-failed',
+      cleanupFailures: ['conversation'],
+    });
+    expect(stale.delete).toHaveBeenCalledTimes(1);
+
+    await runtime.reset();
+    expect(stale.delete).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejects concurrent session creation without creating or leaking a second conversation', async () => {
+    const first = fakeConversation();
+    const creation = deferred<FakeConversation>();
+    const engine = fakeEngine([]);
+    engine.createConversation.mockImplementationOnce(async () => creation.promise);
+    const { runtime } = runtimeHarness({ engines: [engine] });
+
+    await runtime.load({});
+    const creating = runtime.createSession([{ role: 'system', content: 'First' }]);
+    await vi.waitFor(() => expect(engine.createConversation).toHaveBeenCalledTimes(1));
+
+    await expect(runtime.createSession([{ role: 'system', content: 'Second' }]))
+      .rejects.toMatchObject({
+        name: 'JetsGhostRuntimeError',
+        code: 'generation-failed',
+      });
+    expect(engine.createConversation).toHaveBeenCalledTimes(1);
+
+    creation.resolve(first);
+    await creating;
+    expect(first.delete).not.toHaveBeenCalled();
+  });
+
   it('streams string and text-part content in order while ignoring non-text parts', async () => {
     const conversation = fakeConversation(streamFrom([
       { content: 'One' },
@@ -269,6 +387,83 @@ describe('LiteRT-LM Gemma runtime', () => {
     await expect(generation).resolves.toEqual({ finishReason: 'cancelled' });
     expect(conversation.cancel).toHaveBeenCalledTimes(1);
     expect(fragments).toEqual(['keep']);
+  });
+
+  it('invalidates generation before swallowing a private SDK cancel failure', async () => {
+    const controlled = controlledStream();
+    const conversation = fakeConversation(controlled.stream);
+    conversation.cancel.mockImplementation(() => {
+      throw new Error('PRIVATE_CANCEL_SENTINEL');
+    });
+    const engine = fakeEngine([conversation]);
+    const { runtime } = runtimeHarness({ engines: [engine] });
+    const fragments: string[] = [];
+
+    await runtime.load({});
+    await runtime.createSession([]);
+    const generation = runtime.generate('Question', {
+      onText: (text) => fragments.push(text),
+    });
+    controlled.emit({ content: 'keep' });
+    await vi.waitFor(() => expect(fragments).toEqual(['keep']));
+
+    expect(() => runtime.cancel()).not.toThrow();
+    controlled.emit({ content: 'PRIVATE_LATE_FRAGMENT' });
+    controlled.close();
+
+    await expect(generation).resolves.toEqual({ finishReason: 'cancelled' });
+    expect(fragments).toEqual(['keep']);
+    await runtime.unload();
+    expect(conversation.delete).toHaveBeenCalledTimes(1);
+  });
+
+  it('cancels an active SDK generation before delete so unload cannot deadlock', async () => {
+    const controlled = controlledStream();
+    const deleteRelease = deferred<void>();
+    const calls: string[] = [];
+    const conversation = fakeConversation(controlled.stream, calls);
+    conversation.cancel.mockImplementation(() => {
+      calls.push('conversation.cancel');
+      deleteRelease.resolve(undefined);
+    });
+    conversation.delete.mockImplementation(async () => {
+      calls.push('conversation.delete');
+      await deleteRelease.promise;
+    });
+    const engine = fakeEngine([conversation], calls);
+    const { runtime } = runtimeHarness({ engines: [engine] });
+    const fragments: string[] = [];
+
+    await runtime.load({});
+    await runtime.createSession([]);
+    const generation = runtime.generate('Question', {
+      onText: (text) => fragments.push(text),
+    });
+    controlled.emit({ content: 'keep' });
+    await vi.waitFor(() => expect(fragments).toEqual(['keep']));
+    calls.length = 0;
+
+    const unloading = runtime.unload();
+    try {
+      await vi.waitFor(() => expect(conversation.delete).toHaveBeenCalledTimes(1));
+      expect(calls.slice(0, 2)).toEqual([
+        'conversation.cancel',
+        'conversation.delete',
+      ]);
+    } finally {
+      deleteRelease.resolve(undefined);
+    }
+    await unloading;
+    controlled.emit({ content: 'late' });
+    controlled.close();
+
+    await expect(generation).resolves.toEqual({ finishReason: 'cancelled' });
+    expect(fragments).toEqual(['keep']);
+    expect(calls).toEqual([
+      'conversation.cancel',
+      'conversation.delete',
+      'engine.delete',
+    ]);
   });
 
   it('reset invalidates generation and deletes only the conversation', async () => {
@@ -334,6 +529,7 @@ describe('LiteRT-LM Gemma runtime', () => {
     }
 
     expect(calls).toEqual([
+      'conversation.cancel',
       'conversation.delete',
       'engine.delete',
       'unloadLiteRtLm',

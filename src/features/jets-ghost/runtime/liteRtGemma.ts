@@ -60,8 +60,12 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
   private pendingConversationCleanup: LiteRtConversation | null = null;
   private pendingEngineCleanup: LiteRtEngine | null = null;
   private pendingRuntimeCleanup: LiteRtModule | null = null;
+  private activeConversationCleanup: Promise<CleanupFailure[]> | null = null;
+  private activeResourceCleanup: Promise<CleanupFailure[]> | null = null;
   private loadOperation: LoadOperation | null = null;
   private activeLoad: Promise<void> | null = null;
+  private sessionCreationEpoch = 0;
+  private activeSessionCreation: Promise<void> | null = null;
   private operationGeneration = 0;
   private activeGeneration: number | null = null;
 
@@ -164,7 +168,32 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
         true,
       );
     }
+    if (this.activeSessionCreation) {
+      throw createRuntimeError(
+        'generation-failed',
+        "Jet's Ghost accepts only one active session creation.",
+        true,
+      );
+    }
 
+    const epoch = ++this.sessionCreationEpoch;
+    const creation = this.performSessionCreation(engine, preface, epoch);
+    this.activeSessionCreation = creation;
+
+    try {
+      await creation;
+    } finally {
+      if (this.activeSessionCreation === creation) {
+        this.activeSessionCreation = null;
+      }
+    }
+  }
+
+  private async performSessionCreation(
+    engine: LiteRtEngine,
+    preface: ModelMessage[],
+    epoch: number,
+  ): Promise<void> {
     this.invalidateGeneration();
     const previous = this.conversation;
     this.conversation = null;
@@ -173,9 +202,11 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
     if (cleanupFailures.length > 0) {
       throw cleanupRuntimeError(cleanupFailures);
     }
+    if (!this.isSessionCreationActive(epoch, engine)) return;
 
+    let created: LiteRtConversation;
     try {
-      this.conversation = await engine.createConversation({
+      created = await engine.createConversation({
         preface: {
           messages: preface.map(({ role, content }) => ({ role, content })),
         },
@@ -185,6 +216,7 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
         },
       });
     } catch (cause) {
+      if (!this.isSessionCreationActive(epoch, engine)) return;
       throw createRuntimeError(
         'generation-failed',
         "Jet's Ghost could not start the local conversation.",
@@ -192,6 +224,17 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
         cause,
       );
     }
+
+    if (!this.isSessionCreationActive(epoch, engine)) {
+      this.pendingConversationCleanup = created;
+      const staleCleanupFailures = await this.cleanupPendingConversation();
+      if (staleCleanupFailures.length > 0) {
+        throw cleanupRuntimeError(staleCleanupFailures);
+      }
+      return;
+    }
+
+    this.conversation = created;
   }
 
   async generate(
@@ -263,16 +306,21 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
   }
 
   cancel(): void {
-    if (this.loadOperation) this.loadOperation.stopRequested = true;
-    this.conversation?.cancel();
     this.invalidateGeneration();
+    this.invalidateSessionCreation();
+    if (this.loadOperation) this.loadOperation.stopRequested = true;
+    this.cancelConversation(this.conversation);
   }
 
   async reset(): Promise<void> {
     this.invalidateGeneration();
+    this.invalidateSessionCreation();
     const conversation = this.conversation;
     this.conversation = null;
+    this.cancelConversation(conversation);
     if (conversation) this.pendingConversationCleanup = conversation;
+
+    await this.waitForActiveSessionCreation();
 
     const failures = await this.cleanupPendingConversation();
     if (failures.length > 0) throw cleanupRuntimeError(failures);
@@ -280,7 +328,25 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
 
   async unload(): Promise<void> {
     this.invalidateGeneration();
+    this.invalidateSessionCreation();
     if (this.loadOperation) this.loadOperation.stopRequested = true;
+
+    const conversation = this.conversation;
+    this.conversation = null;
+    this.cancelConversation(conversation);
+    if (conversation) this.pendingConversationCleanup = conversation;
+
+    const activeSessionCreation = this.activeSessionCreation;
+    if (activeSessionCreation) {
+      this.adoptPendingCleanup(this.engine, this.liteRt);
+      this.engine = null;
+      this.liteRt = null;
+      try {
+        await activeSessionCreation;
+      } catch (cause) {
+        if (isCleanupRuntimeError(cause)) throw cause;
+      }
+    }
 
     const activeLoad = this.activeLoad;
     if (activeLoad) {
@@ -292,11 +358,7 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
       }
     }
 
-    if (this.conversation) {
-      this.pendingConversationCleanup = this.conversation;
-    }
     this.adoptPendingCleanup(this.engine, this.liteRt);
-    this.conversation = null;
     this.engine = null;
     this.liteRt = null;
 
@@ -307,6 +369,37 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
   private invalidateGeneration(): void {
     this.operationGeneration += 1;
     this.activeGeneration = null;
+  }
+
+  private invalidateSessionCreation(): void {
+    this.sessionCreationEpoch += 1;
+  }
+
+  private isSessionCreationActive(
+    epoch: number,
+    engine: LiteRtEngine,
+  ): boolean {
+    return this.sessionCreationEpoch === epoch && this.engine === engine;
+  }
+
+  private cancelConversation(conversation: LiteRtConversation | null): void {
+    if (!conversation) return;
+    try {
+      conversation.cancel();
+    } catch {
+      // The public cancellation contract is synchronous and content-free.
+    }
+  }
+
+  private async waitForActiveSessionCreation(): Promise<void> {
+    const creation = this.activeSessionCreation;
+    if (!creation) return;
+
+    try {
+      await creation;
+    } catch (cause) {
+      if (isCleanupRuntimeError(cause)) throw cause;
+    }
   }
 
   private isActiveGeneration(operationId: number): boolean {
@@ -329,6 +422,22 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
   }
 
   private async cleanupPendingConversation(): Promise<CleanupFailure[]> {
+    if (this.activeConversationCleanup) {
+      return this.activeConversationCleanup;
+    }
+
+    const cleanup = this.performPendingConversationCleanup();
+    this.activeConversationCleanup = cleanup;
+    try {
+      return await cleanup;
+    } finally {
+      if (this.activeConversationCleanup === cleanup) {
+        this.activeConversationCleanup = null;
+      }
+    }
+  }
+
+  private async performPendingConversationCleanup(): Promise<CleanupFailure[]> {
     const failures: CleanupFailure[] = [];
     const conversation = this.pendingConversationCleanup;
 
@@ -347,6 +456,20 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
   }
 
   private async cleanupPendingResources(): Promise<CleanupFailure[]> {
+    if (this.activeResourceCleanup) return this.activeResourceCleanup;
+
+    const cleanup = this.performPendingResourceCleanup();
+    this.activeResourceCleanup = cleanup;
+    try {
+      return await cleanup;
+    } finally {
+      if (this.activeResourceCleanup === cleanup) {
+        this.activeResourceCleanup = null;
+      }
+    }
+  }
+
+  private async performPendingResourceCleanup(): Promise<CleanupFailure[]> {
     const failures = await this.cleanupPendingConversation();
     const engine = this.pendingEngineCleanup;
 
