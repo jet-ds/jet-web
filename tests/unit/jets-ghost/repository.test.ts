@@ -161,6 +161,10 @@ describe('StaticKnowledgeRepository', () => {
       value.content.statistics.estimatedContentTokens += 1;
       value.manifest.statistics.estimatedContentTokens += 1;
     }, false],
+    ['derived full-corpus payload statistics', (value: Fixture) => {
+      value.content.statistics.fullCorpusKnowledgeTokens += 1;
+      value.manifest.statistics.fullCorpusKnowledgeTokens += 1;
+    }, false],
     ['stale chunk content hash behind a valid outer hash', (value: Fixture) => {
       value.content.chunks[0].text = 'Tampered chunk text.';
     }, false],

@@ -8,6 +8,7 @@ import {
   resolveSourceCommit,
   type AssistantSourceEntry,
 } from '../../../src/features/jets-ghost/corpus/build';
+import { serializeSourcePayload } from '../../../src/features/jets-ghost/sourcePayload';
 
 const blogData: BlogFrontmatter = {
   title: 'Included guide',
@@ -107,6 +108,33 @@ describe('knowledge-base generation', () => {
       { id: 'blog:included', order: 0 },
       { id: 'works:research-project', order: 1 },
     ]);
+  });
+
+  it('binds the full-corpus statistic to the canonical runtime source payload', () => {
+    const first = buildKnowledgeBase([worksEntry(), blogEntry()], 'same-sha');
+    const second = buildKnowledgeBase([blogEntry(), worksEntry()], 'same-sha');
+    const documentsById = new Map(first.content.documents.map((document) => [document.id, document]));
+    const sectionsById = new Map(first.content.sections.map((section) => [section.id, section]));
+    const payload = first.content.chunks.map((chunk, index) => {
+      const document = documentsById.get(chunk.documentId)!;
+      const section = sectionsById.get(chunk.sectionId)!;
+      return {
+        citationId: `S${index + 1}` as const,
+        documentId: document.id,
+        sectionId: section.id,
+        chunkId: chunk.id,
+        title: document.title,
+        canonicalUrl: document.canonicalUrl,
+        heading: section.heading,
+        text: chunk.text,
+      };
+    });
+    const exactTokens = serializeSourcePayload(payload).estimatedTokens;
+
+    expect(first.content.statistics.fullCorpusKnowledgeTokens).toBe(exactTokens);
+    expect(first.manifest.statistics.fullCorpusKnowledgeTokens).toBe(exactTokens);
+    expect(second.manifest.statistics.fullCorpusKnowledgeTokens).toBe(exactTokens);
+    expect(first.content.schemaVersion).toBe('1.0.0');
   });
 
   it('binds content provenance but excludes sourceCommit from corpusVersion', () => {

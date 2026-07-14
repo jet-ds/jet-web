@@ -5,6 +5,7 @@ import {
   MINISEARCH_VERSION,
   STEMMER_VERSION,
 } from '../selection/searchIndex';
+import { serializeSourcePayload } from '../sourcePayload';
 import type {
   ChunkId,
   CorpusManifest,
@@ -374,6 +375,25 @@ export class StaticKnowledgeRepository {
     if (computedCorpusVersion !== content.corpusVersion) {
       throw new Error('Corpus version does not match canonical package identities and content.');
     }
+    const maps = buildLookupMaps(content);
+    const fullCorpusPayload = content.chunks.map((chunk, index) => {
+      const document = maps.documentsById.get(chunk.documentId);
+      const section = maps.sectionsById.get(chunk.sectionId);
+      if (document === undefined || section === undefined) {
+        throw new Error(`Cannot validate source payload parentage: ${chunk.id}`);
+      }
+      return {
+        citationId: `S${index + 1}` as const,
+        documentId: document.id,
+        sectionId: section.id,
+        chunkId: chunk.id,
+        title: document.title,
+        canonicalUrl: document.canonicalUrl,
+        heading: section.heading,
+        text: chunk.text,
+      };
+    });
+    const fullCorpusKnowledgeTokens = serializeSourcePayload(fullCorpusPayload).estimatedTokens;
     if (
       content.schemaVersion !== manifest.schemaVersion
       || content.segmentationVersion !== manifest.segmentationVersion
@@ -385,6 +405,7 @@ export class StaticKnowledgeRepository {
         (total, chunk) => total + chunk.estimatedTokens,
         0,
       )
+      || manifest.statistics.fullCorpusKnowledgeTokens !== fullCorpusKnowledgeTokens
     ) {
       throw new Error('Corpus manifest and content statistics mismatch.');
     }
@@ -427,7 +448,6 @@ export class StaticKnowledgeRepository {
       throw new Error('Serialized search index contains unknown or duplicate chunk identities.');
     }
 
-    const maps = buildLookupMaps(content);
     const searchIndex = await loadSearchIndex(index, content.corpusVersion);
     if (searchIndex.documentCount !== content.chunks.length) {
       throw new Error('Hydrated search index document coverage mismatch.');

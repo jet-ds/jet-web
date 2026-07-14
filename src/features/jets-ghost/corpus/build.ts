@@ -15,8 +15,9 @@ import {
   MINISEARCH_VERSION,
   STEMMER_VERSION,
 } from '../selection/searchIndex';
+import { serializeSourcePayload, type SourcePayloadRecord } from '../sourcePayload';
 import { normalizeMdx } from './normalize';
-import { estimateTokens, SEGMENTATION_VERSION, segmentDocument } from './segment';
+import { SEGMENTATION_VERSION, segmentDocument } from './segment';
 import { canonicalSerialize } from './canonical';
 import type {
   CorpusManifest,
@@ -29,6 +30,7 @@ import type {
 } from './types';
 
 const execFileAsync = promisify(execFile);
+// The schema version covers both the source-payload shape and its token estimator.
 const SCHEMA_VERSION = '1.0.0' as const;
 
 interface AssistantSourceBase {
@@ -154,14 +156,14 @@ function documentFromEntry(entry: AssistantSourceEntry, order: number): Knowledg
   };
 }
 
-function narrowFullCorpusKnowledgeTokens(
+function fullCorpusSourcePayload(
   documents: readonly KnowledgeDocument[],
   sections: readonly KnowledgeSection[],
   chunks: readonly KnowledgeChunk[],
-): number {
+): SourcePayloadRecord[] {
   const documentsById = new Map(documents.map((document) => [document.id, document]));
   const sectionsById = new Map(sections.map((section) => [section.id, section]));
-  const payload = chunks.map((chunk, index) => {
+  return chunks.map((chunk, index) => {
     const document = documentsById.get(chunk.documentId);
     const section = sectionsById.get(chunk.sectionId);
     if (document === undefined || section === undefined) {
@@ -173,12 +175,11 @@ function narrowFullCorpusKnowledgeTokens(
       sectionId: section.id,
       chunkId: chunk.id,
       title: document.title,
-      url: document.canonicalUrl,
+      canonicalUrl: document.canonicalUrl,
       heading: section.heading,
-      content: chunk.text,
+      text: chunk.text,
     };
   });
-  return estimateTokens(canonicalSerialize(payload));
 }
 
 export function buildKnowledgeBase(
@@ -222,7 +223,9 @@ export function buildKnowledgeBase(
     sectionCount: sections.length,
     chunkCount: chunks.length,
     estimatedContentTokens: chunks.reduce((total, chunk) => total + chunk.estimatedTokens, 0),
-    fullCorpusKnowledgeTokens: narrowFullCorpusKnowledgeTokens(documents, sections, chunks),
+    fullCorpusKnowledgeTokens: serializeSourcePayload(
+      fullCorpusSourcePayload(documents, sections, chunks),
+    ).estimatedTokens,
   };
   const corpusVersion = sha256(canonicalSerialize({
     schemaVersion: SCHEMA_VERSION,
