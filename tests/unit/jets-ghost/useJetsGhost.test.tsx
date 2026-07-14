@@ -1059,24 +1059,27 @@ describe('useJetsGhost activation boundary', () => {
 });
 
 describe('JetsGhostExperience production composition', () => {
-  it('renders a fixed status slot, fit-content visual capsule, and separate full announcement', () => {
+  it('renders a fixed slot, chrome-free visible status, and separate full announcement', () => {
     const harness = createHarness();
     render(<JetsGhostExperience dependencies={harness.dependencies} />);
 
     const slot = screen.getByTestId('lifecycle-status-slot');
-    const capsule = screen.getByTestId('lifecycle-capsule');
+    const visibleStatus = screen.getByTestId('lifecycle-visible-status');
     const announcement = screen.getByTestId('lifecycle-announcement');
     expect(slot).toHaveClass('h-10', 'w-[7.5rem]', 'justify-end');
     expect(slot.className).not.toMatch(/min-[wh]-/);
     expect(slot).toHaveAttribute('aria-hidden', 'true');
-    expect(capsule).toHaveClass('w-fit');
-    expect(capsule.className).not.toMatch(/(?:^|\s)min-w-|w-\[/);
-    expect(capsule).not.toHaveAttribute('aria-live');
-    expect(within(capsule).getByTestId('lifecycle-visual-label')).toHaveTextContent('Not running');
+    expect(visibleStatus).toHaveClass('w-fit');
+    expect(visibleStatus.className).not.toMatch(/(?:^|\s)min-w-|w-\[/);
+    expect(visibleStatus.className).not.toMatch(
+      /(?:^|\s)(?:border(?:-\S+)?|bg-\S+|rounded\S*|shadow\S*|p[trblxy]?-\S+)(?:\s|$)/,
+    );
+    expect(visibleStatus).not.toHaveAttribute('aria-live');
+    expect(within(visibleStatus).getByTestId('lifecycle-visual-label')).toHaveTextContent('Not running');
     expect(announcement).toHaveAttribute('role', 'status');
     expect(announcement).toHaveAttribute('aria-live', 'polite');
     expect(announcement).toHaveTextContent("Jet's Ghost is not running.");
-    expect(capsule).not.toHaveTextContent('%');
+    expect(visibleStatus).not.toHaveTextContent('%');
   });
 
   it('keeps activation explicit, focuses the composer, and renders cited sources locally', async () => {

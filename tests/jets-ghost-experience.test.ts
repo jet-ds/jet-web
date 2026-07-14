@@ -27,6 +27,35 @@ const buildPurityVerifierSource = readFileSync(
   new URL('../scripts/verify-build-purity.ts', import.meta.url),
   'utf8',
 );
+const canonicalStatusDocs = [
+  [
+    'experience note',
+    readFileSync(
+      new URL('../docs/jets-ghost-chat-experience.md', import.meta.url),
+      'utf8',
+    ),
+  ],
+  [
+    'architecture design',
+    readFileSync(
+      new URL(
+        '../docs/superpowers/specs/2026-07-11-jets-ghost-local-assistant-design.md',
+        import.meta.url,
+      ),
+      'utf8',
+    ),
+  ],
+  [
+    'implementation plan',
+    readFileSync(
+      new URL(
+        '../docs/superpowers/plans/2026-07-11-jets-ghost-local-assistant.md',
+        import.meta.url,
+      ),
+      'utf8',
+    ),
+  ],
+] as const;
 
 const lifecyclePresentation = [
   ['idle', 'Not running', "Jet's Ghost is not running."],
@@ -72,38 +101,43 @@ test('production lifecycle presentation begins idle and separates compatibility 
   assert.match(experienceSource, />\s*Load Jet&apos;s Ghost · about 2 GB\s*</);
 });
 
-test('lifecycle slot stays fixed while the right-anchored visible capsule fits its label', () => {
+test('lifecycle slot stays fixed while the chrome-free visible status fits its label', () => {
   assert.match(
     experienceSource,
     /data-testid="lifecycle-status-slot"[\s\S]*?className="[^"]*h-10[^"]*w-\[7\.5rem\][^"]*justify-end[^"]*"/,
   );
-  const capsuleSource = experienceSource.match(
-    /function LifecycleCapsule[\s\S]*?\n}\n/,
+  const statusSource = experienceSource.match(
+    /function LifecycleStatus[\s\S]*?\n}\n/,
   )?.[0] ?? '';
   assert.match(
-    capsuleSource,
-    /data-testid="lifecycle-capsule"[\s\S]*?className="[^"]*w-fit[^"]*"/,
+    statusSource,
+    /data-testid="lifecycle-visible-status"[\s\S]*?className="[^"]*w-fit[^"]*"/,
   );
-  const visibleCapsuleClass = capsuleSource.match(
-    /data-testid="lifecycle-capsule"[\s\S]*?className="([^"]*)"/,
+  const visibleStatusClass = statusSource.match(
+    /data-testid="lifecycle-visible-status"[\s\S]*?className="([^"]*)"/,
   )?.[1] ?? '';
-  assert.doesNotMatch(visibleCapsuleClass, /(?:^|\s)min-w-|(?:^|\s)w-(?:\[|\d)/);
-  assert.match(visibleCapsuleClass, /(?:^|\s)w-fit(?:\s|$)/);
-  assert.match(capsuleSource, /<AnimatePresence initial={false}>/);
-  assert.match(capsuleSource, /key={compactLabel}/);
-  assert.match(capsuleSource, /<span className="grid h-4 overflow-hidden">/);
+  assert.doesNotMatch(visibleStatusClass, /(?:^|\s)min-w-|(?:^|\s)w-(?:\[|\d)/);
+  assert.match(visibleStatusClass, /(?:^|\s)w-fit(?:\s|$)/);
+  assert.doesNotMatch(
+    visibleStatusClass,
+    /(?:^|\s)(?:border(?:-\S+)?|bg-\S+|rounded\S*|shadow\S*|p[trblxy]?-\S+)(?:\s|$)/,
+  );
+  assert.doesNotMatch(experienceSource, /LifecycleCapsule|lifecycle-capsule/);
+  assert.match(statusSource, /<AnimatePresence initial={false}>/);
+  assert.match(statusSource, /key={compactLabel}/);
+  assert.match(statusSource, /<span className="grid h-4 overflow-hidden">/);
   assert.match(
-    capsuleSource,
+    statusSource,
     /className="col-start-1 row-start-1 flex items-center whitespace-nowrap motion-reduce:transition-none"/,
   );
-  assert.doesNotMatch(capsuleSource, /invisible block whitespace-nowrap/);
-  assert.match(capsuleSource, /initial={{ opacity: 0 }}/);
-  assert.match(capsuleSource, /exit={{ opacity: 0 }}/);
-  assert.match(capsuleSource, /{prefersReducedMotion \? \(/);
-  assert.match(capsuleSource, /data-testid="lifecycle-visual-label"/);
+  assert.doesNotMatch(statusSource, /invisible block whitespace-nowrap/);
+  assert.match(statusSource, /initial={{ opacity: 0 }}/);
+  assert.match(statusSource, /exit={{ opacity: 0 }}/);
+  assert.match(statusSource, /{prefersReducedMotion \? \(/);
+  assert.match(statusSource, /data-testid="lifecycle-visual-label"/);
 });
 
-test('lifecycle announcement is separate from the visual capsule and percentages stay absent', () => {
+test('lifecycle announcement is separate from the visual status and percentages stay absent', () => {
   assert.match(
     experienceSource,
     /data-testid="lifecycle-status-slot"[\s\S]*?aria-hidden="true"/,
@@ -114,9 +148,22 @@ test('lifecycle announcement is separate from the visual capsule and percentages
   );
   assert.doesNotMatch(
     experienceSource,
-    /data-testid="lifecycle-(?:status-slot|capsule)"[^>]*aria-live/,
+    /data-testid="lifecycle-(?:status-slot|visible-status)"[^>]*aria-live/,
   );
   assert.doesNotMatch(experienceSource, /getLifecycleLabel\(status\)[\s\S]{0,80}%/);
+});
+
+test('canonical docs require a chrome-free status group and no capsule or pill terminology', () => {
+  for (const [name, source] of canonicalStatusDocs) {
+    assert.match(source, /chrome-free status group/i, `${name} must name the approved treatment`);
+    assert.doesNotMatch(source, /\b(?:capsule|pill)\b/i, `${name} retains superseded chrome terminology`);
+  }
+
+  const implementationPlan = canonicalStatusDocs[2][1];
+  assert.match(
+    implementationPlan,
+    /computed border, background, shadow, radius, and padding[^.]*absent, zero, or transparent/i,
+  );
 });
 
 test('approved disclosure and production actions replace prototype simulation', () => {

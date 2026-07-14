@@ -263,7 +263,7 @@ export default function JetsGhostExperience({
           >
             {getLifecycleAnnouncement(status)}
           </span>
-          <LifecycleCapsule status={status} />
+          <LifecycleStatus status={status} />
         </div>
       </header>
 
@@ -563,7 +563,7 @@ export default function JetsGhostExperience({
   );
 }
 
-function LifecycleCapsule({ status }: { status: JetsGhostLifecycleStatus }) {
+function LifecycleStatus({ status }: { status: JetsGhostLifecycleStatus }) {
   const prefersReducedMotion = useReducedMotion();
   const compactLabel = getLifecycleLabel(status);
   const dotColor = status === 'ready'
@@ -579,8 +579,8 @@ function LifecycleCapsule({ status }: { status: JetsGhostLifecycleStatus }) {
       className="flex h-10 w-[7.5rem] shrink-0 items-center justify-end"
     >
       <div
-        data-testid="lifecycle-capsule"
-        className="inline-flex h-10 w-fit items-center gap-2xs rounded-full border border-border-default bg-surface-base px-xs text-xs font-medium text-text-secondary shadow-sm"
+        data-testid="lifecycle-visible-status"
+        className="inline-flex w-fit items-center gap-2xs text-xs font-medium text-text-secondary"
       >
         <span className={`h-2 w-2 shrink-0 rounded-full ${dotColor}`} />
         <span className="grid h-4 overflow-hidden">
