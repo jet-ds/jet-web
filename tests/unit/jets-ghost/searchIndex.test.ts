@@ -1,6 +1,11 @@
 import MiniSearch from 'minisearch';
 import { describe, expect, it, vi } from 'vitest';
-import { buildKnowledgeBase, type AssistantSourceEntry } from '../../../src/features/jets-ghost/corpus/build';
+import {
+  buildKnowledgeBase,
+  canonicalSerialize,
+  type AssistantSourceEntry,
+} from '../../../src/features/jets-ghost/corpus/build';
+import type { KnowledgePackage } from '../../../src/features/jets-ghost/corpus/types';
 import {
   buildSearchIndexArtifact,
   INDEX_CONFIG_VERSION,
@@ -37,6 +42,93 @@ function buildFixture(order: 'forward' | 'reverse' = 'forward') {
   return buildKnowledgeBase(order === 'forward' ? entries : entries.reverse(), 'abc');
 }
 
+function unicodeContent(secondForm: 'NFC' | 'NFD'): KnowledgePackage {
+  const form = (value: string): string => value.normalize(secondForm);
+  const firstId = `blog:first#evidence:${'1'.repeat(64)}:0` as const;
+  const secondId = `blog:second#evidence:${'2'.repeat(64)}:0` as const;
+  return {
+    schemaVersion: '1.0.0',
+    segmentationVersion: '1.0.0',
+    corpusVersion: 'a'.repeat(64),
+    sourceCommit: 'abc',
+    documents: [
+      {
+        id: 'blog:first',
+        order: 0,
+        collection: 'blog',
+        slug: 'first',
+        title: 'Café title',
+        description: 'Résumé description',
+        canonicalUrl: 'https://jetsanchez.com/blog/first/',
+        tags: ['Crème'],
+        author: 'Jet Sanchez',
+        publishedAt: '2026-01-01T00:00:00.000Z',
+        sourcePath: 'src/data/blog/first.mdx',
+        sourceHash: '3'.repeat(64),
+      },
+      {
+        id: 'blog:second',
+        order: 1,
+        collection: 'blog',
+        slug: 'second',
+        title: form('Café title'),
+        description: form('Résumé description'),
+        canonicalUrl: 'https://jetsanchez.com/blog/second/',
+        tags: [form('Crème')],
+        author: 'Jet Sanchez',
+        publishedAt: '2026-01-02T00:00:00.000Z',
+        sourcePath: 'src/data/blog/second.mdx',
+        sourceHash: '4'.repeat(64),
+      },
+    ],
+    sections: [
+      {
+        id: 'blog:first#evidence',
+        documentId: 'blog:first',
+        heading: 'Évidence',
+        headingPath: ['Évidence'],
+        order: 0,
+      },
+      {
+        id: 'blog:second#evidence',
+        documentId: 'blog:second',
+        heading: form('Évidence'),
+        headingPath: [form('Évidence')],
+        order: 0,
+      },
+    ],
+    chunks: [
+      {
+        id: firstId,
+        documentId: 'blog:first',
+        sectionId: 'blog:first#evidence',
+        text: 'Touché body',
+        estimatedTokens: 3,
+        order: 0,
+        contentHash: '1'.repeat(64),
+        sameTextOccurrence: 0,
+      },
+      {
+        id: secondId,
+        documentId: 'blog:second',
+        sectionId: 'blog:second#evidence',
+        text: form('Touché body'),
+        estimatedTokens: 3,
+        order: 0,
+        contentHash: '2'.repeat(64),
+        sameTextOccurrence: 0,
+      },
+    ],
+    statistics: {
+      documentCount: 2,
+      sectionCount: 2,
+      chunkCount: 2,
+      estimatedContentTokens: 6,
+      fullCorpusKnowledgeTokens: 20,
+    },
+  };
+}
+
 describe('deterministic MiniSearch artifact', () => {
   it('is byte-equivalent for canonical content regardless of source input order', () => {
     const forward = buildFixture('forward');
@@ -51,6 +143,25 @@ describe('deterministic MiniSearch artifact', () => {
     expect(result.index.chunkIds).toEqual(result.content.chunks.map((chunk) => chunk.id));
     expect(new Set(result.index.chunkIds).size).toBe(result.content.chunks.length);
     expect(result.index.chunkCount).toBe(result.content.chunks.length);
+  });
+
+  it('canonicalizes every indexed string before serialization and hydration', async () => {
+    const mixed = unicodeContent('NFD');
+    const canonical = unicodeContent('NFC');
+    expect(canonicalSerialize(mixed)).toBe(canonicalSerialize(canonical));
+
+    const mixedArtifact = buildSearchIndexArtifact(mixed);
+    const canonicalArtifact = buildSearchIndexArtifact(canonical);
+    expect(canonicalSerialize(mixedArtifact)).toBe(canonicalSerialize(canonicalArtifact));
+
+    const deliveredArtifact = JSON.parse(
+      canonicalSerialize(mixedArtifact),
+    ) as typeof mixedArtifact;
+    const index = await loadSearchIndex(deliveredArtifact, mixed.corpusVersion);
+    const expectedIds = mixed.chunks.map((chunk) => chunk.id).sort();
+    for (const term of ['café', 'résumé', 'crème', 'évidence', 'touché', 'cafe\u0301']) {
+      expect(index.search(term).map((result) => result.id).sort()).toEqual(expectedIds);
+    }
   });
 
   it('searches metadata and applies stop words, stemming, and five-character prefixes', async () => {

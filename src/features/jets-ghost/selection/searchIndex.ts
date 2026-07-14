@@ -1,5 +1,6 @@
 import MiniSearch, { type AsPlainObject, type Options } from 'minisearch';
 import { stemmer } from 'stemmer';
+import { normalizeCanonicalString } from '../corpus/canonical';
 import type {
   ChunkId,
   KnowledgePackage,
@@ -22,7 +23,7 @@ export const MINISEARCH_OPTIONS = {
   fields: ['title', 'description', 'tags', 'heading', 'body'],
   storeFields: ['id'],
   processTerm: (term: string) => {
-    const normalized = term.toLowerCase();
+    const normalized = normalizeCanonicalString(term).toLowerCase();
     return STOP_WORDS.has(normalized) ? null : stemmer(normalized);
   },
   searchOptions: {
@@ -54,11 +55,11 @@ function searchDocuments(content: KnowledgePackage): SearchDocument[] {
 
     return {
       id: chunk.id,
-      title: document.title,
-      description: document.description,
-      tags: document.tags.join(' '),
-      heading: section.heading,
-      body: chunk.text,
+      title: normalizeCanonicalString(document.title),
+      description: normalizeCanonicalString(document.description),
+      tags: document.tags.map(normalizeCanonicalString).join(' '),
+      heading: normalizeCanonicalString(section.heading),
+      body: normalizeCanonicalString(chunk.text),
     };
   });
 }

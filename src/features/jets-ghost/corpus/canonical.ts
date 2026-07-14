@@ -4,12 +4,16 @@ interface CanonicalObject {
 
 type CanonicalValue = null | boolean | number | string | CanonicalValue[] | CanonicalObject;
 
+export function normalizeCanonicalString(value: string): string {
+  return value.replace(/\r\n?/g, '\n').normalize('NFC');
+}
+
 function canonicalValue(value: unknown, seen: Set<object>): CanonicalValue {
   if (value === null || typeof value === 'boolean') {
     return value;
   }
   if (typeof value === 'string') {
-    return value.replace(/\r\n?/g, '\n').normalize('NFC');
+    return normalizeCanonicalString(value);
   }
   if (typeof value === 'number') {
     if (!Number.isFinite(value)) {
