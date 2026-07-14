@@ -9,7 +9,7 @@ import {
   RotateCcw,
   Unplug,
 } from 'lucide-react';
-import { motion, useReducedMotion } from 'framer-motion';
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
   useEffect,
   useMemo,
@@ -25,6 +25,7 @@ import type { JetsGhostErrorCode } from './errors';
 import {
   getComposerActionTone,
   getGhostAnimationMode,
+  getLifecycleAnnouncement,
   getLifecycleLabel,
   getLoadingStage,
   shouldFocusComposer,
@@ -34,6 +35,7 @@ import { assemblePrompt } from './prompt/assemble';
 import { extractValidCitations } from './prompt/citations';
 import { FakeRuntime, type FakeRuntimeCall } from './runtime/fakeRuntime';
 import { LiteRtGemmaRuntime } from './runtime/liteRtGemma';
+import type { JetsGhostLifecycleStatus } from './runtime/lifecycle';
 import { rankAndPackContext } from './selection/rankAndPack';
 import type { ConversationTurn } from './state/types';
 import {
@@ -111,15 +113,18 @@ export default function JetsGhostExperience({
   const ghost = useJetsGhost(dependencies);
   const [draft, setDraft] = useState('');
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
+  const [hasSubmittedInSession, setHasSubmittedInSession] = useState(false);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const errorActionRef = useRef<HTMLButtonElement>(null);
   const loadActionRef = useRef<HTMLButtonElement>(null);
+  const checkCompatibilityActionRef = useRef<HTMLButtonElement>(null);
   const lastSubmittedRef = useRef<string | null>(null);
   const unloadRequestedRef = useRef(false);
   const previousStatusRef = useRef(ghost.state.lifecycle.status);
 
   const status = ghost.state.lifecycle.status;
   const hasConversation = ghost.state.turns.length > 0;
+  const showPreConversation = !hasSubmittedInSession && !hasConversation;
   const isGenerating = status === 'generating';
   const canCompose = status === 'ready';
   const ghostAnimationMode = getGhostAnimationMode(status);
@@ -142,10 +147,17 @@ export default function JetsGhostExperience({
     ) {
       lastSubmittedRef.current = null;
     }
+    if (previousStatus === 'resetting' && status === 'ready') {
+      setDraft('');
+      setHasSubmittedInSession(false);
+      lastSubmittedRef.current = null;
+    }
     if (status === 'idle' && unloadRequestedRef.current) {
       setDraft('');
+      setHasSubmittedInSession(false);
       lastSubmittedRef.current = null;
       unloadRequestedRef.current = false;
+      checkCompatibilityActionRef.current?.focus();
     }
     previousStatusRef.current = status;
   }, [status]);
@@ -185,6 +197,7 @@ export default function JetsGhostExperience({
     const cleanQuestion = question.trim();
     if (!cleanQuestion || status !== 'ready') return;
     lastSubmittedRef.current = cleanQuestion;
+    setHasSubmittedInSession(true);
     setDraft('');
     void ghost.sendMessage(cleanQuestion);
   };
@@ -241,21 +254,16 @@ export default function JetsGhostExperience({
               </button>
             </>
           )}
-          <div className="flex min-h-10 items-center gap-2xs rounded-full border border-border-default bg-surface-base px-xs text-xs font-medium text-text-secondary shadow-sm">
-            <span
-              className={`h-2 w-2 rounded-full ${
-                status === 'ready'
-                  ? 'bg-brand-base'
-                  : status === 'generating' || status === 'loading'
-                    ? 'bg-accent-base'
-                    : 'bg-text-disabled'
-              }`}
-              aria-hidden="true"
-            />
-            <span aria-live="polite">
-              {getLifecycleLabel(status)}
-            </span>
-          </div>
+          <span
+            data-testid="lifecycle-announcement"
+            className="sr-only"
+            role="status"
+            aria-live="polite"
+            aria-atomic="true"
+          >
+            {getLifecycleAnnouncement(status)}
+          </span>
+          <LifecycleCapsule status={status} />
         </div>
       </header>
 
@@ -302,6 +310,7 @@ export default function JetsGhostExperience({
 
                 {status === 'idle' && (
                   <button
+                    ref={checkCompatibilityActionRef}
                     type="button"
                     onClick={() => void ghost.checkCompatibility()}
                     className="inline-flex min-h-12 items-center justify-center gap-xs rounded-xl bg-brand-base px-m font-semibold text-brand-contrast transition-colors hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-brand-base focus:ring-offset-2 focus:ring-offset-bg-base"
@@ -395,7 +404,7 @@ export default function JetsGhostExperience({
           <main className="flex flex-1 items-center justify-center px-gutter py-m">
             <div className="w-full max-w-xl text-center">
               <AnimatedGhost mode="loading" />
-              <div role="status" aria-live="polite">
+              <div>
                 <p className="mb-2xs font-mono text-xs uppercase tracking-[0.16em] text-brand-text">
                   {status === 'loading' ? 'Loading on this device' : 'Releasing this device'}
                 </p>
@@ -434,7 +443,7 @@ export default function JetsGhostExperience({
           'unload-error',
         ].includes(status) && (
           <main className="flex min-h-0 flex-1 flex-col">
-            {!hasConversation ? (
+            {showPreConversation ? (
               <div className="flex flex-1 items-center justify-center overflow-y-auto px-gutter py-m">
                 <div className="w-full max-w-3xl text-center">
                   <AnimatedGhost mode="ready" />
@@ -524,7 +533,7 @@ export default function JetsGhostExperience({
               </div>
             )}
 
-            {!hasConversation && ghost.state.error !== null && (
+            {showPreConversation && ghost.state.error !== null && (
               <div className="mx-auto w-full max-w-3xl px-gutter pb-s">
                 <ErrorRecovery
                   actionRef={errorActionRef}
@@ -551,6 +560,55 @@ export default function JetsGhostExperience({
         )}
       </div>
     </section>
+  );
+}
+
+function LifecycleCapsule({ status }: { status: JetsGhostLifecycleStatus }) {
+  const prefersReducedMotion = useReducedMotion();
+  const compactLabel = getLifecycleLabel(status);
+  const dotColor = status === 'ready'
+    ? 'bg-brand-base'
+    : status === 'generating' || status === 'loading'
+      ? 'bg-accent-base'
+      : 'bg-text-disabled';
+
+  return (
+    <div
+      data-testid="lifecycle-status-slot"
+      aria-hidden="true"
+      className="flex h-10 w-[7.5rem] shrink-0 items-center justify-end"
+    >
+      <div
+        data-testid="lifecycle-capsule"
+        className="inline-flex h-10 w-fit items-center gap-2xs rounded-full border border-border-default bg-surface-base px-xs text-xs font-medium text-text-secondary shadow-sm"
+      >
+        <span className={`h-2 w-2 shrink-0 rounded-full ${dotColor}`} />
+        <span className="grid h-4 overflow-hidden">
+          {prefersReducedMotion ? (
+            <span
+              data-testid="lifecycle-visual-label"
+              className="col-start-1 row-start-1 flex items-center whitespace-nowrap motion-reduce:transition-none"
+            >
+              {compactLabel}
+            </span>
+          ) : (
+            <AnimatePresence initial={false}>
+              <motion.span
+                data-testid="lifecycle-visual-label"
+                key={compactLabel}
+                className="col-start-1 row-start-1 flex items-center whitespace-nowrap motion-reduce:transition-none"
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
+                transition={{ duration: 0.16, ease: 'easeOut' }}
+              >
+                {compactLabel}
+              </motion.span>
+            </AnimatePresence>
+          )}
+        </span>
+      </div>
+    </div>
   );
 }
 

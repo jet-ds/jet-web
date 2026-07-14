@@ -628,6 +628,19 @@ Before activation, show this meaning in the site's voice:
 
 LiteRT-LM 0.14.0 does not expose an abort signal or trustworthy byte progress for WASM or model loading. Show an indeterminate loading state with elapsed time and model size; do not invent a percentage. If the visitor asks to stop during loading, mark the request, wait for the current pinned API call to settle, delete any engine that was created, call `unloadLiteRtLm()`, and never enter Ready. Generation cancellation remains immediate through `conversation.cancel()`.
 
+The header communicates lifecycle through a fixed `7.5rem` by `2.5rem` invisible status slot that remains the rightmost item and is sized for the longest approved compact state. The slot participates in layout and right-aligns a visible fit-content capsule. The visible capsule has no fixed or minimum width: its x position and width change naturally with the label, while its right edge remains anchored. This keeps slot x/y/width/height, capsule right edge, dot/text alignment, the brand block, and neighboring header-control anchors stable without leaving empty whitespace around **Ready**. The visual label is one of exactly six values and every lifecycle state maps deliberately:
+
+| Compact label | Internal lifecycle states |
+| --- | --- |
+| Not running | `idle`, `unsupported`, `load-error`, `unloading`, `unload-error` |
+| Checking | `checking-capabilities` |
+| Load ready | `awaiting-consent` |
+| Loading | `loading` |
+| Ready | `ready`, `generation-error`, `resetting`, `reset-error` |
+| Responding | `generating`, `cancelling` |
+
+The header never appends loading percentage text. Compact labels crossfade inside the natural-width capsule with outgoing and incoming layers in the same CSS-grid cell. Both remain intrinsic-width contributors until exit completes, preventing the longer outgoing label from being clipped before the capsule shrinks. Reduced-motion preference renders only the current normal-flow grid item and swaps immediately. This is a presentation mapping over the existing lifecycle, not a second state machine. The visual capsule is not a live region. A separate visually hidden polite live-region string comes from a pure mapping and announces fuller state language for all lifecycle states, including errors, cancellation, reset, and unload.
+
 ## Prompt and citation assembly
 
 The prompt assembler receives a `SelectionResult`, never a search implementation. It serializes selected sources as one canonical JSON array using `JSON.stringify`; every metadata and content field is a JSON string value, never raw template interpolation. Stable local citation keys remain `S1`, `S2`, and so on:
@@ -689,13 +702,13 @@ The approved full-viewport `/chatbot` experience moves through these visitor-fac
 7. **Recoverable error** — clear retry, reset, or unload action based on failure type.
 8. **Unsupported** — no broken input; source-navigation alternatives remain available.
 
-The composer remains the visual anchor. Suggested questions disappear after the first submitted message. User turns use the compact approved surface; assistant answers remain unboxed for long-form reading; citations and sources appear with the answer rather than in a permanent pre-conversation panel. Presentation helpers may evolve to reflect production lifecycle states, but integration must preserve the reviewed copy, ghost animation language, slate-blue/mustard color roles, responsive dock clearance, and Utopia typography/spacing from the approved prototype.
+The composer remains the visual anchor. Suggested questions disappear after the first submitted message, independently of completed turns, so a first-ever generation rollback cannot restore them. This current-session submission state resets only after `resetting -> ready` completes successfully or a visitor-requested Unload reaches `idle`; generation, reset, and unload failures preserve it. User turns use the compact approved surface; assistant answers remain unboxed for long-form reading; citations and sources appear with the answer rather than in a permanent pre-conversation panel. Presentation helpers may evolve to reflect production lifecycle states, but integration must preserve the reviewed copy, ghost animation language, slate-blue/mustard color roles, responsive dock clearance, and Utopia typography/spacing from the approved prototype.
 
 Accessibility requirements:
 
 - status changes use an appropriate live region without announcing every streamed token;
 - Stop, New session, and Unload are keyboard accessible;
-- focus returns predictably after load, cancellation, reset, and error recovery;
+- focus returns predictably after load, cancellation, reset, and error recovery; a successful requested Unload, including loading cancellation or cleanup-error recovery, focuses “Check compatibility,” while failed cleanup leaves focus on its error action;
 - model status is not communicated by color alone;
 - reduced motion disables nonessential loading and response animation;
 - touch targets follow the existing site standard;

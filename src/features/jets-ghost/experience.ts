@@ -10,6 +10,14 @@ export type GhostAnimationMode =
 
 export type ComposerActionTone = 'accent' | 'neutral' | 'stop';
 
+export type LifecycleCompactLabel =
+  | 'Not running'
+  | 'Checking'
+  | 'Load ready'
+  | 'Loading'
+  | 'Ready'
+  | 'Responding';
+
 export type LoadingPhase = 'corpus' | RuntimeLoadPhase;
 
 export function getComposerActionTone(
@@ -59,36 +67,71 @@ export function getLoadingStage(phase: LoadingPhase): string {
 
 export function getLifecycleLabel(
   lifecycle: JetsGhostLifecycleStatus,
-): string {
+): LifecycleCompactLabel {
   switch (lifecycle) {
     case 'idle':
       return 'Not running';
     case 'checking-capabilities':
-      return 'Checking this browser';
+      return 'Checking';
     case 'awaiting-consent':
-      return 'Ready to load';
+      return 'Load ready';
     case 'unsupported':
-      return 'Not supported';
+      return 'Not running';
     case 'loading':
-      return 'Loading locally';
+      return 'Loading';
     case 'load-error':
-      return 'Load interrupted';
+      return 'Not running';
     case 'ready':
       return 'Ready';
     case 'generating':
       return 'Responding';
     case 'cancelling':
-      return 'Stopping';
+      return 'Responding';
     case 'generation-error':
-      return 'Response interrupted';
+      return 'Ready';
     case 'resetting':
-      return 'Starting a new session';
+      return 'Ready';
     case 'reset-error':
-      return 'Session reset interrupted';
+      return 'Ready';
     case 'unloading':
-      return 'Unloading';
+      return 'Not running';
     case 'unload-error':
-      return 'Unload interrupted';
+      return 'Not running';
+  }
+}
+
+export function getLifecycleAnnouncement(
+  lifecycle: JetsGhostLifecycleStatus,
+): string {
+  switch (lifecycle) {
+    case 'idle':
+      return "Jet's Ghost is not running.";
+    case 'checking-capabilities':
+      return "Checking whether this browser can run Jet's Ghost.";
+    case 'awaiting-consent':
+      return "Compatibility check complete. Jet's Ghost is ready to load.";
+    case 'unsupported':
+      return "This browser cannot run Jet's Ghost.";
+    case 'loading':
+      return "Jet's Ghost is loading on this device.";
+    case 'load-error':
+      return "Jet's Ghost did not finish loading. Review the recovery action.";
+    case 'ready':
+      return "Jet's Ghost is ready.";
+    case 'generating':
+      return "Jet's Ghost is responding.";
+    case 'cancelling':
+      return 'Stopping the current response.';
+    case 'generation-error':
+      return 'The response was interrupted. Review the recovery action.';
+    case 'resetting':
+      return "Starting a new Jet's Ghost session.";
+    case 'reset-error':
+      return 'The new session did not start. Review the recovery action.';
+    case 'unloading':
+      return "Unloading Jet's Ghost from this device.";
+    case 'unload-error':
+      return "Jet's Ghost did not finish unloading. Review the recovery action.";
   }
 }
 

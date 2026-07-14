@@ -1059,6 +1059,26 @@ describe('useJetsGhost activation boundary', () => {
 });
 
 describe('JetsGhostExperience production composition', () => {
+  it('renders a fixed status slot, fit-content visual capsule, and separate full announcement', () => {
+    const harness = createHarness();
+    render(<JetsGhostExperience dependencies={harness.dependencies} />);
+
+    const slot = screen.getByTestId('lifecycle-status-slot');
+    const capsule = screen.getByTestId('lifecycle-capsule');
+    const announcement = screen.getByTestId('lifecycle-announcement');
+    expect(slot).toHaveClass('h-10', 'w-[7.5rem]', 'justify-end');
+    expect(slot.className).not.toMatch(/min-[wh]-/);
+    expect(slot).toHaveAttribute('aria-hidden', 'true');
+    expect(capsule).toHaveClass('w-fit');
+    expect(capsule.className).not.toMatch(/(?:^|\s)min-w-|w-\[/);
+    expect(capsule).not.toHaveAttribute('aria-live');
+    expect(within(capsule).getByTestId('lifecycle-visual-label')).toHaveTextContent('Not running');
+    expect(announcement).toHaveAttribute('role', 'status');
+    expect(announcement).toHaveAttribute('aria-live', 'polite');
+    expect(announcement).toHaveTextContent("Jet's Ghost is not running.");
+    expect(capsule).not.toHaveTextContent('%');
+  });
+
   it('keeps activation explicit, focuses the composer, and renders cited sources locally', async () => {
     const harness = createHarness({ responseChunks: ['Grounded answer [S1].'] });
     render(<JetsGhostExperience dependencies={harness.dependencies} />);
@@ -1129,6 +1149,55 @@ describe('JetsGhostExperience production composition', () => {
     expect(retryAssemblies[1]?.[1]).toEqual(priorTranscript);
   });
 
+  it('keeps suggestions dismissed after a first-ever generation failure and recovery', async () => {
+    const suggestion = 'What does Jet write about agentic work?';
+    const harness = createHarness({ generationFailuresBeforeSuccess: 1 });
+    render(<JetsGhostExperience dependencies={harness.dependencies} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Load Jet's Ghost/ }));
+    const composer = await screen.findByRole('textbox', { name: "Ask Jet's Ghost" });
+    expect(screen.getByText(suggestion)).toBeInTheDocument();
+
+    fireEvent.change(composer, { target: { value: 'First submitted question' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
+    const recovery = await screen.findByRole('button', { name: 'Try another question' });
+
+    await waitFor(() => expect(composer).toHaveValue('First submitted question'));
+    await waitFor(() => expect(recovery).toHaveFocus());
+    expect(screen.queryByText(suggestion)).not.toBeInTheDocument();
+
+    fireEvent.click(recovery);
+    await waitFor(() => expect(composer).toHaveFocus());
+    expect(screen.queryByText(suggestion)).not.toBeInTheDocument();
+  });
+
+  it('preserves the submitted-session surface through reset failure and clears it after reset succeeds', async () => {
+    const suggestion = 'What does Jet write about agentic work?';
+    const harness = createHarness({
+      generationFailuresBeforeSuccess: 1,
+      resetFailuresBeforeSuccess: 1,
+    });
+    render(<JetsGhostExperience dependencies={harness.dependencies} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Load Jet's Ghost/ }));
+    const composer = await screen.findByRole('textbox', { name: "Ask Jet's Ghost" });
+    fireEvent.change(composer, { target: { value: 'Reset only after success' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Try another question' }));
+    await waitFor(() => expect(composer).toHaveFocus());
+
+    fireEvent.click(screen.getByRole('button', { name: /New session/ }));
+    const retry = await screen.findByRole('button', { name: 'Retry new session' });
+    await waitFor(() => expect(retry).toHaveFocus());
+    expect(screen.queryByText(suggestion)).not.toBeInTheDocument();
+    expect(composer).toHaveValue('Reset only after success');
+
+    fireEvent.click(retry);
+    await screen.findByText(suggestion);
+    await waitFor(() => expect(composer).toHaveFocus());
+    expect(composer).toHaveValue('');
+  });
+
   it('returns recoverable load errors to consent and focuses the load action', async () => {
     const harness = createHarness({ repositoryFailuresBeforeSuccess: 1 });
     render(<JetsGhostExperience dependencies={harness.dependencies} />);
@@ -1153,7 +1222,8 @@ describe('JetsGhostExperience production composition', () => {
     await waitFor(() => expect(unload).toHaveFocus());
     fireEvent.click(unload);
 
-    await screen.findByRole('button', { name: 'Check compatibility' });
+    const checkCompatibility = await screen.findByRole('button', { name: 'Check compatibility' });
+    await waitFor(() => expect(checkCompatibility).toHaveFocus());
     expect(harness.order.slice(-4)).toEqual([
       'runtime.cancel',
       'runtime.reset',
@@ -1171,7 +1241,9 @@ describe('JetsGhostExperience production composition', () => {
     fireEvent.change(composer, { target: { value: 'Clear only after cleanup' } });
 
     fireEvent.click(screen.getByRole('button', { name: /Unload/ }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Check compatibility' }));
+    const checkCompatibility = await screen.findByRole('button', { name: 'Check compatibility' });
+    await waitFor(() => expect(checkCompatibility).toHaveFocus());
+    fireEvent.click(checkCompatibility);
     fireEvent.click(await screen.findByRole('button', { name: /Load Jet's Ghost/ }));
 
     expect(await screen.findByRole('textbox', { name: "Ask Jet's Ghost" })).toHaveValue('');
@@ -1186,9 +1258,53 @@ describe('JetsGhostExperience production composition', () => {
     fireEvent.change(composer, { target: { value: 'Preserve after cleanup failure' } });
 
     fireEvent.click(screen.getByRole('button', { name: /Unload/ }));
-    await screen.findByRole('button', { name: 'Retry unload' });
+    const retryUnload = await screen.findByRole('button', { name: 'Retry unload' });
+    await waitFor(() => expect(retryUnload).toHaveFocus());
 
     expect(composer).toHaveValue('Preserve after cleanup failure');
+  });
+
+  it('preserves the submitted-session surface through unload failure then focuses idle after recovery', async () => {
+    const suggestion = 'What does Jet write about agentic work?';
+    const harness = createHarness({
+      generationFailuresBeforeSuccess: 1,
+      resetFailuresBeforeSuccess: 1,
+    });
+    render(<JetsGhostExperience dependencies={harness.dependencies} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Load Jet's Ghost/ }));
+    const composer = await screen.findByRole('textbox', { name: "Ask Jet's Ghost" });
+    fireEvent.change(composer, { target: { value: 'Unload only after success' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Try another question' }));
+    await waitFor(() => expect(composer).toHaveFocus());
+
+    fireEvent.click(screen.getByRole('button', { name: /Unload/ }));
+    const retryUnload = await screen.findByRole('button', { name: 'Retry unload' });
+    await waitFor(() => expect(retryUnload).toHaveFocus());
+    expect(screen.queryByText(suggestion)).not.toBeInTheDocument();
+    expect(composer).toHaveValue('Unload only after success');
+
+    fireEvent.click(retryUnload);
+    const checkCompatibility = await screen.findByRole('button', { name: 'Check compatibility' });
+    await waitFor(() => expect(checkCompatibility).toHaveFocus());
+  });
+
+  it('focuses Check compatibility after cancelling an in-flight load', async () => {
+    const harness = createHarness({
+      repositoryLoad: (signal) => new Promise((_resolve, reject) => {
+        signal?.addEventListener('abort', () => {
+          reject(new DOMException('Aborted', 'AbortError'));
+        }, { once: true });
+      }),
+    });
+    render(<JetsGhostExperience dependencies={harness.dependencies} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Load Jet's Ghost/ }));
+
+    fireEvent.click(await screen.findByRole('button', { name: 'Cancel and unload' }));
+    const checkCompatibility = await screen.findByRole('button', { name: 'Check compatibility' });
+    await waitFor(() => expect(checkCompatibility).toHaveFocus());
   });
 
   it('keeps elapsed loading time outside the polite live region', async () => {
@@ -1198,8 +1314,9 @@ describe('JetsGhostExperience production composition', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
     fireEvent.click(await screen.findByRole('button', { name: /Load Jet's Ghost/ }));
 
-    const loadingStatus = await screen.findByRole('status', { name: '' });
+    const loadingStatus = await screen.findByTestId('lifecycle-announcement');
     const elapsed = screen.getByText(/Elapsed \d+s/);
+    expect(loadingStatus).toHaveTextContent("Jet's Ghost is loading on this device.");
     expect(within(loadingStatus).queryByText(/Elapsed/)).not.toBeInTheDocument();
     expect(elapsed).not.toHaveAttribute('aria-live');
 

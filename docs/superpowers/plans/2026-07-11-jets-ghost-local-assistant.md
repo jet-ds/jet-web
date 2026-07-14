@@ -1123,6 +1123,9 @@ git commit -m "feat(chatbot): run Gemma E2B with LiteRT-LM"
 - Modify: `tests/jets-ghost-experience.test.ts`
 - Create: `tests/unit/jets-ghost/useJetsGhost.test.tsx`
 - Modify: `playwright.config.ts`
+- Modify: `docs/jets-ghost-chat-experience.md`
+- Modify: `docs/superpowers/specs/2026-07-11-jets-ghost-local-assistant-design.md`
+- Modify: `docs/superpowers/plans/2026-07-11-jets-ghost-local-assistant.md`
 
 **Interfaces:**
 - Produces: production visitor activation, streaming, Stop, new session, Unload, errors, and response-local sources inside the approved `JetsGhostExperience`.
@@ -1176,7 +1179,7 @@ Unload/route cleanup cancels generation, calls `runtime.reset()` to delete the a
 
 - [ ] **Step 4: Replace prototype timers and canned data without redesigning the interface**
 
-Treat `docs/jets-ghost-chat-experience.md`, commit `d406ed46`, and the existing nine prototype tests as the presentation contract. Keep `JetsGhostExperience.tsx` as the composition root. Replace timer-driven compatibility/progress, canned conversation content, and simulated citations with `useJetsGhost()` state and actions. Reduce `experience.ts` to pure presentation mappings from production lifecycle state to ghost animation, loading phase, and composer tone; do not retain a second lifecycle state machine.
+Treat `docs/jets-ghost-chat-experience.md`, commit `d406ed46`, and the existing nine prototype tests as the presentation contract. Keep `JetsGhostExperience.tsx` as the composition root. Replace timer-driven compatibility/progress, canned conversation content, and simulated citations with `useJetsGhost()` state and actions. Reduce `experience.ts` to pure presentation mappings from production lifecycle state to ghost animation, loading phase, composer tone, one of the six exact compact labels, and a fuller lifecycle announcement; do not retain a second lifecycle state machine.
 
 Retain the approved disclosure before the load button:
 
@@ -1185,6 +1188,8 @@ Jet's Ghost runs Gemma 4 E2B in this browser. Starting it downloads about 2 GB a
 ```
 
 Use “Check compatibility” then “Load Jet's Ghost” as separate explicit actions. Preserve the final reviewed copy from the prototype where it is more specific than the generic sentence above. Unsupported state offers links to Blog and Works and no broken text input. Loading shows determinate progress only when the runtime provides trustworthy phase/byte data; otherwise preserve the phase language and elapsed time without simulated percentages.
+
+Keep the lifecycle status slot rightmost with fixed `7.5rem` inline size and fixed `2.5rem` height. The invisible slot participates in layout and right-aligns a visible fit-content capsule. Give that capsule no fixed or minimum width: **Ready** stays compact, longer labels grow leftward, and its right edge remains anchored while x/width change naturally. Its visible values are exactly **Not running**, **Checking**, **Load ready**, **Loading**, **Ready**, and **Responding**; map all lifecycle states deliberately and never append a percentage. Keep dot/text alignment fixed and crossfade the label with outgoing/incoming layers in one CSS-grid cell so both contribute intrinsic width until exit completes and the longer outgoing label is never clipped. Reduced motion renders only the current normal-flow grid item and swaps immediately; transition cleanup stays inside the presentation component. Render fuller `getLifecycleAnnouncement()` text in a separate visually hidden polite live region; the visual capsule is not itself live. Unit/design tests enumerate every lifecycle mapping, enforce the six-value allowlist, and inspect fixed slot geometry, fit-content capsule structure, overlapping intrinsic-width layers, live-region separation, no percentage, and reduced-motion behavior.
 
 - [ ] **Step 5: Preserve the approved chat composition and harden accessibility**
 
@@ -1199,11 +1204,11 @@ Requirements:
 - no empty permanent source panel before a response exists;
 - a `conversation-limit-reached` message explaining that the current session is full plus a clearly labeled “Start new session” button;
 - deterministic partial-response rule: cancellation retains the partial response labeled “Stopped”;
-- suggested questions disappear after the first message;
+- suggested questions disappear after the first submitted message even when a failed first generation rolls completed turns back to empty; current-session submission state resets only after successful New session or successful requested Unload and survives generation/reset/unload failure;
 - user turns retain the compact surface and assistant responses remain unboxed;
 - slate-blue ghost states and mustard action/progress/particle/citation roles remain unchanged;
 - Utopia desktop/mobile typography and spacing remain unchanged, including single-line ready heading/helper at `>=370px` and safe wrap below it;
-- focus moves to the input after load/New session and to the error action after failure;
+- focus moves to the input after load/New session and to the error action after failure; successful requested Unload, loading cancellation, and cleanup-error Unload recovery focus “Check compatibility,” while failed cleanup preserves session UI state and error-action focus;
 - reduced motion disables nonessential transitions.
 
 - [ ] **Step 6: Add a test-build-only fake runtime seam**
@@ -1374,6 +1379,8 @@ Open `/chatbot/?runtime=fake` in the test-only build and use the fake capability
 
 Assert button states and focus after each transition.
 
+Measure the fixed lifecycle status slot in **Not running**, **Loading**, **Ready**, and **Responding**. Require no more than `1px` difference in slot x, y, width, or height across those states. Record the brand-block anchor and each neighboring header-control anchor wherever that control is present, and require no state-label-driven shift. Measure the visible fit-content capsule separately: require its right edge to remain within `1px`, permit label-driven x/width changes, and prove natural sizing by requiring **Ready** to be narrower than **Responding** (or equivalent measured label-width evidence). Assert the exact six-label allowlist, no percentage suffix, the separate fuller polite live-region announcement, overlapping outgoing/incoming crossfade layers, and immediate reduced-motion replacement. This is the formal regression for the Task 8 capsule contract; Task 8's flagged browser pass is only ad hoc evidence and does not satisfy this Task 10 requirement.
+
 - [ ] **Step 3: Test cancellation and recovery**
 
 Start a slow fake stream, press Stop, assert one partial response marked “Stopped,” submit a second question, and assert the second response completes once. Verify each response's sources render directly beneath it and no empty permanent source panel exists before generation.
@@ -1399,7 +1406,7 @@ With the fake runtime loaded, cover route-away while ready and while streaming. 
 
 - [ ] **Step 7: Add axe and keyboard checks**
 
-Run axe on introduction, ready, response, and error states. Assert the live status region exists, streamed response is not itself `aria-live`, and all actions are keyboard reachable.
+Run axe on introduction, ready, response, and error states. Assert the separate fuller lifecycle status region exists, the compact visual capsule is not itself `aria-live`, streamed response is not itself `aria-live`, and all actions are keyboard reachable.
 
 Also assert `/chatbot/` owns exact canonical and `og:url` `https://jetsanchez.com/chatbot/`; its WebPage and SoftwareApplication IDs/URLs use that slashful base; it remains `noindex` during qualification; the dock/no-script/structured navigation contain Ghost href `/chatbot/` and not Tools; `/tools/` is noindexed; and neither route appears in the generated sitemap at this milestone. Extend `tests/e2e/site.spec.ts` so About, both retired `404`s, robots, sitemap XML, RSS exclusion, and HTML canonical/OG/JSON-LD agreement continue to pass after route integration. Keep exact production redirect status/destination for Task 13 because `astro preview` does not execute `vercel.json`.
 
