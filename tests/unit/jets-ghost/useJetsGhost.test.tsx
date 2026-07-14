@@ -114,6 +114,7 @@ class OrderedFakeRuntime extends FakeRuntime {
     resetFailuresBeforeSuccess = 0,
     capabilityReport?: CapabilityReport,
     loadErrorCode: 'engine-cleanup-failed' | null = null,
+    private readonly unloadWait?: Promise<void>,
   ) {
     super({
       testOnly: true,
@@ -188,6 +189,7 @@ class OrderedFakeRuntime extends FakeRuntime {
 
   override async unload(): Promise<void> {
     this.order.push('runtime.unload');
+    await this.unloadWait;
     await super.unload();
   }
 }
@@ -288,6 +290,7 @@ function createHarness(options: {
   capabilityReport?: CapabilityReport;
   loadErrorCode?: 'engine-cleanup-failed';
   repositoryLoad?: (signal?: AbortSignal) => Promise<LoadedKnowledgeBase>;
+  runtimeUnloadWait?: Promise<void>;
 } = {}) {
   const order: string[] = [];
   const source = selectedSource();
@@ -301,6 +304,7 @@ function createHarness(options: {
     options.resetFailuresBeforeSuccess,
     options.capabilityReport,
     options.loadErrorCode ?? null,
+    options.runtimeUnloadWait,
   );
   const knowledgeBase = {} as LoadedKnowledgeBase;
   let repositoryFailuresRemaining = options.repositoryFailuresBeforeSuccess ?? 0;
@@ -362,11 +366,18 @@ function createHarness(options: {
     extractValidCitations: vi.fn((
       response: string,
       sources: SelectedSource[],
-    ): ValidCitation[] => (
-      response.includes('[S1]') && sources[0] !== undefined
-        ? [{ id: 'S1' as const, source: sources[0] }]
-        : []
-    )),
+    ): ValidCitation[] => {
+      const seen = new Set<string>();
+      const citations: ValidCitation[] = [];
+      for (const match of response.matchAll(/\[(S\d+)\]/g)) {
+        const id = match[1] as `S${number}`;
+        const citedSource = sources.find((candidate) => candidate.citationId === id);
+        if (citedSource === undefined || seen.has(id)) continue;
+        seen.add(id);
+        citations.push({ id, source: citedSource });
+      }
+      return citations;
+    }),
     createTurnId: () => `turn-${++nextTurnId}`,
     now: () => 1_000,
   };
@@ -1130,7 +1141,7 @@ describe('JetsGhostExperience production composition', () => {
     expect([newSession.textContent, unload.textContent]).toEqual(readyLabels);
   });
 
-  it('keeps activation explicit, focuses the composer, and renders cited sources locally', async () => {
+  it('keeps activation explicit and exposes cited documents only through a collapsed disclosure', async () => {
     const harness = createHarness({ responseChunks: ['Grounded answer [S1].'] });
     render(<JetsGhostExperience dependencies={harness.dependencies} />);
 
@@ -1153,9 +1164,25 @@ describe('JetsGhostExperience production composition', () => {
     fireEvent.change(composer, { target: { value: 'What did Jet publish?' } });
     fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
     await screen.findByRole('link', { name: '[S1] Grounded source' });
+    const sourceTrigger = await screen.findByRole('button', { name: '1 source' });
 
     expect(screen.queryByText('What does Jet write about agentic work?')).not.toBeInTheDocument();
-    expect(screen.getAllByRole('link', { name: /Grounded source/ })).toHaveLength(2);
+    expect(sourceTrigger).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getAllByRole('link', { name: /Grounded source/ })).toHaveLength(1);
+    expect(screen.queryByRole('region', { name: 'Sources for this response' })).not.toBeInTheDocument();
+
+    sourceTrigger.focus();
+    fireEvent.click(sourceTrigger);
+    const sourceRegion = screen.getByRole('region', { name: 'Sources for this response' });
+    expect(sourceTrigger).toHaveAttribute('aria-expanded', 'true');
+    expect(sourceTrigger).toHaveAttribute('aria-controls', sourceRegion.id);
+    expect(within(sourceRegion).getByRole('list')).toBeInTheDocument();
+    expect(within(sourceRegion).getByRole('link', { name: '[S1] Grounded source' }))
+      .toBeInTheDocument();
+
+    fireEvent.click(sourceTrigger);
+    expect(sourceTrigger).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('region', { name: 'Sources for this response' })).not.toBeInTheDocument();
   });
 
   it('keeps the reliability disclosure through starter selection, removes it on submit, and restores it after reset', async () => {
@@ -1219,7 +1246,7 @@ describe('JetsGhostExperience production composition', () => {
     expect(composer).not.toHaveFocus();
   });
 
-  it('classifies Enter from a touch-focused composer as virtual-keyboard submission', async () => {
+  it('preserves touch modality through virtual-keyboard character input and Enter', async () => {
     const scheduler = new ManualScheduler();
     const harness = createHarness({ responseChunks: ['Answer [S1].'], scheduler });
     render(<JetsGhostExperience dependencies={harness.dependencies} />);
@@ -1230,6 +1257,7 @@ describe('JetsGhostExperience production composition', () => {
     const composer = await screen.findByRole('textbox', { name: "Ask Jet's Ghost" });
     fireEvent.pointerDown(composer, { pointerType: 'touch' });
     composer.focus();
+    fireEvent.keyDown(composer, { key: 'V', code: 'KeyV' });
     fireEvent.change(composer, { target: { value: 'Virtual keyboard send' } });
 
     fireEvent.keyDown(composer, { key: 'Enter' });
@@ -1256,11 +1284,10 @@ describe('JetsGhostExperience production composition', () => {
     const composer = await screen.findByRole('textbox', { name: "Ask Jet's Ghost" });
     fireEvent.pointerDown(composer, { pointerType: 'touch' });
     composer.focus();
+    fireEvent.keyDown(composer, { key: 'C', code: 'KeyC' });
     fireEvent.change(composer, { target: { value: 'Cancel this response' } });
-    const send = screen.getByRole('button', { name: 'Send message' });
-    fireEvent.pointerDown(send, { pointerType: 'touch' });
-    fireEvent.click(send);
-    composer.blur();
+    fireEvent.keyDown(composer, { key: 'Enter' });
+    expect(composer).not.toHaveFocus();
 
     await waitFor(() => expect(scheduler.pendingCount).toBe(1));
     act(() => scheduler.releaseNext());
@@ -1274,6 +1301,90 @@ describe('JetsGhostExperience production composition', () => {
     expect(await screen.findByText('Stopped')).toBeInTheDocument();
     expect(screen.getByText('Partial response remains.')).toBeInTheDocument();
     expect(composer).not.toHaveFocus();
+  });
+
+  it('keeps touch-origin virtual-keyboard recovery blurred after character input', async () => {
+    const harness = createHarness({ generationFailuresBeforeSuccess: 1 });
+    render(<JetsGhostExperience dependencies={harness.dependencies} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
+    const load = await screen.findByRole('button', { name: /Load Jet's Ghost/ });
+    fireEvent.pointerDown(load, { pointerType: 'touch' });
+    fireEvent.click(load);
+    const composer = await screen.findByRole('textbox', { name: "Ask Jet's Ghost" });
+    fireEvent.pointerDown(composer, { pointerType: 'touch' });
+    composer.focus();
+    fireEvent.keyDown(composer, { key: 'R', code: 'KeyR' });
+    fireEvent.change(composer, { target: { value: 'Recover without reopening the keyboard' } });
+    fireEvent.keyDown(composer, { key: 'Enter' });
+    expect(composer).not.toHaveFocus();
+
+    const recovery = await screen.findByRole('button', { name: 'Try another question' });
+    fireEvent.pointerDown(recovery, { pointerType: 'touch' });
+    fireEvent.click(recovery);
+    await waitFor(() => expect(screen.getByTestId('lifecycle-announcement')).toHaveTextContent(
+      "Jet's Ghost is ready.",
+    ));
+    expect(composer).not.toHaveFocus();
+  });
+
+  it('waits for the touch visual viewport to settle before final submit positioning', async () => {
+    const originalVisualViewport = Object.getOwnPropertyDescriptor(window, 'visualViewport');
+    let resizeListener: (() => void) | null = null;
+    const visualViewport = {
+      addEventListener: vi.fn((_type: string, listener: EventListenerOrEventListenerObject) => {
+        resizeListener = typeof listener === 'function'
+          ? () => listener(new Event('resize'))
+          : () => listener.handleEvent(new Event('resize'));
+      }),
+      removeEventListener: vi.fn(() => {
+        resizeListener = null;
+      }),
+    } as unknown as VisualViewport;
+    Object.defineProperty(window, 'visualViewport', {
+      configurable: true,
+      value: visualViewport,
+    });
+
+    try {
+      const scheduler = new ManualScheduler();
+      const harness = createHarness({ responseChunks: ['Settled response [S1].'], scheduler });
+      render(<JetsGhostExperience dependencies={harness.dependencies} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
+      const load = await screen.findByRole('button', { name: /Load Jet's Ghost/ });
+      fireEvent.pointerDown(load, { pointerType: 'touch' });
+      fireEvent.click(load);
+      const composer = await screen.findByRole('textbox', { name: "Ask Jet's Ghost" });
+      fireEvent.pointerDown(composer, { pointerType: 'touch' });
+      composer.focus();
+      fireEvent.keyDown(composer, { key: 'S', code: 'KeyS' });
+      fireEvent.change(composer, { target: { value: 'Settle after keyboard dismissal' } });
+      fireEvent.keyDown(composer, { key: 'Enter' });
+      expect(composer).not.toHaveFocus();
+
+      const scroller = await screen.findByTestId('conversation-scroller');
+      let assignedScrollTop = -1;
+      Object.defineProperty(scroller, 'scrollHeight', { configurable: true, value: 600 });
+      Object.defineProperty(scroller, 'scrollTop', {
+        configurable: true,
+        get: () => assignedScrollTop,
+        set: (value: number) => { assignedScrollTop = value; },
+      });
+      expect(assignedScrollTop).toBe(-1);
+      expect(resizeListener).not.toBeNull();
+
+      act(() => resizeListener?.());
+      await waitFor(() => expect(assignedScrollTop).toBe(600));
+      expect(visualViewport.removeEventListener).toHaveBeenCalledWith(
+        'resize',
+        expect.any(Function),
+      );
+    } finally {
+      if (originalVisualViewport === undefined) {
+        Reflect.deleteProperty(window, 'visualViewport');
+      } else {
+        Object.defineProperty(window, 'visualViewport', originalVisualViewport);
+      }
+    }
   });
 
   it('retains focus for desktop keyboard Load, hardware Enter, completion, and New session', async () => {
@@ -1308,7 +1419,7 @@ describe('JetsGhostExperience production composition', () => {
     await waitFor(() => expect(composer).toHaveFocus());
   });
 
-  it('keeps late streamed tokens visible in the conversation scroller without stealing focus', async () => {
+  it('sticky-follows delayed streamed tokens through completion without stealing keyboard focus', async () => {
     const scheduler = new ManualScheduler();
     const harness = createHarness({
       responseChunks: ['First late token. ', 'Final late token [S1].'],
@@ -1343,7 +1454,59 @@ describe('JetsGhostExperience production composition', () => {
     expect(composer).toHaveFocus();
   });
 
-  it('renders document footer items only for cited sources', async () => {
+  it('suspends sticky follow after manual scroll-away and restores it on demand or at bottom', async () => {
+    const scheduler = new ManualScheduler();
+    const harness = createHarness({
+      responseChunks: ['First overflow chunk. ', 'Second unseen chunk. ', 'Final chunk [S1].'],
+      scheduler,
+    });
+    render(<JetsGhostExperience dependencies={harness.dependencies} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Load Jet's Ghost/ }));
+    const composer = await screen.findByRole('textbox', { name: "Ask Jet's Ghost" });
+    fireEvent.change(composer, { target: { value: 'Stream enough content to overflow' } });
+    fireEvent.keyDown(composer, { key: 'Enter' });
+    const scroller = await screen.findByTestId('conversation-scroller');
+    let assignedScrollTop = 700;
+    Object.defineProperty(scroller, 'clientHeight', { configurable: true, value: 200 });
+    Object.defineProperty(scroller, 'scrollHeight', { configurable: true, value: 900 });
+    Object.defineProperty(scroller, 'scrollTop', {
+      configurable: true,
+      get: () => assignedScrollTop,
+      set: (value: number) => { assignedScrollTop = value; },
+    });
+
+    await waitFor(() => expect(scheduler.pendingCount).toBe(1));
+    act(() => scheduler.releaseNext());
+    await screen.findByText('First overflow chunk.');
+    await waitFor(() => expect(assignedScrollTop).toBe(900));
+
+    assignedScrollTop = 200;
+    fireEvent.scroll(scroller);
+    await waitFor(() => expect(scheduler.pendingCount).toBe(1));
+    act(() => scheduler.releaseNext());
+    await screen.findByText(/Second unseen chunk/);
+    expect(assignedScrollTop).toBe(200);
+    const jumpToLatest = await screen.findByRole('button', { name: 'Jump to latest' });
+    expect(jumpToLatest).toHaveClass('min-h-11');
+    expect(jumpToLatest).not.toHaveFocus();
+    expect(composer).toHaveFocus();
+
+    fireEvent.click(jumpToLatest);
+    expect(assignedScrollTop).toBe(900);
+    expect(screen.queryByRole('button', { name: 'Jump to latest' })).not.toBeInTheDocument();
+    expect(composer).toHaveFocus();
+
+    assignedScrollTop = 700;
+    fireEvent.scroll(scroller);
+    await waitFor(() => expect(scheduler.pendingCount).toBe(1));
+    act(() => scheduler.releaseNext());
+    await screen.findByRole('link', { name: '[S1] Grounded source' });
+    await waitFor(() => expect(assignedScrollTop).toBe(900));
+    expect(screen.queryByRole('button', { name: 'Jump to latest' })).not.toBeInTheDocument();
+  });
+
+  it('keeps uncited packed context out of a one-source disclosure', async () => {
     const cited = selectedSource();
     const uncitedSecond = {
       ...selectedSource(),
@@ -1370,12 +1533,20 @@ describe('JetsGhostExperience production composition', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
 
     await screen.findByRole('link', { name: '[S1] Grounded source' });
-    expect(screen.getAllByRole('link', { name: /Grounded source/ })).toHaveLength(2);
+    const sourceTrigger = await screen.findByRole('button', { name: '1 source' });
+    expect(sourceTrigger).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('region', { name: 'Sources for this response' })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Uncited second source/ })).not.toBeInTheDocument();
     expect(screen.queryByRole('link', { name: /Uncited third source/ })).not.toBeInTheDocument();
+
+    fireEvent.click(sourceTrigger);
+    const sourceRegion = screen.getByRole('region', { name: 'Sources for this response' });
+    expect(within(sourceRegion).getAllByRole('link')).toHaveLength(1);
+    expect(within(sourceRegion).getByRole('link', { name: '[S1] Grounded source' }))
+      .toBeInTheDocument();
   });
 
-  it('keeps a long cited-source title complete while CSS clamps its rendered span', async () => {
+  it('wraps a complete long source title without truncation or clamping', async () => {
     const longTitle = 'The Recursive Convergence Hypothesis: Emergent Sentience as a Structural Attractor of Recursive ASI';
     const longTitleSource = {
       ...selectedSource(),
@@ -1393,27 +1564,137 @@ describe('JetsGhostExperience production composition', () => {
     fireEvent.change(composer, { target: { value: 'Use the long source title' } });
     fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
 
-    const footerLink = await screen.findByRole('link', { name: `1 · ${longTitle}` });
-    expect(footerLink).toHaveAttribute('title', longTitle);
-    expect(footerLink).toHaveClass(
-      'inline-flex',
-      'max-w-full',
-      'min-w-0',
-      'items-start',
-      'focus:ring-2',
-    );
-    const prefix = within(footerLink).getByTestId('response-source-prefix');
-    const title = within(footerLink).getByTestId('response-source-title');
-    expect(prefix).toHaveTextContent('1 ·');
-    expect(prefix).toHaveClass('shrink-0');
+    const sourceTrigger = await screen.findByRole('button', { name: '1 source' });
+    fireEvent.click(sourceTrigger);
+    const sourceRegion = screen.getByRole('region', { name: 'Sources for this response' });
+    const sourceLink = within(sourceRegion).getByRole('link', { name: `[S1] ${longTitle}` });
+    const title = within(sourceLink).getByText(longTitle);
     expect(title).toHaveTextContent(longTitle);
-    expect(title).toHaveClass(
-      'min-w-0',
-      'overflow-hidden',
-      'line-clamp-2',
-      'min-[768px]:[@media(pointer:fine)]:line-clamp-1',
-    );
+    expect(title).toHaveClass('min-w-0', 'break-words', '[overflow-wrap:anywhere]');
+    expect(title.className).not.toMatch(/line-clamp|truncate|overflow-hidden/);
     expect(title.textContent).toBe(longTitle);
+    expect(sourceLink.className).not.toMatch(/rounded-full/);
+  });
+
+  it('deduplicates multiple cited documents in first-citation order inside the disclosure', async () => {
+    const sharedDocumentUrl = 'https://jetsanchez.com/works/shared-document/';
+    const laterSharedChunk = {
+      ...selectedSource(),
+      citationId: 'S1' as const,
+      title: 'Same document, later citation',
+      canonicalUrl: sharedDocumentUrl,
+    };
+    const firstSharedChunk = {
+      ...selectedSource(),
+      citationId: 'S2' as const,
+      title: 'Same document, first cited chunk',
+      canonicalUrl: sharedDocumentUrl,
+    };
+    const secondDocument = {
+      ...selectedSource(),
+      citationId: 'S3' as const,
+      title: 'Second cited document',
+      canonicalUrl: 'https://jetsanchez.com/blog/second-cited/',
+    };
+    const uncitedDocument = {
+      ...selectedSource(),
+      citationId: 'S4' as const,
+      title: 'Uncited packed document',
+      canonicalUrl: 'https://jetsanchez.com/blog/uncited-packed/',
+    };
+    const harness = createHarness({
+      responseChunks: ['Supported by the first chunk [S2], then another document [S3], and the same document again [S1].'],
+      selection: selection([
+        laterSharedChunk,
+        firstSharedChunk,
+        secondDocument,
+        uncitedDocument,
+      ]),
+    });
+    render(<JetsGhostExperience dependencies={harness.dependencies} />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Load Jet's Ghost/ }));
+    const composer = await screen.findByRole('textbox', { name: "Ask Jet's Ghost" });
+    fireEvent.change(composer, { target: { value: 'Use multiple sources' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
+
+    const sourceTrigger = await screen.findByRole('button', { name: '2 sources' });
+    expect(sourceTrigger).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(sourceTrigger);
+    const sourceRegion = screen.getByRole('region', { name: 'Sources for this response' });
+    const sourceLinks = within(sourceRegion).getAllByRole('link');
+    expect(sourceLinks).toHaveLength(2);
+    expect(sourceLinks.map((link) => link.getAttribute('aria-label'))).toEqual([
+      '[S2] Same document, first cited chunk',
+      '[S3] Second cited document',
+    ]);
+    expect(within(sourceRegion).queryByText('Same document, later citation')).not.toBeInTheDocument();
+    expect(within(sourceRegion).queryByText('Uncited packed document')).not.toBeInTheDocument();
+  });
+
+  it('renders no source disclosure for a completed response with zero validated citations', async () => {
+    const harness = createHarness({ responseChunks: ['Answer without a citation.'] });
+    render(<JetsGhostExperience dependencies={harness.dependencies} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Load Jet's Ghost/ }));
+    const composer = await screen.findByRole('textbox', { name: "Ask Jet's Ghost" });
+    fireEvent.change(composer, { target: { value: 'Answer without sources' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
+
+    await screen.findByText('Answer without a citation.');
+    expect(screen.queryByRole('button', { name: /sources?/ })).not.toBeInTheDocument();
+    expect(screen.queryByTestId('response-source-disclosure')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('response-source-footer')).not.toBeInTheDocument();
+  });
+
+  it('waits for completion before showing sources and keeps a cited stopped response collapsed', async () => {
+    const scheduler = new ManualScheduler();
+    const harness = createHarness({
+      responseChunks: ['Partial cited response [S1]. ', 'Never emitted.'],
+      scheduler,
+    });
+    render(<JetsGhostExperience dependencies={harness.dependencies} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Load Jet's Ghost/ }));
+    const composer = await screen.findByRole('textbox', { name: "Ask Jet's Ghost" });
+    fireEvent.change(composer, { target: { value: 'Stop after a cited chunk' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
+
+    await waitFor(() => expect(scheduler.pendingCount).toBe(1));
+    act(() => scheduler.releaseNext());
+    await screen.findByText(/Partial cited response/);
+    expect(screen.queryByRole('button', { name: /sources?/ })).not.toBeInTheDocument();
+    await waitFor(() => expect(scheduler.pendingCount).toBe(1));
+    fireEvent.click(screen.getByRole('button', { name: 'Stop response' }));
+    act(() => scheduler.releaseNext());
+
+    expect(await screen.findByText('Stopped')).toBeInTheDocument();
+    const sourceTrigger = await screen.findByRole('button', { name: '1 source' });
+    expect(sourceTrigger).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.queryByRole('region', { name: 'Sources for this response' })).not.toBeInTheDocument();
+  });
+
+  it('keeps expansion state local to each completed assistant response', async () => {
+    const harness = createHarness({ responseChunks: ['Grounded answer [S1].'] });
+    render(<JetsGhostExperience dependencies={harness.dependencies} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Load Jet's Ghost/ }));
+    const composer = await screen.findByRole('textbox', { name: "Ask Jet's Ghost" });
+
+    fireEvent.change(composer, { target: { value: 'First response' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
+    const firstTrigger = await screen.findByRole('button', { name: '1 source' });
+    fireEvent.click(firstTrigger);
+    expect(firstTrigger).toHaveAttribute('aria-expanded', 'true');
+
+    fireEvent.change(composer, { target: { value: 'Second response' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
+    await waitFor(() => expect(screen.getAllByRole('button', { name: '1 source' })).toHaveLength(2));
+    const [first, second] = screen.getAllByRole('button', { name: '1 source' });
+    expect(first).toHaveAttribute('aria-expanded', 'true');
+    expect(second).toHaveAttribute('aria-expanded', 'false');
+    expect(screen.getAllByRole('region', { name: 'Sources for this response' })).toHaveLength(1);
   });
 
   it('restores one failed question for an explicit retry without rendering the failed pair', async () => {
@@ -1603,21 +1884,21 @@ describe('JetsGhostExperience production composition', () => {
     await waitFor(() => expect(checkCompatibility).toHaveFocus());
   });
 
-  it('focuses Check compatibility after cancelling an in-flight load', async () => {
+  it('shows changing liveness without offering a dishonest cancel action during load', async () => {
+    const activation = createDeferred<LoadedKnowledgeBase>();
     const harness = createHarness({
-      repositoryLoad: (signal) => new Promise((_resolve, reject) => {
-        signal?.addEventListener('abort', () => {
-          reject(new DOMException('Aborted', 'AbortError'));
-        }, { once: true });
-      }),
+      repositoryLoad: () => activation.promise,
     });
-    render(<JetsGhostExperience dependencies={harness.dependencies} />);
+    const view = render(<JetsGhostExperience dependencies={harness.dependencies} />);
     fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
     fireEvent.click(await screen.findByRole('button', { name: /Load Jet's Ghost/ }));
 
-    fireEvent.click(await screen.findByRole('button', { name: 'Cancel and unload' }));
-    const checkCompatibility = await screen.findByRole('button', { name: 'Check compatibility' });
-    await waitFor(() => expect(checkCompatibility).toHaveFocus());
+    expect(await screen.findByText('Preparing the local assistant')).toBeInTheDocument();
+    expect(screen.getByTestId('loading-liveness-indicator')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /cancel|unload/i })).not.toBeInTheDocument();
+
+    view.unmount();
+    activation.resolve({} as LoadedKnowledgeBase);
   });
 
   it('keeps elapsed loading time outside the polite live region', async () => {
@@ -1635,5 +1916,24 @@ describe('JetsGhostExperience production composition', () => {
 
     view.unmount();
     activation.resolve({} as LoadedKnowledgeBase);
+  });
+
+  it('keeps elapsed cleanup time moving while post-load unload is pending', async () => {
+    const unloadWait = createDeferred<void>();
+    const harness = createHarness({ runtimeUnloadWait: unloadWait.promise });
+    render(<JetsGhostExperience dependencies={harness.dependencies} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Load Jet's Ghost/ }));
+    await screen.findByRole('textbox', { name: "Ask Jet's Ghost" });
+
+    fireEvent.click(screen.getByRole('button', { name: /^Unload/ }));
+    expect(await screen.findByText('Elapsed 0s')).toBeInTheDocument();
+    await act(async () => {
+      await new Promise((resolve) => window.setTimeout(resolve, 1_100));
+    });
+    expect(screen.getByText(/Elapsed [1-9]\d*s/)).toBeInTheDocument();
+
+    unloadWait.resolve();
+    expect(await screen.findByRole('button', { name: 'Check compatibility' })).toBeInTheDocument();
   });
 });

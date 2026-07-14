@@ -1,6 +1,8 @@
 import {
+  ArrowDown,
   ArrowRight,
   ArrowUp,
+  ChevronDown,
   CircleStop,
   CloudOff,
   Ghost,
@@ -12,12 +14,14 @@ import {
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
   useEffect,
+  useId,
   useMemo,
   useRef,
   useState,
   type FormEvent,
   type KeyboardEvent,
   type PointerEvent as ReactPointerEvent,
+  type UIEvent,
 } from 'react';
 
 import { JETS_GHOST_CONTEXT } from './config';
@@ -28,7 +32,7 @@ import {
   getGhostAnimationMode,
   getLifecycleAnnouncement,
   getLifecycleLabel,
-  getLoadingStage,
+  getLoadingLivenessMessage,
   shouldFocusComposer,
   type GhostAnimationMode,
 } from './experience';
@@ -60,6 +64,24 @@ type JetsGhostE2EWindow = Window & {
 };
 
 type InteractionModality = 'keyboard' | 'mouse' | 'touch' | 'pen';
+
+const STICKY_FOLLOW_THRESHOLD_PX = 48;
+
+function isNearConversationBottom(scroller: HTMLElement): boolean {
+  return scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight
+    <= STICKY_FOLLOW_THRESHOLD_PX;
+}
+
+function scrollConversationToLatest(
+  scroller: HTMLElement,
+  behavior: ScrollBehavior,
+): void {
+  if (behavior === 'smooth' && typeof scroller.scrollTo === 'function') {
+    scroller.scrollTo({ top: scroller.scrollHeight, behavior });
+    return;
+  }
+  scroller.scrollTop = scroller.scrollHeight;
+}
 
 function waitForSlowFakeChunk(): Promise<void> {
   return new Promise((resolve) => {
@@ -137,6 +159,8 @@ export default function JetsGhostExperience({
   const [draft, setDraft] = useState('');
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [hasSubmittedInSession, setHasSubmittedInSession] = useState(false);
+  const [hasUnseenContent, setHasUnseenContent] = useState(false);
+  const prefersReducedMotion = useReducedMotion();
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const conversationScrollerRef = useRef<HTMLDivElement>(null);
   const conversationEndRef = useRef<HTMLDivElement>(null);
@@ -150,6 +174,9 @@ export default function JetsGhostExperience({
   const composerFocusModalityRef = useRef<InteractionModality>('keyboard');
   const readyFocusModalityRef = useRef<InteractionModality>('keyboard');
   const messageSubmissionModalityRef = useRef<InteractionModality>('keyboard');
+  const stickyFollowRef = useRef(true);
+  const pendingSubmissionFollowRef = useRef(false);
+  const submissionFollowCleanupRef = useRef<(() => void) | null>(null);
 
   const status = ghost.state.lifecycle.status;
   const hasConversation = ghost.state.turns.length > 0;
@@ -174,7 +201,7 @@ export default function JetsGhostExperience({
     );
   const canUnload = showHeaderActions && status !== 'unloading';
   const ghostAnimationMode = getGhostAnimationMode(status);
-  const loadingStage = getLoadingStage(ghost.loading?.phase ?? 'corpus');
+  const loadingLivenessMessage = getLoadingLivenessMessage(elapsedSeconds);
 
   useEffect(() => {
     const previousStatus = previousStatusRef.current;
@@ -216,24 +243,44 @@ export default function JetsGhostExperience({
   }, [status]);
 
   useEffect(() => {
+    if (ghost.state.turns.length === 0) {
+      stickyFollowRef.current = true;
+      setHasUnseenContent(false);
+      return;
+    }
     const scroller = conversationScrollerRef.current;
-    if (scroller === null || conversationEndRef.current === null) return;
-    scroller.scrollTop = scroller.scrollHeight;
+    if (
+      scroller === null
+      || conversationEndRef.current === null
+      || pendingSubmissionFollowRef.current
+    ) return;
+    if (stickyFollowRef.current) {
+      scrollConversationToLatest(scroller, 'auto');
+    } else {
+      setHasUnseenContent(true);
+    }
   }, [ghost.state.turns]);
 
+  useEffect(() => () => {
+    submissionFollowCleanupRef.current?.();
+  }, []);
+
   useEffect(() => {
-    if (status !== 'loading' || ghost.loading === null) {
+    if (status !== 'loading' && status !== 'unloading') {
       setElapsedSeconds(0);
       return;
     }
+    const startedAt = status === 'loading' && ghost.loading !== null
+      ? ghost.loading.startedAt
+      : performance.now();
     const updateElapsed = () => setElapsedSeconds(Math.max(
       0,
-      Math.floor((performance.now() - ghost.loading!.startedAt) / 1_000),
+      Math.floor((performance.now() - startedAt) / 1_000),
     ));
     updateElapsed();
     const interval = window.setInterval(updateElapsed, 1_000);
     return () => window.clearInterval(interval);
-  }, [ghost.loading, status]);
+  }, [ghost.loading?.startedAt, status]);
 
   useEffect(() => {
     if (ghost.state.error === null) return;
@@ -258,16 +305,77 @@ export default function JetsGhostExperience({
 
   const handleStop = () => ghost.stop();
 
+  const scrollToLatest = (behavior: ScrollBehavior = 'auto') => {
+    const scroller = conversationScrollerRef.current;
+    if (scroller === null || conversationEndRef.current === null) return;
+    scrollConversationToLatest(scroller, behavior);
+  };
+
+  const scheduleSubmissionFollow = (modality: InteractionModality) => {
+    submissionFollowCleanupRef.current?.();
+    pendingSubmissionFollowRef.current = true;
+    let cancelled = false;
+    let finishedWaiting = false;
+    let firstFrame = 0;
+    let secondFrame = 0;
+    let settleTimer = 0;
+    const viewport = modality === 'touch' || modality === 'pen'
+      ? window.visualViewport ?? null
+      : null;
+
+    const removeViewportWait = () => {
+      if (settleTimer !== 0) window.clearTimeout(settleTimer);
+      viewport?.removeEventListener('resize', queueAfterViewportSettles);
+    };
+    const completeAfterFrames = () => {
+      firstFrame = requestAnimationFrame(() => {
+        secondFrame = requestAnimationFrame(() => {
+          if (cancelled) return;
+          pendingSubmissionFollowRef.current = false;
+          scrollToLatest('auto');
+        });
+      });
+    };
+    const finishViewportWait = () => {
+      if (finishedWaiting || cancelled) return;
+      finishedWaiting = true;
+      removeViewportWait();
+      completeAfterFrames();
+    };
+    function queueAfterViewportSettles() {
+      if (settleTimer !== 0) window.clearTimeout(settleTimer);
+      settleTimer = window.setTimeout(finishViewportWait, 80);
+    }
+
+    if (viewport !== null) {
+      viewport.addEventListener('resize', queueAfterViewportSettles);
+      settleTimer = window.setTimeout(finishViewportWait, 320);
+    } else {
+      completeAfterFrames();
+    }
+
+    submissionFollowCleanupRef.current = () => {
+      cancelled = true;
+      removeViewportWait();
+      if (firstFrame !== 0) cancelAnimationFrame(firstFrame);
+      if (secondFrame !== 0) cancelAnimationFrame(secondFrame);
+      pendingSubmissionFollowRef.current = false;
+    };
+  };
+
   const sendMessage = (question: string) => {
     const cleanQuestion = question.trim();
     if (!cleanQuestion || status !== 'ready') return;
     const submissionModality = lastInteractionModalityRef.current;
     messageSubmissionModalityRef.current = submissionModality;
     if (submissionModality !== 'keyboard') inputRef.current?.blur();
+    stickyFollowRef.current = true;
+    setHasUnseenContent(false);
     lastSubmittedRef.current = cleanQuestion;
     setHasSubmittedInSession(true);
     setDraft('');
     void ghost.sendMessage(cleanQuestion);
+    scheduleSubmissionFollow(submissionModality);
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -298,15 +406,31 @@ export default function JetsGhostExperience({
   };
 
   const handleInteractionKeyDownCapture = (event: KeyboardEvent<HTMLElement>) => {
-    const isTouchOriginComposerEnter = event.target === inputRef.current
-      && event.key === 'Enter'
+    const isTouchOriginComposerKeyDown = event.target === inputRef.current
       && (
         composerFocusModalityRef.current === 'touch'
         || composerFocusModalityRef.current === 'pen'
       );
-    if (!isTouchOriginComposerEnter) {
+    if (!isTouchOriginComposerKeyDown) {
       lastInteractionModalityRef.current = 'keyboard';
     }
+  };
+
+  const handleConversationScroll = (event: UIEvent<HTMLDivElement>) => {
+    if (isNearConversationBottom(event.currentTarget)) {
+      stickyFollowRef.current = true;
+      setHasUnseenContent(false);
+      return;
+    }
+    if (status === 'generating' || status === 'cancelling') {
+      stickyFollowRef.current = false;
+    }
+  };
+
+  const handleJumpToLatest = () => {
+    stickyFollowRef.current = true;
+    setHasUnseenContent(false);
+    scrollToLatest(prefersReducedMotion ? 'auto' : 'smooth');
   };
 
   return (
@@ -392,7 +516,7 @@ export default function JetsGhostExperience({
                 </span>
                 <span className="inline-flex items-center justify-center gap-3xs whitespace-nowrap">
                   <Unplug aria-hidden="true" size={15} />
-                  Unload anytime
+                  Session only
                 </span>
               </div>
 
@@ -501,31 +625,32 @@ export default function JetsGhostExperience({
           <main className="flex flex-1 items-center justify-center px-gutter py-m">
             <div className="w-full max-w-xl text-center">
               <AnimatedGhost mode="loading" />
-              <div>
+              <div
+                role={status === 'loading' ? 'status' : undefined}
+                aria-live={status === 'loading' ? 'polite' : undefined}
+                aria-atomic={status === 'loading' ? 'true' : undefined}
+              >
                 <p className="mb-2xs font-mono text-xs uppercase tracking-[0.16em] text-brand-text">
                   {status === 'loading' ? 'Loading on this device' : 'Releasing this device'}
                 </p>
                 <h1 className="text-3xl font-bold text-text-primary">
-                  {status === 'loading' ? loadingStage : 'Letting the ghost rest'}
+                  {status === 'loading' ? loadingLivenessMessage : 'Letting the ghost rest'}
                 </h1>
               </div>
               <p className="mt-xs text-xs text-text-tertiary">
                 Elapsed {elapsedSeconds}s
               </p>
-              <div className="mt-l h-2 overflow-hidden rounded-full bg-bg-ui">
-                <div
-                  className="h-full w-1/3 animate-pulse rounded-full bg-accent-base motion-reduce:animate-none"
+              <div className="mt-l h-2 overflow-hidden rounded-full bg-bg-ui" aria-hidden="true">
+                <motion.div
+                  data-testid="loading-liveness-indicator"
+                  className="h-full w-1/3 rounded-full bg-accent-base"
+                  initial={prefersReducedMotion ? false : { x: '-100%' }}
+                  animate={prefersReducedMotion ? { x: '0%' } : { x: ['-100%', '300%'] }}
+                  transition={prefersReducedMotion
+                    ? { duration: 0 }
+                    : { duration: 1.6, ease: 'easeInOut', repeat: Infinity }}
                 />
               </div>
-              {status === 'loading' && (
-                <button
-                  type="button"
-                  onClick={handleUnload}
-                  className="mt-m inline-flex min-h-11 items-center justify-center rounded-xl border border-border-strong bg-surface-base px-m text-sm font-semibold text-text-primary shadow-sm transition-colors hover:border-brand-base hover:bg-bg-subtle focus:outline-none focus:ring-2 focus:ring-brand-base"
-                >
-                  Cancel and unload
-                </button>
-              )}
             </div>
           </main>
         )}
@@ -566,13 +691,15 @@ export default function JetsGhostExperience({
                 </div>
               </div>
             ) : (
-              <div
-                ref={conversationScrollerRef}
-                data-testid="conversation-scroller"
-                className="min-h-0 flex-1 overflow-y-auto px-gutter py-m"
-                aria-label="Conversation"
-              >
-                <div className="mx-auto flex w-full max-w-3xl flex-col gap-l pb-l">
+              <div className="relative min-h-0 flex-1">
+                <div
+                  ref={conversationScrollerRef}
+                  data-testid="conversation-scroller"
+                  className="h-full min-h-0 overflow-y-auto px-gutter py-m"
+                  aria-label="Conversation"
+                  onScroll={handleConversationScroll}
+                >
+                  <div className="mx-auto flex w-full max-w-3xl flex-col gap-l pb-l">
                   {ghost.state.turns.map((turn) => (
                     <article
                       key={turn.id}
@@ -599,7 +726,7 @@ export default function JetsGhostExperience({
                           </div>
                         ) : null}
                         {turn.role === 'assistant' && turn.content && (
-                          <ResponseSourceFooter turn={turn} />
+                          <ResponseDetails turn={turn} />
                         )}
                       </div>
                     </article>
@@ -615,13 +742,26 @@ export default function JetsGhostExperience({
                       onRetryUnload={handleUnload}
                     />
                   )}
-                  <div
-                    ref={conversationEndRef}
-                    data-testid="conversation-end-sentinel"
-                    className="h-px w-full shrink-0"
-                    aria-hidden="true"
-                  />
+                    <div
+                      ref={conversationEndRef}
+                      data-testid="conversation-end-sentinel"
+                      className="h-px w-full shrink-0"
+                      aria-hidden="true"
+                    />
+                  </div>
                 </div>
+                {hasUnseenContent && (
+                  <div className="pointer-events-none absolute inset-x-0 bottom-2xs flex justify-center px-gutter">
+                    <button
+                      type="button"
+                      onClick={handleJumpToLatest}
+                      className="pointer-events-auto inline-flex min-h-11 items-center gap-2xs rounded-full border border-border-strong bg-surface-base px-s text-sm font-medium text-text-primary shadow-sm transition-colors hover:bg-bg-hover focus:outline-none focus:ring-2 focus:ring-brand-base focus:ring-offset-2 focus:ring-offset-bg-base"
+                    >
+                      <ArrowDown aria-hidden="true" size={15} />
+                      Jump to latest
+                    </button>
+                  </div>
+                )}
               </div>
             )}
 
@@ -732,41 +872,72 @@ function CitedResponse({ turn }: { turn: ConversationTurn }) {
   );
 }
 
-function ResponseSourceFooter({ turn }: { turn: ConversationTurn }) {
+function ResponseDetails({ turn }: { turn: ConversationTurn }) {
   const citedDocumentSources = getCitedDocumentSources(turn.citations);
+  const [isExpanded, setIsExpanded] = useState(false);
+  const disclosureId = useId();
 
   if (!(citedDocumentSources.length > 0 || turn.stopped)) return null;
 
+  const sourceCount = citedDocumentSources.length;
+  const sourceLabel = `${sourceCount} ${sourceCount === 1 ? 'source' : 'sources'}`;
+
   return (
     <div
-      data-testid="response-source-footer"
-      className="mt-s flex flex-wrap items-center gap-2xs text-xs text-text-tertiary"
+      data-testid="response-details"
+      className="mt-s flex min-w-0 flex-col items-start gap-2xs text-sm text-text-tertiary"
     >
-      {citedDocumentSources.map(({ id, source }) => (
-        <a
-          key={source.canonicalUrl}
-          href={source.canonicalUrl}
-          target="_blank"
-          rel="noopener noreferrer"
-          aria-label={`${id.slice(1)} · ${source.title}`}
-          title={source.title}
-          className="inline-flex max-w-full min-w-0 items-start gap-3xs rounded-full border border-border-default bg-surface-base px-xs py-3xs text-left transition-colors hover:border-accent-base hover:bg-accent-subtle focus:outline-none focus:ring-2 focus:ring-accent-base focus:ring-offset-2 focus:ring-offset-bg-base"
-        >
-          <span
-            data-testid="response-source-prefix"
-            className="shrink-0 font-semibold text-accent-text"
-          >
-            {id.slice(1)} ·
-          </span>
-          <span
-            data-testid="response-source-title"
-            className="min-w-0 overflow-hidden line-clamp-2 min-[768px]:[@media(pointer:fine)]:line-clamp-1"
-          >
-            {source.title}
-          </span>
-        </a>
-      ))}
       {turn.stopped && <span>Stopped</span>}
+      {sourceCount > 0 && (
+        <div
+          data-testid="response-source-disclosure"
+          className="w-full min-w-0 max-w-[38rem]"
+        >
+          <button
+            type="button"
+            aria-expanded={isExpanded}
+            aria-controls={disclosureId}
+            onClick={() => setIsExpanded((expanded) => !expanded)}
+            className="inline-flex min-h-11 max-w-full items-center gap-3xs text-left font-medium text-text-tertiary transition-colors hover:text-text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-base focus-visible:ring-offset-2 focus-visible:ring-offset-bg-base"
+          >
+            <span>{sourceLabel}</span>
+            <ChevronDown
+              aria-hidden="true"
+              size={15}
+              className={`shrink-0 transition-transform duration-150 motion-reduce:transition-none ${
+                isExpanded ? 'rotate-180' : ''
+              }`}
+            />
+          </button>
+          {isExpanded && (
+            <div
+              id={disclosureId}
+              role="region"
+              aria-label="Sources for this response"
+              className="w-full min-w-0"
+            >
+              <ul className="w-full min-w-0 divide-y divide-border-default border-y border-border-default">
+                {citedDocumentSources.map(({ id, source }) => (
+                  <li key={source.canonicalUrl} className="min-w-0">
+                    <a
+                      href={source.canonicalUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      aria-label={`[${id}] ${source.title}`}
+                      className="grid min-w-0 max-w-full grid-cols-[auto_minmax(0,1fr)] items-start gap-2xs py-xs text-left text-text-secondary transition-colors hover:text-text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-base"
+                    >
+                      <span className="shrink-0 font-semibold text-accent-text">[{id}]</span>
+                      <span className="min-w-0 break-words [overflow-wrap:anywhere]">
+                        {source.title}
+                      </span>
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

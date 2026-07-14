@@ -1,5 +1,4 @@
 import type { JetsGhostLifecycleStatus } from './runtime/lifecycle';
-import type { RuntimeLoadPhase } from './runtime/types';
 
 export type GhostAnimationMode =
   | 'idle'
@@ -17,8 +16,6 @@ export type LifecycleCompactLabel =
   | 'Loading'
   | 'Ready'
   | 'Responding';
-
-export type LoadingPhase = 'corpus' | RuntimeLoadPhase;
 
 export function getComposerActionTone(
   isGenerating: boolean,
@@ -54,15 +51,22 @@ export function getGhostAnimationMode(
   }
 }
 
-export function getLoadingStage(phase: LoadingPhase): string {
-  switch (phase) {
-    case 'corpus':
-      return "Haunting Jet's archive";
-    case 'runtime':
-      return 'Waking the ghost';
-    case 'model':
-      return 'Feeding it ones and zeroes';
-  }
+const LOADING_LIVENESS_MESSAGES = [
+  'Preparing the local assistant',
+  'Loading the model onto this device',
+  'Getting the local model ready',
+  'This large local model can take several minutes',
+] as const;
+
+export function getLoadingLivenessMessage(elapsedSeconds: number): string {
+  const safeElapsedSeconds = Number.isFinite(elapsedSeconds)
+    ? Math.max(0, elapsedSeconds)
+    : 0;
+  const interval = Math.floor(safeElapsedSeconds / 12);
+  if (interval === 0) return LOADING_LIVENESS_MESSAGES[0];
+
+  const longRunningIndex = 1 + ((interval - 1) % (LOADING_LIVENESS_MESSAGES.length - 1));
+  return LOADING_LIVENESS_MESSAGES[longRunningIndex];
 }
 
 export function getLifecycleLabel(

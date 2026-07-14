@@ -7,7 +7,7 @@ import {
   getGhostAnimationMode,
   getLifecycleAnnouncement,
   getLifecycleLabel,
-  getLoadingStage,
+  getLoadingLivenessMessage,
   shouldFocusComposer,
 } from '../src/features/jets-ghost/experience';
 
@@ -184,7 +184,7 @@ test('canonical docs require a chrome-free status group and no capsule or pill t
   assert.match(implementationPlan, /desktop keyboard[^.]*both[^.]*one line/i);
 });
 
-test('canonical docs carry reliability, modality, and citation-only footer correctness into Task 10', () => {
+test('canonical docs carry reliability, modality, and collapsed-source correctness into Task 10', () => {
   for (const [name, source] of canonicalStatusDocs) {
     assert.match(
       source,
@@ -193,30 +193,31 @@ test('canonical docs carry reliability, modality, and citation-only footer corre
     );
     assert.match(source, /interaction modality/i, `${name} must define modality-aware focus`);
     assert.match(source, /canonicalUrl/i, `${name} must define document-level citation deduplication`);
+    assert.match(source, /collapsed source disclosure/i, `${name} must define the approved disclosure`);
   }
 
   const architectureDesign = canonicalStatusDocs[1][1];
-  assert.match(architectureDesign, /footer[^.]*completed or stopped turn[^.]*validated citations/i);
-  assert.match(architectureDesign, /zero cited documents[^.]*no footer/i);
+  assert.match(architectureDesign, /completed or stopped turn[^.]*validated citations/i);
+  assert.match(architectureDesign, /zero cited documents[^.]*no disclosure/i);
+  assert.match(architectureDesign, /default[^.]*collapsed/i);
 
   const implementationPlan = canonicalStatusDocs[2][1];
   assert.match(
     implementationPlan,
     /430px touch[^.]*many selected context chunks[^.]*\[S1\][^.]*exactly one document source item/i,
   );
-  assert.match(implementationPlan, /source footer[^.]*does not overlap[^.]*composer/i);
+  assert.match(implementationPlan, /source disclosure[^.]*does not overlap[^.]*composer/i);
   assert.match(implementationPlan, /pointer[^.]*immediate blur/i);
   assert.match(implementationPlan, /touch-origin Enter[^.]*virtual-keyboard/i);
 });
 
-test('canonical docs require accessible CSS clamping for long cited-source titles', () => {
+test('canonical docs require an accessible responsive source disclosure', () => {
   for (const [name, source] of canonicalStatusDocs) {
-    assert.match(source, /source prefix[^.]*first line/i, `${name} must anchor the source prefix`);
-    assert.match(source, /line-clamp-2/i, `${name} must require two touch lines`);
-    assert.match(source, /line-clamp-1/i, `${name} must require one desktop line`);
-    assert.match(source, /aria-label[^.]*full source title/i, `${name} must preserve the accessible title`);
-    assert.match(source, /native `title` attribute[^.]*full source title/i, `${name} must preserve hover text`);
-    assert.match(source, /no (?:JavaScript|JS)[^.]*truncation/i, `${name} must prohibit string truncation`);
+    assert.match(source, /1 source[^.]*N sources/i, `${name} must define count-aware copy`);
+    assert.match(source, /aria-expanded[^.]*aria-controls/i, `${name} must define disclosure semantics`);
+    assert.match(source, /44px/i, `${name} must preserve the mobile touch target`);
+    assert.match(source, /full document title/i, `${name} must preserve complete source titles`);
+    assert.match(source, /no[^.]*truncation/i, `${name} must prohibit title truncation`);
   }
 
   const implementationPlan = canonicalStatusDocs[2][1];
@@ -224,8 +225,9 @@ test('canonical docs require accessible CSS clamping for long cited-source title
     implementationPlan,
     /The Recursive Convergence Hypothesis: Emergent Sentience as a Structural Attractor of Recursive ASI/,
   );
-  assert.match(implementationPlan, /430px touch[^.]*two rendered lines/i);
-  assert.match(implementationPlan, /desktop[^.]*one rendered line/i);
+  assert.match(implementationPlan, /320px[^.]*430px/i);
+  assert.match(implementationPlan, /tablet[^.]*portrait[^.]*landscape/i);
+  assert.match(implementationPlan, /desktop[^.]*compact trigger/i);
 });
 
 test('composer metadata removes the keyboard hint on touch layouts without a placeholder', () => {
@@ -266,12 +268,30 @@ test('focus follows interaction modality and response scrolling stays inside the
   assert.match(experienceSource, /onPointerDownCapture={handlePointerDownCapture}/);
   assert.match(experienceSource, /onKeyDownCapture={handleInteractionKeyDownCapture}/);
   assert.match(experienceSource, /composerFocusModalityRef\.current === 'touch'[\s\S]*?'pen'/);
+  assert.match(experienceSource, /const isTouchOriginComposerKeyDown = event\.target === inputRef\.current/);
+  assert.doesNotMatch(
+    experienceSource.match(/const handleInteractionKeyDownCapture[\s\S]*?\n  };/)?.[0] ?? '',
+    /event\.key === 'Enter'/,
+  );
   assert.match(experienceSource, /messageSubmissionModalityRef\.current = submissionModality/);
   assert.match(experienceSource, /submissionModality !== 'keyboard'[\s\S]*?inputRef\.current\?\.blur\(\)/);
   assert.match(experienceSource, /readyFocusModalityRef\.current = lastInteractionModalityRef\.current/);
   assert.match(experienceSource, /data-testid="conversation-scroller"/);
   assert.match(experienceSource, /data-testid="conversation-end-sentinel"/);
-  assert.match(experienceSource, /conversationScrollerRef\.current[\s\S]*?scrollTop = scroller\.scrollHeight/);
+  assert.match(experienceSource, /onScroll={handleConversationScroll}/);
+  assert.match(experienceSource, /STICKY_FOLLOW_THRESHOLD_PX = 48/);
+  assert.match(experienceSource, /stickyFollowRef\.current/);
+  assert.match(experienceSource, /pendingSubmissionFollowRef\.current/);
+  assert.match(experienceSource, /window\.visualViewport/);
+  assert.match(experienceSource, /addEventListener\('resize', queueAfterViewportSettles\)/);
+  assert.match(experienceSource, />\s*Jump to latest\s*</);
+  assert.match(experienceSource, /prefersReducedMotion \? 'auto' : 'smooth'/);
+  const turnFollowEffect = experienceSource.match(
+    /useEffect\(\(\) => \{[\s\S]*?\}, \[ghost\.state\.turns\]\);/,
+  )?.[0] ?? '';
+  assert.match(turnFollowEffect, /if \(stickyFollowRef\.current\)/);
+  assert.match(turnFollowEffect, /setHasUnseenContent\(true\)/);
+  assert.doesNotMatch(turnFollowEffect, /^\s*scroller\.scrollTop = scroller\.scrollHeight;\s*$/m);
 });
 
 test('approved disclosure and production actions replace prototype simulation', () => {
@@ -284,7 +304,8 @@ test('approved disclosure and production actions replace prototype simulation', 
   assert.match(experienceSource, /ghost\.sendMessage/);
   assert.match(experienceSource, /ghost\.startNewSession/);
   assert.match(experienceSource, /ghost\.unload/);
-  assert.doesNotMatch(experienceSource, /setTimeout|makePreviewResponse|interface preview has reached/);
+  assert.doesNotMatch(experienceSource, /makePreviewResponse|interface preview has reached/);
+  assert.doesNotMatch(experienceSource, /setTimeout\([^,]+,\s*(?:500|900|1200|1800)\)/);
   assert.doesNotMatch(mappingSource, /transitionExperience|createInitialExperience|hasActivatedModel/);
 });
 
@@ -298,12 +319,32 @@ test('ghost animation follows every lifecycle context including loading', () => 
   assert.equal(getGhostAnimationMode('cancelling'), 'thinking');
 });
 
-test('loading stages stay model-agnostic and on theme', () => {
-  assert.equal(getLoadingStage('corpus'), "Haunting Jet's archive");
-  assert.equal(getLoadingStage('runtime'), 'Waking the ghost');
-  assert.equal(getLoadingStage('model'), 'Feeding it ones and zeroes');
+test('loading liveness changes independently of coarse runtime phases without fake progress', () => {
+  assert.equal(getLoadingLivenessMessage(0), 'Preparing the local assistant');
+  assert.equal(getLoadingLivenessMessage(12), 'Loading the model onto this device');
+  assert.equal(getLoadingLivenessMessage(24), 'Getting the local model ready');
+  assert.equal(
+    getLoadingLivenessMessage(36),
+    'This large local model can take several minutes',
+  );
+  assert.equal(getLoadingLivenessMessage(48), 'Loading the model onto this device');
+  assert.equal(getLoadingLivenessMessage(Number.NaN), 'Preparing the local assistant');
   assert.doesNotMatch(experienceSource, /experience\.progress|progressSteps|%<\/span>/);
+  assert.doesNotMatch(experienceSource, /Cancel and unload/);
+  assert.doesNotMatch(experienceSource, /Unload anytime/);
+  assert.match(experienceSource, />\s*Session only\s*</);
   assert.match(experienceSource, /elapsedSeconds/);
+  assert.match(experienceSource, /data-testid="loading-liveness-indicator"/);
+  assert.match(experienceSource, /x: \['-100%', '300%'\]/);
+  assert.match(experienceSource, /repeat: Infinity/);
+  assert.match(experienceSource, /prefersReducedMotion/);
+
+  for (const [name, source] of canonicalStatusDocs) {
+    assert.match(source, /12 seconds/i, `${name} must pin the loading-copy cadence`);
+    assert.match(source, /no Cancel or Unload/i, `${name} must remove unsupported loading controls`);
+    assert.match(source, /elapsed time[^.]*monotonic|monotonic[^.]*elapsed time/i);
+    assert.match(source, /indeterminate/i);
+  }
 });
 
 test('mustard is reserved for a valid send action', () => {
@@ -352,7 +393,7 @@ test('chat accessibility and sources are response-local', () => {
   assert.match(experienceSource, /getLifecycleAnnouncement\(status\)/);
   assert.match(
     experienceSource,
-    /<div>\s*<p className="mb-2xs[^"]*">[\s\S]*?<\/div>\s*<p className="mt-xs text-xs text-text-tertiary">\s*Elapsed/,
+    /<div\s+role={status === 'loading' \? 'status' : undefined}[\s\S]*?<\/div>\s*<p className="mt-xs text-xs text-text-tertiary">\s*Elapsed/,
   );
   assert.equal(shouldFocusComposer('generating', 'ready'), true);
   assert.equal(shouldFocusComposer('cancelling', 'ready'), true);
@@ -360,26 +401,28 @@ test('chat accessibility and sources are response-local', () => {
   assert.equal(shouldFocusComposer('ready', 'ready'), false);
 });
 
-test('long cited-source titles clamp in CSS without losing accessible text', () => {
-  const footerSource = experienceSource.match(
-    /function ResponseSourceFooter[\s\S]*?\n}\n\ninterface ErrorRecoveryProps/,
+test('source disclosure is collapsed, semantic, responsive, and untruncated', () => {
+  const disclosureSource = experienceSource.match(
+    /function ResponseDetails[\s\S]*?\n}\n\ninterface ErrorRecoveryProps/,
   )?.[0] ?? '';
 
+  assert.match(disclosureSource, /useState\(false\)/);
+  assert.match(disclosureSource, /sourceCount === 1 \? 'source' : 'sources'/);
+  assert.match(disclosureSource, /aria-expanded={isExpanded}/);
+  assert.match(disclosureSource, /aria-controls={disclosureId}/);
+  assert.match(disclosureSource, /role="region"/);
+  assert.match(disclosureSource, /aria-label="Sources for this response"/);
+  assert.match(disclosureSource, /<ul[^>]*>[\s\S]*?citedDocumentSources\.map/);
+  assert.match(disclosureSource, /className="[^"]*min-h-11[^"]*focus-visible:ring-2[^"]*"/);
+  assert.match(disclosureSource, /max-w-\[38rem\]/);
+  assert.match(disclosureSource, /aria-label={[\s\S]*?source\.title/);
   assert.match(
-    footerSource,
-    /className="[^"]*inline-flex[^"]*max-w-full[^"]*min-w-0[^"]*items-start[^"]*focus:ring-2[^"]*"/,
+    disclosureSource,
+    /className="[^"]*min-w-0[^"]*break-words[^"]*\[overflow-wrap:anywhere\][^"]*"[\s\S]*?{source\.title}/,
   );
-  assert.match(footerSource, /aria-label={`\${id\.slice\(1\)} · \${source\.title}`}/);
-  assert.match(footerSource, /title={source\.title}/);
-  assert.match(
-    footerSource,
-    /data-testid="response-source-prefix"[\s\S]*?className="[^"]*shrink-0[^"]*"[\s\S]*?>\s*{id\.slice\(1\)} ·\s*</,
-  );
-  assert.match(
-    footerSource,
-    /data-testid="response-source-title"[\s\S]*?className="[^"]*min-w-0[^"]*overflow-hidden[^"]*line-clamp-2[^"]*min-\[768px\]:\[@media\(pointer:fine\)\]:line-clamp-1[^"]*"[\s\S]*?>\s*{source\.title}\s*</,
-  );
-  assert.doesNotMatch(footerSource, /source\.title\.(?:slice|substring)\(/);
+  assert.match(disclosureSource, /motion-reduce:transition-none/);
+  assert.doesNotMatch(disclosureSource, /line-clamp|truncate|rounded-full|ResponseSourceFooter/);
+  assert.doesNotMatch(disclosureSource, /source\.title\.(?:slice|substring)\(/);
 });
 
 test('test-build fake runtime requires the flag, local host, and explicit query', () => {
