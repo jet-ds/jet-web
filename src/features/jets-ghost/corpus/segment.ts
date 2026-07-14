@@ -47,7 +47,8 @@ function normalizeText(text: string): string {
     .replace(/\r\n?/g, '\n')
     .replace(/[\t ]+\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
-    .trim();
+    .trim()
+    .normalize('NFC');
 }
 
 function defaultDigest(text: string): string {

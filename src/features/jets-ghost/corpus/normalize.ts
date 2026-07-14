@@ -42,7 +42,8 @@ function normalizeText(value: string): string {
     .replace(/\r\n?/g, '\n')
     .replace(/[\t ]+\n/g, '\n')
     .replace(/\n{3,}/g, '\n\n')
-    .trim();
+    .trim()
+    .normalize('NFC');
 }
 
 function serializeChildrenAsBlocks(node: AstNode): string {

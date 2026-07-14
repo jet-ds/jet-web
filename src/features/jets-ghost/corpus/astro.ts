@@ -13,12 +13,40 @@ import {
   type AssistantSourceEntry,
   type KnowledgeBaseBuild,
 } from './build';
+import type { BlogFrontmatter, WorksFrontmatter } from '../../../schemas/content';
+
+interface AstroBlogEntry {
+  id: string;
+  filePath?: string;
+  body?: string;
+  data: BlogFrontmatter;
+}
+
+interface AstroWorksEntry {
+  id: string;
+  filePath?: string;
+  body?: string;
+  data: WorksFrontmatter;
+}
+
+interface AstroCorpusCollections {
+  blog: AstroBlogEntry[];
+  works: AstroWorksEntry[];
+}
+
+export interface AstroCorpusDependencies {
+  root: string;
+  environment: Record<string, string | undefined>;
+  loadCollections(): Promise<AstroCorpusCollections>;
+  loadTrackedPaths(root: string): Set<string>;
+  readHead(root: string): Promise<string>;
+}
 
 function canonicalUrl(collection: 'blog' | 'works', slug: string): string {
   return new URL(`/${collection}/${slug}/`, SITE.siteUrl).toString();
 }
 
-function repositorySourcePath(root: string, filePath: string | undefined): string {
+export function repositorySourcePath(root: string, filePath: string | undefined): string {
   if (filePath === undefined || filePath.trim() === '') {
     return '';
   }
@@ -48,16 +76,14 @@ function validationRecord(entry: AssistantSourceEntry): ContentValidationRecord 
   };
 }
 
-async function buildFromAstroCollections(): Promise<KnowledgeBaseBuild> {
-  const root = process.cwd();
-  const [blog, works] = await Promise.all([
-    getCollection('blog'),
-    getCollection('works'),
-  ]);
-  const trackedPaths = loadTrackedContentPaths(root);
+export async function buildFromAstroCollections(
+  dependencies: AstroCorpusDependencies,
+): Promise<KnowledgeBaseBuild> {
+  const { blog, works } = await dependencies.loadCollections();
+  const trackedPaths = dependencies.loadTrackedPaths(dependencies.root);
   const entries: AssistantSourceEntry[] = [
     ...blog.map((entry) => {
-      const sourcePath = repositorySourcePath(root, entry.filePath);
+      const sourcePath = repositorySourcePath(dependencies.root, entry.filePath);
       return {
         collection: 'blog' as const,
         slug: entry.id,
@@ -68,7 +94,7 @@ async function buildFromAstroCollections(): Promise<KnowledgeBaseBuild> {
       };
     }),
     ...works.map((entry) => {
-      const sourcePath = repositorySourcePath(root, entry.filePath);
+      const sourcePath = repositorySourcePath(dependencies.root, entry.filePath);
       return {
         collection: 'works' as const,
         slug: entry.id,
@@ -80,9 +106,9 @@ async function buildFromAstroCollections(): Promise<KnowledgeBaseBuild> {
     }),
   ];
   const sourceCommit = resolveSourceCommit({
-    gitHead: await readGitHead(root),
-    vercelSha: process.env.VERCEL_GIT_COMMIT_SHA,
-    githubSha: process.env.GITHUB_SHA,
+    gitHead: await dependencies.readHead(dependencies.root),
+    vercelSha: dependencies.environment.VERCEL_GIT_COMMIT_SHA,
+    githubSha: dependencies.environment.GITHUB_SHA,
   });
   const result = buildKnowledgeBase(entries, sourceCommit);
   const generatedErrors = assertGeneratedAssistantSources(
@@ -95,9 +121,28 @@ async function buildFromAstroCollections(): Promise<KnowledgeBaseBuild> {
   return result;
 }
 
-let memoizedAstroBuild: Promise<KnowledgeBaseBuild> | undefined;
-
-export function loadAstroKnowledgeBase(): Promise<KnowledgeBaseBuild> {
-  memoizedAstroBuild ??= buildFromAstroCollections();
-  return memoizedAstroBuild;
+export function createAstroKnowledgeBaseLoader(
+  dependencies: AstroCorpusDependencies,
+): () => Promise<KnowledgeBaseBuild> {
+  let memoizedBuild: Promise<KnowledgeBaseBuild> | undefined;
+  return () => {
+    memoizedBuild ??= buildFromAstroCollections(dependencies);
+    return memoizedBuild;
+  };
 }
+
+const productionDependencies: AstroCorpusDependencies = {
+  root: process.cwd(),
+  environment: process.env,
+  loadCollections: async () => {
+    const [blog, works] = await Promise.all([
+      getCollection('blog'),
+      getCollection('works'),
+    ]);
+    return { blog, works };
+  },
+  loadTrackedPaths: loadTrackedContentPaths,
+  readHead: readGitHead,
+};
+
+export const loadAstroKnowledgeBase = createAstroKnowledgeBaseLoader(productionDependencies);

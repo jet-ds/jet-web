@@ -17,6 +17,7 @@ import type {
   SearchIndexArtifact,
   SectionId,
 } from './types';
+import { canonicalSerialize } from './canonical';
 
 const MANIFEST_PATH = '/assistant/corpus/manifest.json';
 const CONTENT_PATH = '/assistant/corpus/content.json';
@@ -357,6 +358,21 @@ export class StaticKnowledgeRepository {
       || content.sourceCommit !== manifest.sourceCommit
     ) {
       throw new Error('Corpus artifact version or provenance mismatch.');
+    }
+    for (const chunk of content.chunks) {
+      if (await sha256(chunk.text) !== chunk.contentHash) {
+        throw new Error(`Corpus chunk content hash mismatch: ${chunk.id}`);
+      }
+    }
+    const computedCorpusVersion = await sha256(canonicalSerialize({
+      schemaVersion: content.schemaVersion,
+      segmentationVersion: content.segmentationVersion,
+      documents: content.documents,
+      sections: content.sections,
+      chunks: content.chunks,
+    }));
+    if (computedCorpusVersion !== content.corpusVersion) {
+      throw new Error('Corpus version does not match canonical package identities and content.');
     }
     if (
       content.schemaVersion !== manifest.schemaVersion

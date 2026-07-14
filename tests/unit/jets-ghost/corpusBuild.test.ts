@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
 import type { BlogFrontmatter, WorksFrontmatter } from '../../../src/schemas/content';
 import {
@@ -145,6 +146,34 @@ describe('knowledge-base generation', () => {
       blogEntry({ slug: 'same slug', sourcePath: 'src/data/blog/same-space.mdx' }),
       blogEntry({ slug: 'same%20slug', sourcePath: 'src/data/blog/same-encoded.mdx' }),
     ], 'abc')).toThrow(/duplicate canonical url/i);
+  });
+
+  it('fails closed before NFC-equivalent identities can enter canonical output', () => {
+    const nfc = blogEntry({
+      slug: 'café',
+      sourcePath: 'src/data/blog/cafe-nfc.mdx',
+    });
+    const nfd = blogEntry({
+      slug: 'cafe\u0301',
+      sourcePath: 'src/data/blog/cafe-nfd.mdx',
+    });
+
+    expect(() => buildKnowledgeBase([nfc, nfd], 'abc')).toThrow(/duplicate document id/i);
+  });
+
+  it('normalizes heading and chunk identity inputs before hashing and serialization', () => {
+    const result = buildKnowledgeBase([blogEntry({
+      body: '## Cafe\u0301\n\nCafe\u0301 evidence.',
+    })], 'abc');
+    const section = result.content.sections[1];
+    const chunk = result.content.chunks[0];
+
+    expect(section.heading).toBe('Café');
+    expect(section.id).toContain('#cafe');
+    expect(chunk.text).toBe('Café evidence.');
+    expect(chunk.contentHash).toBe(
+      createHash('sha256').update(chunk.text, 'utf8').digest('hex'),
+    );
   });
 });
 

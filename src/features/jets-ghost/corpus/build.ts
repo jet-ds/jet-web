@@ -17,6 +17,7 @@ import {
 } from '../selection/searchIndex';
 import { normalizeMdx } from './normalize';
 import { estimateTokens, SEGMENTATION_VERSION, segmentDocument } from './segment';
+import { canonicalSerialize } from './canonical';
 import type {
   CorpusManifest,
   DocumentId,
@@ -53,61 +54,7 @@ export interface KnowledgeBaseBuild {
   index: SearchIndexArtifact;
 }
 
-interface CanonicalObject {
-  [key: string]: CanonicalValue;
-}
-
-type CanonicalValue = null | boolean | number | string | CanonicalValue[] | CanonicalObject;
-
-function canonicalValue(value: unknown, seen: Set<object>): CanonicalValue {
-  if (value === null || typeof value === 'boolean') {
-    return value;
-  }
-  if (typeof value === 'string') {
-    return value.replace(/\r\n?/g, '\n').normalize('NFC');
-  }
-  if (typeof value === 'number') {
-    if (!Number.isFinite(value)) {
-      throw new TypeError('Canonical JSON rejects non-finite numbers.');
-    }
-    return value;
-  }
-  if (value instanceof Date) {
-    if (Number.isNaN(value.getTime())) {
-      throw new TypeError('Canonical JSON rejects invalid dates.');
-    }
-    return value.toISOString();
-  }
-  if (typeof value !== 'object') {
-    throw new TypeError(`Canonical JSON rejects ${typeof value} values.`);
-  }
-  if (seen.has(value)) {
-    throw new TypeError('Canonical JSON rejects cyclic values.');
-  }
-
-  seen.add(value);
-  try {
-    if (Array.isArray(value)) {
-      return value.map((item) => canonicalValue(item, seen));
-    }
-
-    const prototype = Object.getPrototypeOf(value);
-    if (prototype !== Object.prototype && prototype !== null) {
-      throw new TypeError('Canonical JSON accepts only plain objects.');
-    }
-    return Object.fromEntries(
-      Object.keys(value)
-        .sort()
-        .map((key) => [key, canonicalValue((value as Record<string, unknown>)[key], seen)]),
-    );
-  } finally {
-    seen.delete(value);
-  }
-}
-
-export function canonicalSerialize(value: unknown): string {
-  return JSON.stringify(canonicalValue(value, new Set()));
-}
+export { canonicalSerialize } from './canonical';
 
 function sha256(value: string): string {
   return createHash('sha256').update(value, 'utf8').digest('hex');
@@ -166,7 +113,7 @@ function validateAndNormalizeEntry(entry: AssistantSourceEntry): AssistantSource
     throw new Error(`Assistant source requires a repository source path: ${entry.collection}:${entry.slug}.`);
   }
 
-  return { ...entry, data } as AssistantSourceEntry;
+  return { ...entry, slug: entry.slug.normalize('NFC'), data } as AssistantSourceEntry;
 }
 
 function assertUnique<T>(
@@ -248,6 +195,7 @@ export function buildKnowledgeBase(
     .sort((left, right) => (
       compareText(left.collection, right.collection) || compareText(left.slug, right.slug)
     ));
+  assertUnique(eligible, (entry) => `${entry.collection}:${entry.slug}`, 'document id');
 
   const documents: KnowledgeDocument[] = [];
   const sections: KnowledgeSection[] = [];

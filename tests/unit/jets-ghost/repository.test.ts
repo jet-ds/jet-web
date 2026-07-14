@@ -161,6 +161,12 @@ describe('StaticKnowledgeRepository', () => {
       value.content.statistics.estimatedContentTokens += 1;
       value.manifest.statistics.estimatedContentTokens += 1;
     }, false],
+    ['stale chunk content hash behind a valid outer hash', (value: Fixture) => {
+      value.content.chunks[0].text = 'Tampered chunk text.';
+    }, false],
+    ['stale corpus version behind a valid outer hash', (value: Fixture) => {
+      value.content.documents[0].title = 'Tampered title';
+    }, false],
   ] as Array<[string, (value: Fixture) => void, boolean]>)('rejects %s mismatch or corruption', async (_label, mutate, preserveManifestHashes) => {
     const value = fixture();
     mutate(value);
