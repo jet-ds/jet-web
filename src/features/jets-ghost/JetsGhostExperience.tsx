@@ -12,29 +12,34 @@ import {
 import { motion, useReducedMotion } from 'framer-motion';
 import {
   useEffect,
-  useReducer,
+  useMemo,
   useRef,
   useState,
   type FormEvent,
   type KeyboardEvent,
 } from 'react';
 
+import { JETS_GHOST_CONTEXT } from './config';
+import { StaticKnowledgeRepository } from './corpus/repository';
+import type { JetsGhostErrorCode } from './errors';
 import {
-  createInitialExperience,
   getComposerActionTone,
   getGhostAnimationMode,
+  getLifecycleLabel,
   getLoadingStage,
-  transitionExperience,
+  shouldFocusComposer,
   type GhostAnimationMode,
-  type JetsGhostLifecycle,
 } from './experience';
-
-interface PreviewMessage {
-  id: string;
-  role: 'user' | 'assistant';
-  content: string;
-  stopped?: boolean;
-}
+import { assemblePrompt } from './prompt/assemble';
+import { extractValidCitations } from './prompt/citations';
+import { FakeRuntime, type FakeRuntimeCall } from './runtime/fakeRuntime';
+import { LiteRtGemmaRuntime } from './runtime/liteRtGemma';
+import { rankAndPackContext } from './selection/rankAndPack';
+import type { ConversationTurn } from './state/types';
+import {
+  useJetsGhost,
+  type JetsGhostDependencies,
+} from './state/useJetsGhost';
 
 const suggestedQuestions = [
   'What does Jet write about agentic work?',
@@ -42,138 +47,135 @@ const suggestedQuestions = [
   'Which projects connect AI and systems thinking?',
 ];
 
-const lifecycleLabels: Record<JetsGhostLifecycle, string> = {
-  idle: 'Not running',
-  checking: 'Checking this browser',
-  compatible: 'Ready to load',
-  loading: 'Loading locally',
-  ready: 'Ready',
-  generating: 'Responding',
+type JetsGhostE2EWindow = Window & {
+  __JETS_GHOST_E2E__?: {
+    readonly calls: readonly FakeRuntimeCall[];
+  };
 };
 
-function makePreviewResponse(question: string) {
-  const shortenedQuestion = question.length > 86
-    ? `${question.slice(0, 83)}...`
-    : question;
-
-  return `This interface preview has reached the local-generation boundary. In Jet's Ghost 2.1.0, Gemma 4 E2B will answer “${shortenedQuestion}” here using only eligible, published site material, with citations attached to each grounded claim.`;
+function createRuntime() {
+  const localHost = typeof window !== 'undefined'
+    && (
+      window.location.hostname === '127.0.0.1'
+      || window.location.hostname === 'localhost'
+    );
+  if (
+    import.meta.env.PUBLIC_JETS_GHOST_E2E === '1'
+    && localHost
+    && new URL(window.location.href).searchParams.get('runtime') === 'fake'
+  ) {
+    const runtime = new FakeRuntime({
+      testOnly: true,
+      responseChunks: [
+        "Jet's published work connects local-first AI with systems thinking [S1].",
+      ],
+    });
+    Object.defineProperty(window as JetsGhostE2EWindow, '__JETS_GHOST_E2E__', {
+      configurable: true,
+      value: {
+        get calls() {
+          return runtime.calls.map(({ method, operationId }) => ({ method, operationId }));
+        },
+      },
+    });
+    return runtime;
+  }
+  return new LiteRtGemmaRuntime();
 }
 
-export default function JetsGhostExperience() {
-  const [experience, dispatch] = useReducer(
-    transitionExperience,
-    undefined,
-    createInitialExperience,
+function createDependencies(): JetsGhostDependencies {
+  let nextTurnId = 0;
+  return {
+    createRepository: () => new StaticKnowledgeRepository(),
+    createRuntime,
+    rankAndPackContext,
+    assemblePrompt,
+    extractValidCitations,
+    contextBudget: JETS_GHOST_CONTEXT,
+    createTurnId: () => `turn-${++nextTurnId}`,
+    now: () => performance.now(),
+  };
+}
+
+interface JetsGhostExperienceProps {
+  dependencies?: JetsGhostDependencies;
+}
+
+export default function JetsGhostExperience({
+  dependencies: injectedDependencies,
+}: JetsGhostExperienceProps = {}) {
+  const dependencies = useMemo(
+    () => injectedDependencies ?? createDependencies(),
+    [injectedDependencies],
   );
-  const [messages, setMessages] = useState<PreviewMessage[]>([]);
+  const ghost = useJetsGhost(dependencies);
   const [draft, setDraft] = useState('');
+  const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const inputRef = useRef<HTMLTextAreaElement>(null);
-  const responseTimerRef = useRef<number | null>(null);
+  const errorActionRef = useRef<HTMLButtonElement>(null);
+  const lastSubmittedRef = useRef<string | null>(null);
+  const previousStatusRef = useRef(ghost.state.lifecycle.status);
 
-  const hasConversation = messages.length > 0;
-  const isGenerating = experience.lifecycle === 'generating';
-  const canCompose = experience.lifecycle === 'ready' || isGenerating;
-  const ghostAnimationMode = getGhostAnimationMode(experience.lifecycle);
-
-  const loadingStage = getLoadingStage(experience.progress);
-
-  useEffect(() => {
-    if (experience.lifecycle !== 'loading') return;
-
-    const progressSteps = [18, 34, 57, 74, 88, 96];
-    const timers = progressSteps.map((progress, index) => window.setTimeout(() => {
-      dispatch({ type: 'set-progress', progress });
-    }, 420 * (index + 1)));
-
-    const readyTimer = window.setTimeout(() => {
-      dispatch({ type: 'model-ready' });
-    }, 420 * (progressSteps.length + 1));
-
-    return () => {
-      timers.forEach(window.clearTimeout);
-      window.clearTimeout(readyTimer);
-    };
-  }, [experience.lifecycle]);
+  const status = ghost.state.lifecycle.status;
+  const hasConversation = ghost.state.turns.length > 0;
+  const isGenerating = status === 'generating';
+  const canCompose = status === 'ready';
+  const ghostAnimationMode = getGhostAnimationMode(status);
+  const loadingStage = getLoadingStage(ghost.loading?.phase ?? 'corpus');
 
   useEffect(() => {
-    if (experience.lifecycle === 'ready') {
+    const previousStatus = previousStatusRef.current;
+    if (shouldFocusComposer(previousStatus, status)) {
       inputRef.current?.focus();
     }
-  }, [experience.lifecycle]);
-
-  useEffect(() => () => {
-    if (responseTimerRef.current !== null) {
-      window.clearTimeout(responseTimerRef.current);
+    if (status === 'generation-error' && lastSubmittedRef.current !== null) {
+      setDraft(lastSubmittedRef.current);
     }
-  }, []);
+    if (
+      status === 'ready'
+      && (previousStatus === 'generating' || previousStatus === 'cancelling')
+    ) {
+      lastSubmittedRef.current = null;
+    }
+    previousStatusRef.current = status;
+  }, [status]);
 
-  const handleCompatibilityCheck = () => {
-    dispatch({ type: 'check-compatibility' });
-    window.setTimeout(() => {
-      dispatch({ type: 'compatibility-passed' });
-    }, 850);
-  };
+  useEffect(() => {
+    if (status !== 'loading' || ghost.loading === null) {
+      setElapsedSeconds(0);
+      return;
+    }
+    const updateElapsed = () => setElapsedSeconds(Math.max(
+      0,
+      Math.floor((performance.now() - ghost.loading!.startedAt) / 1_000),
+    ));
+    updateElapsed();
+    const interval = window.setInterval(updateElapsed, 1_000);
+    return () => window.clearInterval(interval);
+  }, [ghost.loading, status]);
+
+  useEffect(() => {
+    if (ghost.state.error === null) return;
+    const frame = requestAnimationFrame(() => errorActionRef.current?.focus());
+    return () => cancelAnimationFrame(frame);
+  }, [ghost.state.error]);
 
   const handleUnload = () => {
-    if (responseTimerRef.current !== null) {
-      window.clearTimeout(responseTimerRef.current);
-      responseTimerRef.current = null;
-    }
-
-    setMessages([]);
-    setDraft('');
-    dispatch({ type: 'unload' });
+    void ghost.unload();
   };
 
   const handleNewSession = () => {
-    if (responseTimerRef.current !== null) {
-      window.clearTimeout(responseTimerRef.current);
-      responseTimerRef.current = null;
-    }
-
-    setMessages([]);
-    setDraft('');
-    dispatch({ type: 'new-session' });
-    requestAnimationFrame(() => inputRef.current?.focus());
+    void ghost.startNewSession();
   };
 
-  const handleStop = () => {
-    if (responseTimerRef.current !== null) {
-      window.clearTimeout(responseTimerRef.current);
-      responseTimerRef.current = null;
-    }
-
-    setMessages((current) => current.map((message, index) => (
-      index === current.length - 1 && message.role === 'assistant'
-        ? { ...message, content: 'Response stopped in the interface preview.', stopped: true }
-        : message
-    )));
-    dispatch({ type: 'stop-generation' });
-  };
+  const handleStop = () => ghost.stop();
 
   const sendMessage = (question: string) => {
     const cleanQuestion = question.trim();
-    if (!cleanQuestion || experience.lifecycle !== 'ready') return;
-
-    const timestamp = Date.now();
-    const assistantId = `assistant-${timestamp}`;
-    setMessages((current) => [
-      ...current,
-      { id: `user-${timestamp}`, role: 'user', content: cleanQuestion },
-      { id: assistantId, role: 'assistant', content: '' },
-    ]);
+    if (!cleanQuestion || status !== 'ready') return;
+    lastSubmittedRef.current = cleanQuestion;
     setDraft('');
-    dispatch({ type: 'send-message' });
-
-    responseTimerRef.current = window.setTimeout(() => {
-      setMessages((current) => current.map((message) => (
-        message.id === assistantId
-          ? { ...message, content: makePreviewResponse(cleanQuestion) }
-          : message
-      )));
-      responseTimerRef.current = null;
-      dispatch({ type: 'generation-finished' });
-    }, 1200);
+    void ghost.sendMessage(cleanQuestion);
   };
 
   const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
@@ -182,7 +184,6 @@ export default function JetsGhostExperience() {
       handleStop();
       return;
     }
-
     sendMessage(draft);
   };
 
@@ -202,12 +203,12 @@ export default function JetsGhostExperience() {
           </span>
           <div className="min-w-0">
             <p className="truncate font-serif text-lg font-bold">Jet&apos;s Ghost</p>
-            <p className="truncate text-xs text-text-tertiary">2.1.0 interface preview</p>
+            <p className="truncate text-xs text-text-tertiary">2.1.0 · local and private</p>
           </div>
         </div>
 
         <div className="flex items-center gap-2xs">
-          {experience.hasActivatedModel && experience.lifecycle !== 'loading' && (
+          {status === 'ready' && (
             <>
               <button
                 type="button"
@@ -232,25 +233,28 @@ export default function JetsGhostExperience() {
           <div className="flex min-h-10 items-center gap-2xs rounded-full border border-border-default bg-surface-base px-xs text-xs font-medium text-text-secondary shadow-sm">
             <span
               className={`h-2 w-2 rounded-full ${
-                experience.lifecycle === 'ready'
+                status === 'ready'
                   ? 'bg-brand-base'
-                  : experience.lifecycle === 'generating' || experience.lifecycle === 'loading'
+                  : status === 'generating' || status === 'loading'
                     ? 'bg-accent-base'
                     : 'bg-text-disabled'
               }`}
               aria-hidden="true"
             />
             <span aria-live="polite">
-              {experience.lifecycle === 'loading'
-                ? `${lifecycleLabels.loading} ${experience.progress}%`
-                : lifecycleLabels[experience.lifecycle]}
+              {getLifecycleLabel(status)}
             </span>
           </div>
         </div>
       </header>
 
       <div className="relative z-0 flex min-h-0 flex-1 flex-col">
-        {!experience.hasActivatedModel && experience.lifecycle !== 'loading' && (
+        {[
+          'idle',
+          'checking-capabilities',
+          'awaiting-consent',
+          'load-error',
+        ].includes(status) && (
           <main className="flex flex-1 items-center justify-center overflow-y-auto px-gutter py-m">
             <div className="w-full max-w-3xl text-center">
               <AnimatedGhost mode={ghostAnimationMode} />
@@ -258,7 +262,7 @@ export default function JetsGhostExperience() {
                 Ask the part of the site that reads everything.
               </h1>
               <p className="mx-auto mt-s max-w-2xl text-base leading-relaxed text-text-secondary">
-                Jet&apos;s Ghost runs frontier local AI in this browser, grounded in Jet&apos;s published works. Starting it downloads about 2 GB and may use substantial GPU memory.
+                Jet&apos;s Ghost runs Gemma 4 E2B in this browser. Starting it downloads about 2 GB and may use substantial GPU memory. Your prompts and responses stay on this device.
               </p>
 
               <div className="mx-auto mt-m grid max-w-xl grid-cols-3 items-center gap-2xs text-xs text-text-tertiary">
@@ -278,17 +282,17 @@ export default function JetsGhostExperience() {
 
               <div className="mt-l grid min-h-[calc(var(--space-xl)+var(--space-m)+var(--space-xs))] grid-rows-[var(--space-s)_var(--space-xl)] place-items-center gap-xs">
                 <p
-                  className={`inline-flex items-center gap-2xs text-sm font-medium text-brand-text ${experience.lifecycle === 'compatible' ? 'visible' : 'invisible'}`}
-                  aria-hidden={experience.lifecycle !== 'compatible'}
+                  className={`inline-flex items-center gap-2xs text-sm font-medium text-brand-text ${status === 'awaiting-consent' ? 'visible' : 'invisible'}`}
+                  aria-hidden={status !== 'awaiting-consent'}
                 >
                   <MonitorCheck aria-hidden="true" size={16} />
                   This browser is ready for the local runtime
                 </p>
 
-                {experience.lifecycle === 'idle' && (
+                {status === 'idle' && (
                   <button
                     type="button"
-                    onClick={handleCompatibilityCheck}
+                    onClick={() => void ghost.checkCompatibility()}
                     className="inline-flex min-h-12 items-center justify-center gap-xs rounded-xl bg-brand-base px-m font-semibold text-brand-contrast transition-colors hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-brand-base focus:ring-offset-2 focus:ring-offset-bg-base"
                   >
                     Check compatibility
@@ -296,7 +300,7 @@ export default function JetsGhostExperience() {
                   </button>
                 )}
 
-                {experience.lifecycle === 'checking' && (
+                {status === 'checking-capabilities' && (
                   <button
                     type="button"
                     disabled
@@ -307,50 +311,113 @@ export default function JetsGhostExperience() {
                   </button>
                 )}
 
-                {experience.lifecycle === 'compatible' && (
+                {status === 'awaiting-consent' && (
                   <button
                     type="button"
-                    onClick={() => dispatch({ type: 'load-model' })}
+                    onClick={() => void ghost.load()}
                     className="inline-flex min-h-12 items-center justify-center gap-xs rounded-xl bg-accent-base px-m font-semibold text-accent-contrast transition-colors hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent-base focus:ring-offset-2 focus:ring-offset-bg-base"
                   >
                     Load Jet&apos;s Ghost · about 2 GB
                     <ArrowRight aria-hidden="true" size={18} />
                   </button>
                 )}
+
+                {status === 'load-error' && ghost.state.error !== null && (
+                  <button
+                    ref={errorActionRef}
+                    type="button"
+                    onClick={ghost.recoverFromError}
+                    className="inline-flex min-h-12 items-center justify-center gap-xs rounded-xl border border-border-strong bg-surface-base px-m font-semibold text-text-primary transition-colors hover:border-brand-base hover:bg-bg-subtle focus:outline-none focus:ring-2 focus:ring-brand-base"
+                  >
+                    Return to load
+                    <RotateCcw aria-hidden="true" size={18} />
+                  </button>
+                )}
+              </div>
+              {status === 'awaiting-consent'
+                && ghost.state.capability !== null
+                && ghost.state.capability.warnings.length > 0 && (
+                <div className="mx-auto mt-xs max-w-xl text-sm text-text-secondary" role="status">
+                  {ghost.state.capability.warnings.map((warning, index) => (
+                    <p key={`${warning.code}-${index}`}>{warning.message}</p>
+                  ))}
+                </div>
+              )}
+              {status === 'load-error' && ghost.state.error !== null && (
+                <p className="mx-auto mt-xs max-w-xl text-sm text-text-secondary">
+                  {ghost.state.error.message}
+                </p>
+              )}
+            </div>
+          </main>
+        )}
+
+        {status === 'unsupported' && (
+          <main className="flex flex-1 items-center justify-center overflow-y-auto px-gutter py-m">
+            <div className="w-full max-w-2xl text-center">
+              <AnimatedGhost mode="idle" />
+              <h1 className="text-3xl font-bold text-text-primary">This browser cannot run Jet&apos;s Ghost</h1>
+              <p className="mx-auto mt-s max-w-xl text-base text-text-secondary">
+                {ghost.state.error?.message ?? 'The required local AI capabilities are not available here.'}
+              </p>
+              <div className="mt-m flex flex-wrap items-center justify-center gap-xs">
+                <a href="/blog/" className="rounded-xl border border-border-strong bg-surface-base px-m py-xs font-semibold text-text-primary hover:border-brand-base hover:bg-bg-subtle">Visit Blog</a>
+                <a href="/works/" className="rounded-xl border border-border-strong bg-surface-base px-m py-xs font-semibold text-text-primary hover:border-brand-base hover:bg-bg-subtle">Visit Works</a>
+                <button
+                  ref={errorActionRef}
+                  type="button"
+                  onClick={() => void ghost.checkCompatibility()}
+                  className="rounded-xl bg-brand-base px-m py-xs font-semibold text-brand-contrast hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-brand-base"
+                >
+                  Check again
+                </button>
               </div>
             </div>
           </main>
         )}
 
-        {experience.lifecycle === 'loading' && (
+        {(status === 'loading' || status === 'unloading') && (
           <main className="flex flex-1 items-center justify-center px-gutter py-m">
-            <div className="w-full max-w-xl text-center" aria-live="polite">
+            <div className="w-full max-w-xl text-center">
               <AnimatedGhost mode="loading" />
-              <p className="mb-2xs font-mono text-xs uppercase tracking-[0.16em] text-brand-text">
-                Loading on this device
-              </p>
-              <h1 className="text-3xl font-bold text-text-primary">{loadingStage}</h1>
+              <div role="status" aria-live="polite">
+                <p className="mb-2xs font-mono text-xs uppercase tracking-[0.16em] text-brand-text">
+                  {status === 'loading' ? 'Loading on this device' : 'Releasing this device'}
+                </p>
+                <h1 className="text-3xl font-bold text-text-primary">
+                  {status === 'loading' ? loadingStage : 'Letting the ghost rest'}
+                </h1>
+                <p className="mt-xs text-xs text-text-tertiary">
+                  Elapsed {elapsedSeconds}s
+                </p>
+              </div>
               <div className="mt-l h-2 overflow-hidden rounded-full bg-bg-ui">
                 <div
-                  className="h-full rounded-full bg-accent-base transition-[width] duration-500 motion-reduce:transition-none"
-                  style={{ width: `${experience.progress}%` }}
+                  className="h-full w-1/3 animate-pulse rounded-full bg-accent-base motion-reduce:animate-none"
                 />
               </div>
-              <div className="mt-xs flex items-center text-xs text-text-tertiary">
-                <span>{experience.progress}%</span>
-              </div>
-              <button
-                type="button"
-                onClick={handleUnload}
-                className="mt-m inline-flex min-h-11 items-center justify-center rounded-xl border border-border-strong bg-surface-base px-m text-sm font-semibold text-text-primary shadow-sm transition-colors hover:border-brand-base hover:bg-bg-subtle focus:outline-none focus:ring-2 focus:ring-brand-base"
-              >
-                Cancel and unload
-              </button>
+              {status === 'loading' && (
+                <button
+                  type="button"
+                  onClick={handleUnload}
+                  className="mt-m inline-flex min-h-11 items-center justify-center rounded-xl border border-border-strong bg-surface-base px-m text-sm font-semibold text-text-primary shadow-sm transition-colors hover:border-brand-base hover:bg-bg-subtle focus:outline-none focus:ring-2 focus:ring-brand-base"
+                >
+                  Cancel and unload
+                </button>
+              )}
             </div>
           </main>
         )}
 
-        {experience.hasActivatedModel && experience.lifecycle !== 'loading' && (
+        {[
+          'ready',
+          'generating',
+          'cancelling',
+          'generation-error',
+          'resetting',
+          'reset-error',
+          'unload-error',
+        ].includes(status) && (
           <main className="flex min-h-0 flex-1 flex-col">
             {!hasConversation ? (
               <div className="flex flex-1 items-center justify-center overflow-y-auto px-gutter py-m">
@@ -380,44 +447,79 @@ export default function JetsGhostExperience() {
             ) : (
               <div className="min-h-0 flex-1 overflow-y-auto px-gutter py-m" aria-label="Conversation">
                 <div className="mx-auto flex w-full max-w-3xl flex-col gap-l pb-l">
-                  {messages.map((message) => (
+                  {ghost.state.turns.map((turn) => (
                     <article
-                      key={message.id}
-                      className={message.role === 'user' ? 'flex justify-end' : 'flex gap-xs'}
+                      key={turn.id}
+                      className={turn.role === 'user' ? 'flex justify-end' : 'flex gap-xs'}
                     >
-                      {message.role === 'assistant' && (
+                      {turn.role === 'assistant' && (
                         <AnimatedGhost
                           compact
-                          mode={!message.content && isGenerating ? 'thinking' : 'ready'}
+                          mode={!turn.content && isGenerating ? 'thinking' : 'ready'}
                         />
                       )}
-                      <div className={message.role === 'user'
+                      <div className={turn.role === 'user'
                         ? 'max-w-[85%] rounded-2xl rounded-br-md bg-bg-ui px-s py-xs text-text-primary'
                         : 'min-w-0 max-w-[42rem] pt-1 text-text-primary'}
                       >
-                        {message.content ? (
-                          <p className="whitespace-pre-wrap leading-relaxed">{message.content}</p>
-                        ) : (
+                        {turn.content ? (
+                          turn.role === 'assistant'
+                            ? <CitedResponse turn={turn} />
+                            : <p className="whitespace-pre-wrap leading-relaxed">{turn.content}</p>
+                        ) : isGenerating ? (
                           <div className="flex items-center gap-2xs py-2xs text-sm text-text-tertiary">
                             <span className="h-2 w-2 animate-pulse rounded-full bg-accent-base motion-reduce:animate-none" />
                             Reading the site locally…
                           </div>
-                        )}
-                        {message.role === 'assistant' && message.content && (
+                        ) : null}
+                        {turn.role === 'assistant' && turn.content && (
                           <div className="mt-s flex flex-wrap items-center gap-2xs text-xs text-text-tertiary">
-                            <span className="rounded-full border border-border-default bg-surface-base px-xs py-3xs transition-colors hover:border-accent-base hover:bg-accent-subtle">
-                              <span className="font-semibold text-accent-text">1</span> · Works
-                            </span>
-                            <span className="rounded-full border border-border-default bg-surface-base px-xs py-3xs transition-colors hover:border-accent-base hover:bg-accent-subtle">
-                              <span className="font-semibold text-accent-text">2</span> · Blog
-                            </span>
-                            {message.stopped && <span>Stopped</span>}
+                            {turn.sources.map((source) => (
+                              <a
+                                key={source.citationId}
+                                href={source.canonicalUrl}
+                                target="_blank"
+                                rel="noopener noreferrer"
+                                className="rounded-full border border-border-default bg-surface-base px-xs py-3xs transition-colors hover:border-accent-base hover:bg-accent-subtle"
+                              >
+                                <span className="font-semibold text-accent-text">
+                                  {source.citationId.slice(1)}
+                                </span>
+                                {' · '}{source.title}
+                              </a>
+                            ))}
+                            {turn.stopped && <span>Stopped</span>}
                           </div>
                         )}
                       </div>
                     </article>
                   ))}
+                  {ghost.state.error !== null && (
+                    <ErrorRecovery
+                      actionRef={errorActionRef}
+                      errorCode={ghost.state.error.code}
+                      message={ghost.state.error.message}
+                      status={status}
+                      onRecover={ghost.recoverFromError}
+                      onRetryReset={handleNewSession}
+                      onRetryUnload={handleUnload}
+                    />
+                  )}
                 </div>
+              </div>
+            )}
+
+            {!hasConversation && ghost.state.error !== null && (
+              <div className="mx-auto w-full max-w-3xl px-gutter pb-s">
+                <ErrorRecovery
+                  actionRef={errorActionRef}
+                  errorCode={ghost.state.error.code}
+                  message={ghost.state.error.message}
+                  status={status}
+                  onRecover={ghost.recoverFromError}
+                  onRetryReset={handleNewSession}
+                  onRetryUnload={handleUnload}
+                />
               </div>
             )}
 
@@ -434,6 +536,83 @@ export default function JetsGhostExperience() {
         )}
       </div>
     </section>
+  );
+}
+
+function CitedResponse({ turn }: { turn: ConversationTurn }) {
+  const citations = new Map(turn.citations.map((citation) => [
+    citation.id,
+    citation.source,
+  ]));
+  const parts = turn.content.split(/(\[S\d+\])/g);
+
+  return (
+    <p className="whitespace-pre-wrap leading-relaxed">
+      {parts.map((part, index) => {
+        const match = /^\[(S\d+)\]$/.exec(part);
+        const source = match === null ? undefined : citations.get(match[1] as `S${number}`);
+        return source === undefined ? part : (
+          <a
+            key={`${part}-${index}`}
+            href={source.canonicalUrl}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="font-semibold text-accent-text underline decoration-accent-base/50 underline-offset-2 hover:decoration-accent-base"
+            aria-label={`${part} ${source.title}`}
+          >
+            {part}
+          </a>
+        );
+      })}
+    </p>
+  );
+}
+
+interface ErrorRecoveryProps {
+  actionRef: React.RefObject<HTMLButtonElement | null>;
+  errorCode: JetsGhostErrorCode;
+  message: string;
+  status: string;
+  onRecover: () => void;
+  onRetryReset: () => void;
+  onRetryUnload: () => void;
+}
+
+function ErrorRecovery({
+  actionRef,
+  errorCode,
+  message,
+  status,
+  onRecover,
+  onRetryReset,
+  onRetryUnload,
+}: ErrorRecoveryProps) {
+  const isConversationFull = errorCode === 'conversation-limit-reached';
+  const isResetError = status === 'reset-error';
+  const isUnloadError = status === 'unload-error';
+  const action = isConversationFull || isResetError
+    ? onRetryReset
+    : isUnloadError
+      ? onRetryUnload
+      : onRecover;
+  const label = isConversationFull
+    ? 'Start new session'
+    : isResetError
+      ? 'Retry new session'
+      : isUnloadError
+        ? 'Retry unload'
+        : 'Try another question';
+
+  return (
+    <div className="rounded-xl border border-border-strong bg-bg-subtle p-s text-sm text-text-secondary">
+      <p>{message}</p>
+      <button
+        ref={actionRef}
+        type="button"
+        onClick={action}
+        className="mt-xs inline-flex min-h-10 items-center justify-center rounded-lg bg-brand-base px-s font-semibold text-brand-contrast hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-brand-base"
+      >{label}</button>
+    </div>
   );
 }
 

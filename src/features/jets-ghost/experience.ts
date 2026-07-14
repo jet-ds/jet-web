@@ -1,10 +1,5 @@
-export type JetsGhostLifecycle =
-  | 'idle'
-  | 'checking'
-  | 'compatible'
-  | 'loading'
-  | 'ready'
-  | 'generating';
+import type { JetsGhostLifecycleStatus } from './runtime/lifecycle';
+import type { RuntimeLoadPhase } from './runtime/types';
 
 export type GhostAnimationMode =
   | 'idle'
@@ -15,6 +10,8 @@ export type GhostAnimationMode =
 
 export type ComposerActionTone = 'accent' | 'neutral' | 'stop';
 
+export type LoadingPhase = 'corpus' | RuntimeLoadPhase;
+
 export function getComposerActionTone(
   isGenerating: boolean,
   canSend: boolean,
@@ -24,103 +21,86 @@ export function getComposerActionTone(
 }
 
 export function getGhostAnimationMode(
-  lifecycle: JetsGhostLifecycle,
+  lifecycle: JetsGhostLifecycleStatus,
 ): GhostAnimationMode {
   switch (lifecycle) {
-    case 'idle':
-      return 'idle';
-    case 'checking':
+    case 'checking-capabilities':
       return 'scanning';
-    case 'compatible':
-    case 'ready':
-      return 'ready';
     case 'loading':
       return 'loading';
     case 'generating':
+    case 'cancelling':
       return 'thinking';
-  }
-}
-
-export function getLoadingStage(progress: number): string {
-  if (progress < 20) return 'Waking the ghost';
-  if (progress < 82) return 'Feeding it ones and zeroes';
-  if (progress < 96) return "Haunting Jet's archive";
-  return 'Ready for questions';
-}
-
-export type JetsGhostExperienceEvent =
-  | { type: 'check-compatibility' }
-  | { type: 'compatibility-passed' }
-  | { type: 'load-model' }
-  | { type: 'set-progress'; progress: number }
-  | { type: 'model-ready' }
-  | { type: 'send-message' }
-  | { type: 'generation-finished' }
-  | { type: 'stop-generation' }
-  | { type: 'new-session' }
-  | { type: 'unload' };
-
-export interface JetsGhostExperienceState {
-  lifecycle: JetsGhostLifecycle;
-  hasActivatedModel: boolean;
-  progress: number;
-}
-
-export function createInitialExperience(): JetsGhostExperienceState {
-  return {
-    lifecycle: 'idle',
-    hasActivatedModel: false,
-    progress: 0,
-  };
-}
-
-export function transitionExperience(
-  state: JetsGhostExperienceState,
-  event: JetsGhostExperienceEvent,
-): JetsGhostExperienceState {
-  if (event.type === 'unload') {
-    return createInitialExperience();
-  }
-
-  switch (state.lifecycle) {
-    case 'idle':
-      return event.type === 'check-compatibility'
-        ? { ...state, lifecycle: 'checking' }
-        : state;
-    case 'checking':
-      return event.type === 'compatibility-passed'
-        ? { ...state, lifecycle: 'compatible' }
-        : state;
-    case 'compatible':
-      return event.type === 'load-model'
-        ? {
-            lifecycle: 'loading',
-            hasActivatedModel: true,
-            progress: 6,
-          }
-        : state;
-    case 'loading':
-      if (event.type === 'set-progress') {
-        return {
-          ...state,
-          progress: Math.max(0, Math.min(100, event.progress)),
-        };
-      }
-
-      return event.type === 'model-ready'
-        ? { ...state, lifecycle: 'ready', progress: 100 }
-        : state;
+    case 'awaiting-consent':
     case 'ready':
-      if (event.type === 'send-message') {
-        return { ...state, lifecycle: 'generating' };
-      }
-
-      return event.type === 'new-session'
-        ? { ...state, lifecycle: 'ready' }
-        : state;
-    case 'generating':
-      return event.type === 'generation-finished' || event.type === 'stop-generation'
-        ? { ...state, lifecycle: 'ready' }
-        : state;
+    case 'generation-error':
+    case 'resetting':
+    case 'reset-error':
+      return 'ready';
+    case 'idle':
+    case 'unsupported':
+    case 'load-error':
+    case 'unloading':
+    case 'unload-error':
+      return 'idle';
   }
+}
+
+export function getLoadingStage(phase: LoadingPhase): string {
+  switch (phase) {
+    case 'corpus':
+      return "Haunting Jet's archive";
+    case 'runtime':
+      return 'Waking the ghost';
+    case 'model':
+      return 'Feeding it ones and zeroes';
+  }
+}
+
+export function getLifecycleLabel(
+  lifecycle: JetsGhostLifecycleStatus,
+): string {
+  switch (lifecycle) {
+    case 'idle':
+      return 'Not running';
+    case 'checking-capabilities':
+      return 'Checking this browser';
+    case 'awaiting-consent':
+      return 'Ready to load';
+    case 'unsupported':
+      return 'Not supported';
+    case 'loading':
+      return 'Loading locally';
+    case 'load-error':
+      return 'Load interrupted';
+    case 'ready':
+      return 'Ready';
+    case 'generating':
+      return 'Responding';
+    case 'cancelling':
+      return 'Stopping';
+    case 'generation-error':
+      return 'Response interrupted';
+    case 'resetting':
+      return 'Starting a new session';
+    case 'reset-error':
+      return 'Session reset interrupted';
+    case 'unloading':
+      return 'Unloading';
+    case 'unload-error':
+      return 'Unload interrupted';
+  }
+}
+
+export function shouldFocusComposer(
+  previous: JetsGhostLifecycleStatus,
+  current: JetsGhostLifecycleStatus,
+): boolean {
+  return current === 'ready' && [
+    'loading',
+    'resetting',
+    'generation-error',
+    'generating',
+    'cancelling',
+  ].includes(previous);
 }
