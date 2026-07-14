@@ -21,6 +21,11 @@ export interface FakeRuntimeOptions {
   responseChunks?: readonly string[];
   capabilityReport?: CapabilityReport;
   failures?: Partial<Record<FakeRuntimeFailurePoint, boolean>>;
+  scheduler?: FakeRuntimeScheduler;
+}
+
+export interface FakeRuntimeScheduler {
+  waitForChunk(operationId: number, chunkIndex: number): Promise<void>;
 }
 
 export interface FakeRuntimeCall {
@@ -42,7 +47,15 @@ const DEFAULT_CAPABILITY_REPORT: CapabilityReport = {
   secureContext: true,
   webGpuAvailable: true,
   adapterAvailable: true,
+  browser: {
+    family: 'unknown',
+    version: null,
+  },
   storageEstimate: null,
+};
+
+const DEFAULT_SCHEDULER: FakeRuntimeScheduler = {
+  waitForChunk: async () => undefined,
 };
 
 const FAILURE_DETAILS: Record<
@@ -76,6 +89,7 @@ export class FakeRuntime implements LocalModelRuntime {
   private readonly responseChunks: readonly string[];
   private readonly capabilityReport: CapabilityReport;
   private readonly failures: Partial<Record<FakeRuntimeFailurePoint, boolean>>;
+  private readonly scheduler: FakeRuntimeScheduler;
   private readonly callLog: FakeRuntimeCall[] = [];
   private nextOperationId = 1;
   private activeGeneration: ActiveGeneration | null = null;
@@ -88,6 +102,7 @@ export class FakeRuntime implements LocalModelRuntime {
     this.responseChunks = [...(options.responseChunks ?? ['Test response.'])];
     this.capabilityReport = options.capabilityReport ?? DEFAULT_CAPABILITY_REPORT;
     this.failures = { ...options.failures };
+    this.scheduler = options.scheduler ?? DEFAULT_SCHEDULER;
   }
 
   get calls(): readonly FakeRuntimeCall[] {
@@ -151,8 +166,17 @@ export class FakeRuntime implements LocalModelRuntime {
     _message: string,
     handlers: GenerationHandlers,
   ): Promise<GenerationResult> {
+    const operationId = this.record('generate');
+    if (this.activeGeneration) {
+      throw createRuntimeError(
+        'generation-failed',
+        'The test runtime accepts only one active generation.',
+        true,
+      );
+    }
+
     const generation: ActiveGeneration = {
-      operationId: this.record('generate'),
+      operationId,
       cancelled: false,
     };
     this.activeGeneration = generation;
@@ -160,9 +184,12 @@ export class FakeRuntime implements LocalModelRuntime {
     try {
       this.configuredFailure('generation');
 
-      for (const chunk of this.responseChunks) {
-        await Promise.resolve();
-        if (generation.cancelled) break;
+      for (const [chunkIndex, chunk] of this.responseChunks.entries()) {
+        await this.scheduler.waitForChunk(generation.operationId, chunkIndex);
+        if (
+          generation.cancelled
+          || this.activeGeneration?.operationId !== generation.operationId
+        ) break;
         handlers.onText(chunk);
       }
 

@@ -1,6 +1,7 @@
 import { JETS_GHOST_MODEL } from '../config';
 import {
   createRuntimeError,
+  type BrowserAdvisory,
   type CapabilityReport,
   type CapabilityStorageEstimate,
 } from './types';
@@ -13,6 +14,7 @@ export const MIN_RECOMMENDED_AVAILABLE_STORAGE_BYTES = (
 
 export interface CapabilityEnvironment {
   secureContext: boolean;
+  userAgent?: string;
   gpu?: {
     requestAdapter(): Promise<unknown | null>;
   };
@@ -29,9 +31,31 @@ function browserEnvironment(): CapabilityEnvironment {
 
   return {
     secureContext: globalThis.isSecureContext === true,
+    userAgent: browserNavigator?.userAgent,
     gpu: browserNavigator?.gpu,
     storage: browserNavigator?.storage,
   };
+}
+
+function browserAdvisory(userAgent = ''): BrowserAdvisory {
+  const candidates: Array<{
+    family: BrowserAdvisory['family'];
+    pattern: RegExp;
+  }> = [
+    { family: 'edge', pattern: /(?:Edg|Edge)\/([\d.]+)/ },
+    { family: 'firefox', pattern: /(?:Firefox|FxiOS)\/([\d.]+)/ },
+    { family: 'chrome', pattern: /(?:Chrome|CriOS)\/([\d.]+)/ },
+    { family: 'safari', pattern: /Version\/([\d.]+).*Safari\// },
+  ];
+
+  for (const candidate of candidates) {
+    const version = userAgent.match(candidate.pattern)?.[1];
+    if (version) {
+      return { family: candidate.family, version };
+    }
+  }
+
+  return { family: 'unknown', version: null };
 }
 
 function unsupportedReport(
@@ -48,6 +72,7 @@ function unsupportedReport(
     secureContext: environment.secureContext,
     webGpuAvailable: environment.gpu !== undefined,
     adapterAvailable,
+    browser: browserAdvisory(environment.userAgent),
     storageEstimate: null,
   };
 }
@@ -143,6 +168,7 @@ export async function checkBrowserCapabilities(
     secureContext: true,
     webGpuAvailable: true,
     adapterAvailable: true,
+    browser: browserAdvisory(environment.userAgent),
     storageEstimate,
   };
 }

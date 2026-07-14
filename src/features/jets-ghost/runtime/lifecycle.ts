@@ -13,6 +13,7 @@ export type JetsGhostLifecycleStatus =
   | 'cancelling'
   | 'generation-error'
   | 'resetting'
+  | 'reset-error'
   | 'unloading'
   | 'unload-error';
 
@@ -185,7 +186,11 @@ export function reduceJetsGhostLifecycle(
         return status(state, 'ready', { error: null });
       }
       return event.type === 'reset-failed'
-        ? status(state, 'generation-error', { error: event.error })
+        ? status(state, 'reset-error', { error: event.error })
+        : state;
+    case 'reset-error':
+      return event.type === 'reset-requested'
+        ? status(state, 'resetting', { error: null })
         : state;
     case 'unloading':
       if (event.type === 'unload-succeeded') {
@@ -195,11 +200,6 @@ export function reduceJetsGhostLifecycle(
         ? status(state, 'unload-error', { error: event.error })
         : state;
     case 'unload-error':
-      if (event.type === 'error-acknowledged') {
-        return createInitialLifecycleState();
-      }
-      return event.type === 'unload-requested'
-        ? status(state, 'unloading', { error: null })
-        : state;
+      return state;
   }
 }

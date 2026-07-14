@@ -10,6 +10,7 @@ function capabilityEnvironment(
 ): CapabilityEnvironment {
   return {
     secureContext: true,
+    userAgent: 'UnknownTestBrowser/1.0',
     gpu: {
       requestAdapter: vi.fn().mockResolvedValue({}),
     },
@@ -98,6 +99,10 @@ describe('browser capability checks', () => {
       secureContext: true,
       webGpuAvailable: true,
       adapterAvailable: true,
+      browser: {
+        family: 'unknown',
+        version: null,
+      },
       storageEstimate: {
         quotaBytes: MIN_RECOMMENDED_AVAILABLE_STORAGE_BYTES * 2,
         usageBytes: 0,
@@ -105,5 +110,30 @@ describe('browser capability checks', () => {
       },
     });
     expect(requestAdapter).toHaveBeenCalledTimes(1);
+  });
+
+  it('reports a known browser family and version without changing support', async () => {
+    const report = await checkBrowserCapabilities(capabilityEnvironment({
+      userAgent: 'Mozilla/5.0 Chrome/131.0.6778.86 Safari/537.36',
+    }));
+
+    expect(report.supported).toBe(true);
+    expect(report.browser).toEqual({
+      family: 'chrome',
+      version: '131.0.6778.86',
+    });
+  });
+
+  it('reports an unknown browser as advisory metadata without blocking support', async () => {
+    const report = await checkBrowserCapabilities(capabilityEnvironment({
+      userAgent: 'NovelBrowser/99.4',
+    }));
+
+    expect(report.supported).toBe(true);
+    expect(report.failures).toEqual([]);
+    expect(report.browser).toEqual({
+      family: 'unknown',
+      version: null,
+    });
   });
 });

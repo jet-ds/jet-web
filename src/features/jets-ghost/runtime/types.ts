@@ -9,6 +9,18 @@ export interface CapabilityStorageEstimate {
   availableBytes: number | null;
 }
 
+export type BrowserFamily =
+  | 'chrome'
+  | 'edge'
+  | 'firefox'
+  | 'safari'
+  | 'unknown';
+
+export interface BrowserAdvisory {
+  family: BrowserFamily;
+  version: string | null;
+}
+
 export interface CapabilityReport {
   supported: boolean;
   warnings: JetsGhostError[];
@@ -16,6 +28,7 @@ export interface CapabilityReport {
   secureContext: boolean;
   webGpuAvailable: boolean;
   adapterAvailable: boolean;
+  browser: BrowserAdvisory;
   storageEstimate: CapabilityStorageEstimate | null;
 }
 
@@ -57,11 +70,18 @@ function safeDiagnosticCause(
   code: JetsGhostErrorCode,
   cause?: unknown,
 ): string {
-  if (cause instanceof Error) {
-    return cause.name || 'Error';
+  if (
+    typeof DOMException !== 'undefined'
+    && cause instanceof DOMException
+  ) {
+    return 'DOMException';
   }
 
-  return cause === undefined ? code : typeof cause;
+  if (cause instanceof Error) {
+    return 'Error';
+  }
+
+  return cause === undefined ? code : `type:${typeof cause}`;
 }
 
 export function createRuntimeError(
