@@ -101,11 +101,8 @@ test('production lifecycle presentation begins idle and separates compatibility 
   assert.match(experienceSource, />\s*Load Jet&apos;s Ghost · about 2 GB\s*</);
 });
 
-test('lifecycle slot stays fixed while the chrome-free visible status fits its label', () => {
-  assert.match(
-    experienceSource,
-    /data-testid="lifecycle-status-slot"[\s\S]*?className="[^"]*h-10[^"]*w-\[7\.5rem\][^"]*justify-end[^"]*"/,
-  );
+test('content-sized lifecycle status precedes stable conversational header actions', () => {
+  assert.doesNotMatch(experienceSource, /lifecycle-status-slot/);
   const statusSource = experienceSource.match(
     /function LifecycleStatus[\s\S]*?\n}\n/,
   )?.[0] ?? '';
@@ -116,13 +113,23 @@ test('lifecycle slot stays fixed while the chrome-free visible status fits its l
   const visibleStatusClass = statusSource.match(
     /data-testid="lifecycle-visible-status"[\s\S]*?className="([^"]*)"/,
   )?.[1] ?? '';
-  assert.doesNotMatch(visibleStatusClass, /(?:^|\s)min-w-|(?:^|\s)w-(?:\[|\d)/);
-  assert.match(visibleStatusClass, /(?:^|\s)w-fit(?:\s|$)/);
   assert.doesNotMatch(
     visibleStatusClass,
-    /(?:^|\s)(?:border(?:-\S+)?|bg-\S+|rounded\S*|shadow\S*|p[trblxy]?-\S+)(?:\s|$)/,
+    /(?:^|\s)(?:min-w-|w-(?:\[|\d)|h-(?:\[|\d)|border(?:-\S+)?|bg-\S+|rounded\S*|shadow\S*|p[trblxy]?-\S+)(?:\s|$)/,
   );
+  assert.match(visibleStatusClass, /(?:^|\s)w-fit(?:\s|$)/);
   assert.doesNotMatch(experienceSource, /LifecycleCapsule|lifecycle-capsule/);
+  assert.match(
+    experienceSource,
+    /const showHeaderActions = \[[\s\S]*?'ready'[\s\S]*?'generating'[\s\S]*?'cancelling'[\s\S]*?'generation-error'[\s\S]*?'resetting'[\s\S]*?'reset-error'[\s\S]*?'unloading'[\s\S]*?'unload-error'[\s\S]*?\]\.includes\(status\);/,
+  );
+  assert.match(experienceSource, /const canStartNewSession = status === 'ready'[\s\S]*?conversation-limit-reached/);
+  assert.match(experienceSource, /const canUnload = showHeaderActions && status !== 'unloading';/);
+  assert.doesNotMatch(experienceSource, /{status === 'ready' && \(/);
+  assert.match(
+    experienceSource,
+    /<LifecycleStatus status={status} \/>[\s\S]*?{showHeaderActions && \([\s\S]*?disabled={!canStartNewSession}[\s\S]*?>New session<[\s\S]*?disabled={!canUnload}[\s\S]*?>Unload</,
+  );
   assert.match(statusSource, /<AnimatePresence initial={false}>/);
   assert.match(statusSource, /key={compactLabel}/);
   assert.match(statusSource, /<span className="grid h-4 overflow-hidden">/);
@@ -140,7 +147,7 @@ test('lifecycle slot stays fixed while the chrome-free visible status fits its l
 test('lifecycle announcement is separate from the visual status and percentages stay absent', () => {
   assert.match(
     experienceSource,
-    /data-testid="lifecycle-status-slot"[\s\S]*?aria-hidden="true"/,
+    /data-testid="lifecycle-visible-status"[\s\S]*?aria-hidden="true"/,
   );
   assert.match(
     experienceSource,
@@ -157,6 +164,10 @@ test('canonical docs require a chrome-free status group and no capsule or pill t
   for (const [name, source] of canonicalStatusDocs) {
     assert.match(source, /chrome-free status group/i, `${name} must name the approved treatment`);
     assert.doesNotMatch(source, /\b(?:capsule|pill)\b/i, `${name} retains superseded chrome terminology`);
+    assert.doesNotMatch(source, /7\.5rem|fixed[^.]{0,40}status slot/i, `${name} retains the removed slot`);
+    assert.match(source, /status group[^.]*before[^.]*stable header actions/i);
+    assert.match(source, /keyboard hint/i);
+    assert.match(source, /Local only/);
   }
 
   const implementationPlan = canonicalStatusDocs[2][1];
@@ -164,6 +175,103 @@ test('canonical docs require a chrome-free status group and no capsule or pill t
     implementationPlan,
     /computed border, background, shadow, radius, and padding[^.]*absent, zero, or transparent/i,
   );
+  assert.match(
+    implementationPlan,
+    /desktop and (?:representative )?mobile[^.]*Ready[^.]*Responding[^.]*action x\/y\/width\/height[^.]*1px/i,
+  );
+  assert.match(implementationPlan, /no artificial gap beyond[^.]*gap-2xs/i);
+  assert.match(implementationPlan, /430px touch[^.]*display[^.]*none/i);
+  assert.match(implementationPlan, /desktop keyboard[^.]*both[^.]*one line/i);
+});
+
+test('canonical docs carry reliability, modality, and citation-only footer correctness into Task 10', () => {
+  for (const [name, source] of canonicalStatusDocs) {
+    assert.match(
+      source,
+      /Jet’s Ghost can make mistakes\. Check cited sources\./,
+      `${name} must preserve the exact pre-message reliability copy`,
+    );
+    assert.match(source, /interaction modality/i, `${name} must define modality-aware focus`);
+    assert.match(source, /canonicalUrl/i, `${name} must define document-level citation deduplication`);
+  }
+
+  const architectureDesign = canonicalStatusDocs[1][1];
+  assert.match(architectureDesign, /footer[^.]*completed or stopped turn[^.]*validated citations/i);
+  assert.match(architectureDesign, /zero cited documents[^.]*no footer/i);
+
+  const implementationPlan = canonicalStatusDocs[2][1];
+  assert.match(
+    implementationPlan,
+    /430px touch[^.]*many selected context chunks[^.]*\[S1\][^.]*exactly one document source item/i,
+  );
+  assert.match(implementationPlan, /source footer[^.]*does not overlap[^.]*composer/i);
+  assert.match(implementationPlan, /pointer[^.]*immediate blur/i);
+  assert.match(implementationPlan, /touch-origin Enter[^.]*virtual-keyboard/i);
+});
+
+test('canonical docs require accessible CSS clamping for long cited-source titles', () => {
+  for (const [name, source] of canonicalStatusDocs) {
+    assert.match(source, /source prefix[^.]*first line/i, `${name} must anchor the source prefix`);
+    assert.match(source, /line-clamp-2/i, `${name} must require two touch lines`);
+    assert.match(source, /line-clamp-1/i, `${name} must require one desktop line`);
+    assert.match(source, /aria-label[^.]*full source title/i, `${name} must preserve the accessible title`);
+    assert.match(source, /native `title` attribute[^.]*full source title/i, `${name} must preserve hover text`);
+    assert.match(source, /no (?:JavaScript|JS)[^.]*truncation/i, `${name} must prohibit string truncation`);
+  }
+
+  const implementationPlan = canonicalStatusDocs[2][1];
+  assert.match(
+    implementationPlan,
+    /The Recursive Convergence Hypothesis: Emergent Sentience as a Structural Attractor of Recursive ASI/,
+  );
+  assert.match(implementationPlan, /430px touch[^.]*two rendered lines/i);
+  assert.match(implementationPlan, /desktop[^.]*one rendered line/i);
+});
+
+test('composer metadata removes the keyboard hint on touch layouts without a placeholder', () => {
+  assert.match(
+    experienceSource,
+    /data-testid="composer-metadata"[\s\S]*?className="[^"]*justify-end[^"]*min-\[768px\]:\[@media\(pointer:fine\)\]:justify-between[^"]*"/,
+  );
+  assert.match(
+    experienceSource,
+    /data-testid="composer-keyboard-hint"[\s\S]*?className="[^"]*hidden[^"]*min-\[768px\]:\[@media\(pointer:fine\)\]:inline[^"]*"[\s\S]*?>Enter sends · Shift\+Enter newline</,
+  );
+  assert.match(
+    experienceSource,
+    /data-testid="composer-local-only"[\s\S]*?>[\s\S]*?Local only/,
+  );
+  const metadataSource = experienceSource.match(
+    /<div\s+data-testid="composer-metadata"[\s\S]*?<\/div>/,
+  )?.[0] ?? '';
+  assert.doesNotMatch(metadataSource, /invisible|opacity-0|grid-cols|placeholder/);
+});
+
+test('pre-message reliability disclosure sits directly above the composer form without reserved space', () => {
+  const composerSource = experienceSource.match(
+    /function Composer[\s\S]*?\n}\n\ninterface AnimatedGhostProps/,
+  )?.[0] ?? '';
+  assert.match(
+    composerSource,
+    /{showReliabilityDisclosure && \([\s\S]*?data-testid="composer-reliability-disclosure"[\s\S]*?>Jet’s Ghost can make mistakes\. Check cited sources\.<[\s\S]*?\)}[\s\S]*?<form[\s\S]*?data-testid="composer-metadata"/,
+  );
+  assert.doesNotMatch(
+    composerSource.match(/showReliabilityDisclosure[\s\S]*?<form/)?.[0] ?? '',
+    /invisible|opacity-0|min-h-|placeholder|aria-hidden/,
+  );
+  assert.match(experienceSource, /showReliabilityDisclosure={!hasSubmittedInSession}/);
+});
+
+test('focus follows interaction modality and response scrolling stays inside the conversation', () => {
+  assert.match(experienceSource, /onPointerDownCapture={handlePointerDownCapture}/);
+  assert.match(experienceSource, /onKeyDownCapture={handleInteractionKeyDownCapture}/);
+  assert.match(experienceSource, /composerFocusModalityRef\.current === 'touch'[\s\S]*?'pen'/);
+  assert.match(experienceSource, /messageSubmissionModalityRef\.current = submissionModality/);
+  assert.match(experienceSource, /submissionModality !== 'keyboard'[\s\S]*?inputRef\.current\?\.blur\(\)/);
+  assert.match(experienceSource, /readyFocusModalityRef\.current = lastInteractionModalityRef\.current/);
+  assert.match(experienceSource, /data-testid="conversation-scroller"/);
+  assert.match(experienceSource, /data-testid="conversation-end-sentinel"/);
+  assert.match(experienceSource, /conversationScrollerRef\.current[\s\S]*?scrollTop = scroller\.scrollHeight/);
 });
 
 test('approved disclosure and production actions replace prototype simulation', () => {
@@ -234,7 +342,10 @@ test('ready prompt stays on one line at the annotated mobile width', () => {
 test('chat accessibility and sources are response-local', () => {
   assert.match(experienceSource, /aria-live="polite"/);
   assert.match(experienceSource, /turn\.citations\.map/);
-  assert.match(experienceSource, /turn\.sources\.map/);
+  assert.match(experienceSource, /getCitedDocumentSources\(turn\.citations\)/);
+  assert.doesNotMatch(experienceSource, /turn\.sources/);
+  assert.match(experienceSource, /citedDocumentSources\.map/);
+  assert.match(experienceSource, /citedDocumentSources\.length > 0 \|\| turn\.stopped/);
   assert.match(experienceSource, />Stopped</);
   assert.match(experienceSource, /'Start new session'/);
   assert.match(experienceSource, /errorActionRef/);
@@ -249,6 +360,28 @@ test('chat accessibility and sources are response-local', () => {
   assert.equal(shouldFocusComposer('ready', 'ready'), false);
 });
 
+test('long cited-source titles clamp in CSS without losing accessible text', () => {
+  const footerSource = experienceSource.match(
+    /function ResponseSourceFooter[\s\S]*?\n}\n\ninterface ErrorRecoveryProps/,
+  )?.[0] ?? '';
+
+  assert.match(
+    footerSource,
+    /className="[^"]*inline-flex[^"]*max-w-full[^"]*min-w-0[^"]*items-start[^"]*focus:ring-2[^"]*"/,
+  );
+  assert.match(footerSource, /aria-label={`\${id\.slice\(1\)} · \${source\.title}`}/);
+  assert.match(footerSource, /title={source\.title}/);
+  assert.match(
+    footerSource,
+    /data-testid="response-source-prefix"[\s\S]*?className="[^"]*shrink-0[^"]*"[\s\S]*?>\s*{id\.slice\(1\)} ·\s*</,
+  );
+  assert.match(
+    footerSource,
+    /data-testid="response-source-title"[\s\S]*?className="[^"]*min-w-0[^"]*overflow-hidden[^"]*line-clamp-2[^"]*min-\[768px\]:\[@media\(pointer:fine\)\]:line-clamp-1[^"]*"[\s\S]*?>\s*{source\.title}\s*</,
+  );
+  assert.doesNotMatch(footerSource, /source\.title\.(?:slice|substring)\(/);
+});
+
 test('test-build fake runtime requires the flag, local host, and explicit query', () => {
   const playwrightSource = readFileSync(
     new URL('../playwright.config.ts', import.meta.url),
@@ -259,6 +392,8 @@ test('test-build fake runtime requires the flag, local host, and explicit query'
   assert.match(experienceSource, /127\.0\.0\.1/);
   assert.match(experienceSource, /localhost/);
   assert.match(experienceSource, /searchParams\.get\('runtime'\)\s*===\s*'fake'/);
+  assert.match(experienceSource, /searchParams\.get\('stream'\)\s*===\s*'slow'/);
+  assert.match(experienceSource, /slowFakeStream[\s\S]*?scheduler:/);
   assert.match(playwrightSource, /cross-env PUBLIC_JETS_GHOST_E2E=1 npm run build/);
 });
 

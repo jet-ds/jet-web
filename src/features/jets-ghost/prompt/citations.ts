@@ -5,6 +5,18 @@ export interface ValidCitation {
   source: SelectedSource;
 }
 
+export function getCitedDocumentSources(
+  citations: readonly ValidCitation[],
+): ValidCitation[] {
+  const seenCanonicalUrls = new Set<string>();
+
+  return citations.filter(({ source }) => {
+    if (seenCanonicalUrls.has(source.canonicalUrl)) return false;
+    seenCanonicalUrls.add(source.canonicalUrl);
+    return true;
+  });
+}
+
 export function extractValidCitations(
   response: string,
   sources: SelectedSource[],

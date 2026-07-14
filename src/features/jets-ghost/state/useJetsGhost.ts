@@ -381,14 +381,12 @@ export function useJetsGhost(
           role: 'user',
           content: cleanQuestion,
           citations: [],
-          sources: [],
         },
         {
           id: assistantTurnId,
           role: 'assistant',
           content: '',
           citations: [],
-          sources: [...assembled.selectedSources],
         },
       ],
     });

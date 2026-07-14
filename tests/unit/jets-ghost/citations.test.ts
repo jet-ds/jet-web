@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest';
 import type { SelectedSource } from '../../../src/features/jets-ghost/selection/types';
-import { extractValidCitations } from '../../../src/features/jets-ghost/prompt/citations';
+import {
+  extractValidCitations,
+  getCitedDocumentSources,
+} from '../../../src/features/jets-ghost/prompt/citations';
 
 function source(citationId: `S${number}`, text: string): SelectedSource {
   const suffix = citationId.slice(1);
@@ -54,5 +57,42 @@ describe('citation allowlisting', () => {
   it('returns no citations when the current turn selected no sources', () => {
     expect(extractValidCitations('A confident but unsupported answer [S1].', []))
       .toEqual([]);
+  });
+
+  it('presents only validated cited documents, not uncited selected context', () => {
+    const cited = source('S1', 'Cited');
+    const uncited = source('S2', 'Selected but unused');
+    const citations = extractValidCitations('Supported claim [S1].', [cited, uncited]);
+
+    expect(getCitedDocumentSources(citations)).toEqual([
+      { id: 'S1', source: cited },
+    ]);
+  });
+
+  it('collapses cited chunks with the same canonical URL to the first citation', () => {
+    const firstChunk = source('S2', 'First cited chunk');
+    const secondChunk = {
+      ...source('S3', 'Second cited chunk'),
+      canonicalUrl: firstChunk.canonicalUrl,
+      title: 'Same document, later chunk',
+    };
+
+    expect(getCitedDocumentSources([
+      { id: 'S2', source: firstChunk },
+      { id: 'S3', source: secondChunk },
+    ])).toEqual([{ id: 'S2', source: firstChunk }]);
+  });
+
+  it('preserves first-citation order across different documents', () => {
+    const firstCited = source('S3', 'First cited document');
+    const secondCited = source('S1', 'Second cited document');
+
+    expect(getCitedDocumentSources([
+      { id: 'S3', source: firstCited },
+      { id: 'S1', source: secondCited },
+    ])).toEqual([
+      { id: 'S3', source: firstCited },
+      { id: 'S1', source: secondCited },
+    ]);
   });
 });
