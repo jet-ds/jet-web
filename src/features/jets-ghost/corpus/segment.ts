@@ -239,12 +239,21 @@ function sectionId(
   documentId: DocumentId,
   headingPath: string[],
   occurrences: Map<string, number>,
+  reservedIds: Set<SectionId>,
 ): SectionId {
   const slug = slugifyHeadingPath(headingPath);
-  const occurrence = (occurrences.get(slug) ?? 0) + 1;
+  let occurrence = (occurrences.get(slug) ?? 0) + 1;
+  let uniqueSlug = occurrence === 1 ? slug : `${slug}-${occurrence}`;
+  let id = `${documentId}#${uniqueSlug}` as SectionId;
+  while (reservedIds.has(id)) {
+    occurrence += 1;
+    uniqueSlug = `${slug}-${occurrence}`;
+    id = `${documentId}#${uniqueSlug}`;
+  }
+
   occurrences.set(slug, occurrence);
-  const uniqueSlug = occurrence === 1 ? slug : `${slug}-${occurrence}`;
-  return `${documentId}#${uniqueSlug}`;
+  reservedIds.add(id);
+  return id;
 }
 
 export function segmentDocument(
@@ -253,12 +262,18 @@ export function segmentDocument(
 ): SegmentedDocument {
   const digest = options.digest ?? defaultDigest;
   const sectionOccurrences = new Map<string, number>();
+  const reservedSectionIds = new Set<SectionId>();
   const finalChunkIds = new Set<ChunkId>();
   const sections: KnowledgeSection[] = [];
   const chunks: KnowledgeChunk[] = [];
 
   for (const normalizedSection of input.sections) {
-    const id = sectionId(input.documentId, normalizedSection.headingPath, sectionOccurrences);
+    const id = sectionId(
+      input.documentId,
+      normalizedSection.headingPath,
+      sectionOccurrences,
+      reservedSectionIds,
+    );
     sections.push({
       id,
       documentId: input.documentId,

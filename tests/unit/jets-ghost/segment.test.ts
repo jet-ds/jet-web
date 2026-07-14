@@ -68,6 +68,44 @@ describe('knowledge segmentation', () => {
     ]);
   });
 
+  it('reserves section ids even when empty natural and ordinalized slugs collide', () => {
+    const result = segmentDocument({
+      documentId: 'blog:empty-collisions',
+      sections: [
+        { heading: 'Foo', headingPath: ['Foo'], text: '', order: 0 },
+        { heading: 'Foo', headingPath: ['Foo'], text: '', order: 1 },
+        { heading: 'Foo 2', headingPath: ['Foo 2'], text: '', order: 2 },
+      ],
+    });
+    const sectionIds = result.sections.map((section) => section.id);
+
+    expect(sectionIds).toEqual([
+      'blog:empty-collisions#foo',
+      'blog:empty-collisions#foo-2',
+      'blog:empty-collisions#foo-2-2',
+    ]);
+    expect(new Set(sectionIds).size).toBe(sectionIds.length);
+  });
+
+  it('advances duplicate ordinals past interleaved natural slug reservations', () => {
+    const result = segmentDocument({
+      documentId: 'blog:interleaved-collisions',
+      sections: [
+        { heading: 'Foo 2', headingPath: ['Foo 2'], text: 'Natural ordinal.', order: 0 },
+        { heading: 'Foo', headingPath: ['Foo'], text: 'Base slug.', order: 1 },
+        { heading: 'Foo', headingPath: ['Foo'], text: 'Repeated base slug.', order: 2 },
+      ],
+    });
+    const sectionIds = result.sections.map((section) => section.id);
+
+    expect(sectionIds).toEqual([
+      'blog:interleaved-collisions#foo-2',
+      'blog:interleaved-collisions#foo',
+      'blog:interleaved-collisions#foo-3',
+    ]);
+    expect(new Set(sectionIds).size).toBe(sectionIds.length);
+  });
+
   it('never exceeds the 512-token hard limit', () => {
     const text = Array.from({ length: 600 }, (_, index) => `word${index}`).join(' ');
     const result = segmentDocument({
