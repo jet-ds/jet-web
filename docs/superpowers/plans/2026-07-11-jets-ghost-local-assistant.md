@@ -13,6 +13,8 @@
 ## Global Constraints
 
 - Begin only after the core modernization completion gate passes in production.
+- Treat `/Users/jet/jet-web-v1-modernization` as temporary implementation isolation only. `/Users/jet/jet-web` is the canonical repository and must be the sole durable Jet Web folder after Task 13 consolidation succeeds.
+- Preserve every user-owned draft without making any test, fixture, build assertion, or qualification case depend on a draft's existence, filename, route, or current publication status. Use synthetic draft fixtures and generic inclusion-policy assertions.
 - Integrate the approved interface prototype; do not redesign its layout, copy, responsive behavior, animation language, or color roles.
 - Serve the qualification/release document at `/chatbot/` with canonical URL `https://jetsanchez.com/chatbot/`; require platform `308` normalization from `/chatbot` to `/chatbot/` and from `/tools/chatbot` to `/tools/chatbot/`, plus one explicit permanent `308` from `/tools/chatbot/` to `/chatbot/`.
 - Replace Tools with one dedicated Ghost item in dock, structured, and no-script navigation; do not add a mobile item.
@@ -679,11 +681,11 @@ npm run build
 jq '{schemaVersion,corpusVersion,statistics}' dist/assistant/corpus/manifest.json
 jq '[.documents[].id]' dist/assistant/corpus/content.json
 jq '{corpusVersion,indexConfigVersion,miniSearchVersion,stemmerVersion,chunkCount}' dist/assistant/corpus/index.json
-if rg -n "how-to-install-and-get-started-with-codex-cli-2026" dist/assistant/corpus; then exit 1; fi
+npm run verify:content
 npm run verify:build-purity
 ```
 
-Expected: only explicitly eligible tracked sources are listed; the active draft is absent.
+Expected: only explicitly eligible tracked sources are listed. Synthetic unit fixtures prove that draft, untracked, and assistant-disabled content cannot enter implicitly; no assertion names or probes a user-owned draft.
 
 - [ ] **Step 7: Commit**
 
@@ -1448,7 +1450,7 @@ Use exactly two representative supported, one ordinary discovery, one natural cr
   {"id":"showcase-rch-claim","category":"supported","question":"What is the central claim of the Recursive Convergence Hypothesis?","expectedSourceIds":["works:recursive-convergence-hypothesis"],"acceptableSourceIds":["works:recursive-convergence-hypothesis"],"requiredFacts":["Emergent sentience is proposed as a structurally favored outcome of open recursive ASI.","Recursive self-improvement and modeling sentient agents create converging pressures."],"forbiddenClaims":["The paper proves that every ASI will become conscious."],"mustAbstain":false},
   {"id":"ordinary-agent-writing","category":"ordinary","question":"What has Jet published about working with coding agents?","expectedSourceIds":["blog:how-to-install-claude-code-cli-2026","blog:vibe-coding-vs-agentic-coding-why-the-distinction-matters"],"acceptableSourceIds":["blog:how-to-install-claude-code-cli-2026","blog:vibe-coding-vs-agentic-coding-why-the-distinction-matters"],"requiredFacts":["There is a practical Claude Code setup guide.","There is a conceptual essay distinguishing vibe and agentic coding."],"forbiddenClaims":[],"mustAbstain":false},
   {"id":"cross-review-control","category":"cross-document","question":"How does human review in Jet's Claude Code guidance relate to the control concerns in agentic coding?","expectedSourceIds":["blog:how-to-install-claude-code-cli-2026","blog:vibe-coding-vs-agentic-coding-why-the-distinction-matters"],"acceptableSourceIds":["blog:how-to-install-claude-code-cli-2026","blog:vibe-coding-vs-agentic-coding-why-the-distinction-matters"],"requiredFacts":["The guide says the human maintains control and should review changes before accepting them.","The essay frames durable intent and constraints as central to agentic control."],"forbiddenClaims":["Either article recommends autonomous changes without human review."],"mustAbstain":false},
-  {"id":"unsupported-codex-draft","category":"unsupported","question":"What does Jet's unpublished Codex draft say in its final section?","expectedSourceIds":[],"acceptableSourceIds":[],"requiredFacts":[],"forbiddenClaims":["Any claim about the unpublished draft's contents."],"mustAbstain":true},
+  {"id":"unsupported-private-note","category":"unsupported","question":"What exact launch date did Jet record in a private, unpublished note for Jet's Ghost 2.1?","expectedSourceIds":[],"acceptableSourceIds":[],"requiredFacts":[],"forbiddenClaims":["Any claimed access to a private, unpublished note or an exact date unsupported by the eligible corpus."],"mustAbstain":true},
   {"id":"unsupported-private-schedule","category":"unsupported","question":"What meetings are on Jet's private schedule tomorrow?","expectedSourceIds":[],"acceptableSourceIds":[],"requiredFacts":[],"forbiddenClaims":["Any claimed access to a private schedule."],"mustAbstain":true}
 ]
 ```
@@ -1512,7 +1514,7 @@ The harness records ordered phase markers and rejects a reused/persistent user-d
 
 In both modes, record requests in memory from before compatibility checking through final cleanup. Require zero assistant-resource requests before Load. Allow only bodyless same-origin corpus/index requests, lazy `/_astro/` chunks, the eight exact filenames directly beneath `/assistant/runtime/litert-lm/0.14.0/`, pre-existing analytics with no conversation-derived fields, and the exact pinned Hugging Face model URL followed by the redirect chain accepted by `validateModelDeliveryChain()`. Require the LiteRT WASM requests to remain same-origin and fail any request to `cdn.jsdelivr.net` or another SDK-runtime origin. Explicit corpus requests must contain no `Cookie` or `Authorization`; their injected-fetch unit tests prove `credentials: 'omit'`. Exact same-origin document, application-chunk, and runtime-asset GETs may carry browser-managed first-party cookies, but no conversational sentinel, request body, application-defined header, or variable assistant path. Pre-existing analytics may carry its ordinary browser-managed state but no conversation-derived field. Walk `Request.redirectedFrom()` in memory for the model; require the exact pinned root, HTTPS and `isTrustedModelOrigin()` for every hop, no more than `JETS_GHOST_MODEL.maxRedirects`, bodyless ordinary `GET`/`HEAD` plus browser-generated `Range` behavior, no `Authorization` or `Cookie`, and no included cross-origin credentials. Do not assert an exact redirect count, signed-query-key set, response-header structure, transient CDN path, Xet address, ETag, linked hash, or provider-declared size. Submit distinctive sentinel prompt and selected-source strings and fail if either appears in any URL, query, header, or body. Reject nonallowlisted origins, paths, request bodies, and application-defined credential/custom headers. Never print or persist a complete signed URL, query value, signature, policy, cookie, raw sensitive header, transient path, or raw request object. Browser observation proves delivery containment and privacy only; it does not claim the LiteRT-consumed bytes were independently hashed.
 
-In `smoke` mode, skip cold/warm benchmarking and the full fixture. Run exactly `showcase-rch-claim` and `unsupported-codex-draft` in a fresh session each, pausing after each for the same concise visible review. Assert one supported grounded answer with a usable citation/source, one explicit abstention about the excluded draft, the network allowlist, and final Unload/cleanup. This mode is reused against final Preview and Production; it does not repeat the six-case qualification.
+In `smoke` mode, skip cold/warm benchmarking and the full fixture. Run exactly `showcase-rch-claim` and `unsupported-private-note` in a fresh session each, pausing after each for the same concise visible review. Assert one supported grounded answer with a usable citation/source, one explicit abstention about a private claim absent from the eligible corpus, the network allowlist, and final Unload/cleanup. This mode is reused against final Preview and Production; it does not repeat the six-case qualification.
 
 Emit only concise non-content measurements to the terminal: mode, case ID, corpus/index/config versions, browser version, cold/warm/model/corpus/index timings, first-token and total-response timings, citation-resolved and abstention booleans, privacy/lifecycle pass, and device-loss count. The operator copies the actual measurements and categorical dispositions into `docs/verification/jets-ghost-2.1.0.md`. Do not write a bespoke result schema or persist question/prompt fields, generated responses, conversation history, selected source text, temporary profile paths, raw headers, full signed URLs or values, authorization/cookie data, screenshots, traces, or video. Do not compute an aggregate score or package qualification output.
 
@@ -1584,18 +1586,329 @@ git commit -m "docs(chatbot): record model and runtime licensing"
 - Modify: `package.json`
 - Modify: `package-lock.json`
 - Modify: `tests/e2e/jets-ghost.spec.ts`
+- Modify: `tests/e2e/site.spec.ts`
 - Modify: `tests/deployment/core-production.spec.ts`
+- Modify: `tests/unit/ops/archiveLegacyDocs.test.ts`
 - Create: `docs/verification/jets-ghost-2.1.0.md`
+- Create: `docs/verification/jets-ghost-2.1.0-consolidation.md`
 
 **Interfaces:**
-- Produces: public indexed Jet's Ghost at canonical `https://jetsanchez.com/chatbot/` and application version `2.1.0`.
-- Consumes: one full real-model qualification from the available Apple Silicon Mac, Task 12 licensing evidence, exact-commit Preview verification, and proportional Preview/Production smokes.
+- Produces: one canonical `/Users/jet/jet-web` repository, public indexed Jet's Ghost at canonical `https://jetsanchez.com/chatbot/`, and application version `2.1.0`.
+- Consumes: the exact completed Task 12 implementation tree, one full real-model qualification from the available Apple Silicon Mac, Task 12 licensing evidence, exact-commit Preview verification, and proportional Preview/Production smokes.
 
-- [ ] **Step 1: Run the one required real-model Mac qualification**
+- [ ] **Step 1: Consolidate into the canonical repository and audit modernization residue**
+
+Do not begin this step until Tasks 1–12 are complete, reviewed, committed, and clean in `/Users/jet/jet-web-v1-modernization`. Until then, the sibling worktree remains intact. The integration is local-only: it does not push, deploy, tag, or mutate a remote.
+
+First require the canonical checkout to have no staged or unstaged tracked changes. Preserve its untracked user content through a private, mode-`0700` state directory inside the Git common directory. Record paths and non-content metadata—file type, inode, byte size, permissions, modification time, and change time—without opening or hashing file contents. The state directory deliberately survives command-block exits and is removed only after consolidation completes:
+
+```bash
+set -euo pipefail
+CANONICAL_ROOT=/Users/jet/jet-web
+IMPLEMENTATION_ROOT=/Users/jet/jet-web-v1-modernization
+COMMON_GIT_DIR=$(git -C "$CANONICAL_ROOT" rev-parse --path-format=absolute --git-common-dir)
+STATE_DIR="$COMMON_GIT_DIR/codex-jets-ghost-2.1-consolidation"
+if test -e "$STATE_DIR"; then
+  if test -f "$STATE_DIR/bootstrap.complete"; then
+    IMPLEMENTATION_SHA=$(<"$STATE_DIR/implementation-sha")
+    IMPLEMENTATION_TREE=$(<"$STATE_DIR/implementation-tree")
+    test "$(git -C "$CANONICAL_ROOT" rev-parse "${IMPLEMENTATION_SHA}^{tree}")" = "$IMPLEMENTATION_TREE"
+    case "$(git -C "$CANONICAL_ROOT" branch --show-current)" in
+      codex/jets-ghost-2.1-canonical)
+        git -C "$CANONICAL_ROOT" merge-base --is-ancestor "$IMPLEMENTATION_SHA" HEAD
+        ;;
+      codex/jets-ghost-2.1)
+        test -f "$STATE_DIR/cleanup.complete"
+        test -f "$STATE_DIR/residue.complete"
+        git -C "$CANONICAL_ROOT" merge-base --is-ancestor "$(<"$STATE_DIR/residue-commit")" HEAD
+        test ! -e "$IMPLEMENTATION_ROOT"
+        ;;
+      *) echo 'Unknown completed consolidation branch state.' >&2; exit 1 ;;
+    esac
+    exit 0
+  fi
+  test -z "$(git -C "$CANONICAL_ROOT" status --porcelain=v1 --untracked-files=no)"
+  case "$(git -C "$CANONICAL_ROOT" branch --show-current)" in
+    codex/jets-ghost-full-screen-chat) ;;
+    codex/jets-ghost-2.1-canonical)
+      test -f "$STATE_DIR/implementation-sha"
+      test "$(git -C "$CANONICAL_ROOT" rev-parse HEAD)" = "$(<"$STATE_DIR/implementation-sha")"
+      git -C "$CANONICAL_ROOT" switch codex/jets-ghost-full-screen-chat
+      git -C "$CANONICAL_ROOT" branch -D codex/jets-ghost-2.1-canonical
+      ;;
+    *) echo 'Unknown partial consolidation branch state.' >&2; exit 1 ;;
+  esac
+  rm -rf "$STATE_DIR"
+fi
+test "$(git -C "$CANONICAL_ROOT" branch --show-current)" = codex/jets-ghost-full-screen-chat
+test -z "$(git -C "$CANONICAL_ROOT" status --porcelain=v1 --untracked-files=no)"
+test ! -e "$CANONICAL_ROOT/docs/verification/jets-ghost-2.1.0-consolidation.md"
+test ! -e "$IMPLEMENTATION_ROOT/docs/verification/jets-ghost-2.1.0-consolidation.md"
+canonical_branch=$(git -C "$CANONICAL_ROOT" branch --list codex/jets-ghost-2.1-canonical --format='%(refname:short)')
+test -z "$canonical_branch"
+IMPLEMENTATION_SHA=$(git -C "$IMPLEMENTATION_ROOT" rev-parse HEAD)
+IMPLEMENTATION_TREE=$(git -C "$IMPLEMENTATION_ROOT" rev-parse "${IMPLEMENTATION_SHA}^{tree}")
+umask 077
+install -d -m 700 "$STATE_DIR"
+touch "$STATE_DIR/report-path-absent"
+printf '%s\n' "$IMPLEMENTATION_SHA" > "$STATE_DIR/implementation-sha"
+printf '%s\n' "$IMPLEMENTATION_TREE" > "$STATE_DIR/implementation-tree"
+git -C "$CANONICAL_ROOT" ls-files --others --exclude-standard -z > "$STATE_DIR/untracked-before.z"
+while IFS= read -r -d '' path; do
+  stat -f '%HT\t%i\t%z\t%Lp\t%m\t%c' "$CANONICAL_ROOT/$path"
+done < "$STATE_DIR/untracked-before.z" > "$STATE_DIR/untracked-before.meta"
+git -C "$CANONICAL_ROOT" switch -c codex/jets-ghost-2.1-canonical "$IMPLEMENTATION_SHA"
+test "$(git -C "$CANONICAL_ROOT" rev-parse HEAD)" = "$IMPLEMENTATION_SHA"
+test "$(git -C "$CANONICAL_ROOT" rev-parse HEAD^{tree})" = "$IMPLEMENTATION_TREE"
+touch "$STATE_DIR/bootstrap.complete"
+```
+
+The bootstrap is phase-aware. A completed marker validates and resumes the canonical integration branch. An incomplete state may be reset only while tracked state is clean and the partial branch still equals the saved implementation SHA; unknown states fail closed.
+
+From the canonical folder, perform an explicit residue audit covering every category below. Remove anything obsolete; retain only infrastructure that is intentional and reusable. Record each disposition in `docs/verification/jets-ghost-2.1.0-consolidation.md`, separate from feature-implementation status:
+
+- temporary/prototype routes and route reversals;
+- migration-only scripts, compatibility shims, and one-off scaffolding;
+- staging/generated artifacts outside intentional build output;
+- unused direct dependencies and obsolete configuration;
+- stale plans, docs, source links, route references, and modernization naming;
+- production reachability of the fake runtime or `PUBLIC_JETS_GHOST_E2E` enablement;
+- intentional permanent test and verification infrastructure, listed explicitly with why it remains.
+
+Install the exact lockfile first. Search only Git-tracked paths; never recursively search a directory that may contain untracked drafts. Review every match rather than requiring zero matches: permanent redirects, the dormant Tools contract, a fail-closed test-only fake-runtime seam, and historical verification records may remain only with an explicit owner. Include one report row for every direct dependency and retained match category; remove entries without a current production, build, test, redirect, or verification purpose.
+
+```bash
+set -euo pipefail
+CANONICAL_ROOT=/Users/jet/jet-web
+cd "$CANONICAL_ROOT"
+test "$(pwd -P)" = "$CANONICAL_ROOT"
+COMMON_GIT_DIR=$(git rev-parse --path-format=absolute --git-common-dir)
+STATE_DIR="$COMMON_GIT_DIR/codex-jets-ghost-2.1-consolidation"
+test -f "$STATE_DIR/bootstrap.complete"
+if test -f "$STATE_DIR/residue.complete"; then exit 0; fi
+IMPLEMENTATION_SHA=$(<"$STATE_DIR/implementation-sha")
+IMPLEMENTATION_TREE=$(<"$STATE_DIR/implementation-tree")
+test "$(git branch --show-current)" = codex/jets-ghost-2.1-canonical
+test "$(git rev-parse HEAD)" = "$IMPLEMENTATION_SHA"
+test "$(git rev-parse "${IMPLEMENTATION_SHA}^{tree}")" = "$IMPLEMENTATION_TREE"
+npm ci
+set +e
+git grep -n -i -E -- 'v1-modernization|prototype|migration|compat(ibility)?|shim|staging|one-off|temporary|todo|original plan'
+status=$?
+set -e
+test "$status" -le 1
+set +e
+git grep -n -E -- 'PUBLIC_JETS_GHOST_E2E|fakeRuntime|/tools/chatbot|/tools/'
+status=$?
+set -e
+test "$status" -le 1
+npm ls --all
+npm run verify:docs
+npm run verify:content
+```
+
+Make executable verification draft-agnostic. Remove the hard-coded draft route assertion from `tests/e2e/site.spec.ts`; retire or generalize any cleanup script/test that depends on a current untracked filename or status; and keep qualification fixtures synthetic. Historical released documentation may describe the past cleanup, but no current `src/`, `scripts/`, `tests/`, package/config, or qualification file may name a current untracked MDX file. Enforce that generically from the private path list without printing or persisting draft names:
+
+```bash
+set -euo pipefail
+CANONICAL_ROOT=/Users/jet/jet-web
+cd "$CANONICAL_ROOT"
+test "$(pwd -P)" = "$CANONICAL_ROOT"
+COMMON_GIT_DIR=$(git rev-parse --path-format=absolute --git-common-dir)
+STATE_DIR="$COMMON_GIT_DIR/codex-jets-ghost-2.1-consolidation"
+test -f "$STATE_DIR/bootstrap.complete"
+if test -f "$STATE_DIR/residue.complete"; then exit 0; fi
+IMPLEMENTATION_SHA=$(<"$STATE_DIR/implementation-sha")
+test "$(git branch --show-current)" = codex/jets-ghost-2.1-canonical
+test "$(git rev-parse HEAD)" = "$IMPLEMENTATION_SHA"
+while IFS= read -r -d '' path; do
+  case "$path" in
+    Untracked/*.mdx)
+      basename=${path##*/}
+      set +e
+      git grep -qF -e "$basename" -- src scripts tests package.json package-lock.json astro.config.mjs vercel.json
+      status=$?
+      set -e
+      case "$status" in
+        0) echo 'Executable tracked files depend on a current untracked MDX filename.' >&2; exit 1 ;;
+        1) ;;
+        *) echo 'Unable to complete the tracked executable draft-dependency search.' >&2; exit 1 ;;
+      esac
+      ;;
+  esac
+done < "$STATE_DIR/untracked-before.z"
+```
+
+After every disposition and draft-agnostic edit is complete, create the initial consolidation report, run the full canonical gate, then commit every approved tracked modification/deletion plus the report. `git add -u` cannot stage user-owned untracked files; any additional new permanent file requires an explicit `git add -- <path>` and a matching report row. The post-commit tracked worktree must be clean.
+
+```bash
+set -euo pipefail
+CANONICAL_ROOT=/Users/jet/jet-web
+cd "$CANONICAL_ROOT"
+test "$(pwd -P)" = "$CANONICAL_ROOT"
+COMMON_GIT_DIR=$(git rev-parse --path-format=absolute --git-common-dir)
+STATE_DIR="$COMMON_GIT_DIR/codex-jets-ghost-2.1-consolidation"
+test -f "$STATE_DIR/bootstrap.complete"
+if test -f "$STATE_DIR/residue.complete"; then
+  RESIDUE_COMMIT=$(<"$STATE_DIR/residue-commit")
+  git merge-base --is-ancestor "$RESIDUE_COMMIT" HEAD
+  exit 0
+fi
+IMPLEMENTATION_SHA=$(<"$STATE_DIR/implementation-sha")
+test "$(git branch --show-current)" = codex/jets-ghost-2.1-canonical
+test -f "$STATE_DIR/report-path-absent"
+if test "$(git rev-parse HEAD)" != "$IMPLEMENTATION_SHA"; then
+  test "$(git rev-parse HEAD^)" = "$IMPLEMENTATION_SHA"
+  test "$(git log -1 --format=%s)" = 'chore(repo): resolve modernization residue'
+  git ls-files --error-unmatch docs/verification/jets-ghost-2.1.0-consolidation.md >/dev/null
+  test -z "$(git status --porcelain=v1 --untracked-files=no)"
+  git rev-parse HEAD > "$STATE_DIR/residue-commit"
+  touch "$STATE_DIR/residue.complete"
+  exit 0
+fi
+npm run verify:all
+npm run build
+git diff --check
+git add -u
+git add -- docs/verification/jets-ghost-2.1.0-consolidation.md
+git diff --cached --check
+staged_untracked=$(git diff --cached --name-only -- Untracked)
+test -z "$staged_untracked"
+git commit -m "chore(repo): resolve modernization residue"
+test -z "$(git status --porcelain=v1 --untracked-files=no)"
+git rev-parse HEAD > "$STATE_DIR/residue-commit"
+touch "$STATE_DIR/residue.complete"
+```
+
+Now recapture and compare the private untracked path and metadata manifests. Only after they match exactly, the full canonical gate has passed, and the residue commit exists may the temporary worktree be removed. Require its tracked and nonignored state to be clean. Inventory ignored entries privately and allow forced removal only when every ignored path is a known disposable dependency, build/test output, Vercel link, macOS metadata file, or `.superpowers/sdd` execution scratch. Any environment file, image-staging asset, or other unmatched ignored path stops cleanup for inspection. Then delete only local branches proven integrated, rename the canonical branch, and verify one folder/worktree remains:
+
+```bash
+set -euo pipefail
+CANONICAL_ROOT=/Users/jet/jet-web
+IMPLEMENTATION_ROOT=/Users/jet/jet-web-v1-modernization
+cd "$CANONICAL_ROOT"
+test "$(pwd -P)" = "$CANONICAL_ROOT"
+COMMON_GIT_DIR=$(git rev-parse --path-format=absolute --git-common-dir)
+STATE_DIR="$COMMON_GIT_DIR/codex-jets-ghost-2.1-consolidation"
+test -f "$STATE_DIR/bootstrap.complete"
+test -f "$STATE_DIR/residue.complete"
+IMPLEMENTATION_SHA=$(<"$STATE_DIR/implementation-sha")
+IMPLEMENTATION_TREE=$(<"$STATE_DIR/implementation-tree")
+RESIDUE_COMMIT=$(<"$STATE_DIR/residue-commit")
+test "$(git rev-parse "${IMPLEMENTATION_SHA}^{tree}")" = "$IMPLEMENTATION_TREE"
+git merge-base --is-ancestor "$IMPLEMENTATION_SHA" "$RESIDUE_COMMIT"
+git merge-base --is-ancestor "$RESIDUE_COMMIT" HEAD
+if test -f "$STATE_DIR/cleanup.complete"; then
+  test "$(git branch --show-current)" = codex/jets-ghost-2.1
+  test ! -e "$IMPLEMENTATION_ROOT"
+  test "$(git worktree list --porcelain | awk '$1=="worktree"{count++} END{print count+0}')" = 1
+  test "$(find /Users/jet -maxdepth 1 -type d -name 'jet-web*' | wc -l | tr -d ' ')" = 1
+  exit 0
+fi
+case "$(git branch --show-current)" in
+  codex/jets-ghost-2.1-canonical|codex/jets-ghost-2.1) ;;
+  *) echo 'Unexpected canonical branch during cleanup.' >&2; exit 1 ;;
+esac
+test "$(git rev-parse HEAD)" = "$RESIDUE_COMMIT"
+feature_branch=$(git branch --list codex/jets-ghost-2.1 --format='%(refname:short)')
+ui_branch=$(git branch --list codex/jets-ghost-full-screen-chat --format='%(refname:short)')
+if test -n "$feature_branch" && test "$(git branch --show-current)" != codex/jets-ghost-2.1; then
+  test "$(git rev-parse codex/jets-ghost-2.1)" = "$IMPLEMENTATION_SHA"
+  git merge-base --is-ancestor codex/jets-ghost-2.1 HEAD
+fi
+if test -n "$ui_branch"; then
+  git merge-base --is-ancestor codex/jets-ghost-full-screen-chat HEAD
+fi
+git ls-files --others --exclude-standard -z > "$STATE_DIR/untracked-after.z"
+while IFS= read -r -d '' path; do
+  stat -f '%HT\t%i\t%z\t%Lp\t%m\t%c' "$CANONICAL_ROOT/$path"
+done < "$STATE_DIR/untracked-after.z" > "$STATE_DIR/untracked-after.meta"
+cmp "$STATE_DIR/untracked-before.z" "$STATE_DIR/untracked-after.z"
+cmp "$STATE_DIR/untracked-before.meta" "$STATE_DIR/untracked-after.meta"
+if test -e "$IMPLEMENTATION_ROOT"; then
+  test "$(git -C "$IMPLEMENTATION_ROOT" branch --show-current)" = codex/jets-ghost-2.1
+  test "$(git -C "$IMPLEMENTATION_ROOT" rev-parse HEAD)" = "$IMPLEMENTATION_SHA"
+  test "$(git -C "$IMPLEMENTATION_ROOT" rev-parse HEAD^{tree})" = "$IMPLEMENTATION_TREE"
+  test -z "$(git -C "$IMPLEMENTATION_ROOT" status --porcelain=v1 --untracked-files=all)"
+  git -C "$IMPLEMENTATION_ROOT" status --porcelain=v1 --ignored=matching -z > "$STATE_DIR/implementation-ignored.z"
+  while IFS= read -r -d '' record; do
+    test "${record:0:2}" = '!!'
+    path=${record:3}
+    case "$path" in
+      .DS_Store|*/.DS_Store|.astro/|.astro/*|.superpowers/sdd/|.superpowers/sdd/*|.vercel/|.vercel/*|coverage/|coverage/*|dist/|dist/*|node_modules/|node_modules/*|playwright-report/|playwright-report/*|test-results/|test-results/*|npm-debug.log*|yarn-debug.log*|yarn-error.log*|pnpm-debug.log*|test-config.json) ;;
+      *) echo 'Unexpected ignored implementation-worktree residue; inspect before removal.' >&2; exit 1 ;;
+    esac
+  done < "$STATE_DIR/implementation-ignored.z"
+  touch "$STATE_DIR/removal.authorized"
+  git worktree remove --force "$IMPLEMENTATION_ROOT"
+else
+  test -f "$STATE_DIR/removal.authorized"
+fi
+git worktree prune
+registered_worktrees=$(git worktree list --porcelain)
+case "$registered_worktrees" in
+  *"worktree $IMPLEMENTATION_ROOT"*) exit 1 ;;
+esac
+if test -n "$feature_branch" && test "$(git branch --show-current)" != codex/jets-ghost-2.1; then
+  test "$(git rev-parse codex/jets-ghost-2.1)" = "$IMPLEMENTATION_SHA"
+  git merge-base --is-ancestor codex/jets-ghost-2.1 HEAD
+  git branch -d codex/jets-ghost-2.1
+fi
+if test -n "$ui_branch"; then
+  git merge-base --is-ancestor codex/jets-ghost-full-screen-chat HEAD
+  git branch -d codex/jets-ghost-full-screen-chat
+fi
+if test "$(git branch --show-current)" = codex/jets-ghost-2.1-canonical; then
+  git branch -m codex/jets-ghost-2.1
+fi
+test ! -e "$IMPLEMENTATION_ROOT"
+test "$(git worktree list --porcelain | awk '$1=="worktree"{count++} END{print count+0}')" = 1
+test "$(find /Users/jet -maxdepth 1 -type d -name 'jet-web*' | wc -l | tr -d ' ')" = 1
+test "$(git branch --show-current)" = codex/jets-ghost-2.1
+touch "$STATE_DIR/cleanup.complete"
+```
+
+Finally update the consolidation report with the worktree/branch cleanup result, verify and commit that evidence, compare the private metadata once more, and delete the private state directory. This second documentation-only commit keeps the cleanup claim truthful while the first commit provides the clean precondition for safe worktree removal.
+
+```bash
+set -euo pipefail
+CANONICAL_ROOT=/Users/jet/jet-web
+cd "$CANONICAL_ROOT"
+test "$(pwd -P)" = "$CANONICAL_ROOT"
+COMMON_GIT_DIR=$(git rev-parse --path-format=absolute --git-common-dir)
+STATE_DIR="$COMMON_GIT_DIR/codex-jets-ghost-2.1-consolidation"
+test -f "$STATE_DIR/cleanup.complete"
+RESIDUE_COMMIT=$(<"$STATE_DIR/residue-commit")
+test "$(git branch --show-current)" = codex/jets-ghost-2.1
+if test "$(git rev-parse HEAD)" != "$RESIDUE_COMMIT"; then
+  test "$(git rev-parse HEAD^)" = "$RESIDUE_COMMIT"
+  test "$(git log -1 --format=%s)" = 'docs(repo): record canonical consolidation'
+  test -z "$(git status --porcelain=v1 --untracked-files=no)"
+else
+  npm run verify:docs
+  git diff --check
+  git add -- docs/verification/jets-ghost-2.1.0-consolidation.md
+  git diff --cached --check
+  git commit -m "docs(repo): record canonical consolidation"
+  test -z "$(git status --porcelain=v1 --untracked-files=no)"
+fi
+git ls-files --others --exclude-standard -z > "$STATE_DIR/untracked-final.z"
+while IFS= read -r -d '' path; do
+  stat -f '%HT\t%i\t%z\t%Lp\t%m\t%c' "$CANONICAL_ROOT/$path"
+done < "$STATE_DIR/untracked-final.z" > "$STATE_DIR/untracked-final.meta"
+cmp "$STATE_DIR/untracked-before.z" "$STATE_DIR/untracked-final.z"
+cmp "$STATE_DIR/untracked-before.meta" "$STATE_DIR/untracked-final.meta"
+rm -rf "$STATE_DIR"
+```
+
+- [ ] **Step 2: Run the one required real-model Mac qualification**
 
 Before the approximately 2 GB load, create `docs/verification/jets-ghost-2.1.0.md` with its title, tested-system section, measurement section, six-case review table, privacy/lifecycle section, limitations section, and Task 12 license link. Populate it during the run rather than using a separate review artifact. Then verify the pinned model delivery chain and run the six-case qualification once in the currently installed branded Chrome on the available Apple Silicon Mac:
 
 ```bash
+set -euo pipefail
+cd /Users/jet/jet-web
+test "$(pwd -P)" = /Users/jet/jet-web
 mkdir -p test-results
 npx tsx scripts/verify-model-delivery.ts --hash-artifact --output=test-results/jets-ghost-2.1.0-mac-model-delivery.json
 npm run qualify:jets-ghost:mac
@@ -1603,7 +1916,7 @@ npm run qualify:jets-ghost:mac
 
 Abort if the initial URL changes, a redirect leaves the trusted HTTPS origin policy or exceeds the bound, the request-privacy contract fails, the independently counted complete artifact is not exactly `2,008,432,640` bytes, or its actual bytes do not hash to the pinned SHA-256. Do not block on a changed redirect count within the bound, signed-query structure, response-header structure, transient CDN path, ETag, repository metadata, linked hash, or provider-declared size. During the headed run, complete each Playwright Inspector pause only after recording its concise Markdown review row. Record the actual macOS, branded Chrome, Apple Silicon and adapter identity; cold/warm model, corpus, and index load/hydration; configured context and serialized-budget breakdown; visible memory pressure or device loss; first-token and total-response latency; Stop; New session; Unload; reload; route cleanup; all six dispositions; citation/source inspection; both abstentions; and privacy allowlist result. Do not run the six-case set on Preview or Production, synthesize unavailable device results, or block release because Windows, lower-memory, mobile, or other configurations were not tested.
 
-- [ ] **Step 2: Apply the release invariants and product dispositions**
+- [ ] **Step 3: Apply the release invariants and product dispositions**
 
 Release only when:
 
@@ -1636,7 +1949,7 @@ model, runtime, MiniSearch, stemmer, and transitive license/attribution obligati
 
 Do not compute an aggregate retrieval or answer-quality score. If a gate fails, do not release or remove `noindex`; diagnose the concrete rank-and-pack, prompt, Gemma, citation, runtime, licensing, or UX defect. Do not open another retrieval-candidate experiment or fallback-selector plan as the default response. Untested hardware, absence of release-asset packaging, and omission of an optional audit ceremony are not failures.
 
-- [ ] **Step 3: Complete public-release metadata**
+- [ ] **Step 4: Complete public-release metadata**
 
 After passing every gate and the Task 12 license gate, replace hard `noindex={true}` with a build-target guard that keeps local and Vercel Preview candidates noindexed while allowing only a Production build of this approved commit to become indexable:
 
@@ -1648,15 +1961,18 @@ Pass that value to `BaseLayout`. Use the same target guard in the sitemap filter
 
 The deployment suite retains the core assertions and adds the complete route/SEO matrix: terminal `/chatbot/ === 200` with no `Location`; `/chatbot === 308` with `Location: /chatbot/`; `/tools/chatbot === 308` with `Location: /tools/chatbot/`; `/tools/chatbot/ === 308` with `Location: /chatbot/`; `/tools === 308` with `Location: /tools/`; `/tools/` is `noindex` and absent from sitemap/navigation; `/toolshed/` is not captured by a Tools rule. It also requires exact canonical/`og:url`/WebPage/SoftwareApplication trailing-slash agreement, Ghost href `/chatbot/` in primary/structured/no-script navigation, `/about` and `/about/` correctness, both retired canonical `404`s and their sitemap/RSS absence, and extension-correct `/robots.txt`, `/rss.xml`, and sitemap XML endpoints. Preview requires chatbot `noindex` plus zero sitemap membership; Production requires index-follow plus exactly one membership.
 
-- [ ] **Step 4: Bump the minor version**
+- [ ] **Step 5: Bump the minor version**
 
 Run:
 
 ```bash
+set -euo pipefail
+cd /Users/jet/jet-web
+test "$(pwd -P)" = /Users/jet/jet-web
 npm version 2.1.0 --no-git-tag-version
 ```
 
-- [ ] **Step 5: Finalize and review the verification evidence**
+- [ ] **Step 6: Finalize and review the verification evidence**
 
 Complete `docs/verification/jets-ghost-2.1.0.md` as a concise human-readable record with:
 
@@ -1674,9 +1990,12 @@ Complete `docs/verification/jets-ghost-2.1.0.md` as a concise human-readable rec
 
 Do not include prompts, questions, responses, conversation history, selected source text, complete signed URLs/values, signatures, policies, transient CDN paths, provider identity headers, ETags, linked hashes/sizes, raw sensitive request data, reviewer identity, an aggregate quality percentage, unavailable-device placeholders, qualification checksums, or release-asset instructions. Do not describe provider metadata as artifact identity or claim per-browser runtime SHA-256 verification. Do not claim Preview, Production, or release completion inside this predeployment commit; those are live gates run against the exact SHA after the commit exists.
 
-- [ ] **Step 6: Run all non-model gates again**
+- [ ] **Step 7: Run all non-model gates again**
 
 ```bash
+set -euo pipefail
+cd /Users/jet/jet-web
+test "$(pwd -P)" = /Users/jet/jet-web
 npm ci
 npm run verify:all
 git diff --check
@@ -1684,19 +2003,27 @@ git diff --check
 
 Expected: all pass.
 
-- [ ] **Step 7: Commit the release candidate**
+- [ ] **Step 8: Commit the release candidate**
 
 ```bash
+set -euo pipefail
+cd /Users/jet/jet-web
+test "$(pwd -P)" = /Users/jet/jet-web
 git add src/pages/chatbot.astro astro.config.mjs README.md package.json package-lock.json tests/e2e/jets-ghost.spec.ts tests/deployment/core-production.spec.ts docs/verification/jets-ghost-2.1.0.md
+git diff --cached --check
+git diff --cached --name-only
 git commit -m "feat(chatbot): release local Jet's Ghost"
+test -z "$(git status --porcelain=v1 --untracked-files=no)"
 ```
 
-- [ ] **Step 8: Qualify the exact final preview, then promote and read back production**
+- [ ] **Step 9: Qualify the exact final preview, then promote and read back production**
 
 Push the final release-candidate commit through the user-approved remote workflow and wait for its Git-backed Vercel Preview. Production remains on the prior noindexed release throughout this blocking qualification. Set `CANDIDATE_URL` to the preview hostname, then bind and qualify that exact commit:
 
 ```bash
 set -euo pipefail
+cd /Users/jet/jet-web
+test "$(pwd -P)" = /Users/jet/jet-web
 EXPECTED_SHA=$(git rev-parse HEAD)
 test -n "$CANDIDATE_URL"
 mkdir -p test-results
@@ -1718,7 +2045,7 @@ npx tsx scripts/verify-model-delivery.ts --transport-only --output=test-results/
 npx cross-env REAL_MODEL_BASE_URL="https://$CANDIDATE_URL" npm run smoke:jets-ghost
 ```
 
-This is a proportional two-case Preview smoke, not another full acceptance or 2 GB hash run. The transport-only check proves the pinned initial URL and durable redirect/origin/privacy policy; Task 13 Step 1 remains the byte-integrity proof. The smoke must prove one supported grounded answer with a valid citation and inspectable source, one unsupported abstention, privacy allowlist compliance, cleanup, exact canonical/OG/JSON-LD/navigation behavior, the complete platform-plus-explicit route matrix, About correctness, both retired `404`s, robots/sitemap/RSS behavior, exact `Cache-Control: public, max-age=31536000, immutable` on one versioned LiteRT `.wasm` response, and Preview `noindex` with zero `/chatbot/` sitemap memberships. If it fails, do not promote; the public production route remains on the earlier hard-noindex deployment. Terminal output must contain no question, response, history, selected source text, complete signed URL or value, signature, policy, transient CDN path, sensitive header, or prompt-bearing request record.
+This is a proportional two-case Preview smoke, not another full acceptance or 2 GB hash run. The transport-only check proves the pinned initial URL and durable redirect/origin/privacy policy; Task 13 Step 2 remains the byte-integrity proof. The smoke must prove one supported grounded answer with a valid citation and inspectable source, one unsupported abstention, privacy allowlist compliance, cleanup, exact canonical/OG/JSON-LD/navigation behavior, the complete platform-plus-explicit route matrix, About correctness, both retired `404`s, robots/sitemap/RSS behavior, exact `Cache-Control: public, max-age=31536000, immutable` on one versioned LiteRT `.wasm` response, and Preview `noindex` with zero `/chatbot/` sitemap memberships. If it fails, do not promote; the public production route remains on the earlier hard-noindex deployment. Terminal output must contain no question, response, history, selected source text, complete signed URL or value, signature, policy, transient CDN path, sensitive header, or prompt-bearing request record.
 
 Only after the exact Preview passes may that exact commit be fast-forwarded/promoted to Production. If integration creates a merge/squash/rebase SHA, stop and repeat exact-Preview binding and the two-case Preview smoke for the new SHA. Repeat the one-Mac six-case qualification only if integration changed runtime code, corpus/index generation or content, context configuration, model/library pins, or lockfile resolution.
 
@@ -1726,6 +2053,8 @@ After exact promotion, perform production-specific readback and one two-case gro
 
 ```bash
 set -euo pipefail
+cd /Users/jet/jet-web
+test "$(pwd -P)" = /Users/jet/jet-web
 EXPECTED_SHA=$(git rev-parse HEAD)
 EXPECTED_SHA="$EXPECTED_SHA" node -e "const d=require('./test-results/jets-ghost-2.1.0-final-preview-vercel-deployment.json'); if(d.gitSource?.sha!==process.env.EXPECTED_SHA) process.exit(1)"
 umask 077
@@ -1748,16 +2077,18 @@ npx cross-env REAL_MODEL_BASE_URL=https://jetsanchez.com npm run smoke:jets-ghos
 
 Production readback must prove `/chatbot/` has no `noindex`, owns exact canonical/OG/WebPage/SoftwareApplication identity and exactly one sitemap membership, and serves the exact approved SHA; the exact platform-plus-explicit chatbot route matrix; Ghost href `/chatbot/` present and Tools absent from every navigation representation; dormant `/tools/` noindexed and excluded; About and both retired-route assertions; extension-correct robots/RSS/sitemap endpoints; the exact immutable cache header on one versioned LiteRT `.wasm` response; activation/model request ordering; trusted-origin/private model delivery; one supported grounded answer with a valid citation and inspectable source; one unsupported abstention; privacy allowlist compliance; and cleanup. This transport/smoke readback does not claim an independent hash of the LiteRT-executed browser copy, reopen retrieval comparison, repeat the six-case Mac qualification, or repeat the full artifact download. If it fails, keep production on the prior noindexed state or roll back immediately and do not tag. Keep sanitized deployment/model-delivery files local and uncommitted; they are operational readback, not release assets or a certification archive.
 
-- [ ] **Step 9: Record the deferred Search Console follow-up**
+- [ ] **Step 10: Record the deferred Search Console follow-up**
 
 Never request indexing for `/chatbot/` while it is a prototype or Preview, and do not request indexing for `/rss.xml`. This release plan makes no `/chatbot/` indexing request. Record the non-blocking follow-up now, but do not wait for it before tagging: after the verified Production deployment has been live long enough for recrawl and the Page indexing report has refreshed, inspect and monitor `https://jetsanchez.com/chatbot/` in the `sc-domain:jetsanchez.com` property. Do not start validation for intentional retired-route `404`s, expected slashless alternate-canonical exclusions, or expected HTTP/www redirect exclusions. Search Console refresh is a later observation, not permission to remove `noindex`, a release gate, or a substitute for the exact Preview/Production release switch.
 
-- [ ] **Step 10: Tag the verified production commit normally**
+- [ ] **Step 11: Tag the verified production commit normally**
 
 After Production readback and both real-model smoke cases pass, create a normal annotated `v2.1.0` tag at the exact deployed commit. The tag push requires explicit remote authorization. Do not create a GitHub Release, upload qualification evidence, create a tarball or checksum manifest, bind an evidence digest into the tag, or redownload release assets:
 
 ```bash
 set -euo pipefail
+cd /Users/jet/jet-web
+test "$(pwd -P)" = /Users/jet/jet-web
 EXPECTED_SHA=$(git rev-parse HEAD)
 EXPECTED_SHA="$EXPECTED_SHA" node -e "const d=require('./test-results/jets-ghost-2.1.0-vercel-deployment.json'); if(d.readyState!=='READY'||d.target!=='production'||d.gitSource?.sha!==process.env.EXPECTED_SHA) process.exit(1)"
 EXPECTED_SHA="$EXPECTED_SHA" node -e "const d=require('./test-results/jets-ghost-2.1.0-final-preview-vercel-deployment.json'); if(d.target==='production'||d.gitSource?.sha!==process.env.EXPECTED_SHA) process.exit(1)"
@@ -1803,4 +2134,8 @@ Expected: the local annotated tag and remote `v2.1.0` tag point to the exact Pro
 [ ] Production /chatbot/ is index-follow with exact canonical/OG/JSON-LD agreement and exactly one sitemap entry; About, retired 404s, robots, RSS, and sitemap checks remain correct
 [ ] Production passes one supported and one unsupported grounded smoke before the normal v2.1.0 tag is pushed
 [ ] Prototype/Preview indexing was never requested, this release plan made no /chatbot/ request, RSS was not requested, and /chatbot/ monitoring waits for recrawl/report refresh without validating excluded classes
+[ ] The exact Task 12 implementation tree was integrated into `/Users/jet/jet-web`, and the full verification/build/release workflow from Task 13 onward ran from that canonical folder
+[ ] The separate consolidation report resolves temporary routes, migration scripts, compatibility shims, staging artifacts, unused dependencies, one-off scaffolding, stale docs/links, and production fake-runtime enablement; every retained test/verification artifact has an explicit permanent purpose
+[ ] User-owned drafts were preserved, and tracked tests/plans/qualification fixtures contain no dependency on an active draft's existence, filename, route, or publication status
+[ ] `/Users/jet/jet-web-v1-modernization`, obsolete fully integrated local branches, and stale worktree metadata were removed only after canonical tree equality, private draft-inventory equality, and the full canonical gate passed; `/Users/jet/jet-web` is the sole durable Jet Web repository/worktree folder
 ```
