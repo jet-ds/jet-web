@@ -113,7 +113,9 @@ export default function JetsGhostExperience({
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const errorActionRef = useRef<HTMLButtonElement>(null);
+  const loadActionRef = useRef<HTMLButtonElement>(null);
   const lastSubmittedRef = useRef<string | null>(null);
+  const unloadRequestedRef = useRef(false);
   const previousStatusRef = useRef(ghost.state.lifecycle.status);
 
   const status = ghost.state.lifecycle.status;
@@ -128,6 +130,9 @@ export default function JetsGhostExperience({
     if (shouldFocusComposer(previousStatus, status)) {
       inputRef.current?.focus();
     }
+    if (previousStatus === 'load-error' && status === 'awaiting-consent') {
+      loadActionRef.current?.focus();
+    }
     if (status === 'generation-error' && lastSubmittedRef.current !== null) {
       setDraft(lastSubmittedRef.current);
     }
@@ -136,6 +141,11 @@ export default function JetsGhostExperience({
       && (previousStatus === 'generating' || previousStatus === 'cancelling')
     ) {
       lastSubmittedRef.current = null;
+    }
+    if (status === 'idle' && unloadRequestedRef.current) {
+      setDraft('');
+      lastSubmittedRef.current = null;
+      unloadRequestedRef.current = false;
     }
     previousStatusRef.current = status;
   }, [status]);
@@ -161,6 +171,7 @@ export default function JetsGhostExperience({
   }, [ghost.state.error]);
 
   const handleUnload = () => {
+    unloadRequestedRef.current = true;
     void ghost.unload();
   };
 
@@ -313,6 +324,7 @@ export default function JetsGhostExperience({
 
                 {status === 'awaiting-consent' && (
                   <button
+                    ref={loadActionRef}
                     type="button"
                     onClick={() => void ghost.load()}
                     className="inline-flex min-h-12 items-center justify-center gap-xs rounded-xl bg-accent-base px-m font-semibold text-accent-contrast transition-colors hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent-base focus:ring-offset-2 focus:ring-offset-bg-base"
@@ -326,11 +338,14 @@ export default function JetsGhostExperience({
                   <button
                     ref={errorActionRef}
                     type="button"
-                    onClick={ghost.recoverFromError}
+                    onClick={ghost.state.error.code === 'engine-cleanup-failed'
+                      ? handleUnload
+                      : ghost.recoverFromError}
                     className="inline-flex min-h-12 items-center justify-center gap-xs rounded-xl border border-border-strong bg-surface-base px-m font-semibold text-text-primary transition-colors hover:border-brand-base hover:bg-bg-subtle focus:outline-none focus:ring-2 focus:ring-brand-base"
                   >
-                    Return to load
-                    <RotateCcw aria-hidden="true" size={18} />
+                    {ghost.state.error.code === 'engine-cleanup-failed'
+                      ? <><span>Unload Jet&apos;s Ghost</span><Unplug aria-hidden="true" size={18} /></>
+                      : <><span>Return to load</span><RotateCcw aria-hidden="true" size={18} /></>}
                   </button>
                 )}
               </div>
@@ -387,10 +402,10 @@ export default function JetsGhostExperience({
                 <h1 className="text-3xl font-bold text-text-primary">
                   {status === 'loading' ? loadingStage : 'Letting the ghost rest'}
                 </h1>
-                <p className="mt-xs text-xs text-text-tertiary">
-                  Elapsed {elapsedSeconds}s
-                </p>
               </div>
+              <p className="mt-xs text-xs text-text-tertiary">
+                Elapsed {elapsedSeconds}s
+              </p>
               <div className="mt-l h-2 overflow-hidden rounded-full bg-bg-ui">
                 <div
                   className="h-full w-1/3 animate-pulse rounded-full bg-accent-base motion-reduce:animate-none"

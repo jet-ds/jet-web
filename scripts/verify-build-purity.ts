@@ -4,6 +4,8 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { assertProductionArtifactsContainNoFakeRuntime } from './verify-production-artifacts';
+
 type Snapshot = {
   files: Map<string, string | null>;
   status: string;
@@ -83,9 +85,11 @@ function changedPaths(before: Snapshot, after: Snapshot): string[] {
 }
 
 function runBuild(): void {
+  const environment = { ...process.env };
+  delete environment.PUBLIC_JETS_GHOST_E2E;
   const result = spawnSync('npm', ['run', 'build'], {
     cwd: process.cwd(),
-    env: process.env,
+    env: environment,
     shell: false,
     stdio: 'inherit',
   });
@@ -95,6 +99,7 @@ function runBuild(): void {
 export function verifyBuildPurity(): void {
   const before = captureSnapshot();
   runBuild();
+  assertProductionArtifactsContainNoFakeRuntime(resolve('dist'));
   const after = captureSnapshot();
   const changed = changedPaths(before, after);
   if (changed.length > 0) {

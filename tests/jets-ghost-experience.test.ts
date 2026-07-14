@@ -18,6 +18,14 @@ const mappingSource = readFileSync(
   new URL('../src/features/jets-ghost/experience.ts', import.meta.url),
   'utf8',
 );
+const productionArtifactVerifierSource = readFileSync(
+  new URL('../scripts/verify-production-artifacts.ts', import.meta.url),
+  'utf8',
+);
+const buildPurityVerifierSource = readFileSync(
+  new URL('../scripts/verify-build-purity.ts', import.meta.url),
+  'utf8',
+);
 
 test('production lifecycle presentation begins idle and separates compatibility from consent', () => {
   assert.equal(getLifecycleLabel('idle'), 'Not running');
@@ -99,6 +107,10 @@ test('chat accessibility and sources are response-local', () => {
   assert.match(experienceSource, />Stopped</);
   assert.match(experienceSource, /'Start new session'/);
   assert.match(experienceSource, /errorActionRef/);
+  assert.match(
+    experienceSource,
+    /<div role="status" aria-live="polite">[\s\S]*?<\/div>\s*<p className="mt-xs text-xs text-text-tertiary">\s*Elapsed/,
+  );
   assert.equal(shouldFocusComposer('generating', 'ready'), true);
   assert.equal(shouldFocusComposer('cancelling', 'ready'), true);
   assert.equal(shouldFocusComposer('loading', 'ready'), true);
@@ -118,7 +130,7 @@ test('test-build fake runtime requires the flag, local host, and explicit query'
   assert.match(playwrightSource, /cross-env PUBLIC_JETS_GHOST_E2E=1 npm run build/);
 });
 
-test('ordinary production build metadata never enables the fake runtime', () => {
+test('ordinary production verification scans emitted artifacts for the fake runtime seam', () => {
   const packageJson = JSON.parse(readFileSync(
     new URL('../package.json', import.meta.url),
     'utf8',
@@ -130,4 +142,15 @@ test('ordinary production build metadata never enables the fake runtime', () => 
 
   assert.doesNotMatch(packageJson.scripts.build, /PUBLIC_JETS_GHOST_E2E/);
   assert.doesNotMatch(productionPlaywrightSource, /PUBLIC_JETS_GHOST_E2E|runtime=fake|__JETS_GHOST_E2E__/);
+  assert.match(packageJson.scripts.verify, /verify:production-artifacts/);
+  assert.match(buildPurityVerifierSource, /delete environment\.PUBLIC_JETS_GHOST_E2E/);
+  assert.match(buildPurityVerifierSource, /assertProductionArtifactsContainNoFakeRuntime/);
+  for (const marker of [
+    'FakeRuntime',
+    'runtime=fake',
+    '__JETS_GHOST_E2E__',
+    "Jet's published work connects local-first AI with systems thinking [S1].",
+  ]) {
+    assert.match(productionArtifactVerifierSource, new RegExp(marker.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')));
+  }
 });

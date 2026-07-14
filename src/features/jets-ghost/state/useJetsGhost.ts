@@ -206,6 +206,8 @@ export function useJetsGhost(
   const operationRef = useRef(0);
   const knowledgeBaseRef = useRef<LoadedKnowledgeBase | null>(null);
   const activationStartedRef = useRef(false);
+  const activationAbortRef = useRef<AbortController | null>(null);
+  const corpusActivationRef = useRef<Promise<LoadedKnowledgeBase> | null>(null);
   const cleanupRef = useRef<Promise<void> | null>(null);
 
   const commit = useCallback((next: JetsGhostState) => {
@@ -269,8 +271,12 @@ export function useJetsGhost(
     activationStartedRef.current = true;
     emit({ type: 'load-requested' });
     setLoading({ phase: 'corpus', startedAt: dependenciesRef.current.now() });
+    const abortController = new AbortController();
+    activationAbortRef.current = abortController;
+    const corpusActivation = repositoryRef.current!.load(abortController.signal);
+    corpusActivationRef.current = corpusActivation;
     try {
-      const knowledgeBase = await repositoryRef.current!.load();
+      const knowledgeBase = await corpusActivation;
       if (!isCurrent(operationId)) return;
       knowledgeBaseRef.current = knowledgeBase;
       await runtimeRef.current!.load({
@@ -302,6 +308,13 @@ export function useJetsGhost(
           error,
         }),
       });
+    } finally {
+      if (activationAbortRef.current === abortController) {
+        activationAbortRef.current = null;
+      }
+      if (corpusActivationRef.current === corpusActivation) {
+        corpusActivationRef.current = null;
+      }
     }
   }, [commit, emit, isCurrent]);
 
@@ -315,7 +328,8 @@ export function useJetsGhost(
     ) return;
 
     const operationId = ++operationRef.current;
-    const history = stateRef.current.turns.map(({ role, content }) => ({
+    const completeTurns = stateRef.current.turns;
+    const history = completeTurns.map(({ role, content }) => ({
       role,
       content,
     }));
@@ -430,6 +444,7 @@ export function useJetsGhost(
       commit({
         ...stateRef.current,
         error,
+        turns: completeTurns,
         lifecycle: reduceJetsGhostLifecycle(stateRef.current.lifecycle, {
           type: 'generation-failed',
           error,
@@ -507,6 +522,8 @@ export function useJetsGhost(
 
     operationRef.current += 1;
     if (!unmounted) emit({ type: 'unload-requested' });
+    const corpusActivation = corpusActivationRef.current;
+    activationAbortRef.current?.abort();
     const cleanup = (async () => {
       const failures: string[] = [];
       try {
@@ -518,17 +535,23 @@ export function useJetsGhost(
         await runtimeRef.current!.reset();
       } catch {
         failures.push('reset');
+      }
+      if (corpusActivation !== null) {
+        try {
+          await corpusActivation;
+        } catch {
+          // Activation errors are handled by load(); cleanup only joins the work.
+        }
+      }
+      try {
+        await repositoryRef.current!.unload();
+      } catch {
+        failures.push('repository');
       } finally {
         try {
-          await repositoryRef.current!.unload();
+          await runtimeRef.current!.unload();
         } catch {
-          failures.push('repository');
-        } finally {
-          try {
-            await runtimeRef.current!.unload();
-          } catch {
-            failures.push('runtime');
-          }
+          failures.push('runtime');
         }
       }
 
@@ -562,10 +585,13 @@ export function useJetsGhost(
 
   const unload = useCallback(() => cleanupResources(false), [cleanupResources]);
 
-  useEffect(() => () => {
-    mountedRef.current = false;
-    operationRef.current += 1;
-    void cleanupResources(true);
+  useEffect(() => {
+    mountedRef.current = true;
+    return () => {
+      mountedRef.current = false;
+      operationRef.current += 1;
+      void cleanupResources(true);
+    };
   }, [cleanupResources]);
 
   return {

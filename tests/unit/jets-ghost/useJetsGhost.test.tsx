@@ -6,7 +6,9 @@ import {
   renderHook,
   screen,
   waitFor,
+  within,
 } from '@testing-library/react';
+import { StrictMode } from 'react';
 import { afterEach, describe, expect, it, vi } from 'vitest';
 
 import { JETS_GHOST_CONTEXT } from '../../../src/features/jets-ghost/config';
@@ -100,6 +102,9 @@ async function loadSubject(): Promise<UseJetsGhost> {
 class OrderedFakeRuntime extends FakeRuntime {
   private remainingGenerationFailures: number;
   private remainingResetFailures: number;
+  private failNextGenerationRequested = false;
+  private readonly loadErrorCode: 'engine-cleanup-failed' | null;
+  readonly generationMessages: string[] = [];
 
   constructor(
     private readonly order: string[],
@@ -109,6 +114,7 @@ class OrderedFakeRuntime extends FakeRuntime {
     generationFailuresBeforeSuccess = 0,
     resetFailuresBeforeSuccess = 0,
     capabilityReport?: CapabilityReport,
+    loadErrorCode: 'engine-cleanup-failed' | null = null,
   ) {
     super({
       testOnly: true,
@@ -119,11 +125,19 @@ class OrderedFakeRuntime extends FakeRuntime {
     });
     this.remainingGenerationFailures = generationFailuresBeforeSuccess;
     this.remainingResetFailures = resetFailuresBeforeSuccess;
+    this.loadErrorCode = loadErrorCode;
   }
 
   override async load(options: LoadOptions): Promise<void> {
     this.order.push('runtime.load');
     await super.load(options);
+    if (this.loadErrorCode !== null) {
+      throw createRuntimeError(
+        this.loadErrorCode,
+        'Private cleanup details must not reach the interface.',
+        true,
+      );
+    }
   }
 
   override async createSession(preface: ModelMessage[]): Promise<void> {
@@ -136,8 +150,12 @@ class OrderedFakeRuntime extends FakeRuntime {
     handlers: GenerationHandlers,
   ): Promise<GenerationResult> {
     this.order.push('runtime.generate');
-    if (this.remainingGenerationFailures > 0) {
-      this.remainingGenerationFailures -= 1;
+    this.generationMessages.push(message);
+    if (this.failNextGenerationRequested || this.remainingGenerationFailures > 0) {
+      this.failNextGenerationRequested = false;
+      if (this.remainingGenerationFailures > 0) {
+        this.remainingGenerationFailures -= 1;
+      }
       throw createRuntimeError(
         'generation-failed',
         'The first test generation failed.',
@@ -145,6 +163,10 @@ class OrderedFakeRuntime extends FakeRuntime {
       );
     }
     return super.generate(message, handlers);
+  }
+
+  failNextGeneration(): void {
+    this.failNextGenerationRequested = true;
   }
 
   override cancel(): void {
@@ -189,6 +211,16 @@ class ManualScheduler {
     if (release === undefined) throw new Error('No chunk is pending.');
     release();
   }
+}
+
+function createDeferred<T>() {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, reject, resolve };
 }
 
 function selectedSource(): SelectedSource {
@@ -255,6 +287,8 @@ function createHarness(options: {
   generationFailuresBeforeSuccess?: number;
   resetFailuresBeforeSuccess?: number;
   capabilityReport?: CapabilityReport;
+  loadErrorCode?: 'engine-cleanup-failed';
+  repositoryLoad?: (signal?: AbortSignal) => Promise<LoadedKnowledgeBase>;
 } = {}) {
   const order: string[] = [];
   const source = selectedSource();
@@ -267,12 +301,16 @@ function createHarness(options: {
     options.generationFailuresBeforeSuccess,
     options.resetFailuresBeforeSuccess,
     options.capabilityReport,
+    options.loadErrorCode ?? null,
   );
   const knowledgeBase = {} as LoadedKnowledgeBase;
   let repositoryFailuresRemaining = options.repositoryFailuresBeforeSuccess ?? 0;
   const repository: WishedKnowledgeRepository = {
-    load: vi.fn(async () => {
+    load: vi.fn(async (signal?: AbortSignal) => {
       order.push('repository.load');
+      if (options.repositoryLoad !== undefined) {
+        return options.repositoryLoad(signal);
+      }
       if (options.repositoryError !== undefined) throw options.repositoryError;
       if (repositoryFailuresRemaining > 0) {
         repositoryFailuresRemaining -= 1;
@@ -366,6 +404,25 @@ describe('useJetsGhost activation boundary', () => {
     expect(harness.runtime.calls).toEqual([]);
     expect(harness.repository.load).not.toHaveBeenCalled();
     expect(harness.rankAndPack).not.toHaveBeenCalled();
+  });
+
+  it('survives React StrictMode setup-cleanup-setup replay before activation', async () => {
+    const useJetsGhost = await loadSubject();
+    const harness = createHarness();
+    const { result } = renderHook(() => useJetsGhost(harness.dependencies), {
+      wrapper: StrictMode,
+    });
+
+    await act(async () => {
+      await result.current.checkCompatibility();
+      await result.current.load();
+    });
+
+    expect(result.current.state.lifecycle.status).toBe('ready');
+    expect(harness.order).toEqual([
+      'repository.load',
+      'runtime.load',
+    ]);
   });
 
   it('checks compatibility without crossing any heavy-work boundary', async () => {
@@ -549,6 +606,103 @@ describe('useJetsGhost activation boundary', () => {
     expect(JSON.stringify(result.current.state.turns)).not.toContain('DROP THIS');
   });
 
+  it('aborts an in-flight corpus fetch before ordered cleanup and never starts the runtime', async () => {
+    const useJetsGhost = await loadSubject();
+    const fallback = createDeferred<LoadedKnowledgeBase>();
+    let receivedSignal: AbortSignal | undefined;
+    let abortObserved = false;
+    const harness = createHarness({
+      repositoryLoad: (signal) => {
+        receivedSignal = signal;
+        signal?.addEventListener('abort', () => {
+          abortObserved = true;
+          fallback.reject(new DOMException('Aborted', 'AbortError'));
+        }, { once: true });
+        return fallback.promise;
+      },
+    });
+    const { result } = renderHook(() => useJetsGhost(harness.dependencies));
+    await act(async () => result.current.checkCompatibility());
+
+    let activation!: Promise<void>;
+    act(() => {
+      activation = result.current.load();
+    });
+    await waitFor(() => expect(harness.repository.load).toHaveBeenCalledOnce());
+    harness.order.length = 0;
+
+    await act(async () => result.current.unload());
+    if (!abortObserved) fallback.resolve({} as LoadedKnowledgeBase);
+    await act(async () => activation);
+
+    expect(receivedSignal).toBeInstanceOf(AbortSignal);
+    expect(receivedSignal?.aborted).toBe(true);
+    expect(abortObserved).toBe(true);
+    expect(harness.order).toEqual([
+      'runtime.cancel',
+      'runtime.reset',
+      'repository.unload',
+      'runtime.unload',
+    ]);
+    expect(harness.runtime.calls.some(({ method }) => method === 'load')).toBe(false);
+    expect(result.current.state.lifecycle.status).toBe('idle');
+  });
+
+  it('waits for post-fetch corpus validation to settle before repository and runtime unload', async () => {
+    const useJetsGhost = await loadSubject();
+    const validation = createDeferred<LoadedKnowledgeBase>();
+    let receivedSignal: AbortSignal | undefined;
+    const harness = createHarness({
+      repositoryLoad: (signal) => {
+        receivedSignal = signal;
+        return validation.promise;
+      },
+    });
+    const { result } = renderHook(() => useJetsGhost(harness.dependencies));
+    await act(async () => result.current.checkCompatibility());
+
+    let activation!: Promise<void>;
+    act(() => {
+      activation = result.current.load();
+    });
+    await waitFor(() => expect(harness.repository.load).toHaveBeenCalledOnce());
+    harness.order.length = 0;
+
+    let cleanupSettled = false;
+    let cleanup!: Promise<void>;
+    act(() => {
+      cleanup = result.current.unload().then(() => {
+        cleanupSettled = true;
+      });
+    });
+    await waitFor(() => expect(harness.order).toContain('runtime.reset'));
+    await act(async () => Promise.resolve());
+    const beforeValidationSettles = {
+      cleanupSettled,
+      order: [...harness.order],
+      status: result.current.state.lifecycle.status,
+    };
+
+    validation.resolve({} as LoadedKnowledgeBase);
+    await act(async () => Promise.all([activation, cleanup]));
+
+    expect(receivedSignal).toBeInstanceOf(AbortSignal);
+    expect(receivedSignal?.aborted).toBe(true);
+    expect(beforeValidationSettles).toEqual({
+      cleanupSettled: false,
+      order: ['runtime.cancel', 'runtime.reset'],
+      status: 'unloading',
+    });
+    expect(harness.order).toEqual([
+      'runtime.cancel',
+      'runtime.reset',
+      'repository.unload',
+      'runtime.unload',
+    ]);
+    expect(harness.runtime.calls.some(({ method }) => method === 'load')).toBe(false);
+    expect(result.current.state.lifecycle.status).toBe('idle');
+  });
+
   it('performs the same ordered cleanup when the route unmounts', async () => {
     const useJetsGhost = await loadSubject();
     const harness = createHarness();
@@ -566,6 +720,41 @@ describe('useJetsGhost activation boundary', () => {
         'runtime.unload',
       ]);
     });
+  });
+
+  it('aborts an in-flight corpus activation when the route unmounts', async () => {
+    const useJetsGhost = await loadSubject();
+    const activationWork = createDeferred<LoadedKnowledgeBase>();
+    let receivedSignal: AbortSignal | undefined;
+    const harness = createHarness({
+      repositoryLoad: (signal) => {
+        receivedSignal = signal;
+        signal?.addEventListener('abort', () => {
+          activationWork.reject(new DOMException('Aborted', 'AbortError'));
+        }, { once: true });
+        return activationWork.promise;
+      },
+    });
+    const { result, unmount } = renderHook(() => useJetsGhost(harness.dependencies));
+    await act(async () => result.current.checkCompatibility());
+    let activation!: Promise<void>;
+    act(() => {
+      activation = result.current.load();
+    });
+    await waitFor(() => expect(harness.repository.load).toHaveBeenCalledOnce());
+    harness.order.length = 0;
+
+    unmount();
+    await act(async () => activation);
+
+    expect(receivedSignal?.aborted).toBe(true);
+    await waitFor(() => expect(harness.order).toEqual([
+      'runtime.cancel',
+      'runtime.reset',
+      'repository.unload',
+      'runtime.unload',
+    ]));
+    expect(harness.runtime.calls.some(({ method }) => method === 'load')).toBe(false);
   });
 
   it('classifies search-index validation failures without attempting model load', async () => {
@@ -760,25 +949,49 @@ describe('useJetsGhost activation boundary', () => {
     expect(result.current.state.turns).toEqual([]);
   });
 
-  it('recovers from a generation failure and allows another complete turn', async () => {
+  it('rolls back a failed generation and retries against only the prior complete transcript', async () => {
     const useJetsGhost = await loadSubject();
-    const harness = createHarness({ generationFailuresBeforeSuccess: 1 });
+    const harness = createHarness();
     const { result } = renderHook(() => useJetsGhost(harness.dependencies));
     await makeReady(result);
 
     await act(async () => {
-      await result.current.sendMessage('First attempt');
+      await result.current.sendMessage('Prior complete question');
     });
+    const priorTranscript = JSON.stringify(result.current.state.turns);
+    harness.runtime.failNextGeneration();
+
+    await act(async () => {
+      await result.current.sendMessage('Retry this exact question');
+    });
+
     expect(result.current.state.lifecycle.status).toBe('generation-error');
     expect(result.current.state.error?.code).toBe('generation-failed');
+    expect(JSON.stringify(result.current.state.turns)).toBe(priorTranscript);
+    expect(JSON.stringify(result.current.state.turns)).not.toContain('Retry this exact question');
 
     act(() => result.current.recoverFromError());
     expect(result.current.state.lifecycle.status).toBe('ready');
     expect(result.current.state.error).toBeNull();
 
     await act(async () => {
-      await result.current.sendMessage('Second attempt');
+      await result.current.sendMessage('Retry this exact question');
     });
+
+    const retryAssemblies = harness.assemblePrompt.mock.calls.filter(
+      ([question]) => question === 'Retry this exact question',
+    );
+    expect(retryAssemblies).toHaveLength(2);
+    expect(retryAssemblies[0]?.[1]).toEqual(retryAssemblies[1]?.[1]);
+    expect(retryAssemblies[1]?.[1]).toEqual([
+      { role: 'user', content: 'Prior complete question' },
+      { role: 'assistant', content: 'Grounded answer [S1].' },
+    ]);
+    expect(harness.runtime.generationMessages).toEqual([
+      'Prior complete question',
+      'Retry this exact question',
+      'Retry this exact question',
+    ]);
     expect(result.current.state.lifecycle.status).toBe('ready');
     expect(result.current.state.turns.at(-1)?.content).toBe('Grounded answer [S1].');
   });
@@ -872,5 +1085,125 @@ describe('JetsGhostExperience production composition', () => {
 
     expect(screen.queryByText('What does Jet write about agentic work?')).not.toBeInTheDocument();
     expect(screen.getAllByRole('link', { name: /Grounded source/ })).toHaveLength(2);
+  });
+
+  it('restores one failed question for an explicit retry without rendering the failed pair', async () => {
+    const harness = createHarness();
+    render(<JetsGhostExperience dependencies={harness.dependencies} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Load Jet's Ghost/ }));
+    const composer = await screen.findByRole('textbox', { name: "Ask Jet's Ghost" });
+
+    fireEvent.change(composer, { target: { value: 'Prior complete question' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
+    await screen.findByRole('link', { name: '[S1] Grounded source' });
+    const priorTranscript = [
+      { role: 'user', content: 'Prior complete question' },
+      { role: 'assistant', content: 'Grounded answer [S1].' },
+    ];
+    harness.runtime.failNextGeneration();
+
+    fireEvent.change(composer, { target: { value: 'Retry this exact question' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
+    const recovery = await screen.findByRole('button', { name: 'Try another question' });
+    expect(screen.queryAllByText('Retry this exact question').filter(
+      (element) => element.tagName === 'P',
+    )).toHaveLength(0);
+    await waitFor(() => expect(composer).toHaveValue('Retry this exact question'));
+    await waitFor(() => expect(recovery).toHaveFocus());
+
+    fireEvent.click(recovery);
+    await waitFor(() => expect(composer).toHaveFocus());
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
+    await waitFor(() => expect(harness.runtime.generationMessages).toEqual([
+      'Prior complete question',
+      'Retry this exact question',
+      'Retry this exact question',
+    ]));
+
+    const retryAssemblies = harness.assemblePrompt.mock.calls.filter(
+      ([question]) => question === 'Retry this exact question',
+    );
+    expect(retryAssemblies).toHaveLength(2);
+    expect(retryAssemblies[0]?.[1]).toEqual(priorTranscript);
+    expect(retryAssemblies[1]?.[1]).toEqual(priorTranscript);
+  });
+
+  it('returns recoverable load errors to consent and focuses the load action', async () => {
+    const harness = createHarness({ repositoryFailuresBeforeSuccess: 1 });
+    render(<JetsGhostExperience dependencies={harness.dependencies} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Load Jet's Ghost/ }));
+
+    const returnToLoad = await screen.findByRole('button', { name: 'Return to load' });
+    await waitFor(() => expect(returnToLoad).toHaveFocus());
+    fireEvent.click(returnToLoad);
+
+    const load = await screen.findByRole('button', { name: /Load Jet's Ghost/ });
+    await waitFor(() => expect(load).toHaveFocus());
+  });
+
+  it('offers a focused unload action when load fails during runtime cleanup', async () => {
+    const harness = createHarness({ loadErrorCode: 'engine-cleanup-failed' });
+    render(<JetsGhostExperience dependencies={harness.dependencies} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Load Jet's Ghost/ }));
+
+    const unload = await screen.findByRole('button', { name: "Unload Jet's Ghost" });
+    await waitFor(() => expect(unload).toHaveFocus());
+    fireEvent.click(unload);
+
+    await screen.findByRole('button', { name: 'Check compatibility' });
+    expect(harness.order.slice(-4)).toEqual([
+      'runtime.cancel',
+      'runtime.reset',
+      'repository.unload',
+      'runtime.unload',
+    ]);
+  });
+
+  it('clears the draft only after unload succeeds', async () => {
+    const harness = createHarness();
+    render(<JetsGhostExperience dependencies={harness.dependencies} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Load Jet's Ghost/ }));
+    const composer = await screen.findByRole('textbox', { name: "Ask Jet's Ghost" });
+    fireEvent.change(composer, { target: { value: 'Clear only after cleanup' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Unload/ }));
+    fireEvent.click(await screen.findByRole('button', { name: 'Check compatibility' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Load Jet's Ghost/ }));
+
+    expect(await screen.findByRole('textbox', { name: "Ask Jet's Ghost" })).toHaveValue('');
+  });
+
+  it('preserves the draft when unload cleanup fails', async () => {
+    const harness = createHarness({ runtimeFailures: { reset: true } });
+    render(<JetsGhostExperience dependencies={harness.dependencies} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Load Jet's Ghost/ }));
+    const composer = await screen.findByRole('textbox', { name: "Ask Jet's Ghost" });
+    fireEvent.change(composer, { target: { value: 'Preserve after cleanup failure' } });
+
+    fireEvent.click(screen.getByRole('button', { name: /Unload/ }));
+    await screen.findByRole('button', { name: 'Retry unload' });
+
+    expect(composer).toHaveValue('Preserve after cleanup failure');
+  });
+
+  it('keeps elapsed loading time outside the polite live region', async () => {
+    const activation = createDeferred<LoadedKnowledgeBase>();
+    const harness = createHarness({ repositoryLoad: () => activation.promise });
+    const view = render(<JetsGhostExperience dependencies={harness.dependencies} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Load Jet's Ghost/ }));
+
+    const loadingStatus = await screen.findByRole('status', { name: '' });
+    const elapsed = screen.getByText(/Elapsed \d+s/);
+    expect(within(loadingStatus).queryByText(/Elapsed/)).not.toBeInTheDocument();
+    expect(elapsed).not.toHaveAttribute('aria-live');
+
+    view.unmount();
+    activation.resolve({} as LoadedKnowledgeBase);
   });
 });
