@@ -57,6 +57,17 @@ describe('static production boundary', () => {
           permanent: true,
         },
       ],
+      headers: [
+        {
+          source: '/assistant/runtime/litert-lm/0.14.0/:asset',
+          headers: [
+            {
+              key: 'Cache-Control',
+              value: 'public, max-age=31536000, immutable',
+            },
+          ],
+        },
+      ],
     });
   });
 

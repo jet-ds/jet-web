@@ -158,6 +158,7 @@ describe("Jet's Ghost configuration", () => {
     expect(JETS_GHOST_MODEL.trustedOrigins).toEqual([
       { hostname: 'huggingface.co', allowSubdomains: false },
       { hostname: 'cdn.hf.co', allowSubdomains: true },
+      { hostname: 'xethub.hf.co', allowSubdomains: true },
     ]);
   });
 
@@ -196,6 +197,7 @@ export const JETS_GHOST_MODEL = {
   trustedOrigins: [
     { hostname: 'huggingface.co', allowSubdomains: false },
     { hostname: 'cdn.hf.co', allowSubdomains: true },
+    { hostname: 'xethub.hf.co', allowSubdomains: true },
   ],
 } as const;
 
@@ -259,10 +261,10 @@ The versioned path makes the immutable policy safe. `liteRtAssets.test.ts` parse
 Write `tests/unit/jets-ghost/modelDelivery.test.ts` before `runtime/modelDelivery.ts`. Define pure `isTrustedModelOrigin(url, policy)`, `validateModelDeliveryChain(chain, config)`, `verifyModelArtifactStream(stream, expected)`, and `sanitizeModelDeliveryResult(result)` helpers. Tests prove:
 
 - the first URL must equal the pinned revision URL byte-for-byte;
-- every hop is HTTPS, uses the default HTTPS port, matches exact `huggingface.co`, exact `cdn.hf.co`, or a hostname ending in the boundary-safe suffix `.cdn.hf.co`, and stays within `maxRedirects: 5`;
+- every hop is HTTPS, uses the default HTTPS port, matches exact `huggingface.co`, exact `cdn.hf.co`, exact `xethub.hf.co`, or a hostname ending in the boundary-safe suffix `.cdn.hf.co` or `.xethub.hf.co`, and stays within `maxRedirects: 5`; Hugging Face now routes Xet-backed large files through provider-owned `*.xethub.hf.co`, and this reviewed amendment adds neither a mirror nor a retry subsystem;
 - relative `Location` values are resolved against the current trusted URL before the next hop is validated;
 - standard HTTP redirect statuses require a `Location`, and the terminal artifact response must have a successful status; missing locations, redirect loops, and non-success terminal responses fail with rule codes only;
-- zero through five redirects are accepted, while a sixth redirect and lookalikes such as `cdn.hf.co.example.com` or `evilcdn.hf.co` are rejected;
+- zero through five redirects are accepted, while a sixth redirect and lookalikes such as `cdn.hf.co.example.com`, `evilcdn.hf.co`, `xethub.hf.co.example.com`, or `evilxethub.hf.co` are rejected;
 - provider changes to signed-query key names/values, transient response headers, redirect count within the bound, or final CDN pathname do not affect validation;
 - only bodyless ordinary `GET`/`HEAD` requests qualify, including browser-generated `Range` behavior where LiteRT requires it;
 - application code supplies no custom headers or credentials to the cross-origin model chain, and observed model requests containing `Authorization`, `Cookie`, `credentials: 'include'`, application-defined headers, prompts, selected context, history, or response sentinels fail;
