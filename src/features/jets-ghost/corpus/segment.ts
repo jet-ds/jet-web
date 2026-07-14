@@ -1,4 +1,5 @@
 import { createHash } from 'node:crypto';
+import { estimateTokens } from '../tokenEstimate';
 import type {
   ChunkId,
   DocumentId,
@@ -7,6 +8,8 @@ import type {
   NormalizedSection,
   SectionId,
 } from './types';
+
+export { estimateTokens } from '../tokenEstimate';
 
 export const SEGMENTATION_VERSION = '1.0.0' as const;
 export const SEGMENTATION = {
@@ -37,10 +40,6 @@ interface TextBlock {
 const TARGET_CHARACTERS = SEGMENTATION.targetTokens * 4;
 const MAX_CHARACTERS = SEGMENTATION.maxTokens * 4;
 const OVERLAP_CHARACTERS = SEGMENTATION.overlapTokens * 4;
-
-export function estimateTokens(text: string): number {
-  return Math.ceil(text.length / 4);
-}
 
 function normalizeText(text: string): string {
   return text

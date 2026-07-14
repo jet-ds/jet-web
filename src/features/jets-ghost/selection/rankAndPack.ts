@@ -6,6 +6,7 @@ import type {
   SectionId,
 } from '../corpus/types';
 import { measureSourcePayloadItem } from '../sourcePayload';
+import { estimateTokensFromCharacters } from '../tokenEstimate';
 import type {
   SelectedSource,
   SelectionInput,
@@ -109,10 +110,6 @@ function nominateExpansion(
   }
 }
 
-function estimatedTokensFromCharacters(characters: number): number {
-  return Math.ceil(characters / 4);
-}
-
 export function rankAndPackContext(input: SelectionInput): SelectionResult {
   const startedAt = performance.now();
   const { knowledgeBase } = input;
@@ -182,7 +179,7 @@ export function rankAndPackContext(input: SelectionInput): SelectionResult {
     const source = selectedSource(candidate, citationId, input);
     const item = measureSourcePayloadItem(source);
     const nextCharacters = serializedCharacters + item.characters + (sources.length === 0 ? 0 : 1);
-    if (estimatedTokensFromCharacters(nextCharacters) > input.budget.knowledgeLimit) {
+    if (estimateTokensFromCharacters(nextCharacters) > input.budget.knowledgeLimit) {
       rejectedForBudgetCount += 1;
       continue;
     }
@@ -190,7 +187,7 @@ export function rankAndPackContext(input: SelectionInput): SelectionResult {
     serializedCharacters = nextCharacters;
   }
 
-  const knowledgeTokens = estimatedTokensFromCharacters(serializedCharacters);
+  const knowledgeTokens = estimateTokensFromCharacters(serializedCharacters);
   if (
     completeCorpusIncluded
     && (

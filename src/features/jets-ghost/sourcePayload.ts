@@ -1,6 +1,6 @@
 import { canonicalSerialize } from './corpus/canonical';
-import { estimateTokens } from './corpus/segment';
 import type { ChunkId, DocumentId, SectionId } from './corpus/types';
+import { estimateTokens } from './tokenEstimate';
 
 export interface SourcePayloadRecord {
   citationId: `S${number}`;
