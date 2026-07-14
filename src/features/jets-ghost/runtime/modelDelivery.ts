@@ -159,7 +159,23 @@ function hasOnlyAllowedHeaders(headers: ModelDeliveryRequest['headers']): boolea
     return true;
   }
 
-  return Object.keys(headers).every((header) => header.toLowerCase() === 'range');
+  return Object.entries(headers).every(([header, value]) => {
+    if (header.toLowerCase() !== 'range' || typeof value !== 'string') {
+      return false;
+    }
+
+    const match = /^bytes=(\d*)-(\d*)$/.exec(value);
+    if (!match || match[0] !== value) {
+      return false;
+    }
+
+    const [, start, end] = match;
+    if (start === '' && end === '') {
+      return false;
+    }
+
+    return start === '' || end === '' || BigInt(start) <= BigInt(end);
+  });
 }
 
 export function validateModelDeliveryChain(

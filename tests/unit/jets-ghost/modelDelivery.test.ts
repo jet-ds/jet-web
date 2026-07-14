@@ -213,6 +213,74 @@ describe('model delivery chain validation', () => {
   });
 
   it.each([
+    ['closed', 'Range', 'bytes=0-65535'],
+    ['open-ended', 'range', 'bytes=65536-'],
+    ['suffix', 'RANGE', 'bytes=-65536'],
+  ])('accepts a valid %s browser byte range with a case-insensitive header name', (
+    _label,
+    headerName,
+    headerValue,
+  ) => {
+    const result = validateModelDeliveryChain([
+      terminalHop(PINNED_URL, {
+        request: {
+          url: PINNED_URL,
+          method: 'GET',
+          headers: { [headerName]: headerValue },
+        },
+      }),
+    ], JETS_GHOST_MODEL);
+
+    expect(result.valid).toBe(true);
+    expect(result.failures).toEqual([]);
+  });
+
+  it.each([
+    ['malformed', 'prompt-sentinel'],
+    ['non-byte unit', 'items=0-65535'],
+    ['empty', ''],
+    ['missing both bounds', 'bytes=-'],
+    ['reversed bounds', 'bytes=65535-0'],
+    ['array-valued', ['bytes=0-1', 'array-sentinel'] as const],
+    ['undefined-valued', undefined],
+    ['newline/sentinel-bearing', 'bytes=0-1\r\nX-Prompt: newline-sentinel'],
+  ])('rejects a %s Range value without retaining it in diagnostics', (
+    _label,
+    rangeValue,
+  ) => {
+    const validation = validateModelDeliveryChain([
+      terminalHop(PINNED_URL, {
+        request: {
+          url: PINNED_URL,
+          method: 'GET',
+          headers: { Range: rangeValue },
+        },
+      }),
+    ], JETS_GHOST_MODEL);
+    const sanitized = sanitizeModelDeliveryResult({
+      mode: 'transport-only',
+      validation,
+      verifiedAt: '2026-07-14T05:00:00Z',
+    });
+
+    expect(validation.valid).toBe(false);
+    expect(validation.failures).toEqual([
+      { hopIndex: 0, ruleCode: 'REQUEST_HEADER_NOT_ALLOWED' },
+    ]);
+    expect(sanitized.ruleCodes).toEqual(['REQUEST_HEADER_NOT_ALLOWED']);
+
+    const diagnostics = JSON.stringify({ failures: validation.failures, sanitized });
+    const rawValues = typeof rangeValue === 'string'
+      ? [rangeValue]
+      : (Array.isArray(rangeValue) ? rangeValue : []);
+    for (const rawValue of rawValues) {
+      if (rawValue.length > 0) {
+        expect(diagnostics).not.toContain(rawValue);
+      }
+    }
+  });
+
+  it.each([
     { headers: { Authorization: 'Bearer authorization-secret' } },
     { headers: { Cookie: 'session=cookie-secret' } },
     { headers: { 'X-Application-Header': 'custom-secret' } },
