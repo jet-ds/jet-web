@@ -116,6 +116,7 @@ class OrderedFakeRuntime extends FakeRuntime {
     loadErrorCode: 'engine-cleanup-failed' | null = null,
     private readonly unloadWait?: Promise<void>,
     private readonly createSessionWait?: Promise<void>,
+    private readonly createSessionError?: Error,
   ) {
     super({
       testOnly: true,
@@ -145,6 +146,7 @@ class OrderedFakeRuntime extends FakeRuntime {
     this.order.push('runtime.createSession');
     await super.createSession(preface);
     await this.createSessionWait;
+    if (this.createSessionError !== undefined) throw this.createSessionError;
   }
 
   override async generate(
@@ -294,6 +296,7 @@ function createHarness(options: {
   repositoryLoad?: (signal?: AbortSignal) => Promise<LoadedKnowledgeBase>;
   runtimeUnloadWait?: Promise<void>;
   runtimeCreateSessionWait?: Promise<void>;
+  runtimeCreateSessionError?: Error;
 } = {}) {
   const order: string[] = [];
   const source = selectedSource();
@@ -309,6 +312,7 @@ function createHarness(options: {
     options.loadErrorCode ?? null,
     options.runtimeUnloadWait,
     options.runtimeCreateSessionWait,
+    options.runtimeCreateSessionError,
   );
   const knowledgeBase = {} as LoadedKnowledgeBase;
   let repositoryFailuresRemaining = options.repositoryFailuresBeforeSuccess ?? 0;
@@ -933,6 +937,46 @@ describe('useJetsGhost activation boundary', () => {
     });
   });
 
+  it('fails closed when stopping a late-created session cannot clean up its conversation', async () => {
+    const useJetsGhost = await loadSubject();
+    const sessionCreation = createDeferred<void>();
+    const harness = createHarness({
+      runtimeCreateSessionWait: sessionCreation.promise,
+      runtimeCreateSessionError: createRuntimeError(
+        'engine-cleanup-failed',
+        'PRIVATE_STALE_SESSION',
+        true,
+      ),
+    });
+    const { result } = renderHook(() => useJetsGhost(harness.dependencies));
+    await makeReady(result);
+
+    let submission!: Promise<void>;
+    act(() => {
+      submission = result.current.sendMessage('Stop with failed stale cleanup.');
+    });
+    await waitFor(() => expect(harness.order).toContain('runtime.createSession'));
+    act(() => result.current.stop());
+    sessionCreation.resolve(undefined);
+    await act(async () => submission);
+
+    expect(harness.order).not.toContain('runtime.generate');
+    expect(result.current.state.lifecycle.status).toBe('generation-error');
+    expect(result.current.state.error).toMatchObject({
+      code: 'engine-cleanup-failed',
+      message: "Jet's Ghost could not fully release the local model runtime.",
+    });
+    expect(JSON.stringify(result.current.state.error)).not.toContain('PRIVATE');
+    expect(result.current.state.turns.at(-1)).toMatchObject({
+      role: 'assistant',
+      content: '',
+      stopped: true,
+    });
+    act(() => result.current.recoverFromError());
+    expect(result.current.state.lifecycle.status).toBe('generation-error');
+    expect(result.current.state.error?.code).toBe('engine-cleanup-failed');
+  });
+
   it('starts a new session by resetting first and clearing only after success', async () => {
     const useJetsGhost = await loadSubject();
     const harness = createHarness();
@@ -1365,6 +1409,39 @@ describe('JetsGhostExperience production composition', () => {
     );
     expect(screen.queryByRole('button', { name: 'Try another question' })).not.toBeInTheDocument();
     expect(harness.order).not.toContain('runtime.generate');
+  });
+
+  it('requires Unload when stopped session creation leaves cleanup pending', async () => {
+    const sessionCreation = createDeferred<void>();
+    const harness = createHarness({
+      runtimeCreateSessionWait: sessionCreation.promise,
+      runtimeCreateSessionError: createRuntimeError(
+        'engine-cleanup-failed',
+        'PRIVATE_STALE_SESSION',
+        true,
+      ),
+    });
+    render(<JetsGhostExperience dependencies={harness.dependencies} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Load Jet's Ghost/ }));
+    const composer = await screen.findByRole('textbox', { name: "Ask Jet's Ghost" });
+    fireEvent.change(composer, { target: { value: 'Stop with failed cleanup.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
+    await waitFor(() => expect(harness.order).toContain('runtime.createSession'));
+    fireEvent.click(screen.getByRole('button', { name: 'Stop response' }));
+    await waitFor(() => expect(screen.getByTestId('lifecycle-announcement')).toHaveTextContent(
+      'Stopping the current response.',
+    ));
+    sessionCreation.resolve(undefined);
+
+    expect(await screen.findByText(
+      "Jet's Ghost could not fully release the local model runtime.",
+    )).toBeInTheDocument();
+    expect(screen.getByText('Stopped')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Try another question' })).not.toBeInTheDocument();
+    const unload = screen.getByRole('button', { name: "Unload Jet's Ghost" });
+    fireEvent.click(unload);
+    expect(await screen.findByRole('button', { name: 'Check compatibility' })).toBeInTheDocument();
   });
 
   it('keeps touch-origin virtual-keyboard recovery blurred after character input', async () => {

@@ -281,6 +281,32 @@ describe('LiteRT-LM Gemma runtime', () => {
       .rejects.toMatchObject({ code: 'generation-failed' });
   });
 
+  it('preserves a stale-session cleanup failure after cancellation for a later retry', async () => {
+    const stale = fakeConversation();
+    stale.delete
+      .mockRejectedValueOnce(new Error('PRIVATE_STALE_SESSION'))
+      .mockResolvedValueOnce(undefined);
+    const creation = deferred<FakeConversation>();
+    const engine = fakeEngine([]);
+    engine.createConversation.mockImplementationOnce(async () => creation.promise);
+    const { runtime } = runtimeHarness({ engines: [engine] });
+
+    await runtime.load({});
+    const creating = runtime.createSession([{ role: 'system', content: 'Pending' }]);
+    await vi.waitFor(() => expect(engine.createConversation).toHaveBeenCalledTimes(1));
+    runtime.cancel();
+    creation.resolve(stale);
+
+    await expect(creating).rejects.toMatchObject({
+      code: 'engine-cleanup-failed',
+      cleanupFailures: ['conversation'],
+    });
+    expect(stale.delete).toHaveBeenCalledTimes(1);
+
+    await runtime.reset();
+    expect(stale.delete).toHaveBeenCalledTimes(2);
+  });
+
   it('keeps stale session cleanup pending when reset observes a deletion failure', async () => {
     const stale = fakeConversation();
     stale.delete

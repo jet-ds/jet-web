@@ -986,9 +986,10 @@ function ErrorRecovery({
   const isConversationFull = errorCode === 'conversation-limit-reached';
   const isResetError = status === 'reset-error';
   const isUnloadError = status === 'unload-error';
+  const requiresUnload = errorCode === 'engine-cleanup-failed' && !isResetError;
   const action = isConversationFull || isResetError
     ? onRetryReset
-    : isUnloadError
+    : isUnloadError || requiresUnload
       ? onRetryUnload
       : onRecover;
   const label = isConversationFull
@@ -997,7 +998,9 @@ function ErrorRecovery({
       ? 'Retry new session'
       : isUnloadError
         ? 'Retry unload'
-        : 'Try another question';
+        : requiresUnload
+          ? "Unload Jet's Ghost"
+          : 'Try another question';
 
   return (
     <div className="rounded-xl border border-border-strong bg-bg-subtle p-s text-sm text-text-secondary">

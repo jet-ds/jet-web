@@ -394,7 +394,7 @@ export function useJetsGhost(
     });
 
     let response = '';
-    const completeStoppedResponse = () => {
+    const completeStoppedResponse = (error: JetsGhostError | null = null) => {
       if (!isCurrent(operationId)) return;
       const citations = dependenciesRef.current.extractValidCitations(
         response,
@@ -403,10 +403,13 @@ export function useJetsGhost(
       stoppedOperationRef.current = null;
       commit({
         ...stateRef.current,
-        error: null,
-        lifecycle: reduceJetsGhostLifecycle(stateRef.current.lifecycle, {
-          type: 'generation-cancelled',
-        }),
+        error,
+        lifecycle: reduceJetsGhostLifecycle(
+          stateRef.current.lifecycle,
+          error === null
+            ? { type: 'generation-cancelled' }
+            : { type: 'generation-failed', error },
+        ),
         turns: stateRef.current.turns.map((turn) => (
           turn.id === assistantTurnId
             ? {
@@ -471,14 +474,16 @@ export function useJetsGhost(
       });
     } catch (cause) {
       if (!isCurrent(operationId)) return;
-      if (stoppedOperationRef.current === operationId) {
-        completeStoppedResponse();
-        return;
-      }
       const error = safeError(
         cause,
         'generation-failed',
       );
+      if (stoppedOperationRef.current === operationId) {
+        completeStoppedResponse(
+          error.code === 'engine-cleanup-failed' ? error : null,
+        );
+        return;
+      }
       commit({
         ...stateRef.current,
         error,
@@ -546,6 +551,7 @@ export function useJetsGhost(
   const recoverFromError = useCallback(() => {
     const status = stateRef.current.lifecycle.status;
     if (status !== 'load-error' && status !== 'generation-error') return;
+    if (stateRef.current.error?.code === 'engine-cleanup-failed') return;
     commit({
       ...stateRef.current,
       error: null,
