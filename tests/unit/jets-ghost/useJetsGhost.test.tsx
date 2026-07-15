@@ -1145,7 +1145,8 @@ describe('JetsGhostExperience production composition', () => {
     const harness = createHarness({ responseChunks: ['Grounded answer [S1].'] });
     render(<JetsGhostExperience dependencies={harness.dependencies} />);
 
-    expect(screen.getByText(/Gemma 4 E2B/)).toBeInTheDocument();
+    expect(screen.getByText(/frontier local AI/)).toBeInTheDocument();
+    expect(screen.queryByText(/runs Gemma 4 E2B/)).not.toBeInTheDocument();
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
     fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
     await screen.findByRole('button', { name: /Load Jet's Ghost/ });
@@ -1796,9 +1797,20 @@ describe('JetsGhostExperience production composition', () => {
     const harness = createHarness({ repositoryFailuresBeforeSuccess: 1 });
     render(<JetsGhostExperience dependencies={harness.dependencies} />);
     fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Load Jet's Ghost/ }));
+    const readyMessage = await screen.findByTestId('activation-status-message');
+    expect(readyMessage).toHaveTextContent('This browser is ready for the local runtime');
+    fireEvent.click(screen.getByRole('button', { name: /Load Jet's Ghost/ }));
 
     const returnToLoad = await screen.findByRole('button', { name: 'Return to load' });
+    const errorMessage = screen.getByTestId('activation-status-message');
+    expect(errorMessage).toHaveAttribute('id', readyMessage.id);
+    expect(errorMessage).toHaveTextContent(
+      "Jet's Ghost could not load its published knowledge base.",
+    );
+    expect(screen.getAllByText(
+      "Jet's Ghost could not load its published knowledge base.",
+    )).toHaveLength(1);
+    expect(returnToLoad).toHaveAttribute('aria-describedby', errorMessage.id);
     await waitFor(() => expect(returnToLoad).toHaveFocus());
     fireEvent.click(returnToLoad);
 
@@ -1884,18 +1896,38 @@ describe('JetsGhostExperience production composition', () => {
     await waitFor(() => expect(checkCompatibility).toHaveFocus());
   });
 
-  it('shows changing liveness without offering a dishonest cancel action during load', async () => {
+  it('offers an honest page reload escape while loading without entering app cleanup', async () => {
     const activation = createDeferred<LoadedKnowledgeBase>();
     const harness = createHarness({
       repositoryLoad: () => activation.promise,
     });
-    const view = render(<JetsGhostExperience dependencies={harness.dependencies} />);
+    const reloadPage = vi.fn();
+    const view = render(
+      <JetsGhostExperience
+        dependencies={harness.dependencies}
+        reloadPage={reloadPage}
+      />,
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
     fireEvent.click(await screen.findByRole('button', { name: /Load Jet's Ghost/ }));
 
-    expect(await screen.findByText('Preparing the local assistant')).toBeInTheDocument();
-    expect(screen.getByTestId('loading-liveness-indicator')).toBeInTheDocument();
-    expect(screen.queryByRole('button', { name: /cancel|unload/i })).not.toBeInTheDocument();
+    expect(await screen.findByText("Haunting Jet's archive")).toBeInTheDocument();
+    expect(screen.getByTestId('loading-stack')).toBeInTheDocument();
+    expect(screen.getByTestId('loading-phase-visual')).toBeInTheDocument();
+    expect(screen.getByTestId('loading-main-ghost')).toBeInTheDocument();
+    expect(screen.getAllByTestId('loading-ghost-afterimage')).toHaveLength(2);
+    expect(screen.getAllByTestId('loading-inward-particle')).toHaveLength(4);
+    expect(screen.queryByTestId('loading-progress-track')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('loading-liveness-indicator')).not.toBeInTheDocument();
+    expect(screen.getByTestId('loading-reassurance-slot')).toBeInTheDocument();
+    expect(screen.queryByText('First load may take a few minutes.')).not.toBeInTheDocument();
+    const cancelAndReload = screen.getByRole('button', { name: 'Cancel and reload' });
+    expect(screen.queryByRole('button', { name: /unload/i })).not.toBeInTheDocument();
+
+    fireEvent.click(cancelAndReload);
+    expect(reloadPage).toHaveBeenCalledTimes(1);
+    expect(screen.queryByText('Releasing this device')).not.toBeInTheDocument();
+    expect(harness.order).not.toContain('runtime.unload');
 
     view.unmount();
     activation.resolve({} as LoadedKnowledgeBase);
@@ -1931,7 +1963,10 @@ describe('JetsGhostExperience production composition', () => {
     await act(async () => {
       await new Promise((resolve) => window.setTimeout(resolve, 1_100));
     });
-    expect(screen.getByText(/Elapsed [1-9]\d*s/)).toBeInTheDocument();
+    await waitFor(
+      () => expect(screen.getByText(/Elapsed [1-9]\d*s/)).toBeInTheDocument(),
+      { timeout: 3_000 },
+    );
 
     unloadWait.resolve();
     expect(await screen.findByRole('button', { name: 'Check compatibility' })).toBeInTheDocument();

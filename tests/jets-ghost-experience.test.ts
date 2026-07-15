@@ -7,7 +7,8 @@ import {
   getGhostAnimationMode,
   getLifecycleAnnouncement,
   getLifecycleLabel,
-  getLoadingLivenessMessage,
+  getLoadingHeadline,
+  getLoadingReassurance,
   shouldFocusComposer,
 } from '../src/features/jets-ghost/experience';
 
@@ -297,8 +298,9 @@ test('focus follows interaction modality and response scrolling stays inside the
 test('approved disclosure and production actions replace prototype simulation', () => {
   assert.match(
     experienceSource,
-    /Jet&apos;s Ghost runs Gemma 4 E2B in this browser\. Starting it downloads about 2 GB and may use substantial GPU memory\. Your prompts and responses stay on this device\./,
+    /Jet&apos;s Ghost runs frontier local AI in this browser\. Starting it downloads about 2 GB and may use substantial GPU memory\. Your prompts and responses stay on this device\./,
   );
+  assert.doesNotMatch(experienceSource, /runs Gemma 4 E2B/);
   assert.match(experienceSource, /ghost\.checkCompatibility/);
   assert.match(experienceSource, /ghost\.load/);
   assert.match(experienceSource, /ghost\.sendMessage/);
@@ -320,31 +322,97 @@ test('ghost animation follows every lifecycle context including loading', () => 
 });
 
 test('loading liveness changes independently of coarse runtime phases without fake progress', () => {
-  assert.equal(getLoadingLivenessMessage(0), 'Preparing the local assistant');
-  assert.equal(getLoadingLivenessMessage(12), 'Loading the model onto this device');
-  assert.equal(getLoadingLivenessMessage(24), 'Getting the local model ready');
-  assert.equal(
-    getLoadingLivenessMessage(36),
-    'This large local model can take several minutes',
-  );
-  assert.equal(getLoadingLivenessMessage(48), 'Loading the model onto this device');
-  assert.equal(getLoadingLivenessMessage(Number.NaN), 'Preparing the local assistant');
+  assert.equal(getLoadingHeadline(0), "Haunting Jet's archive");
+  assert.equal(getLoadingHeadline(12), 'Waking the ghost');
+  assert.equal(getLoadingHeadline(24), 'Feeding it ones and zeroes');
+  assert.equal(getLoadingHeadline(36), "Haunting Jet's archive");
+  assert.equal(getLoadingHeadline(Number.NaN), "Haunting Jet's archive");
+  assert.equal(getLoadingReassurance(35), null);
+  assert.equal(getLoadingReassurance(36), 'First load may take a few minutes.');
+  assert.equal(getLoadingReassurance(120), 'First load may take a few minutes.');
   assert.doesNotMatch(experienceSource, /experience\.progress|progressSteps|%<\/span>/);
   assert.doesNotMatch(experienceSource, /Cancel and unload/);
   assert.doesNotMatch(experienceSource, /Unload anytime/);
+  assert.match(experienceSource, /Cancel and reload/);
+  assert.match(experienceSource, /window\.location\.reload\(\)/);
   assert.match(experienceSource, />\s*Session only\s*</);
   assert.match(experienceSource, /elapsedSeconds/);
-  assert.match(experienceSource, /data-testid="loading-liveness-indicator"/);
-  assert.match(experienceSource, /x: \['-100%', '300%'\]/);
+  assert.match(experienceSource, /data-testid="loading-stack"/);
+  assert.match(experienceSource, /data-testid="loading-phase-visual"/);
+  assert.match(experienceSource, /data-testid="loading-main-ghost"/);
+  assert.match(experienceSource, /data-testid="loading-ghost-afterimage"/);
+  assert.match(experienceSource, /data-testid="loading-inward-particle"/);
+  assert.match(
+    experienceSource,
+    /<AnimatedGhost mode={status === 'loading' \? 'loading' : 'idle'} \/>/,
+  );
+  assert.match(experienceSource, /data-testid="loading-reassurance-slot"/);
+  assert.match(experienceSource, /min-h-\[1\.375em\]/);
+  assert.match(experienceSource, /text-xs/);
+  assert.doesNotMatch(experienceSource, /min-h-\[calc\(2\*/);
+  assert.doesNotMatch(experienceSource, /loading-(?:progress-track|liveness-indicator)/);
+  assert.doesNotMatch(experienceSource, /x: \['-100%', '300%'\]/);
+  assert.doesNotMatch(
+    experienceSource,
+    /role={status === 'loading' \? 'status' : undefined}/,
+  );
+  assert.match(experienceSource, /scale: \[0\.88, 1\.16, 1\.45\]/);
+  assert.match(experienceSource, /opacity: \[0, 0\.28, 0\]/);
+  assert.match(experienceSource, /opacity: \[0, 0\.75, 0\]/);
+  assert.match(experienceSource, /scale: \[0\.75, 1, 0\.45\]/);
+  assert.match(experienceSource, /opacity: \[0\.72, 1, 0\.72\]/);
+  assert.match(experienceSource, /scale: \[0\.97, 1\.03, 0\.97\]/);
   assert.match(experienceSource, /repeat: Infinity/);
   assert.match(experienceSource, /prefersReducedMotion/);
 
   for (const [name, source] of canonicalStatusDocs) {
     assert.match(source, /12 seconds/i, `${name} must pin the loading-copy cadence`);
-    assert.match(source, /no Cancel or Unload/i, `${name} must remove unsupported loading controls`);
+    assert.match(source, /Cancel and reload/i, `${name} must define the document-reload escape`);
+    assert.match(source, /document reload|reloads? the (?:page|document)/i);
+    assert.doesNotMatch(source, /no Cancel or Unload/i);
     assert.match(source, /elapsed time[^.]*monotonic|monotonic[^.]*elapsed time/i);
     assert.match(source, /indeterminate/i);
+    assert.match(source, /phase-in/i);
+    assert.match(source, /no progress bar|no progress-shaped/i);
+    assert.match(source, /First load may take a few minutes\./);
+    assert.match(source, /reserved[^.]*secondary/i);
   }
+});
+
+test('activation readiness and load errors share one stable status slot', () => {
+  assert.match(experienceSource, /data-testid="activation-status-message"/);
+  assert.match(experienceSource, /This browser is ready for the local runtime/);
+  assert.match(
+    experienceSource,
+    /status === 'load-error'\s*\? ghost\.state\.error\?\.message/,
+  );
+  assert.match(experienceSource, /aria-describedby="jets-ghost-activation-status"/);
+  assert.doesNotMatch(
+    experienceSource,
+    /status === 'load-error' && ghost\.state\.error !== null && \(\s*<p className="mx-auto mt-xs/,
+  );
+});
+
+test('activation privacy facts wrap naturally instead of colliding on narrow mobile', () => {
+  assert.match(experienceSource, /data-testid="activation-main"/);
+  assert.match(
+    experienceSource,
+    /data-testid="activation-main"[\s\S]{0,260}max-\[369px\]:pb-5xl/,
+  );
+  assert.doesNotMatch(experienceSource, /data-testid="activation-main"[\s\S]{0,260}md:py-m/);
+  assert.match(
+    experienceSource,
+    /max-\[369px\]:px-s[\s\S]{0,120}max-\[369px\]:text-sm[\s\S]{0,120}max-\[369px\]:whitespace-nowrap[\s\S]{0,220}Load Jet&apos;s Ghost · about 2 GB/,
+  );
+  assert.match(experienceSource, /data-testid="activation-privacy-facts"/);
+  assert.match(
+    experienceSource,
+    /data-testid="activation-privacy-facts"[\s\S]{0,180}className="[^"]*flex[^"]*flex-wrap[^"]*justify-center[^"]*gap-x-s[^"]*gap-y-2xs[^"]*"/,
+  );
+  assert.doesNotMatch(
+    experienceSource,
+    /data-testid="activation-privacy-facts"[\s\S]{0,180}grid-cols-3/,
+  );
 });
 
 test('mustard is reserved for a valid send action', () => {
@@ -393,7 +461,7 @@ test('chat accessibility and sources are response-local', () => {
   assert.match(experienceSource, /getLifecycleAnnouncement\(status\)/);
   assert.match(
     experienceSource,
-    /<div\s+role={status === 'loading' \? 'status' : undefined}[\s\S]*?<\/div>\s*<p className="mt-xs text-xs text-text-tertiary">\s*Elapsed/,
+    /<p[^>]*className="mb-2xs font-mono[^>]*>[\s\S]*?Loading on this device[\s\S]*?<h1[^>]*>[\s\S]*?loadingHeadline[\s\S]*?<\/h1>[\s\S]*?<p[^>]*className="mt-xs text-xs text-text-tertiary">\s*Elapsed/,
   );
   assert.equal(shouldFocusComposer('generating', 'ready'), true);
   assert.equal(shouldFocusComposer('cancelling', 'ready'), true);

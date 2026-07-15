@@ -51,22 +51,34 @@ export function getGhostAnimationMode(
   }
 }
 
-const LOADING_LIVENESS_MESSAGES = [
-  'Preparing the local assistant',
-  'Loading the model onto this device',
-  'Getting the local model ready',
-  'This large local model can take several minutes',
+const LOADING_HEADLINES = [
+  "Haunting Jet's archive",
+  'Waking the ghost',
+  'Feeding it ones and zeroes',
 ] as const;
 
-export function getLoadingLivenessMessage(elapsedSeconds: number): string {
-  const safeElapsedSeconds = Number.isFinite(elapsedSeconds)
+const LOADING_HEADLINE_INTERVAL_SECONDS = 12;
+const LOADING_REASSURANCE_THRESHOLD_SECONDS = 36;
+
+function getSafeElapsedSeconds(elapsedSeconds: number): number {
+  return Number.isFinite(elapsedSeconds)
     ? Math.max(0, elapsedSeconds)
     : 0;
-  const interval = Math.floor(safeElapsedSeconds / 12);
-  if (interval === 0) return LOADING_LIVENESS_MESSAGES[0];
+}
 
-  const longRunningIndex = 1 + ((interval - 1) % (LOADING_LIVENESS_MESSAGES.length - 1));
-  return LOADING_LIVENESS_MESSAGES[longRunningIndex];
+export function getLoadingHeadline(elapsedSeconds: number): string {
+  const safeElapsedSeconds = getSafeElapsedSeconds(elapsedSeconds);
+  const headlineIndex = Math.floor(
+    safeElapsedSeconds / LOADING_HEADLINE_INTERVAL_SECONDS,
+  ) % LOADING_HEADLINES.length;
+  return LOADING_HEADLINES[headlineIndex] ?? LOADING_HEADLINES[0];
+}
+
+export function getLoadingReassurance(elapsedSeconds: number): string | null {
+  return getSafeElapsedSeconds(elapsedSeconds)
+    >= LOADING_REASSURANCE_THRESHOLD_SECONDS
+    ? 'First load may take a few minutes.'
+    : null;
 }
 
 export function getLifecycleLabel(

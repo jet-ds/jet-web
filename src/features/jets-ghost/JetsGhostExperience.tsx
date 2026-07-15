@@ -32,7 +32,8 @@ import {
   getGhostAnimationMode,
   getLifecycleAnnouncement,
   getLifecycleLabel,
-  getLoadingLivenessMessage,
+  getLoadingHeadline,
+  getLoadingReassurance,
   shouldFocusComposer,
   type GhostAnimationMode,
 } from './experience';
@@ -146,10 +147,16 @@ function createDependencies(): JetsGhostDependencies {
 
 interface JetsGhostExperienceProps {
   dependencies?: JetsGhostDependencies;
+  reloadPage?: () => void;
+}
+
+function reloadCurrentDocument(): void {
+  window.location.reload();
 }
 
 export default function JetsGhostExperience({
   dependencies: injectedDependencies,
+  reloadPage = reloadCurrentDocument,
 }: JetsGhostExperienceProps = {}) {
   const dependencies = useMemo(
     () => injectedDependencies ?? createDependencies(),
@@ -201,7 +208,8 @@ export default function JetsGhostExperience({
     );
   const canUnload = showHeaderActions && status !== 'unloading';
   const ghostAnimationMode = getGhostAnimationMode(status);
-  const loadingLivenessMessage = getLoadingLivenessMessage(elapsedSeconds);
+  const loadingHeadline = getLoadingHeadline(elapsedSeconds);
+  const loadingReassurance = getLoadingReassurance(elapsedSeconds);
 
   useEffect(() => {
     const previousStatus = previousStatusRef.current;
@@ -495,17 +503,23 @@ export default function JetsGhostExperience({
           'awaiting-consent',
           'load-error',
         ].includes(status) && (
-          <main className="flex flex-1 items-center justify-center overflow-y-auto px-gutter py-m">
+          <main
+            data-testid="activation-main"
+            className="flex flex-1 items-center justify-center overflow-y-auto px-gutter py-m max-[369px]:pb-5xl"
+          >
             <div className="w-full max-w-3xl text-center">
               <AnimatedGhost mode={ghostAnimationMode} />
               <h1 className="mx-auto max-w-2xl text-5xl font-bold leading-[1.04] text-text-primary">
                 Ask the part of the site that reads everything.
               </h1>
               <p className="mx-auto mt-s max-w-2xl text-base leading-relaxed text-text-secondary">
-                Jet&apos;s Ghost runs Gemma 4 E2B in this browser. Starting it downloads about 2 GB and may use substantial GPU memory. Your prompts and responses stay on this device.
+                Jet&apos;s Ghost runs frontier local AI in this browser. Starting it downloads about 2 GB and may use substantial GPU memory. Your prompts and responses stay on this device.
               </p>
 
-              <div className="mx-auto mt-m grid max-w-xl grid-cols-3 items-center gap-2xs text-xs text-text-tertiary">
+              <div
+                data-testid="activation-privacy-facts"
+                className="mx-auto mt-m flex max-w-xl flex-wrap items-center justify-center gap-x-s gap-y-2xs text-xs text-text-tertiary"
+              >
                 <span className="inline-flex items-center justify-center gap-3xs whitespace-nowrap">
                   <LockKeyhole aria-hidden="true" size={15} />
                   Prompts stay here
@@ -520,13 +534,22 @@ export default function JetsGhostExperience({
                 </span>
               </div>
 
-              <div className="mt-l grid min-h-[calc(var(--space-xl)+var(--space-m)+var(--space-xs))] grid-rows-[var(--space-s)_var(--space-xl)] place-items-center gap-xs">
+              <div className="mt-l grid min-h-[calc(var(--space-xl)+var(--space-m)+var(--space-xs))] grid-rows-[auto_var(--space-xl)] place-items-center gap-xs">
                 <p
-                  className={`inline-flex items-center gap-2xs text-sm font-medium text-brand-text ${status === 'awaiting-consent' ? 'visible' : 'invisible'}`}
-                  aria-hidden={status !== 'awaiting-consent'}
+                  id="jets-ghost-activation-status"
+                  data-testid="activation-status-message"
+                  className={`inline-flex min-h-[2.75em] max-w-xl items-center justify-center gap-2xs text-xs font-medium leading-[1.375] min-[430px]:min-h-[1.375em] ${status === 'awaiting-consent' ? 'visible text-brand-text' : status === 'load-error' ? 'visible text-text-secondary' : 'invisible text-text-secondary'}`}
+                  aria-hidden={status !== 'awaiting-consent' && status !== 'load-error'}
                 >
-                  <MonitorCheck aria-hidden="true" size={16} />
-                  This browser is ready for the local runtime
+                  {status === 'awaiting-consent' && (
+                    <>
+                      <MonitorCheck aria-hidden="true" className="shrink-0" size={16} />
+                      This browser is ready for the local runtime
+                    </>
+                  )}
+                  {status === 'load-error'
+                    ? ghost.state.error?.message
+                    : null}
                 </p>
 
                 {status === 'idle' && (
@@ -557,7 +580,7 @@ export default function JetsGhostExperience({
                     ref={loadActionRef}
                     type="button"
                     onClick={handleLoad}
-                    className="inline-flex min-h-12 items-center justify-center gap-xs rounded-xl bg-accent-base px-m font-semibold text-accent-contrast transition-colors hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent-base focus:ring-offset-2 focus:ring-offset-bg-base"
+                    className="inline-flex min-h-12 items-center justify-center gap-xs rounded-xl bg-accent-base px-m font-semibold text-accent-contrast transition-colors hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent-base focus:ring-offset-2 focus:ring-offset-bg-base max-[369px]:px-s max-[369px]:text-sm max-[369px]:whitespace-nowrap"
                   >
                     Load Jet&apos;s Ghost · about 2 GB
                     <ArrowRight aria-hidden="true" size={18} />
@@ -568,6 +591,7 @@ export default function JetsGhostExperience({
                   <button
                     ref={errorActionRef}
                     type="button"
+                    aria-describedby="jets-ghost-activation-status"
                     onClick={ghost.state.error.code === 'engine-cleanup-failed'
                       ? handleUnload
                       : ghost.recoverFromError}
@@ -587,11 +611,6 @@ export default function JetsGhostExperience({
                     <p key={`${warning.code}-${index}`}>{warning.message}</p>
                   ))}
                 </div>
-              )}
-              {status === 'load-error' && ghost.state.error !== null && (
-                <p className="mx-auto mt-xs max-w-xl text-sm text-text-secondary">
-                  {ghost.state.error.message}
-                </p>
               )}
             </div>
           </main>
@@ -623,34 +642,35 @@ export default function JetsGhostExperience({
 
         {(status === 'loading' || status === 'unloading') && (
           <main className="flex flex-1 items-center justify-center px-gutter py-m">
-            <div className="w-full max-w-xl text-center">
-              <AnimatedGhost mode="loading" />
-              <div
-                role={status === 'loading' ? 'status' : undefined}
-                aria-live={status === 'loading' ? 'polite' : undefined}
-                aria-atomic={status === 'loading' ? 'true' : undefined}
-              >
+            <div data-testid="loading-stack" className="w-full max-w-xl text-center">
+              <AnimatedGhost mode={status === 'loading' ? 'loading' : 'idle'} />
+              <div>
                 <p className="mb-2xs font-mono text-xs uppercase tracking-[0.16em] text-brand-text">
                   {status === 'loading' ? 'Loading on this device' : 'Releasing this device'}
                 </p>
                 <h1 className="text-3xl font-bold text-text-primary">
-                  {status === 'loading' ? loadingLivenessMessage : 'Letting the ghost rest'}
+                  {status === 'loading' ? loadingHeadline : 'Letting the ghost rest'}
                 </h1>
               </div>
-              <p className="mt-xs text-xs text-text-tertiary">
+              <p data-testid="loading-elapsed" className="mt-xs text-xs text-text-tertiary">
                 Elapsed {elapsedSeconds}s
               </p>
-              <div className="mt-l h-2 overflow-hidden rounded-full bg-bg-ui" aria-hidden="true">
-                <motion.div
-                  data-testid="loading-liveness-indicator"
-                  className="h-full w-1/3 rounded-full bg-accent-base"
-                  initial={prefersReducedMotion ? false : { x: '-100%' }}
-                  animate={prefersReducedMotion ? { x: '0%' } : { x: ['-100%', '300%'] }}
-                  transition={prefersReducedMotion
-                    ? { duration: 0 }
-                    : { duration: 1.6, ease: 'easeInOut', repeat: Infinity }}
-                />
-              </div>
+              <p
+                data-testid="loading-reassurance-slot"
+                className="mx-auto mt-2xs min-h-[1.375em] w-full text-xs leading-[1.375] text-text-tertiary"
+              >
+                {loadingReassurance}
+              </p>
+              {status === 'loading' && (
+                <button
+                  type="button"
+                  onClick={reloadPage}
+                  className="mt-s inline-flex min-h-12 items-center justify-center gap-2xs rounded-xl border border-border-strong bg-surface-base px-m text-sm font-semibold text-text-primary transition-colors hover:border-brand-base hover:bg-bg-subtle focus:outline-none focus:ring-2 focus:ring-brand-base focus:ring-offset-2 focus:ring-offset-bg-base"
+                >
+                  Cancel and reload
+                  <RotateCcw aria-hidden="true" size={17} />
+                </button>
+              )}
             </div>
           </main>
         )}
@@ -1083,7 +1103,9 @@ interface AnimatedGhostProps {
   mode: GhostAnimationMode;
 }
 
-const ghostMotion: Record<GhostAnimationMode, {
+type NonLoadingGhostAnimationMode = Exclude<GhostAnimationMode, 'loading'>;
+
+const ghostMotion: Record<NonLoadingGhostAnimationMode, {
   animate: { x: number[]; y: number[]; rotate: number[]; scale: number[] };
   duration: number;
 }> = {
@@ -1094,10 +1116,6 @@ const ghostMotion: Record<GhostAnimationMode, {
   scanning: {
     animate: { x: [-28, 28, -28], y: [0, -2, 0], rotate: [-4, 4, -4], scale: [1, 1.03, 1] },
     duration: 1.8,
-  },
-  loading: {
-    animate: { x: [-34, 34, -34], y: [0, -5, 0], rotate: [-3, 3, -3], scale: [1, 1.05, 1] },
-    duration: 2.2,
   },
   ready: {
     animate: { x: [-4, 4, -4], y: [1, -6, 1], rotate: [-1, 1, -1], scale: [1, 1.04, 1] },
@@ -1115,10 +1133,101 @@ const binaryParticles = [
   { delay: 1.35, top: '68%', value: '1' },
 ];
 
+const loadingAfterimageDelays = [0, 1.2];
+const loadingInwardParticles = [
+  { delay: 0, value: '1', x: [-30, -12, 0], y: [-18, -20, 0] },
+  { delay: 0.6, value: '0', x: [28, 18, 0], y: [-20, -8, 0] },
+  { delay: 1.2, value: '1', x: [32, 10, 0], y: [18, 16, 0] },
+  { delay: 1.8, value: '0', x: [-28, -18, 0], y: [22, 8, 0] },
+];
+
+function LoadingPhaseGhost({ reduceMotion }: { reduceMotion: boolean }) {
+  return (
+    <div
+      data-testid="loading-phase-visual"
+      className="relative mx-auto mb-s h-16 w-36 shrink-0 text-brand-base"
+      aria-hidden="true"
+    >
+      {loadingAfterimageDelays.map((delay, index) => (
+        <motion.div
+          key={delay}
+          data-testid="loading-ghost-afterimage"
+          className="absolute inset-0 flex items-center justify-center text-brand-base"
+          initial={reduceMotion ? false : { opacity: 0, scale: 0.88 }}
+          animate={reduceMotion
+            ? { opacity: index === 0 ? 0.14 : 0.08, scale: index === 0 ? 1.14 : 1.3 }
+            : { opacity: [0, 0.28, 0], scale: [0.88, 1.16, 1.45] }}
+          transition={reduceMotion
+            ? { duration: 0 }
+            : { delay, duration: 2.4, ease: 'easeInOut', repeat: Infinity }}
+        >
+          <Ghost size={38} strokeWidth={1.35} />
+        </motion.div>
+      ))}
+
+      {loadingInwardParticles.map((particle) => (
+        <motion.span
+          key={`${particle.value}-${particle.delay}`}
+          data-testid="loading-inward-particle"
+          className="absolute left-1/2 top-1/2 z-10 -ml-1 -mt-2 font-mono text-xs font-semibold text-accent-base"
+          initial={reduceMotion
+            ? false
+            : {
+                x: particle.x[0],
+                y: particle.y[0],
+                opacity: 0,
+                scale: 0.75,
+              }}
+          animate={reduceMotion
+            ? {
+                x: particle.x[1],
+                y: particle.y[1],
+                opacity: 0.3,
+                scale: 0.85,
+              }
+            : {
+                x: particle.x,
+                y: particle.y,
+                opacity: [0, 0.75, 0],
+                scale: [0.75, 1, 0.45],
+              }}
+          transition={reduceMotion
+            ? { duration: 0 }
+            : {
+                delay: particle.delay,
+                duration: 2.4,
+                ease: 'easeInOut',
+                repeat: Infinity,
+              }}
+        >
+          {particle.value}
+        </motion.span>
+      ))}
+
+      <div className="absolute inset-0 z-20 flex items-center justify-center">
+        <motion.div
+          data-testid="loading-main-ghost"
+          initial={reduceMotion ? false : { opacity: 0.72, scale: 0.97 }}
+          animate={reduceMotion
+            ? { opacity: 1, scale: 1 }
+            : { opacity: [0.72, 1, 0.72], scale: [0.97, 1.03, 0.97] }}
+          transition={reduceMotion
+            ? { duration: 0 }
+            : { duration: 2.4, ease: 'easeInOut', repeat: Infinity }}
+        >
+          <Ghost size={38} strokeWidth={1.65} />
+        </motion.div>
+      </div>
+    </div>
+  );
+}
+
 function AnimatedGhost({ compact = false, mode }: AnimatedGhostProps) {
-  const reduceMotion = useReducedMotion();
+  const reduceMotion = Boolean(useReducedMotion());
+  if (mode === 'loading') return <LoadingPhaseGhost reduceMotion={reduceMotion} />;
+
   const motionProfile = ghostMotion[mode];
-  const particleDuration = mode === 'loading' || mode === 'scanning' ? 1.6 : 2.7;
+  const particleDuration = mode === 'scanning' ? 1.6 : 2.7;
 
   return (
     <div
