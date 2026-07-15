@@ -57,6 +57,7 @@ const canonicalStatusDocs = [
     ),
   ],
 ] as const;
+const experienceNote = canonicalStatusDocs[0][1];
 
 const lifecyclePresentation = [
   ['idle', 'Not running', "Jet's Ghost is not running."],
@@ -347,6 +348,10 @@ test('loading liveness changes independently of coarse runtime phases without fa
     /<AnimatedGhost mode={status === 'loading' \? 'loading' : 'idle'} \/>/,
   );
   assert.match(experienceSource, /data-testid="loading-reassurance-slot"/);
+  assert.match(
+    experienceSource,
+    /status === 'loading'\s*\? getLoadingReassurance/,
+  );
   assert.match(experienceSource, /min-h-\[1\.375em\]/);
   assert.match(experienceSource, /text-xs/);
   assert.doesNotMatch(experienceSource, /min-h-\[calc\(2\*/);
@@ -377,6 +382,16 @@ test('loading liveness changes independently of coarse runtime phases without fa
     assert.match(source, /First load may take a few minutes\./);
     assert.match(source, /reserved[^.]*secondary/i);
   }
+});
+
+test('experience note describes the integrated runtime without erasing its prototype provenance', () => {
+  assert.match(experienceNote, /Current integration route:\*\* `\/tools\/chatbot\/`/);
+  assert.match(experienceNote, /production LiteRT runtime and versioned corpus/i);
+  assert.match(experienceNote, /conversation is created only when the visitor sends a message/i);
+  assert.doesNotMatch(experienceNote, /prototype itself does not load the production model/i);
+  assert.doesNotMatch(experienceNote, /create one engine and conversation/i);
+  assert.doesNotMatch(experienceNote, /transparent canned response/i);
+  assert.doesNotMatch(experienceNote, /deliberately stops at the local-generation boundary/i);
 });
 
 test('activation readiness and load errors share one stable status slot', () => {

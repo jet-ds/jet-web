@@ -209,7 +209,9 @@ export default function JetsGhostExperience({
   const canUnload = showHeaderActions && status !== 'unloading';
   const ghostAnimationMode = getGhostAnimationMode(status);
   const loadingHeadline = getLoadingHeadline(elapsedSeconds);
-  const loadingReassurance = getLoadingReassurance(elapsedSeconds);
+  const loadingReassurance = status === 'loading'
+    ? getLoadingReassurance(elapsedSeconds)
+    : null;
 
   useEffect(() => {
     const previousStatus = previousStatusRef.current;
@@ -745,7 +747,7 @@ export default function JetsGhostExperience({
                             Reading the site locally…
                           </div>
                         ) : null}
-                        {turn.role === 'assistant' && turn.content && (
+                        {turn.role === 'assistant' && (turn.content || turn.stopped) && (
                           <ResponseDetails turn={turn} />
                         )}
                       </div>

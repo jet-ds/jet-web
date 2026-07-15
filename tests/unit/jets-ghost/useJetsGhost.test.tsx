@@ -115,6 +115,7 @@ class OrderedFakeRuntime extends FakeRuntime {
     capabilityReport?: CapabilityReport,
     loadErrorCode: 'engine-cleanup-failed' | null = null,
     private readonly unloadWait?: Promise<void>,
+    private readonly createSessionWait?: Promise<void>,
   ) {
     super({
       testOnly: true,
@@ -143,6 +144,7 @@ class OrderedFakeRuntime extends FakeRuntime {
   override async createSession(preface: ModelMessage[]): Promise<void> {
     this.order.push('runtime.createSession');
     await super.createSession(preface);
+    await this.createSessionWait;
   }
 
   override async generate(
@@ -291,6 +293,7 @@ function createHarness(options: {
   loadErrorCode?: 'engine-cleanup-failed';
   repositoryLoad?: (signal?: AbortSignal) => Promise<LoadedKnowledgeBase>;
   runtimeUnloadWait?: Promise<void>;
+  runtimeCreateSessionWait?: Promise<void>;
 } = {}) {
   const order: string[] = [];
   const source = selectedSource();
@@ -305,6 +308,7 @@ function createHarness(options: {
     options.capabilityReport,
     options.loadErrorCode ?? null,
     options.runtimeUnloadWait,
+    options.runtimeCreateSessionWait,
   );
   const knowledgeBase = {} as LoadedKnowledgeBase;
   let repositoryFailuresRemaining = options.repositoryFailuresBeforeSuccess ?? 0;
@@ -897,6 +901,38 @@ describe('useJetsGhost activation boundary', () => {
     expect(result.current.state.lifecycle.status).toBe('ready');
   });
 
+  it('stops cleanly while the first conversation is still being created', async () => {
+    const useJetsGhost = await loadSubject();
+    const sessionCreation = createDeferred<void>();
+    const harness = createHarness({
+      runtimeCreateSessionWait: sessionCreation.promise,
+    });
+    const { result } = renderHook(() => useJetsGhost(harness.dependencies));
+    await makeReady(result);
+
+    let submission!: Promise<void>;
+    act(() => {
+      submission = result.current.sendMessage('Stop before generation starts.');
+    });
+    await waitFor(() => expect(harness.order).toContain('runtime.createSession'));
+
+    act(() => result.current.stop());
+    expect(result.current.state.lifecycle.status).toBe('cancelling');
+    expect(harness.order).toContain('runtime.cancel');
+
+    sessionCreation.resolve(undefined);
+    await act(async () => submission);
+
+    expect(harness.order).not.toContain('runtime.generate');
+    expect(result.current.state.lifecycle.status).toBe('ready');
+    expect(result.current.state.error).toBeNull();
+    expect(result.current.state.turns.at(-1)).toMatchObject({
+      role: 'assistant',
+      content: '',
+      stopped: true,
+    });
+  });
+
   it('starts a new session by resetting first and clearing only after success', async () => {
     const useJetsGhost = await loadSubject();
     const harness = createHarness();
@@ -1302,6 +1338,33 @@ describe('JetsGhostExperience production composition', () => {
     expect(await screen.findByText('Stopped')).toBeInTheDocument();
     expect(screen.getByText('Partial response remains.')).toBeInTheDocument();
     expect(composer).not.toHaveFocus();
+  });
+
+  it('renders a stopped turn instead of an error when Stop precedes first-session creation', async () => {
+    const sessionCreation = createDeferred<void>();
+    const harness = createHarness({
+      runtimeCreateSessionWait: sessionCreation.promise,
+    });
+    render(<JetsGhostExperience dependencies={harness.dependencies} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Load Jet's Ghost/ }));
+    const composer = await screen.findByRole('textbox', { name: "Ask Jet's Ghost" });
+    fireEvent.change(composer, { target: { value: 'Stop this before generation.' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
+    await waitFor(() => expect(harness.order).toContain('runtime.createSession'));
+
+    fireEvent.click(screen.getByRole('button', { name: 'Stop response' }));
+    await waitFor(() => expect(screen.getByTestId('lifecycle-announcement')).toHaveTextContent(
+      'Stopping the current response.',
+    ));
+    sessionCreation.resolve(undefined);
+
+    expect(await screen.findByText('Stopped')).toBeInTheDocument();
+    expect(screen.getByTestId('lifecycle-announcement')).toHaveTextContent(
+      "Jet's Ghost is ready.",
+    );
+    expect(screen.queryByRole('button', { name: 'Try another question' })).not.toBeInTheDocument();
+    expect(harness.order).not.toContain('runtime.generate');
   });
 
   it('keeps touch-origin virtual-keyboard recovery blurred after character input', async () => {
@@ -1958,15 +2021,19 @@ describe('JetsGhostExperience production composition', () => {
     fireEvent.click(await screen.findByRole('button', { name: /Load Jet's Ghost/ }));
     await screen.findByRole('textbox', { name: "Ask Jet's Ghost" });
 
+    const performanceNow = vi.spyOn(performance, 'now').mockReturnValue(0);
     fireEvent.click(screen.getByRole('button', { name: /^Unload/ }));
     expect(await screen.findByText('Elapsed 0s')).toBeInTheDocument();
+    performanceNow.mockReturnValue(37_000);
     await act(async () => {
       await new Promise((resolve) => window.setTimeout(resolve, 1_100));
     });
     await waitFor(
-      () => expect(screen.getByText(/Elapsed [1-9]\d*s/)).toBeInTheDocument(),
+      () => expect(screen.getByText('Elapsed 37s')).toBeInTheDocument(),
       { timeout: 3_000 },
     );
+    expect(screen.queryByText('First load may take a few minutes.')).not.toBeInTheDocument();
+    performanceNow.mockRestore();
 
     unloadWait.resolve();
     expect(await screen.findByRole('button', { name: 'Check compatibility' })).toBeInTheDocument();

@@ -209,6 +209,7 @@ export function useJetsGhost(
   const activationAbortRef = useRef<AbortController | null>(null);
   const corpusActivationRef = useRef<Promise<LoadedKnowledgeBase> | null>(null);
   const cleanupRef = useRef<Promise<void> | null>(null);
+  const stoppedOperationRef = useRef<number | null>(null);
 
   const commit = useCallback((next: JetsGhostState) => {
     stateRef.current = next;
@@ -328,6 +329,7 @@ export function useJetsGhost(
     ) return;
 
     const operationId = ++operationRef.current;
+    stoppedOperationRef.current = null;
     const completeTurns = stateRef.current.turns;
     const history = completeTurns.map(({ role, content }) => ({
       role,
@@ -392,9 +394,38 @@ export function useJetsGhost(
     });
 
     let response = '';
+    const completeStoppedResponse = () => {
+      if (!isCurrent(operationId)) return;
+      const citations = dependenciesRef.current.extractValidCitations(
+        response,
+        assembled.selectedSources,
+      );
+      stoppedOperationRef.current = null;
+      commit({
+        ...stateRef.current,
+        error: null,
+        lifecycle: reduceJetsGhostLifecycle(stateRef.current.lifecycle, {
+          type: 'generation-cancelled',
+        }),
+        turns: stateRef.current.turns.map((turn) => (
+          turn.id === assistantTurnId
+            ? {
+                ...turn,
+                content: response,
+                citations,
+                stopped: true,
+              }
+            : turn
+        )),
+      });
+    };
     try {
       await runtimeRef.current!.createSession(assembled.preface);
       if (!isCurrent(operationId)) return;
+      if (stoppedOperationRef.current === operationId) {
+        completeStoppedResponse();
+        return;
+      }
       const result = await runtimeRef.current!.generate(assembled.userMessage, {
         onText: (chunk) => {
           if (!isCurrent(operationId)) return;
@@ -411,7 +442,12 @@ export function useJetsGhost(
       });
       if (!isCurrent(operationId)) return;
 
-      const stopped = result.finishReason === 'cancelled';
+      const stopped = result.finishReason === 'cancelled'
+        || stoppedOperationRef.current === operationId;
+      if (stopped) {
+        completeStoppedResponse();
+        return;
+      }
       const citations = dependenciesRef.current.extractValidCitations(
         response,
         assembled.selectedSources,
@@ -435,6 +471,10 @@ export function useJetsGhost(
       });
     } catch (cause) {
       if (!isCurrent(operationId)) return;
+      if (stoppedOperationRef.current === operationId) {
+        completeStoppedResponse();
+        return;
+      }
       const error = safeError(
         cause,
         'generation-failed',
@@ -453,6 +493,7 @@ export function useJetsGhost(
 
   const stop = useCallback(() => {
     if (stateRef.current.lifecycle.status !== 'generating') return;
+    stoppedOperationRef.current = operationRef.current;
     emit({ type: 'stop-requested' });
     runtimeRef.current!.cancel();
   }, [emit]);

@@ -1,12 +1,12 @@
 # Jet's Ghost 2.1.0 chat experience
 
-**Status:** Final approved interface direction and implementation prototype for 2.1.0
+**Status:** Final approved interface direction and integrated implementation for 2.1.0
 
 **Canonical production route:** `/chatbot/`
 
-**Current prototype route:** `/tools/chatbot/` (to move during integration)
+**Current integration route:** `/tools/chatbot/` (temporary until the coordinated route reversal)
 
-This note records the final interaction decisions represented by the prototype. The interface, responsive treatment, animation states, copy, and activation boundaries are approved as the 2.1.0 design direction. Integration into the broader Jet's Ghost architecture and release plan still needs to connect the real local runtime and corpus, reverse the temporary route redirects, and harden the experience with the plan's full test and accessibility matrix. The prototype itself does not load the production model or answer from the production corpus.
+This note records the final interaction decisions first established by the approved interface prototype and now connected to the production LiteRT runtime and versioned corpus. The interface, responsive treatment, animation states, copy, and activation boundaries are approved as the 2.1.0 design direction. The remaining integration work is the coordinated route reversal plus the plan's release, privacy, accessibility, and real-device qualification gates.
 
 ## Design direction
 
@@ -36,10 +36,10 @@ Jet's Ghost is a first-class site experience rather than a child of Tools. For 2
 | --- | --- | --- |
 | Ghost dock click / route navigation | Render the Astro shell and React interface. | No LiteRT import, corpus request, capability probe, model request, or engine creation. |
 | Check compatibility | Inspect secure-context and WebGPU capabilities and report supported, warning, or unsupported. | No model or corpus download. No engine creation. |
-| Load Jet's Ghost | After the visitor has seen the approximate 2 GB and GPU-memory disclosure, dynamically import LiteRT, fetch the versioned corpus, fetch the pinned model, and create one engine and conversation. | No prompt is assembled and no generation occurs. |
+| Load Jet's Ghost | After the visitor has seen the approximate 2 GB and GPU-memory disclosure, dynamically import LiteRT, fetch the versioned corpus and pinned model, and create one engine. | No prompt is assembled, no conversation is created, and no generation occurs. |
 | Loading | Use the loading-only phase-in ghost, mono eyebrow, independently cycling themed serif headline, monotonic elapsed time, reserved secondary reassurance slot, and a secondary **Cancel and reload** action while the non-abortable LiteRT call is pending. | No progress bar, ring spinner, fabricated percentage, in-place runtime cancellation, or Unload action. **Cancel and reload** reloads the document immediately, which is the browser-owned boundary for abandoning the page and its work. |
 | Ready before the first message | Keep the engine and corpus warm for this page instance; focus the composer only when Load was initiated with keyboard interaction modality. | No additional activation step and no conversation data leaves the browser. |
-| First and later messages | Select grounded context, assemble the prompt, and generate locally. | Do not silently download a second model, change runtime strategy, or persist the thread. |
+| First and later messages | Select grounded context, assemble the prompt, create the source-grounded conversation, and generate locally. The conversation is created only when the visitor sends a message. | Do not silently download a second model, change runtime strategy, or persist the thread. |
 | New session | Delete/reset the current conversation, preserve the loaded engine and corpus, then clear the visible transcript only after reset succeeds; restore composer focus only for keyboard initiation. | Do not re-download the model. |
 | Unload or route away | Cancel generation, delete the conversation, unload corpus resources, then delete the engine; suppress late stream events. | No background engine or session survives the page instance. |
 
@@ -70,6 +70,6 @@ For 2.1.0, the trade-off points the other way:
 
 The prototype therefore stays custom and installs no assistant-ui packages. Re-evaluate assistant-ui when at least two of the richer thread capabilities become committed product requirements, or when maintaining accessible message/composer primitives is demonstrably costing more than the adapter layer.
 
-## Prototype scope
+## Implementation scope and provenance
 
-The branch implements the approved full-screen layout, compatibility/consent/loading/ready/generating states, stateful ghost animations, session controls, responsive dock clearance, Utopia-based desktop/mobile typography, mustard accent treatment, and a transparent canned response that demonstrates message and citation presentation. The current preview remains mounted at `/tools/chatbot` so the broader integration work can move it to `/chatbot`, reverse the redirect, replace Tools with Ghost in the dock, and update canonical, sitemap, structured-data, containment, and navigation tests together. It deliberately stops at the local-generation boundary; the production model, corpus, privacy allowlist, runtime lifecycle, accessibility hardening, and full test matrix remain governed by the integrated Jet's Ghost plan.
+Commit `d406ed46dfc7cccfa95d0003fcae30f5b9373690` remains the approved interface prototype and design provenance. The integrated branch now replaces its timers and demonstration response with the production LiteRT runtime, immutable versioned corpus, deterministic rank-and-pack selection, real streaming, validated citations, cancellation, cleanup, and recoverable error mapping. The experience remains mounted temporarily at `/tools/chatbot/` so the broader integration work can move it to `/chatbot/`, reverse the redirect, replace Tools with Ghost in the dock, and update canonical, sitemap, structured-data, containment, and navigation tests together. Privacy allowlist enforcement, accessibility hardening, real-device qualification, route reversal, and the complete release matrix remain governed by the integrated Jet's Ghost plan.
