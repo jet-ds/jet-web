@@ -202,6 +202,10 @@ test('canonical docs carry reliability, modality, and collapsed-source correctne
   assert.match(architectureDesign, /completed or stopped turn[^.]*validated citations/i);
   assert.match(architectureDesign, /zero cited documents[^.]*no disclosure/i);
   assert.match(architectureDesign, /default[^.]*collapsed/i);
+  assert.match(
+    architectureDesign,
+    /cancellation[^.]*cleanup[^.]*fail[^.]*unload-error[^.]*Unload/i,
+  );
 
   const implementationPlan = canonicalStatusDocs[2][1];
   assert.match(

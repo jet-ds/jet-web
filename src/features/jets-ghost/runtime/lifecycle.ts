@@ -35,6 +35,7 @@ export type JetsGhostLifecycleEvent =
   | { type: 'generation-succeeded' }
   | { type: 'generation-failed'; error: JetsGhostError }
   | { type: 'generation-cancelled' }
+  | { type: 'cleanup-failed'; error: JetsGhostError }
   | { type: 'stop-requested' }
   | { type: 'reset-requested' }
   | { type: 'reset-succeeded' }
@@ -95,6 +96,13 @@ export function reduceJetsGhostLifecycle(
       stopRequestedDuringLoad: state.status === 'loading',
       error: null,
     });
+  }
+
+  if (
+    event.type === 'cleanup-failed'
+    && (state.status === 'generating' || state.status === 'cancelling')
+  ) {
+    return status(state, 'unload-error', { error: event.error });
   }
 
   switch (state.status) {

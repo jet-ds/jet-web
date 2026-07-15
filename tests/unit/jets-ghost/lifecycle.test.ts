@@ -249,8 +249,29 @@ describe("Jet's Ghost lifecycle reducer", () => {
 
     expect(state).toEqual(createInitialLifecycleState(false));
     expect(reduceJetsGhostLifecycle(state, { type: 'generation-succeeded' })).toBe(state);
+    });
   });
-});
+
+  it('routes cancellation cleanup failures into fail-closed unload recovery', () => {
+    let state = reduceJetsGhostLifecycle(readyState(), { type: 'generation-requested' });
+    state = reduceJetsGhostLifecycle(state, { type: 'stop-requested' });
+    const error = createRuntimeError(
+      'engine-cleanup-failed',
+      'Cleanup failed.',
+      true,
+    );
+
+    state = reduceJetsGhostLifecycle(state, { type: 'cleanup-failed', error });
+
+    expect(state).toMatchObject({
+      status: 'unload-error',
+      error: { code: 'engine-cleanup-failed' },
+    });
+    expect(reduceJetsGhostLifecycle(state, { type: 'error-acknowledged' }))
+      .toEqual(state);
+    expect(reduceJetsGhostLifecycle(state, { type: 'unload-requested' }).status)
+      .toBe('unloading');
+  });
 
 describe('runtime diagnostics', () => {
   it('maps hostile error names and other causes to fixed diagnostic categories', () => {

@@ -595,6 +595,7 @@ idle
 
 loading -> load-error -> awaiting-consent or idle
 generating -> generation-error -> ready
+cancelling -> unload-error -> unloading -> idle (only when cancellation cleanup fails)
 ready -> unloading -> idle
 any mounted state -> route unmount -> unloading -> idle
 ```
@@ -613,7 +614,7 @@ Rules:
 - Call `engine.delete()` after conversation cleanup on unload and route unmount.
 - Call `unloadLiteRtLm()` after engine deletion on final Unload or route unmount, including failure cleanup, so a later route entry must initialize a fresh SDK singleton.
 - A failed load leaves no runtime marked ready.
-- Cancellation returns to `ready` without duplicating the partial assistant response.
+- Cancellation normally returns to `ready` without duplicating the partial assistant response. If cancellation exposes an `engine-cleanup-failed` error while deleting a late-created stale conversation, transition fail-closed to `unload-error`, retain the stopped response, show **Not running**, and require Unload to retry pending cleanup before returning to `idle`.
 - The user-facing New session action calls runtime reset, clears visible history only after `conversation.delete()` succeeds, and leaves the engine loaded; the next question creates a fresh conversation from that engine.
 - Never expose E4B or a second engine in the first release.
 

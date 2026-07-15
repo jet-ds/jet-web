@@ -408,7 +408,7 @@ export function useJetsGhost(
           stateRef.current.lifecycle,
           error === null
             ? { type: 'generation-cancelled' }
-            : { type: 'generation-failed', error },
+            : { type: 'cleanup-failed', error },
         ),
         turns: stateRef.current.turns.map((turn) => (
           turn.id === assistantTurnId

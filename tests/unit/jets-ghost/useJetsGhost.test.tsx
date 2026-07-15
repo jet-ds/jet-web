@@ -961,7 +961,7 @@ describe('useJetsGhost activation boundary', () => {
     await act(async () => submission);
 
     expect(harness.order).not.toContain('runtime.generate');
-    expect(result.current.state.lifecycle.status).toBe('generation-error');
+    expect(result.current.state.lifecycle.status).toBe('unload-error');
     expect(result.current.state.error).toMatchObject({
       code: 'engine-cleanup-failed',
       message: "Jet's Ghost could not fully release the local model runtime.",
@@ -973,7 +973,7 @@ describe('useJetsGhost activation boundary', () => {
       stopped: true,
     });
     act(() => result.current.recoverFromError());
-    expect(result.current.state.lifecycle.status).toBe('generation-error');
+    expect(result.current.state.lifecycle.status).toBe('unload-error');
     expect(result.current.state.error?.code).toBe('engine-cleanup-failed');
   });
 
@@ -1438,8 +1438,13 @@ describe('JetsGhostExperience production composition', () => {
       "Jet's Ghost could not fully release the local model runtime.",
     )).toBeInTheDocument();
     expect(screen.getByText('Stopped')).toBeInTheDocument();
+    await waitFor(() => expect(screen.getAllByTestId('lifecycle-visual-label')).toHaveLength(1));
+    expect(screen.getByTestId('lifecycle-visual-label')).toHaveTextContent('Not running');
+    expect(screen.getByTestId('lifecycle-announcement')).toHaveTextContent(
+      "Jet's Ghost did not finish unloading. Review the recovery action.",
+    );
     expect(screen.queryByRole('button', { name: 'Try another question' })).not.toBeInTheDocument();
-    const unload = screen.getByRole('button', { name: "Unload Jet's Ghost" });
+    const unload = screen.getByRole('button', { name: 'Retry unload' });
     fireEvent.click(unload);
     expect(await screen.findByRole('button', { name: 'Check compatibility' })).toBeInTheDocument();
   });
