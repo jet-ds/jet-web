@@ -4,9 +4,9 @@
 
 **Canonical production route:** `/chatbot/`
 
-**Current integration route:** `/tools/chatbot/` (temporary until the coordinated route reversal)
+**Current integration route:** `/chatbot/`
 
-This note records the final interaction decisions first established by the approved interface prototype and now connected to the production LiteRT runtime and versioned corpus. The interface, responsive treatment, animation states, copy, and activation boundaries are approved as the 2.1.0 design direction. The remaining integration work is the coordinated route reversal plus the plan's release, privacy, accessibility, and real-device qualification gates.
+This note records the final interaction decisions first established by the approved interface prototype and now connected to the production LiteRT runtime and versioned corpus. The interface, responsive treatment, animation states, copy, activation boundaries, and canonical route are approved as the 2.1.0 design direction. The remaining work is governed by the plan's release, privacy, accessibility, and real-device qualification gates.
 
 ## Design direction
 
@@ -72,4 +72,4 @@ The prototype therefore stays custom and installs no assistant-ui packages. Re-e
 
 ## Implementation scope and provenance
 
-Commit `d406ed46dfc7cccfa95d0003fcae30f5b9373690` remains the approved interface prototype and design provenance. The integrated branch now replaces its timers and demonstration response with the production LiteRT runtime, immutable versioned corpus, deterministic rank-and-pack selection, real streaming, validated citations, cancellation, cleanup, and recoverable error mapping. The experience remains mounted temporarily at `/tools/chatbot/` so the broader integration work can move it to `/chatbot/`, reverse the redirect, replace Tools with Ghost in the dock, and update canonical, sitemap, structured-data, containment, and navigation tests together. Privacy allowlist enforcement, accessibility hardening, real-device qualification, route reversal, and the complete release matrix remain governed by the integrated Jet's Ghost plan.
+Commit `d406ed46dfc7cccfa95d0003fcae30f5b9373690` remains the approved interface prototype and design provenance. The integrated branch now replaces its timers and demonstration response with the production LiteRT runtime, immutable versioned corpus, deterministic rank-and-pack selection, real streaming, validated citations, cancellation, cleanup, and recoverable error mapping. The experience is mounted at canonical `/chatbot/`, with Ghost replacing Tools in the dock and the legacy `/tools/chatbot/` route permanently redirecting to it. Privacy allowlist enforcement, accessibility hardening, real-device qualification, and the complete release matrix remain governed by the integrated Jet's Ghost plan.

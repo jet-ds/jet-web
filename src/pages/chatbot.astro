@@ -1,0 +1,70 @@
+---
+import BaseLayout from '../components/layout/BaseLayout.astro';
+import StructuredData from '../components/seo/StructuredData.astro';
+import JetsGhostExperience from '../features/jets-ghost/JetsGhostExperience';
+
+const title = "Jet's Ghost — Local-First AI Assistant";
+const description = "Chat with Jet's published writing, research, and projects using a local-first AI assistant in compatible WebGPU browsers.";
+---
+
+<BaseLayout
+  title={title}
+  description={description}
+  canonicalURL="https://jetsanchez.com/chatbot/"
+  mainEntityId="https://jetsanchez.com/chatbot/#softwareapplication"
+  noindex={true}
+  immersive
+>
+  <StructuredData
+    slot="structured-data"
+    type="software"
+    id="https://jetsanchez.com/chatbot/#softwareapplication"
+    url="https://jetsanchez.com/chatbot/"
+    name="Jet's Ghost"
+    applicationCategory="ChatApplication"
+    operatingSystem="Web browser with WebGPU"
+  />
+
+  <JetsGhostExperience client:load />
+
+  <noscript>
+    <section
+      class="fixed inset-0 z-40 grid place-items-center bg-bg-base px-gutter text-text-primary"
+      aria-labelledby="jets-ghost-noscript-title"
+    >
+      <div class="max-w-2xl text-center">
+        <p class="mb-xs font-mono text-sm uppercase tracking-wider text-brand-text">
+          Local-first AI
+        </p>
+        <h1 id="jets-ghost-noscript-title" class="mb-s font-serif text-3xl font-bold">
+          Jet's Ghost needs JavaScript and WebGPU
+        </h1>
+        <p class="mx-auto max-w-xl text-base leading-relaxed text-text-secondary">
+          This assistant runs its model in a compatible browser. You can still explore Jet's published
+          thinking in the <a class="font-semibold text-brand-text underline" href="/blog/">Blog</a>
+          and <a class="font-semibold text-brand-text underline" href="/works/">Works</a>.
+        </p>
+      </div>
+    </section>
+  </noscript>
+</BaseLayout>
+
+<style is:global>
+  .jets-ghost-header {
+    padding-top: max(var(--space-m), env(safe-area-inset-top));
+  }
+
+  .jets-ghost-composer {
+    padding-bottom: calc(var(--space-2xl) + var(--space-xl) + env(safe-area-inset-bottom));
+  }
+
+  @media (min-width: 769px) {
+    .jets-ghost-header {
+      padding-top: calc(var(--space-2xl) + var(--space-xl));
+    }
+
+    .jets-ghost-composer {
+      padding-bottom: var(--space-m);
+    }
+  }
+</style>

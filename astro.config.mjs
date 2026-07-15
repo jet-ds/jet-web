@@ -18,7 +18,12 @@ export default defineConfig({
       applyBaseStyles: false, // We'll use our own global.css
     }),
     sitemap({
-      filter: (page) => !page.includes('/chatbot'),
+      filter: (page) => {
+        const pathname = new URL(page).pathname.replace(/\/$/, '') || '/';
+        return pathname !== '/chatbot'
+          && pathname !== '/tools'
+          && !pathname.startsWith('/tools/');
+      },
     }),
     partytown({
       config: {

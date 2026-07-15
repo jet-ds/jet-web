@@ -67,7 +67,7 @@ describe('LiteRT-LM same-origin assets', () => {
     },
   );
 
-  it('configures immutable caching without replacing the core redirect', () => {
+  it('configures immutable caching alongside the permanent legacy redirect', () => {
     const vercelConfig = JSON.parse(readFileSync('vercel.json', 'utf8')) as {
       redirects?: unknown[];
       headers?: Array<{
@@ -77,8 +77,8 @@ describe('LiteRT-LM same-origin assets', () => {
     };
 
     expect(vercelConfig.redirects).toContainEqual({
-      source: '/chatbot/',
-      destination: '/tools/chatbot/',
+      source: '/tools/chatbot/',
+      destination: '/chatbot/',
       permanent: true,
     });
     expect(vercelConfig.headers).toContainEqual({

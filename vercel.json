@@ -1,13 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "trailingSlash": true,
-  "redirects": [
-    {
-      "source": "/chatbot/",
-      "destination": "/tools/chatbot/",
-      "permanent": true
-    }
-  ],
   "headers": [
     {
       "source": "/assistant/runtime/litert-lm/0.14.0/:asset",
@@ -17,6 +10,13 @@
           "value": "public, max-age=31536000, immutable"
         }
       ]
+    }
+  ],
+  "redirects": [
+    {
+      "source": "/tools/chatbot/",
+      "destination": "/chatbot/",
+      "permanent": true
     }
   ]
 }

@@ -1,4 +1,4 @@
-import { Home, User, FileText, Briefcase, Wrench, Mail, type LucideIcon } from 'lucide-react';
+import { Home, User, FileText, Briefcase, Ghost, Mail, type LucideIcon } from 'lucide-react';
 
 export const SITE = {
   title: 'Jet Sanchez',
@@ -37,7 +37,7 @@ export const NAV_ITEMS = [
   { id: 'about', label: 'About', href: '/about/', icon: User, gradient: 'from-purple-600 to-purple-400' },
   { id: 'blog', label: 'Blog', href: '/blog/', icon: FileText, gradient: 'from-green-600 to-green-400' },
   { id: 'works', label: 'Works', href: '/works/', icon: Briefcase, gradient: 'from-orange-600 to-orange-400' },
-  { id: 'tools', label: 'Tools', href: '/tools/', icon: Wrench, gradient: 'from-indigo-600 to-indigo-400' },
+  { id: 'ghost', label: "Jet's Ghost", href: '/chatbot/', icon: Ghost, gradient: 'from-indigo-600 to-indigo-400' },
   { id: 'contact', label: 'Contact', href: '/contact/', icon: Mail, gradient: 'from-red-600 to-red-400' },
 ] as const;
 

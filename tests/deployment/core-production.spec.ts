@@ -14,15 +14,27 @@ test('production preserves core containment and canonical redirects', async ({ r
   expect(chatbot.status()).toBe(308);
   expect(chatbot.headers().location).toBe('/chatbot/');
 
-  const chatbotRedirect = await request.get('/chatbot/', { maxRedirects: 0 });
-  expect(chatbotRedirect.status()).toBe(308);
-  expect(chatbotRedirect.headers().location).toBe('/tools/chatbot/');
-
-  const chatbotTerminal = await request.get('/tools/chatbot/', { maxRedirects: 0 });
+  const chatbotTerminal = await request.get('/chatbot/', { maxRedirects: 0 });
   expect(chatbotTerminal.status()).toBe(200);
   expect(chatbotTerminal.headers().location).toBeUndefined();
   expect(await chatbotTerminal.text())
     .toContain('<meta name="robots" content="noindex, nofollow">');
+
+  const legacySlashless = await request.get('/tools/chatbot', { maxRedirects: 0 });
+  expect(legacySlashless.status()).toBe(308);
+  expect(legacySlashless.headers().location).toBe('/tools/chatbot/');
+
+  const legacySlashful = await request.get('/tools/chatbot/', { maxRedirects: 0 });
+  expect(legacySlashful.status()).toBe(308);
+  expect(legacySlashful.headers().location).toBe('/chatbot/');
+
+  const runtimeAsset = await request.get(
+    '/assistant/runtime/litert-lm/0.14.0/litertlm_wasm_internal.wasm',
+    { maxRedirects: 0 },
+  );
+  expect(runtimeAsset.status()).toBe(200);
+  expect(runtimeAsset.headers()['cache-control'])
+    .toBe('public, max-age=31536000, immutable');
 
   const about = await request.get('/about', { maxRedirects: 0 });
   expect(about.status()).toBe(308);

@@ -11,6 +11,7 @@ import {
   getLoadingReassurance,
   shouldFocusComposer,
 } from '../src/features/jets-ghost/experience';
+import { buildStructuredData } from '../src/utils/structuredData';
 
 const experienceSource = readFileSync(
   new URL('../src/features/jets-ghost/JetsGhostExperience.tsx', import.meta.url),
@@ -58,6 +59,14 @@ const canonicalStatusDocs = [
   ],
 ] as const;
 const experienceNote = canonicalStatusDocs[0][1];
+const canonicalRouteSource = readFileSync(
+  new URL('../src/pages/chatbot.astro', import.meta.url),
+  'utf8',
+);
+const toolsRouteSource = readFileSync(
+  new URL('../src/pages/tools/index.astro', import.meta.url),
+  'utf8',
+);
 
 const lifecyclePresentation = [
   ['idle', 'Not running', "Jet's Ghost is not running."],
@@ -389,7 +398,9 @@ test('loading liveness changes independently of coarse runtime phases without fa
 });
 
 test('experience note describes the integrated runtime without erasing its prototype provenance', () => {
-  assert.match(experienceNote, /Current integration route:\*\* `\/tools\/chatbot\/`/);
+  assert.match(experienceNote, /Current integration route:\*\* `\/chatbot\/`/);
+  assert.doesNotMatch(experienceNote, /Current integration route:\*\* `\/tools\/chatbot\/`/);
+  assert.doesNotMatch(experienceNote, /remains mounted temporarily at `\/tools\/chatbot\/`/);
   assert.match(experienceNote, /production LiteRT runtime and versioned corpus/i);
   assert.match(experienceNote, /conversation is created only when the visitor sends a message/i);
   assert.doesNotMatch(experienceNote, /prototype itself does not load the production model/i);
@@ -442,18 +453,56 @@ test('mustard is reserved for a valid send action', () => {
 });
 
 test('immersive chat layout uses Utopia type and spacing tokens', () => {
-  const routeSource = readFileSync(
-    new URL('../src/pages/tools/chatbot.astro', import.meta.url),
-    'utf8',
-  );
-
   assert.doesNotMatch(experienceSource, /sm:text-5xl/);
   assert.doesNotMatch(experienceSource, /5\.75rem|1\.25rem_3rem/);
   assert.match(experienceSource, /var\(--space-xl\)/);
   assert.match(experienceSource, /var\(--space-m\)/);
-  assert.doesNotMatch(routeSource, /7\.25rem|6\.75rem/);
-  assert.match(routeSource, /var\(--space-2xl\)/);
-  assert.match(routeSource, /var\(--space-xl\)/);
+  assert.doesNotMatch(canonicalRouteSource, /7\.25rem|6\.75rem/);
+  assert.match(canonicalRouteSource, /var\(--space-2xl\)/);
+  assert.match(canonicalRouteSource, /var\(--space-xl\)/);
+});
+
+test('canonical route owns qualification metadata while Tools stays dormant', () => {
+  assert.match(canonicalRouteSource, /canonicalURL="https:\/\/jetsanchez\.com\/chatbot\/"/);
+  assert.match(canonicalRouteSource, /noindex={true}/);
+  assert.match(canonicalRouteSource, /mainEntityId="https:\/\/jetsanchez\.com\/chatbot\/#softwareapplication"/);
+  assert.match(canonicalRouteSource, /type="software"/);
+  assert.match(canonicalRouteSource, /id="https:\/\/jetsanchez\.com\/chatbot\/#softwareapplication"/);
+  assert.match(canonicalRouteSource, /url="https:\/\/jetsanchez\.com\/chatbot\/"/);
+  assert.match(canonicalRouteSource, /applicationCategory="ChatApplication"/);
+  assert.match(canonicalRouteSource, /operatingSystem="Web browser with WebGPU"/);
+  assert.match(canonicalRouteSource, /<noscript>/);
+  assert.match(canonicalRouteSource, /href="\/blog\/"/);
+  assert.match(canonicalRouteSource, /href="\/works\/"/);
+  assert.doesNotMatch(toolsRouteSource, /Jet(?:'|&apos;)s Ghost|\/chatbot\/?/);
+  assert.match(toolsRouteSource, /noindex={true}/);
+});
+
+test('canonical route SoftwareApplication schema has the exact qualification identity', () => {
+  assert.deepEqual(
+    buildStructuredData({
+      type: 'software',
+      id: 'https://jetsanchez.com/chatbot/#softwareapplication',
+      url: 'https://jetsanchez.com/chatbot/',
+      name: "Jet's Ghost",
+      applicationCategory: 'ChatApplication',
+      operatingSystem: 'Web browser with WebGPU',
+    }),
+    {
+      '@context': 'https://schema.org',
+      '@type': 'SoftwareApplication',
+      '@id': 'https://jetsanchez.com/chatbot/#softwareapplication',
+      url: 'https://jetsanchez.com/chatbot/',
+      name: "Jet's Ghost",
+      applicationCategory: 'ChatApplication',
+      operatingSystem: 'Web browser with WebGPU',
+      offers: {
+        '@type': 'Offer',
+        price: '0',
+        priceCurrency: 'USD',
+      },
+    },
+  );
 });
 
 test('ready prompt stays on one line at the annotated mobile width', () => {

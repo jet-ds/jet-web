@@ -2,57 +2,22 @@
 import BaseLayout from '../../components/layout/BaseLayout.astro';
 import PageWrapper from '../../components/layout/PageWrapper.astro';
 import Container from '../../components/ui/Container.astro';
-import Card from '../../components/ui/Card.astro';
-
-const tools = [
-  {
-    name: "Jet's Ghost",
-    description: 'Preview a private, full-screen AI chat grounded in Jet\'s published writing, research, and projects.',
-    href: '/tools/chatbot',
-    status: 'preview' as const,
-  },
-];
 ---
 
 <BaseLayout
   title="Tools"
-  description="Utilities and tools built for thinking clearly about AI, SEO, and systems."
+  description="A reserved space for future standalone tools from Jet Sanchez."
+  noindex={true}
 >
   <PageWrapper spacing="default">
-    <Container size="lg">
-      <div class="mb-xl">
-        <h1 class="text-5xl font-bold leading-tight mb-s text-text-primary">
-          Tools
-        </h1>
-        <p class="text-xl text-text-tertiary">
-          Utilities built for research, SEO, and applied AI work.
-        </p>
-      </div>
-
-      <div class="grid grid-cols-1 sm:grid-cols-2 gap-m">
-        {tools.map((tool) => (
-          <a href={tool.href} class="group block">
-            <Card hover class="h-full">
-              <div class="flex items-start justify-between gap-s mb-xs">
-                <h2 class="text-xl font-semibold text-text-primary group-hover:text-brand-base transition-colors">
-                  {tool.name}
-                </h2>
-                {tool.status === 'preview' && (
-                  <span class="flex-shrink-0 text-xs font-medium px-xs py-3xs rounded-full bg-accent-subtle text-accent-text border border-accent-base/30">
-                    2.1 preview
-                  </span>
-                )}
-              </div>
-              <p class="text-text-secondary">
-                {tool.description}
-              </p>
-              <p class="mt-s text-sm font-medium text-brand-text">
-                Open full-screen experience <span aria-hidden="true">→</span>
-              </p>
-            </Card>
-          </a>
-        ))}
-      </div>
+    <Container size="md">
+      <h1 class="mb-s text-5xl font-bold leading-tight text-text-primary">
+        Tools
+      </h1>
+      <p class="max-w-2xl text-xl leading-relaxed text-text-tertiary">
+        This section is reserved for future standalone utilities. It will remain dormant until there
+        are enough useful tools to justify a dedicated collection.
+      </p>
     </Container>
   </PageWrapper>
 </BaseLayout>

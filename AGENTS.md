@@ -6,7 +6,7 @@
 
 jetsanchez.com is Jet Sanchez's personal website, writing archive, research portfolio, and home for local-first AI experiments. It uses Astro 5, MDX, React 19 islands, Tailwind CSS 3, strict TypeScript, and Vercel static hosting.
 
-Primary routes are Home, About, Blog, Works, Tools, and Contact. The current core-modernization release keeps the approved Jet's Ghost prototype inert at `/tools/chatbot/`; the companion `2.1.0` work makes it a first-class experience at `/chatbot/`.
+Primary routes are Home, About, Blog, Works, Jet's Ghost, and Contact. Jet's Ghost is integrated at canonical `/chatbot/` behind qualification; `/tools/` remains a dormant, noindexed route outside primary navigation.
 
 ## Runtime and commands
 
@@ -127,17 +127,17 @@ The default social image is the committed `public/images/og-default.jpg`. Recrea
 
 Jet's Ghost is a local-first technical showcase and experimental personal assistant, not a general website-support widget.
 
-Current core `2.0.0` state:
+Current `2.1.0` integration-branch qualification state (production remains `2.0.0` until Task 13 completes the release gate):
 
-- The approved interface remains at `/tools/chatbot/`, noindexed and excluded from the sitemap.
-- `/chatbot` is normalized by Vercel to `/chatbot/`; the single explicit interim rule redirects `/chatbot/` to `/tools/chatbot/`, whose noindexed prototype returns `200` without another redirect.
-- The prototype is presentation code only: no production corpus, model engine, or hosted generation endpoint is active.
+- The approved interface is integrated at canonical `/chatbot/`, remains noindexed, and is excluded from the sitemap until every qualification gate passes.
+- Vercel normalizes `/chatbot` to `/chatbot/`; `/tools/chatbot` normalizes to `/tools/chatbot/`, and the sole explicit legacy rule permanently redirects `/tools/chatbot/` to `/chatbot/`.
+- The pinned Gemma 4 E2B LiteRT-LM runtime, immutable eligible corpus, and deterministic cited retrieval are integrated behind explicit compatibility and load actions. No hosted generation endpoint or fallback is active.
 - `/api/chat` and the OpenRouter production credential remain removed.
 
-Approved `2.1.0` direction:
+Approved `2.1.0` integration boundaries:
 
-- Move the semantic route to the canonical `200` document at `/chatbot/`; keep platform normalization for slashless variants and one explicit legacy `/tools/chatbot/` redirect to `/chatbot/`.
-- Replace Tools with Ghost in the existing navigation slot; keep `/tools/` dormant, noindexed, and out of primary navigation.
+- The semantic route is the canonical `200` document at `/chatbot/`; platform normalization owns slashless variants, and one explicit legacy `/tools/chatbot/` rule redirects to `/chatbot/`.
+- Ghost occupies the former Tools navigation slot; `/tools/` stays dormant, noindexed, and out of primary navigation.
 - Use the pinned Gemma 4 E2B LiteRT-LM browser runtime only. Do not add E4B switching or a hosted fallback.
 - Preserve the explicit boundary: route rendering and compatibility checks do not authorize model/corpus download or GPU allocation. Only “Load Jet's Ghost” may start those operations; prompt assembly begins only when the visitor sends a message.
 - Use the immutable, versioned eligible corpus and one deterministic MiniSearch rank-and-pack pipeline with provenance and citations. Embeddings, Gemma reranking, PGlite, pgvector, EntityDB, and the legacy multi-stage RAG implementation are not part of the approved production path.

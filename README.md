@@ -77,9 +77,9 @@ The default social image is committed at `public/images/og-default.jpg` and can 
 
 ## Jet's Ghost
 
-Jet's Ghost is a local-first experimental assistant and a first-class site experience, not a hosted support widget. The current core-modernization state keeps the approved interface prototype inert and noindexed at `/tools/chatbot/`: Vercel normalizes `/chatbot` to `/chatbot/`, then the single explicit interim rule redirects `/chatbot/` to the prototype. It has no production model, corpus, engine, or hosted generation path.
+Jet's Ghost is integrated at canonical `/chatbot/` as a local-first experimental assistant and first-class site experience, not a hosted support widget. The route remains `noindex` and outside the sitemap while its model, quality, lifecycle, privacy, accessibility, browser, and deployment qualification gates are completed.
 
-The planned `2.1.0` integration moves the experience to canonical `/chatbot/`, adds the pinned Gemma 4 E2B LiteRT-LM runtime and deterministic cited retrieval, and keeps activation, compatibility checks, model download, and resource lifecycle under explicit visitor control. It remains noindexed until the release qualification gate passes.
+The integrated experience uses the pinned Gemma 4 E2B LiteRT-LM runtime in compatible WebGPU browsers with deterministic cited retrieval. Compatibility checks, model download, and GPU allocation remain behind explicit visitor actions, and there is no hosted generation fallback. [The approved Jet's Ghost chat experience](./docs/jets-ghost-chat-experience.md) is the interface and interaction source of truth.
 
 ## Deployment
 

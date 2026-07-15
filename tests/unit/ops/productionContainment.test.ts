@@ -59,8 +59,10 @@ type Fixture = {
     chatbotSlashlessDestination: string | null;
     chatbotSlashful: number;
     chatbotSlashfulDestination: string | null;
-    chatbotTerminal: number;
-    chatbotTerminalDestination: string | null;
+    legacySlashless: number;
+    legacySlashlessDestination: string | null;
+    legacySlashful: number;
+    legacySlashfulDestination: string | null;
     blob: number;
   };
   writes: Map<string, string>;
@@ -99,10 +101,12 @@ function makeFixture(): Fixture {
     apiTerminalDestination: null,
     chatbotSlashless: 308,
     chatbotSlashlessDestination: '/chatbot/',
-    chatbotSlashful: 308,
-    chatbotSlashfulDestination: '/tools/chatbot/',
-    chatbotTerminal: 200,
-    chatbotTerminalDestination: null,
+    chatbotSlashful: 200,
+    chatbotSlashfulDestination: null,
+    legacySlashless: 308,
+    legacySlashlessDestination: '/tools/chatbot/',
+    legacySlashful: 308,
+    legacySlashfulDestination: '/chatbot/',
     blob: 404,
   };
   const writes = new Map<string, string>();
@@ -168,13 +172,25 @@ function makeFixture(): Fixture {
           },
         };
       }
-      if (parsed.hostname === 'jetsanchez.com' && parsed.pathname === '/tools/chatbot/') {
+      if (parsed.hostname === 'jetsanchez.com' && parsed.pathname === '/tools/chatbot') {
         return {
-          status: routeStatuses.chatbotTerminal,
+          status: routeStatuses.legacySlashless,
           headers: {
             get: (name) => (
               name.toLowerCase() === 'location'
-                ? routeStatuses.chatbotTerminalDestination
+                ? routeStatuses.legacySlashlessDestination
+                : null
+            ),
+          },
+        };
+      }
+      if (parsed.hostname === 'jetsanchez.com' && parsed.pathname === '/tools/chatbot/') {
+        return {
+          status: routeStatuses.legacySlashful,
+          headers: {
+            get: (name) => (
+              name.toLowerCase() === 'location'
+                ? routeStatuses.legacySlashfulDestination
                 : null
             ),
           },
@@ -227,10 +243,18 @@ describe('production containment verification', () => {
         },
         {
           path: '/chatbot/',
+          status: 200,
+        },
+        {
+          path: '/tools/chatbot',
           status: 308,
           destination: 'https://jetsanchez.com/tools/chatbot/',
         },
-        { path: '/tools/chatbot/', status: 200 },
+        {
+          path: '/tools/chatbot/',
+          status: 308,
+          destination: 'https://jetsanchez.com/chatbot/',
+        },
       ],
       blobs: {
         beforeCount: 3,
@@ -261,7 +285,10 @@ describe('production containment verification', () => {
     const chatbotSlashfulRequest = fixture.fetches.find(
       ({ url }) => new URL(url).pathname === '/chatbot/',
     );
-    const chatbotTerminalRequest = fixture.fetches.find(
+    const legacySlashlessRequest = fixture.fetches.find(
+      ({ url }) => new URL(url).pathname === '/tools/chatbot',
+    );
+    const legacySlashfulRequest = fixture.fetches.find(
       ({ url }) => new URL(url).pathname === '/tools/chatbot/',
     );
     expect(apiRedirectRequest?.init)
@@ -272,7 +299,9 @@ describe('production containment verification', () => {
       .toMatchObject({ method: 'GET', redirect: 'manual', cache: 'no-store' });
     expect(chatbotSlashfulRequest?.init)
       .toMatchObject({ method: 'GET', redirect: 'manual', cache: 'no-store' });
-    expect(chatbotTerminalRequest?.init)
+    expect(legacySlashlessRequest?.init)
+      .toMatchObject({ method: 'GET', redirect: 'manual', cache: 'no-store' });
+    expect(legacySlashfulRequest?.init)
       .toMatchObject({ method: 'GET', redirect: 'manual', cache: 'no-store' });
     const blobRequests = fixture.fetches.filter(({ url }) => new URL(url).hostname === new URL(blobOrigin).hostname);
     expect(blobRequests).toHaveLength(3);
@@ -409,28 +438,40 @@ describe('production containment verification', () => {
       .rejects.toThrow('CHATBOT_SLASHLESS_DESTINATION_MISMATCH');
   });
 
-  it('fails when slashful /chatbot/ is not exactly 308', async () => {
+  it('fails when terminal /chatbot/ is not exactly 200', async () => {
     fixture.routeStatuses.chatbotSlashful = 404;
-    await expect(verifyProductionContainment(argumentsForFixture(), fixture.dependencies))
-      .rejects.toThrow('CHATBOT_SLASHFUL_STATUS_NOT_308');
-  });
-
-  it('fails when slashful /chatbot/ does not resolve to /tools/chatbot/', async () => {
-    fixture.routeStatuses.chatbotSlashfulDestination = '/tools/';
-    await expect(verifyProductionContainment(argumentsForFixture(), fixture.dependencies))
-      .rejects.toThrow('CHATBOT_SLASHFUL_DESTINATION_MISMATCH');
-  });
-
-  it('fails when terminal /tools/chatbot/ is not exactly 200', async () => {
-    fixture.routeStatuses.chatbotTerminal = 404;
     await expect(verifyProductionContainment(argumentsForFixture(), fixture.dependencies))
       .rejects.toThrow('CHATBOT_TERMINAL_STATUS_NOT_200');
   });
 
-  it('fails when terminal /tools/chatbot/ redirects again', async () => {
-    fixture.routeStatuses.chatbotTerminalDestination = '/tools/chatbot//';
+  it('fails when terminal /chatbot/ redirects', async () => {
+    fixture.routeStatuses.chatbotSlashfulDestination = '/chatbot//';
     await expect(verifyProductionContainment(argumentsForFixture(), fixture.dependencies))
       .rejects.toThrow('CHATBOT_TERMINAL_REDIRECT_PRESENT');
+  });
+
+  it('fails when slashless legacy route is not exactly 308', async () => {
+    fixture.routeStatuses.legacySlashless = 301;
+    await expect(verifyProductionContainment(argumentsForFixture(), fixture.dependencies))
+      .rejects.toThrow('CHATBOT_LEGACY_SLASHLESS_STATUS_NOT_308');
+  });
+
+  it('fails when slashless legacy route does not normalize once', async () => {
+    fixture.routeStatuses.legacySlashlessDestination = '/chatbot/';
+    await expect(verifyProductionContainment(argumentsForFixture(), fixture.dependencies))
+      .rejects.toThrow('CHATBOT_LEGACY_SLASHLESS_DESTINATION_MISMATCH');
+  });
+
+  it('fails when slashful legacy route is not exactly 308', async () => {
+    fixture.routeStatuses.legacySlashful = 404;
+    await expect(verifyProductionContainment(argumentsForFixture(), fixture.dependencies))
+      .rejects.toThrow('CHATBOT_LEGACY_SLASHFUL_STATUS_NOT_308');
+  });
+
+  it('fails when slashful legacy route does not redirect to canonical Ghost', async () => {
+    fixture.routeStatuses.legacySlashfulDestination = '/tools/';
+    await expect(verifyProductionContainment(argumentsForFixture(), fixture.dependencies))
+      .rejects.toThrow('CHATBOT_LEGACY_SLASHFUL_DESTINATION_MISMATCH');
   });
 
   it.each([

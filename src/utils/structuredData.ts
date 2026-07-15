@@ -255,16 +255,12 @@ function buildSoftwareSchema(
       price: props.price ?? '0',
       priceCurrency: props.priceCurrency ?? 'USD',
     },
-    creator: props.creator
-      ? {
-          '@type': 'Person',
-          name: props.creator,
-        }
-      : {
-          '@type': 'Person',
-          '@id': `${SITE.siteUrl}/#person`,
-          name: SITE.author,
-        },
+    ...(props.creator && {
+      creator: {
+        '@type': 'Person',
+        name: props.creator,
+      },
+    }),
   };
 }
 

@@ -322,31 +322,53 @@ export async function verifyProductionContainment(
     fail('CHATBOT_SLASHLESS_DESTINATION_MISMATCH');
   }
 
-  const chatbotSlashfulResponse = await dependencies.fetch(
-    chatbotSlashlessDestination,
-    { method: 'GET', redirect: 'manual', cache: 'no-store' },
-  );
-  if (chatbotSlashfulResponse.status !== 308) fail('CHATBOT_SLASHFUL_STATUS_NOT_308');
-  const chatbotSlashfulDestination = resolveRedirect(
-    options.origin,
-    chatbotSlashfulResponse.headers.get('location'),
-    'CHATBOT_SLASHFUL_DESTINATION_MISMATCH',
-  );
-  const expectedChatbotSlashfulDestination = new URL(
-    '/tools/chatbot/',
-    `${options.origin}/`,
-  ).toString();
-  if (chatbotSlashfulDestination !== expectedChatbotSlashfulDestination) {
-    fail('CHATBOT_SLASHFUL_DESTINATION_MISMATCH');
-  }
-
   const chatbotTerminalResponse = await dependencies.fetch(
-    chatbotSlashfulDestination,
+    chatbotSlashlessDestination,
     { method: 'GET', redirect: 'manual', cache: 'no-store' },
   );
   if (chatbotTerminalResponse.status !== 200) fail('CHATBOT_TERMINAL_STATUS_NOT_200');
   if (chatbotTerminalResponse.headers.get('location') !== null) {
     fail('CHATBOT_TERMINAL_REDIRECT_PRESENT');
+  }
+
+  const legacySlashlessResponse = await dependencies.fetch(
+    new URL('/tools/chatbot', `${options.origin}/`).toString(),
+    { method: 'GET', redirect: 'manual', cache: 'no-store' },
+  );
+  if (legacySlashlessResponse.status !== 308) {
+    fail('CHATBOT_LEGACY_SLASHLESS_STATUS_NOT_308');
+  }
+  const legacySlashlessDestination = resolveRedirect(
+    options.origin,
+    legacySlashlessResponse.headers.get('location'),
+    'CHATBOT_LEGACY_SLASHLESS_DESTINATION_MISMATCH',
+  );
+  const expectedLegacySlashlessDestination = new URL(
+    '/tools/chatbot/',
+    `${options.origin}/`,
+  ).toString();
+  if (legacySlashlessDestination !== expectedLegacySlashlessDestination) {
+    fail('CHATBOT_LEGACY_SLASHLESS_DESTINATION_MISMATCH');
+  }
+
+  const legacySlashfulResponse = await dependencies.fetch(
+    legacySlashlessDestination,
+    { method: 'GET', redirect: 'manual', cache: 'no-store' },
+  );
+  if (legacySlashfulResponse.status !== 308) {
+    fail('CHATBOT_LEGACY_SLASHFUL_STATUS_NOT_308');
+  }
+  const legacySlashfulDestination = resolveRedirect(
+    options.origin,
+    legacySlashfulResponse.headers.get('location'),
+    'CHATBOT_LEGACY_SLASHFUL_DESTINATION_MISMATCH',
+  );
+  const expectedLegacySlashfulDestination = new URL(
+    '/chatbot/',
+    `${options.origin}/`,
+  ).toString();
+  if (legacySlashfulDestination !== expectedLegacySlashfulDestination) {
+    fail('CHATBOT_LEGACY_SLASHFUL_DESTINATION_MISMATCH');
   }
 
   const timestamp = dependencies.now().getTime();
@@ -377,12 +399,17 @@ export async function verifyProductionContainment(
         status: chatbotSlashlessResponse.status,
         destination: chatbotSlashlessDestination,
       },
+      { path: '/chatbot/', status: chatbotTerminalResponse.status },
       {
-        path: '/chatbot/',
-        status: chatbotSlashfulResponse.status,
-        destination: chatbotSlashfulDestination,
+        path: '/tools/chatbot',
+        status: legacySlashlessResponse.status,
+        destination: legacySlashlessDestination,
       },
-      { path: '/tools/chatbot/', status: chatbotTerminalResponse.status },
+      {
+        path: '/tools/chatbot/',
+        status: legacySlashfulResponse.status,
+        destination: legacySlashfulDestination,
+      },
     ],
     blobs: {
       beforeCount: before.length,
