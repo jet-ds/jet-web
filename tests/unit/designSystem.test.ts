@@ -4,6 +4,7 @@ import { describe, expect, test } from 'vitest';
 const readSource = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8');
 
 const buttonSource = readSource('../../src/components/ui/Button.astro');
+const footerSource = readSource('../../src/components/layout/Footer.astro');
 const globalStyles = readSource('../../src/styles/global.css');
 const ghostSource = readSource('../../src/features/jets-ghost/JetsGhostExperience.tsx');
 const linkSource = readSource('../../src/components/ui/Link.astro');
@@ -93,8 +94,25 @@ describe('design-system role contracts', () => {
     );
     expect(chatbotPageSource.match(/<a class="text-link" href="\/(?:blog|works)\/">/gu))
       .toHaveLength(2);
-    expect(licensePageSource.match(/<Link href="[^"]+" variant="primary">/gu))
-      .toHaveLength(4);
+    expect(licensePageSource.match(/<Link href="[^"]+" variant="primary"(?: class="[^"]+")?>/gu))
+      .toHaveLength(5);
+  });
+
+  test('Blog, Works, and license back links share one text-link model', () => {
+    expect(blogLayoutSource).toMatch(
+      /<a href="\/blog\/" class="[^"]*\btext-link\b[^"]*">\s*<span[^>]*>←<\/span> Back to blog\s*<\/a>/u,
+    );
+    expect(workLayoutSource).toMatch(
+      /<a href="\/works\/" class="[^"]*\btext-link\b[^"]*">\s*<span[^>]*>←<\/span> Back to works\s*<\/a>/u,
+    );
+    expect(licensePageSource).toMatch(
+      /<Link href="\/chatbot\/" variant="primary" class="inline-flex items-center gap-1">\s*<span[^>]*>←<\/span> Back to Jet's Ghost\s*<\/Link>/u,
+    );
+    expect(licensePageSource).not.toMatch(
+      /<Link href="\/chatbot\/" variant="muted"/u,
+    );
+    expect(footerSource.match(/variant="muted"/gu)).toHaveLength(6);
+    expect(footerSource).not.toContain('text-link');
   });
 
   test('prose ownership stops at the rendered MDX content boundary', () => {

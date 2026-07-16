@@ -121,12 +121,34 @@ test('Blog and Works separate first-person visible copy from SEO metadata', asyn
   }
 });
 
-test('shared inline links retain focus and reduced-motion behavior', async ({ page }) => {
+test('shared inline links and all article back links retain one interaction model', async ({ page }) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/blog/vibe-coding-vs-agentic-coding-why-the-distinction-matters/');
 
-  const backLink = page.getByRole('link', { name: 'Back to blog' });
-  await expect(backLink).toHaveClass(/\btext-link\b/u);
+  const blogBackLink = page.getByRole('link', { name: 'Back to blog' });
+  await expect(blogBackLink).toHaveClass(/\btext-link\b/u);
+  const sharedRest = await blogBackLink.evaluate((link) => {
+    const style = getComputedStyle(link);
+    return {
+      color: style.color,
+      fontWeight: style.fontWeight,
+      textDecorationLine: style.textDecorationLine,
+      textUnderlineOffset: style.textUnderlineOffset,
+      transitionDuration: style.transitionDuration,
+    };
+  });
+  await blogBackLink.focus();
+  const sharedFocus = await blogBackLink.evaluate((link) => {
+    const style = getComputedStyle(link);
+    return {
+      color: style.color,
+      textDecorationLine: style.textDecorationLine,
+      outlineColor: style.outlineColor,
+      outlineOffset: style.outlineOffset,
+      outlineStyle: style.outlineStyle,
+      outlineWidth: style.outlineWidth,
+    };
+  });
 
   const proseLink = page.locator('.prose a').first();
   await expect(proseLink).toHaveCSS('font-weight', '500');
@@ -154,9 +176,42 @@ test('shared inline links retain focus and reduced-motion behavior', async ({ pa
   await postNavigationLink.focus();
   await expect(postNavigationLink).not.toHaveCSS('outline-offset', '2px');
 
+  await page.goto('/works/recursive-convergence-hypothesis/');
+  const worksBackLink = page.getByRole('link', { name: 'Back to works' });
+  await expect(worksBackLink).toHaveClass(/\btext-link\b/u);
+  await expect(worksBackLink).toHaveCSS('font-weight', sharedRest.fontWeight);
+  await expect(worksBackLink).toHaveCSS('text-decoration-line', sharedRest.textDecorationLine);
+  await expect(worksBackLink).toHaveCSS('text-underline-offset', sharedRest.textUnderlineOffset);
+  await expect(worksBackLink).toHaveCSS('transition-duration', sharedRest.transitionDuration);
+  await worksBackLink.focus();
+  await expect(worksBackLink).toHaveCSS('color', sharedFocus.color);
+  await expect(worksBackLink).toHaveCSS('text-decoration-line', sharedFocus.textDecorationLine);
+  await expect(worksBackLink).toHaveCSS('outline-color', sharedFocus.outlineColor);
+  await expect(worksBackLink).toHaveCSS('outline-offset', sharedFocus.outlineOffset);
+  await expect(worksBackLink).toHaveCSS('outline-style', sharedFocus.outlineStyle);
+  await expect(worksBackLink).toHaveCSS('outline-width', sharedFocus.outlineWidth);
+
   await page.goto('/licenses/jets-ghost/');
+  const licenseBackLink = page.getByRole('link', { name: "Back to Jet's Ghost" });
+  await expect(licenseBackLink).toHaveClass(/\btext-link\b/u);
+  await expect(licenseBackLink).toHaveCSS('color', sharedRest.color);
+  await expect(licenseBackLink).toHaveCSS('font-weight', sharedRest.fontWeight);
+  await expect(licenseBackLink).toHaveCSS('text-decoration-line', sharedRest.textDecorationLine);
+  await expect(licenseBackLink).toHaveCSS('text-underline-offset', sharedRest.textUnderlineOffset);
+  await expect(licenseBackLink).toHaveCSS('transition-duration', sharedRest.transitionDuration);
+  await licenseBackLink.focus();
+  await expect(licenseBackLink).toHaveCSS('color', sharedFocus.color);
+  await expect(licenseBackLink).toHaveCSS('text-decoration-line', sharedFocus.textDecorationLine);
+  await expect(licenseBackLink).toHaveCSS('outline-color', sharedFocus.outlineColor);
+  await expect(licenseBackLink).toHaveCSS('outline-offset', sharedFocus.outlineOffset);
+  await expect(licenseBackLink).toHaveCSS('outline-style', sharedFocus.outlineStyle);
+  await expect(licenseBackLink).toHaveCSS('outline-width', sharedFocus.outlineWidth);
   await expect(page.locator('a[href="/licenses/apache-2.0.txt"]'))
     .toHaveClass(/\btext-link\b/u);
+
+  const footerLink = page.locator('footer').getByRole('link', { name: 'Home', exact: true });
+  await expect(footerLink).not.toHaveClass(/\btext-link\b/u);
+  await expect(footerLink).toHaveCSS('font-weight', '400');
 });
 
 test('Home CTA keeps distinct, opaque, AA semantic surfaces in both themes', async ({ page }) => {
