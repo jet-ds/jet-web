@@ -1693,6 +1693,75 @@ describe('JetsGhostExperience production composition', () => {
     expect(screen.queryByRole('button', { name: 'Jump to latest' })).not.toBeInTheDocument();
   });
 
+  it('keeps following when content grows before a programmatic scroll event is delivered', async () => {
+    const scheduler = new ManualScheduler();
+    const harness = createHarness({
+      responseChunks: [
+        'First overflow chunk. ',
+        'Second unseen chunk. ',
+        'Third chunk after jump [S1].',
+      ],
+      scheduler,
+    });
+    render(<JetsGhostExperience dependencies={harness.dependencies} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
+    fireEvent.click(await screen.findByRole('button', { name: /Load Jet's Ghost/ }));
+    const composer = await screen.findByRole('textbox', { name: "Ask Jet's Ghost" });
+    fireEvent.change(composer, { target: { value: 'Stream enough content to overflow' } });
+    fireEvent.keyDown(composer, { key: 'Enter' });
+    const scroller = await screen.findByTestId('conversation-scroller');
+    const clientHeight = 200;
+    let currentScrollHeight = 900;
+    let assignedScrollTop = 700;
+    let scrollAssignments = 0;
+    Object.defineProperty(scroller, 'clientHeight', {
+      configurable: true,
+      value: clientHeight,
+    });
+    Object.defineProperty(scroller, 'scrollHeight', {
+      configurable: true,
+      get: () => currentScrollHeight,
+    });
+    Object.defineProperty(scroller, 'scrollTop', {
+      configurable: true,
+      get: () => assignedScrollTop,
+      set: (value: number) => {
+        scrollAssignments += 1;
+        assignedScrollTop = Math.min(
+          Math.max(value, 0),
+          currentScrollHeight - clientHeight,
+        );
+      },
+    });
+
+    await waitFor(() => expect(scheduler.pendingCount).toBe(1));
+    act(() => scheduler.releaseNext());
+    await screen.findByText('First overflow chunk.');
+    await waitFor(() => expect(scrollAssignments).toBeGreaterThan(0));
+    await waitFor(() => expect(assignedScrollTop).toBe(700));
+
+    assignedScrollTop = 200;
+    fireEvent.scroll(scroller);
+    await waitFor(() => expect(scheduler.pendingCount).toBe(1));
+    act(() => scheduler.releaseNext());
+    await screen.findByText(/Second unseen chunk/);
+    const jumpToLatest = await screen.findByRole('button', { name: 'Jump to latest' });
+
+    fireEvent.click(jumpToLatest);
+    expect(assignedScrollTop).toBe(700);
+    expect(screen.queryByRole('button', { name: 'Jump to latest' })).not.toBeInTheDocument();
+
+    currentScrollHeight = 1_100;
+    fireEvent.scroll(scroller);
+    expect(assignedScrollTop).toBe(900);
+
+    await waitFor(() => expect(scheduler.pendingCount).toBe(1));
+    act(() => scheduler.releaseNext());
+    await screen.findByRole('link', { name: '[S1] Grounded source' });
+    await waitFor(() => expect(assignedScrollTop).toBe(900));
+    expect(screen.queryByRole('button', { name: 'Jump to latest' })).not.toBeInTheDocument();
+  });
+
   it('keeps uncited packed context out of a one-source disclosure', async () => {
     const cited = selectedSource();
     const uncitedSecond = {

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
 import {
+  useCallback,
   useEffect,
   useId,
   useMemo,
@@ -315,6 +316,7 @@ export default function JetsGhostExperience({
   const messageSubmissionModalityRef = useRef<InteractionModality>('keyboard');
   const suppressComposerRestoreRef = useRef(false);
   const stickyFollowRef = useRef(true);
+  const programmaticScrollTopRef = useRef<number | null>(null);
   const pendingSubmissionFollowRef = useRef(false);
   const submissionFollowCleanupRef = useRef<(() => void) | null>(null);
 
@@ -372,6 +374,16 @@ export default function JetsGhostExperience({
   const loadingReassurance = status === 'loading'
     ? getLoadingReassurance(elapsedSeconds)
     : null;
+
+  const scrollToLatest = useCallback(() => {
+    const scroller = conversationScrollerRef.current;
+    if (scroller === null || conversationEndRef.current === null) return;
+    const previousScrollTop = scroller.scrollTop;
+    scrollConversationToLatest(scroller);
+    if (scroller.scrollTop !== previousScrollTop) {
+      programmaticScrollTopRef.current = scroller.scrollTop;
+    }
+  }, []);
 
   useEffect(() => {
     const previousStatus = previousStatusRef.current;
@@ -432,11 +444,11 @@ export default function JetsGhostExperience({
       || pendingSubmissionFollowRef.current
     ) return;
     if (stickyFollowRef.current) {
-      scrollConversationToLatest(scroller);
+      scrollToLatest();
     } else {
       setHasUnseenContent(true);
     }
-  }, [ghost.state.turns]);
+  }, [ghost.state.turns, scrollToLatest]);
 
   useEffect(() => () => {
     submissionFollowCleanupRef.current?.();
@@ -490,12 +502,6 @@ export default function JetsGhostExperience({
   };
 
   const handleStop = () => ghost.stop();
-
-  const scrollToLatest = () => {
-    const scroller = conversationScrollerRef.current;
-    if (scroller === null || conversationEndRef.current === null) return;
-    scrollConversationToLatest(scroller);
-  };
 
   const scheduleSubmissionFollow = (modality: InteractionModality) => {
     submissionFollowCleanupRef.current?.();
@@ -604,7 +610,20 @@ export default function JetsGhostExperience({
   };
 
   const handleConversationScroll = (event: UIEvent<HTMLDivElement>) => {
-    if (isNearConversationBottom(event.currentTarget)) {
+    const scroller = event.currentTarget;
+    const programmaticScrollTop = programmaticScrollTopRef.current;
+    if (
+      programmaticScrollTop !== null
+      && Math.abs(scroller.scrollTop - programmaticScrollTop) <= 1
+    ) {
+      programmaticScrollTopRef.current = null;
+      stickyFollowRef.current = true;
+      setHasUnseenContent(false);
+      scrollToLatest();
+      return;
+    }
+    programmaticScrollTopRef.current = null;
+    if (isNearConversationBottom(scroller)) {
       stickyFollowRef.current = true;
       setHasUnseenContent(false);
       return;

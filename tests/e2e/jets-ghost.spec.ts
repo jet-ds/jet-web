@@ -74,6 +74,7 @@ interface Box {
 interface LargeGhostLayerAuditEntry {
   currentMode: string | null;
   modes: string[];
+  positions: string[];
   viewportCount: number;
 }
 
@@ -170,6 +171,7 @@ async function installLargeGhostLayerAudit(page: Page): Promise<void> {
     interface AuditEntry {
       currentMode: string | null;
       modes: string[];
+      positions: string[];
       viewportCount: number;
     }
     const auditedWindow = window as typeof window & {
@@ -181,16 +183,24 @@ async function installLargeGhostLayerAudit(page: Page): Promise<void> {
       const viewports = [...document.querySelectorAll<HTMLElement>(
         '[data-testid="animated-ghost-viewport"]',
       )];
-      const modes = [...document.querySelectorAll<HTMLElement>(
+      const layers = [...document.querySelectorAll<HTMLElement>(
         '[data-testid="animated-ghost-mode-layer"]',
-      )].map((layer) => layer.dataset.mode ?? '');
+      )];
+      const modes = layers.map((layer) => layer.dataset.mode ?? '');
+      const positions = layers.map((layer) => getComputedStyle(layer).position);
       const currentMode = viewports[0]?.dataset.mode ?? null;
-      const signature = JSON.stringify({ currentMode, modes, viewportCount: viewports.length });
+      const signature = JSON.stringify({
+        currentMode,
+        modes,
+        positions,
+        viewportCount: viewports.length,
+      });
       if (signature === previousSignature) return;
       previousSignature = signature;
       auditedWindow.__JETS_GHOST_LAYER_AUDIT__?.push({
         currentMode,
         modes,
+        positions,
         viewportCount: viewports.length,
       });
     };
@@ -210,6 +220,7 @@ async function largeGhostLayerAudit(page: Page): Promise<LargeGhostLayerAuditEnt
     return auditedWindow.__JETS_GHOST_LAYER_AUDIT__?.map((entry) => ({
       ...entry,
       modes: [...entry.modes],
+      positions: [...entry.positions],
     })) ?? [];
   });
 }
@@ -594,6 +605,7 @@ test.describe("Jet's Ghost consent and local privacy", () => {
 test.describe("Jet's Ghost supported lifecycle", () => {
   test('crossfades idle to scanning inside one fixed large-Ghost viewport', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'chromium');
+    await installLargeGhostLayerAudit(page);
     await page.goto(fakePath('checking'));
 
     const viewport = largeGhostViewport(page);
@@ -604,19 +616,20 @@ test.describe("Jet's Ghost supported lifecycle", () => {
 
     await page.getByRole('button', { name: 'Check compatibility' }).click();
     await expect(viewport).toHaveAttribute('data-mode', 'scanning');
-    await expect(layers).toHaveCount(2);
-    await expect(page.locator('[data-testid="animated-ghost-mode-layer"][data-mode="idle"]')).toHaveCount(1);
-    await expect(page.locator('[data-testid="animated-ghost-mode-layer"][data-mode="scanning"]')).toHaveCount(1);
     const during = await boxOf(viewport);
     expectStableBox(before, during);
-    expect(await layers.evaluateAll((elements) => elements.map((element) => (
-      getComputedStyle(element).position
-    )))).toEqual(['absolute', 'absolute']);
-
-    await page.waitForTimeout(220);
+    await expect(page.locator(
+      '[data-testid="animated-ghost-mode-layer"][data-mode="idle"]',
+    )).toHaveCount(0);
     await expect(layers).toHaveCount(1);
     await expect(layers).toHaveAttribute('data-mode', 'scanning');
     expectStableBox(before, await boxOf(viewport));
+    expect(await largeGhostLayerAudit(page)).toContainEqual({
+      currentMode: 'scanning',
+      modes: ['idle', 'scanning'],
+      positions: ['absolute', 'absolute'],
+      viewportCount: 1,
+    });
   });
 
   test('crossfades ready to loading and loading to ready across remounted screen branches', async ({ page }, testInfo) => {
@@ -683,6 +696,7 @@ test.describe("Jet's Ghost supported lifecycle", () => {
     expect(audit.at(-1)).toEqual({
       currentMode: 'ready',
       modes: ['ready'],
+      positions: ['absolute'],
       viewportCount: 1,
     });
   });
@@ -1652,9 +1666,11 @@ test.describe("Jet's Ghost responses, citations, and scrolling", () => {
       element.scrollHeight - element.scrollTop - element.clientHeight
     ))).toBeLessThanOrEqual(48);
     const contentBeforeScroll = await currentAssistant.textContent();
-    await scroller.evaluate((element) => {
-      element.scrollTop = 0;
-      element.dispatchEvent(new Event('scroll', { bubbles: true }));
+    await scroller.evaluate(async (element) => {
+      await new Promise<void>((resolve) => {
+        element.addEventListener('scroll', () => resolve(), { once: true });
+        element.scrollTop = 0;
+      });
     });
     const awayPosition = await scroller.evaluate((element) => element.scrollTop);
     await page.clock.runFor(160);
