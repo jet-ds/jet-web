@@ -54,6 +54,18 @@ interface DeviceObservation {
   instrumentationFailed: boolean;
 }
 
+interface ConsentAuditState {
+  activationStartedAt: number;
+  loadInitiated: boolean;
+  loadInitiatedAt?: number;
+  assistantRequests: Array<{ beforeConsent: boolean }>;
+  isAssistantResource: (value: string) => boolean;
+}
+
+type ConsentAuditWindow = typeof window & {
+  __JG_CONSENT_AUDIT__?: ConsentAuditState;
+};
+
 const REAL_MODEL_MODES = [
   'qualification',
   'smoke',
@@ -173,6 +185,98 @@ class RequestLedger {
   observationFor(request: Request): RequestObservation | undefined {
     return this.byRequest.get(request);
   }
+}
+
+async function installConsentAudit(page: Page): Promise<void> {
+  await page.addInitScript((config) => {
+    const isAssistantResource = (value: string): boolean => {
+      let url: URL;
+      try {
+        url = new URL(value, location.href);
+      } catch {
+        return false;
+      }
+
+      const localResource = url.origin === location.origin && (
+        config.corpusPaths.some((path) => path === url.pathname)
+        || url.pathname.startsWith(config.wasmRoot)
+      );
+      const trustedModelResource = url.protocol === 'https:'
+        && url.port === ''
+        && config.trustedOrigins.some(({ hostname, allowSubdomains }) => (
+          url.hostname === hostname
+          || (allowSubdomains && url.hostname.endsWith(`.${hostname}`))
+        ));
+      return localResource || trustedModelResource;
+    };
+    const state: ConsentAuditState = {
+      activationStartedAt: performance.now(),
+      loadInitiated: false,
+      assistantRequests: [],
+      isAssistantResource,
+    };
+    (window as ConsentAuditWindow).__JG_CONSENT_AUDIT__ = state;
+    performance.setResourceTimingBufferSize(2_000);
+
+    const originalFetch = window.fetch.bind(window);
+    window.fetch = ((input: RequestInfo | URL, init?: RequestInit) => {
+      const value = typeof input === 'string' || input instanceof URL
+        ? input.toString()
+        : input.url;
+      if (isAssistantResource(value)) {
+        state.assistantRequests.push({ beforeConsent: !state.loadInitiated });
+      }
+      return originalFetch(input, init);
+    }) as typeof window.fetch;
+  }, {
+    corpusPaths: [...CORPUS_PATHS],
+    wasmRoot: JETS_GHOST_PATHS.liteRtWasm,
+    trustedOrigins: JETS_GHOST_MODEL.trustedOrigins.map((origin) => ({ ...origin })),
+  });
+}
+
+async function resetConsentAudit(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const audit = (window as ConsentAuditWindow).__JG_CONSENT_AUDIT__;
+    if (audit === undefined) throw new Error('CONSENT_AUDIT_MISSING');
+    audit.activationStartedAt = performance.now();
+    audit.loadInitiated = false;
+    audit.loadInitiatedAt = undefined;
+    audit.assistantRequests = [];
+  });
+}
+
+async function validateConsentAudit(
+  page: Page,
+  ledger: RequestLedger,
+  compatibilityMark: number,
+  applicationOrigin: string,
+): Promise<void> {
+  const audit = await page.evaluate(() => {
+    const state = (window as ConsentAuditWindow).__JG_CONSENT_AUDIT__;
+    if (state === undefined || state.loadInitiatedAt === undefined) {
+      throw new Error('CONSENT_AUDIT_MISSING');
+    }
+
+    const timedResources = performance.getEntriesByType('resource')
+      .filter((entry) => (
+        entry.startTime >= state.activationStartedAt && state.isAssistantResource(entry.name)
+      ));
+    return {
+      auditedRequestCount: Math.max(state.assistantRequests.length, timedResources.length),
+      beforeConsent: state.assistantRequests.some((request) => request.beforeConsent)
+        || timedResources.some((entry) => entry.startTime < state.loadInitiatedAt!),
+    };
+  });
+  const assistantRootCount = ledger.since(compatibilityMark).filter(({ request }) => (
+    request.redirectedFrom() === null && assistantResourceRequest(request, applicationOrigin)
+  )).length;
+
+  contentFreeAssert(!audit.beforeConsent, 'ASSISTANT_REQUEST_BEFORE_LOAD');
+  contentFreeAssert(
+    audit.auditedRequestCount >= assistantRootCount,
+    'CONSENT_AUDIT_REQUEST_MISSING',
+  );
 }
 
 async function installDeviceObservation(page: Page): Promise<void> {
@@ -407,11 +511,17 @@ function modelTransferWindow(
 async function activationMeasurement(
   page: Page,
   ledger: RequestLedger,
-  options: { sampleLoading: boolean },
+  applicationOrigin: string,
+  options: { sampleLoading: boolean; compatibilityMark: number },
 ): Promise<ActivationMeasurement> {
   const mark = ledger.mark();
   const startedAt = performance.now();
-  await page.getByRole('button', { name: /Load Jet's Ghost/ }).click();
+  await clickLoadAfterConsentAudit(
+    page,
+    ledger,
+    applicationOrigin,
+    options.compatibilityMark,
+  );
   if (options.sampleLoading) await observeColdLoading(page, startedAt);
   const composer = page.getByRole('textbox', { name: "Ask Jet's Ghost" });
   await expect(composer).toBeEnabled();
@@ -444,6 +554,7 @@ async function activationMeasurement(
   const manifest = await manifestResponse.json() as Record<string, unknown>;
   contentFreeAssert(typeof manifest.corpusVersion === 'string', 'CORPUS_VERSION_MISSING');
   contentFreeAssert(typeof manifest.indexConfigVersion === 'string', 'INDEX_VERSION_MISSING');
+  await validateConsentAudit(page, ledger, options.compatibilityMark, applicationOrigin);
 
   return {
     engineReadyMs: roundMilliseconds(readyAt - startedAt),
@@ -529,10 +640,24 @@ async function runProductCase(
       for (let index = 0; index < await sourceLinks.count(); index += 1) {
         const link = sourceLinks.nth(index);
         const href = await link.getAttribute('href');
-        contentFreeAssert(href !== null, 'SOURCE_LINK_TARGET_MISSING');
-        observedSourcePaths.push(new URL(href, page.url()).pathname);
-        await expect(link).toHaveAttribute('target', '_blank');
-        await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+        if (href === null) {
+          caseFailures.push('CASE_SOURCE_HREF_MISSING');
+        } else {
+          try {
+            observedSourcePaths.push(new URL(href, page.url()).pathname);
+          } catch {
+            caseFailures.push('CASE_SOURCE_HREF_MALFORMED');
+          }
+        }
+
+        if (await link.getAttribute('target') !== '_blank') {
+          caseFailures.push('CASE_SOURCE_TARGET_INVALID');
+        }
+        const rel = await link.getAttribute('rel');
+        const relTokens = new Set(rel?.split(/\s+/u).filter(Boolean) ?? []);
+        if (!relTokens.has('noopener') || !relTokens.has('noreferrer')) {
+          caseFailures.push('CASE_SOURCE_REL_INVALID');
+        }
       }
     }
 
@@ -574,10 +699,20 @@ async function assertCompatibilityDoesNotLoadAssistant(
   page: Page,
   ledger: RequestLedger,
   applicationOrigin: string,
-): Promise<void> {
+): Promise<number> {
   const compatibilityMark = ledger.mark();
+  await resetConsentAudit(page);
   await page.getByRole('button', { name: 'Check compatibility' }).click();
   await expect(page.getByRole('button', { name: /Load Jet's Ghost/ })).toBeVisible();
+  assertNoAssistantRequestsSince(ledger, compatibilityMark, applicationOrigin);
+  return compatibilityMark;
+}
+
+function assertNoAssistantRequestsSince(
+  ledger: RequestLedger,
+  compatibilityMark: number,
+  applicationOrigin: string,
+): void {
   contentFreeAssert(
     ledger.since(compatibilityMark).every(({ request }) => (
       !assistantResourceRequest(request, applicationOrigin)
@@ -586,15 +721,40 @@ async function assertCompatibilityDoesNotLoadAssistant(
   );
 }
 
+async function clickLoadAfterConsentAudit(
+  page: Page,
+  ledger: RequestLedger,
+  applicationOrigin: string,
+  compatibilityMark: number,
+): Promise<void> {
+  assertNoAssistantRequestsSince(ledger, compatibilityMark, applicationOrigin);
+  const loadButton = page.getByRole('button', { name: /Load Jet's Ghost/ });
+  await expect(loadButton).toBeVisible();
+  await expect(loadButton).toBeEnabled();
+  await loadButton.evaluate((element) => {
+    const audit = (window as ConsentAuditWindow).__JG_CONSENT_AUDIT__;
+    if (audit === undefined) throw new Error('CONSENT_AUDIT_MISSING');
+    if (!(element instanceof HTMLButtonElement)) throw new Error('LOAD_CONTROL_INVALID');
+    audit.loadInitiatedAt = performance.now();
+    audit.loadInitiated = true;
+    element.click();
+  });
+}
+
 async function activateWithoutBenchmark(
   page: Page,
   ledger: RequestLedger,
   applicationOrigin: string,
 ): Promise<void> {
-  await assertCompatibilityDoesNotLoadAssistant(page, ledger, applicationOrigin);
-  await page.getByRole('button', { name: /Load Jet's Ghost/ }).click();
+  const compatibilityMark = await assertCompatibilityDoesNotLoadAssistant(
+    page,
+    ledger,
+    applicationOrigin,
+  );
+  await clickLoadAfterConsentAudit(page, ledger, applicationOrigin, compatibilityMark);
   await expect(page.getByRole('textbox', { name: "Ask Jet's Ghost" })).toBeEnabled();
   await expect(page.getByTestId('lifecycle-visible-status')).toContainText('Ready');
+  await validateConsentAudit(page, ledger, compatibilityMark, applicationOrigin);
 }
 
 async function qualificationCloseout(
@@ -897,21 +1057,36 @@ test("qualifies Jet's Ghost with the real local model", async ({ browser, page }
   }
 
   await installDeviceObservation(page);
+  await installConsentAudit(page);
   await page.goto(GHOST_PATH);
   await assertFreshApplicationStorage(page);
   const applicationOrigin = new URL(page.url()).origin;
   const ledger = new RequestLedger(page);
   const productCaseFailures: string[] = [];
-  await assertCompatibilityDoesNotLoadAssistant(page, ledger, applicationOrigin);
+  const compatibilityMark = await assertCompatibilityDoesNotLoadAssistant(
+    page,
+    ledger,
+    applicationOrigin,
+  );
 
   if (mode === 'qualification') {
     console.info('phase=cold-activation');
-    const cold = await activationMeasurement(page, ledger, { sampleLoading: true });
+    const cold = await activationMeasurement(page, ledger, applicationOrigin, {
+      sampleLoading: true,
+      compatibilityMark,
+    });
     printActivation('cold', cold);
     await unloadAndAssertSettled(page);
-    await assertCompatibilityDoesNotLoadAssistant(page, ledger, applicationOrigin);
+    const warmCompatibilityMark = await assertCompatibilityDoesNotLoadAssistant(
+      page,
+      ledger,
+      applicationOrigin,
+    );
     console.info('phase=warm-activation');
-    const warm = await activationMeasurement(page, ledger, { sampleLoading: false });
+    const warm = await activationMeasurement(page, ledger, applicationOrigin, {
+      sampleLoading: false,
+      compatibilityMark: warmCompatibilityMark,
+    });
     printActivation('warm', warm);
 
     console.info('phase=product-cases');
@@ -924,8 +1099,9 @@ test("qualifies Jet's Ghost with the real local model", async ({ browser, page }
     await qualificationCloseout(page, ledger, applicationOrigin);
   } else {
     const smokeActivationMark = ledger.mark();
-    await page.getByRole('button', { name: /Load Jet's Ghost/ }).click();
+    await clickLoadAfterConsentAudit(page, ledger, applicationOrigin, compatibilityMark);
     await expect(page.getByRole('textbox', { name: "Ask Jet's Ghost" })).toBeEnabled();
+    await validateConsentAudit(page, ledger, compatibilityMark, applicationOrigin);
     await printSmokeVersions(ledger, smokeActivationMark, applicationOrigin);
     const smokeCases = SMOKE_CASE_IDS.map((id) => acceptanceCases.find((item) => item.id === id));
     contentFreeAssert(smokeCases.every((item) => item !== undefined), 'SMOKE_CASE_MISSING');

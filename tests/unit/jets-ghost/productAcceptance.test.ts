@@ -253,8 +253,13 @@ describe("Jet's Ghost real-model harness contract", () => {
     const manualSpec = readRequired(MANUAL_SPEC_PATH);
 
     expect(manualSpec).toContain('const caseFailures: string[] = [];');
+    expect(manualSpec).toContain("caseFailures.push('CASE_SOURCE_HREF_MISSING')");
+    expect(manualSpec).toContain("caseFailures.push('CASE_SOURCE_HREF_MALFORMED')");
+    expect(manualSpec).toContain("caseFailures.push('CASE_SOURCE_TARGET_INVALID')");
+    expect(manualSpec).toContain("caseFailures.push('CASE_SOURCE_REL_INVALID')");
     expect(manualSpec).toContain("caseFailures.push('CASE_CITATION_BOUNDARY_FAILED')");
     expect(manualSpec).toContain("caseFailures.push('CASE_ABSTENTION_MISSING')");
+    expect(manualSpec).not.toContain('CASE_REVIEW_EVALUATION_FAILED');
     expect(manualSpec).toMatch(/finally \{\s+await page\.pause\(\);\s+\}\s+return caseFailures;/u);
     expect(manualSpec).toMatch(/productCaseFailures\.push\(\.\.\.\(await runProductCase/u);
     expect(manualSpec).toContain('PRODUCT_CASES_FAILED_');
@@ -263,8 +268,19 @@ describe("Jet's Ghost real-model harness contract", () => {
   it('checks every compatibility activation boundary before loading resources', () => {
     const manualSpec = readRequired(MANUAL_SPEC_PATH);
 
+    expect(manualSpec).toContain('): Promise<number> {');
+    expect(manualSpec).toContain('return compatibilityMark;');
+    expect(manualSpec).toContain('function assertNoAssistantRequestsSince');
+    expect(manualSpec).toContain('installConsentAudit');
+    expect(manualSpec).toContain('validateConsentAudit');
+    expect(manualSpec).toContain('beforeConsent');
+    expect(manualSpec).toContain('await expect(loadButton).toBeVisible();');
+    expect(manualSpec).toContain('await expect(loadButton).toBeEnabled();');
+    expect(manualSpec).toMatch(/loadButton\.evaluate\(\(element\) => \{[\s\S]*?loadInitiated = true;[\s\S]*?element\.click\(\);[\s\S]*?\}\);/u);
     expect(manualSpec.match(/await assertCompatibilityDoesNotLoadAssistant\(/g)).toHaveLength(3);
     expect(manualSpec.match(/await activateWithoutBenchmark\(/g)).toHaveLength(2);
+    expect(manualSpec.match(/await clickLoadAfterConsentAudit\(/g)).toHaveLength(3);
+    expect(manualSpec.match(/name: \/Load Jet's Ghost\/ \}\)\.click\(\)/g)).toBeNull();
     expect(manualSpec).toContain("'ASSISTANT_REQUEST_BEFORE_LOAD'");
   });
 
