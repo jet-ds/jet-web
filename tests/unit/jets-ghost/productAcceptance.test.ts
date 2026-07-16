@@ -215,6 +215,59 @@ describe("Jet's Ghost real-model harness contract", () => {
     expect(manualSpec).not.toMatch(/result(?:Path|Schema)|qualification-results?/u);
   });
 
+  it('rejects Playwright browser connection and context reuse controls', () => {
+    const manualSpec = readRequired(MANUAL_SPEC_PATH);
+
+    expect(quotedValues(manualSpec, 'PROFILE_ENVIRONMENT_KEYS')).toEqual([
+      'PLAYWRIGHT_USER_DATA_DIR',
+      'CHROME_USER_DATA_DIR',
+      'JETS_GHOST_USER_DATA_DIR',
+      'PW_TEST_CONNECT_WS_ENDPOINT',
+      'PW_TEST_REUSE_CONTEXT',
+    ]);
+  });
+
+  it('audits Partytown transport separately and decodes request sentinels', () => {
+    const manualSpec = readRequired(MANUAL_SPEC_PATH);
+
+    expect(manualSpec).toContain('function isPartytownTransport');
+    expect(manualSpec).toContain('validatePartytownTransport');
+    expect(manualSpec).toContain("request.method() === 'POST'");
+    expect(manualSpec).toContain("JSON.parse(body)");
+    expect(manualSpec).toContain("url.searchParams.values()");
+    expect(manualSpec).toContain('decodeURIComponent');
+    expect(manualSpec).toContain('PARTYTOWN_TRANSPORT_SCHEMA_INVALID');
+    expect(manualSpec).not.toContain("credentials: 'same-origin'");
+  });
+
+  it('times every exact pinned model root through the last terminal transfer', () => {
+    const manualSpec = readRequired(MANUAL_SPEC_PATH);
+
+    expect(manualSpec).toContain('const modelRoots = observations.filter');
+    expect(manualSpec).toContain('Math.min(...modelRoots.map');
+    expect(manualSpec).toContain('Math.max(...modelTerminals.map');
+    expect(manualSpec).toContain('modelTransferFinishedAt');
+  });
+
+  it('pauses every completed product case before aggregating case failures', () => {
+    const manualSpec = readRequired(MANUAL_SPEC_PATH);
+
+    expect(manualSpec).toContain('const caseFailures: string[] = [];');
+    expect(manualSpec).toContain("caseFailures.push('CASE_CITATION_BOUNDARY_FAILED')");
+    expect(manualSpec).toContain("caseFailures.push('CASE_ABSTENTION_MISSING')");
+    expect(manualSpec).toMatch(/finally \{\s+await page\.pause\(\);\s+\}\s+return caseFailures;/u);
+    expect(manualSpec).toMatch(/productCaseFailures\.push\(\.\.\.\(await runProductCase/u);
+    expect(manualSpec).toContain('PRODUCT_CASES_FAILED_');
+  });
+
+  it('checks every compatibility activation boundary before loading resources', () => {
+    const manualSpec = readRequired(MANUAL_SPEC_PATH);
+
+    expect(manualSpec.match(/await assertCompatibilityDoesNotLoadAssistant\(/g)).toHaveLength(3);
+    expect(manualSpec.match(/await activateWithoutBenchmark\(/g)).toHaveLength(2);
+    expect(manualSpec).toContain("'ASSISTANT_REQUEST_BEFORE_LOAD'");
+  });
+
   it('uses one installed-Chrome project with all retained capture disabled', () => {
     const config = readRequired(REAL_MODEL_CONFIG_PATH);
 

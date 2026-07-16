@@ -80,6 +80,8 @@ const PROFILE_ENVIRONMENT_KEYS = [
   'PLAYWRIGHT_USER_DATA_DIR',
   'CHROME_USER_DATA_DIR',
   'JETS_GHOST_USER_DATA_DIR',
+  'PW_TEST_CONNECT_WS_ENDPOINT',
+  'PW_TEST_REUSE_CONTEXT',
 ] as const;
 
 const acceptanceCases = JSON.parse(readFileSync(
@@ -382,6 +384,26 @@ function terminalRedirectRequest(request: Request): Request {
   return terminal;
 }
 
+function modelTransferWindow(
+  observations: RequestObservation[],
+  ledger: RequestLedger,
+): { modelTransferStartedAt: number; modelTransferFinishedAt: number } {
+  const modelRoots = observations.filter(({ request }) => (
+    request.url() === JETS_GHOST_MODEL.url && request.redirectedFrom() === null
+  ));
+  contentFreeAssert(modelRoots.length > 0, 'MODEL_REQUEST_MISSING');
+  const modelTerminals = modelRoots.map(({ request }) => {
+    const terminalObservation = ledger.observationFor(terminalRedirectRequest(request));
+    contentFreeAssert(terminalObservation?.finishedAt !== undefined, 'MODEL_TRANSFER_INCOMPLETE');
+    return terminalObservation;
+  });
+
+  return {
+    modelTransferStartedAt: Math.min(...modelRoots.map(({ startedAt }) => startedAt)),
+    modelTransferFinishedAt: Math.max(...modelTerminals.map(({ finishedAt }) => finishedAt!)),
+  };
+}
+
 async function activationMeasurement(
   page: Page,
   ledger: RequestLedger,
@@ -412,11 +434,11 @@ async function activationMeasurement(
     origin,
     JETS_GHOST_PATHS.index,
   );
-  const modelRoot = observations.find(({ request }) => request.url() === JETS_GHOST_MODEL.url);
-  contentFreeAssert(modelRoot !== undefined, 'MODEL_REQUEST_MISSING');
-  const terminalModel = terminalRedirectRequest(modelRoot.request);
-  const terminalObservation = ledger.observationFor(terminalModel);
-  contentFreeAssert(terminalObservation?.finishedAt !== undefined, 'MODEL_TRANSFER_INCOMPLETE');
+  const {
+    modelTransferStartedAt,
+    modelTransferFinishedAt,
+  } = modelTransferWindow(observations, ledger);
+  contentFreeAssert(readyAt >= modelTransferFinishedAt, 'MODEL_TRANSFER_FINISHED_AFTER_READY');
   const manifestResponse = await manifestObservation.request.response();
   contentFreeAssert(manifestResponse !== null, 'CORPUS_MANIFEST_RESPONSE_MISSING');
   const manifest = await manifestResponse.json() as Record<string, unknown>;
@@ -427,8 +449,8 @@ async function activationMeasurement(
     engineReadyMs: roundMilliseconds(readyAt - startedAt),
     corpusMs: requestDuration(contentObservation),
     indexMs: requestDuration(indexObservation),
-    modelMs: roundMilliseconds(terminalObservation.finishedAt - modelRoot.startedAt),
-    validationHydrationMs: roundMilliseconds(readyAt - terminalObservation.finishedAt),
+    modelMs: roundMilliseconds(modelTransferFinishedAt - modelTransferStartedAt),
+    validationHydrationMs: roundMilliseconds(readyAt - modelTransferFinishedAt),
     corpusVersion: manifest.corpusVersion,
     indexConfigVersion: manifest.indexConfigVersion,
   };
@@ -482,7 +504,8 @@ async function responseAbstains(page: Page): Promise<boolean> {
 async function runProductCase(
   page: Page,
   acceptanceCase: ProductAcceptanceCase,
-): Promise<void> {
+): Promise<string[]> {
+  const caseFailures: string[] = [];
   await newSession(page);
   const startedAt = performance.now();
   const composer = page.getByRole('textbox', { name: "Ask Jet's Ghost" });
@@ -493,48 +516,51 @@ async function runProductCase(
   await expect(page.getByTestId('lifecycle-visible-status')).toContainText('Ready');
   const totalResponseMs = roundMilliseconds(performance.now() - startedAt);
 
-  const inlineCitations = page
-    .getByTestId('conversation-scroller')
-    .getByRole('link', { name: /^\[S\d+\]/u });
-  const disclosure = page.getByTestId('response-source-disclosure');
-  const observedSourcePaths: string[] = [];
-  if (await disclosure.count() > 0) {
-    await disclosure.getByRole('button', { name: /sources?$/u }).click();
-    const sourceLinks = disclosure.getByRole('region', { name: 'Sources for this response' })
-      .getByRole('link');
-    for (let index = 0; index < await sourceLinks.count(); index += 1) {
-      const link = sourceLinks.nth(index);
-      const href = await link.getAttribute('href');
-      contentFreeAssert(href !== null, 'SOURCE_LINK_TARGET_MISSING');
-      observedSourcePaths.push(new URL(href, page.url()).pathname);
-      await expect(link).toHaveAttribute('target', '_blank');
-      await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+  try {
+    const inlineCitations = page
+      .getByTestId('conversation-scroller')
+      .getByRole('link', { name: /^\[S\d+\]/u });
+    const disclosure = page.getByTestId('response-source-disclosure');
+    const observedSourcePaths: string[] = [];
+    if (await disclosure.count() > 0) {
+      await disclosure.getByRole('button', { name: /sources?$/u }).click();
+      const sourceLinks = disclosure.getByRole('region', { name: 'Sources for this response' })
+        .getByRole('link');
+      for (let index = 0; index < await sourceLinks.count(); index += 1) {
+        const link = sourceLinks.nth(index);
+        const href = await link.getAttribute('href');
+        contentFreeAssert(href !== null, 'SOURCE_LINK_TARGET_MISSING');
+        observedSourcePaths.push(new URL(href, page.url()).pathname);
+        await expect(link).toHaveAttribute('target', '_blank');
+        await expect(link).toHaveAttribute('rel', 'noopener noreferrer');
+      }
     }
+
+    const expectedPaths = acceptanceCase.expectedSourceIds.map(sourcePath);
+    const acceptablePaths = acceptanceCase.acceptableSourceIds.map(sourcePath);
+    const citationResolved = acceptanceCase.mustAbstain
+      ? await inlineCitations.count() === 0 && observedSourcePaths.length === 0
+      : expectedPaths.every((path) => observedSourcePaths.includes(path))
+        && observedSourcePaths.every((path) => acceptablePaths.includes(path))
+        && await inlineCitations.count() > 0;
+    const abstention = await responseAbstains(page);
+
+    if (!citationResolved) caseFailures.push('CASE_CITATION_BOUNDARY_FAILED');
+    if (acceptanceCase.mustAbstain) {
+      if (!abstention) caseFailures.push('CASE_ABSTENTION_MISSING');
+    }
+
+    console.info([
+      `case=${acceptanceCase.id}`,
+      `first-token-ms=${firstTokenMs}`,
+      `total-response-ms=${totalResponseMs}`,
+      `citation-resolved=${citationResolved}`,
+      `abstention=${abstention}`,
+    ].join(' '));
+  } finally {
+    await page.pause();
   }
-
-  const expectedPaths = acceptanceCase.expectedSourceIds.map(sourcePath);
-  const acceptablePaths = acceptanceCase.acceptableSourceIds.map(sourcePath);
-  const citationResolved = acceptanceCase.mustAbstain
-    ? await inlineCitations.count() === 0 && observedSourcePaths.length === 0
-    : expectedPaths.every((path) => observedSourcePaths.includes(path))
-      && observedSourcePaths.every((path) => acceptablePaths.includes(path))
-      && await inlineCitations.count() > 0;
-  const abstention = await responseAbstains(page);
-
-  contentFreeAssert(citationResolved, 'CASE_CITATION_BOUNDARY_FAILED');
-  if (acceptanceCase.mustAbstain) {
-    contentFreeAssert(abstention, 'CASE_ABSTENTION_MISSING');
-  }
-
-  console.info([
-    `case=${acceptanceCase.id}`,
-    `first-token-ms=${firstTokenMs}`,
-    `total-response-ms=${totalResponseMs}`,
-    `citation-resolved=${citationResolved}`,
-    `abstention=${abstention}`,
-  ].join(' '));
-
-  await page.pause();
+  return caseFailures;
 }
 
 async function unloadAndAssertSettled(page: Page): Promise<void> {
@@ -544,14 +570,38 @@ async function unloadAndAssertSettled(page: Page): Promise<void> {
   await expect(page.getByTestId('conversation-scroller')).toHaveCount(0);
 }
 
-async function activateWithoutBenchmark(page: Page): Promise<void> {
+async function assertCompatibilityDoesNotLoadAssistant(
+  page: Page,
+  ledger: RequestLedger,
+  applicationOrigin: string,
+): Promise<void> {
+  const compatibilityMark = ledger.mark();
   await page.getByRole('button', { name: 'Check compatibility' }).click();
+  await expect(page.getByRole('button', { name: /Load Jet's Ghost/ })).toBeVisible();
+  contentFreeAssert(
+    ledger.since(compatibilityMark).every(({ request }) => (
+      !assistantResourceRequest(request, applicationOrigin)
+    )),
+    'ASSISTANT_REQUEST_BEFORE_LOAD',
+  );
+}
+
+async function activateWithoutBenchmark(
+  page: Page,
+  ledger: RequestLedger,
+  applicationOrigin: string,
+): Promise<void> {
+  await assertCompatibilityDoesNotLoadAssistant(page, ledger, applicationOrigin);
   await page.getByRole('button', { name: /Load Jet's Ghost/ }).click();
   await expect(page.getByRole('textbox', { name: "Ask Jet's Ghost" })).toBeEnabled();
   await expect(page.getByTestId('lifecycle-visible-status')).toContainText('Ready');
 }
 
-async function qualificationCloseout(page: Page): Promise<void> {
+async function qualificationCloseout(
+  page: Page,
+  ledger: RequestLedger,
+  applicationOrigin: string,
+): Promise<void> {
   await newSession(page);
   const composer = page.getByRole('textbox', { name: "Ask Jet's Ghost" });
   await composer.fill(CLOSEOUT_PROMPT_SENTINEL);
@@ -563,7 +613,7 @@ async function qualificationCloseout(page: Page): Promise<void> {
   await newSession(page);
   await unloadAndAssertSettled(page);
 
-  await activateWithoutBenchmark(page);
+  await activateWithoutBenchmark(page, ledger, applicationOrigin);
   const contact = page.locator('#site-navigation-dock').getByRole('link', { name: 'Contact' });
   await contact.click();
   await expect(page).toHaveURL(new RegExp(`${ROUTE_AWAY_PATH}$`, 'u'));
@@ -571,7 +621,7 @@ async function qualificationCloseout(page: Page): Promise<void> {
   await page.locator('#site-navigation-dock').getByRole('link', { name: "Jet's Ghost" }).click();
   await expect(page).toHaveURL(new RegExp(`${GHOST_PATH}$`, 'u'));
   await expect(page.getByRole('button', { name: 'Check compatibility' })).toBeVisible();
-  await activateWithoutBenchmark(page);
+  await activateWithoutBenchmark(page, ledger, applicationOrigin);
   await unloadAndAssertSettled(page);
 }
 
@@ -582,18 +632,83 @@ function hasApplicationDefinedHeader(headers: Record<string, string>): boolean {
   });
 }
 
-function isAnalyticsRequest(url: URL, applicationOrigin: string): boolean {
-  return (
-    url.origin === applicationOrigin && url.pathname === '/~partytown/proxytown'
-  ) || (
-    [
-      'www.google-analytics.com',
-      'analytics.google.com',
-      'region1.google-analytics.com',
-      'www.googletagmanager.com',
-    ].includes(url.hostname)
-    && /\/(?:g\/)?collect$|\/gtag\/js$/u.test(url.pathname)
+function isAnalyticsRequest(url: URL): boolean {
+  if (url.protocol !== 'https:' || url.port !== '') return false;
+  if (url.origin === 'https://www.googletagmanager.com') {
+    return url.pathname === '/gtag/js';
+  }
+  return [
+    'https://www.google-analytics.com',
+    'https://analytics.google.com',
+    'https://region1.google-analytics.com',
+  ].includes(url.origin) && /^\/(?:g\/)?collect$/u.test(url.pathname);
+}
+
+function isPartytownTransport(url: URL, applicationOrigin: string): boolean {
+  return url.origin === applicationOrigin
+    && url.pathname === '/~partytown/proxytown'
+    && url.search === '';
+}
+
+function validateAnalyticsRequest(
+  request: Request,
+  url: URL,
+  headers: Record<string, string>,
+  body: string | null,
+): void {
+  const tagScript = url.origin === 'https://www.googletagmanager.com';
+  contentFreeAssert(
+    tagScript ? request.method() === 'GET' : ['GET', 'POST'].includes(request.method()),
+    'ANALYTICS_METHOD_FORBIDDEN',
   );
+  if (tagScript || request.method() === 'GET') {
+    contentFreeAssert(body === null, 'ANALYTICS_BODY_FORBIDDEN');
+  }
+  contentFreeAssert(!hasApplicationDefinedHeader(headers), 'ANALYTICS_HEADER_FORBIDDEN');
+  contentFreeAssert(headers.authorization === undefined, 'ANALYTICS_AUTHORIZATION_FORBIDDEN');
+}
+
+function validatePartytownTransport(
+  request: Request,
+  headers: Record<string, string>,
+  body: string | null,
+): void {
+  contentFreeAssert(request.method() === 'POST', 'PARTYTOWN_TRANSPORT_METHOD_FORBIDDEN');
+  contentFreeAssert(body !== null, 'PARTYTOWN_TRANSPORT_BODY_MISSING');
+  contentFreeAssert(
+    headers['content-type']?.startsWith('text/plain') === true,
+    'PARTYTOWN_TRANSPORT_CONTENT_TYPE_INVALID',
+  );
+  contentFreeAssert(!hasApplicationDefinedHeader(headers), 'PARTYTOWN_TRANSPORT_HEADER_FORBIDDEN');
+  contentFreeAssert(headers.authorization === undefined, 'PARTYTOWN_TRANSPORT_AUTHORIZATION_FORBIDDEN');
+
+  let payload: unknown;
+  try {
+    payload = JSON.parse(body);
+  } catch {
+    throw new Error('PARTYTOWN_TRANSPORT_SCHEMA_INVALID');
+  }
+  const record = payload as { F?: unknown; Q?: unknown };
+  contentFreeAssert(
+    typeof record.F === 'string'
+      && Array.isArray(record.Q)
+      && Object.keys(record).every((key) => key === 'F' || key === 'Q'),
+    'PARTYTOWN_TRANSPORT_SCHEMA_INVALID',
+  );
+}
+
+function decodedRequestValue(value: string): string {
+  let decoded = value.replace(/\+/gu, ' ');
+  for (let pass = 0; pass < 2; pass += 1) {
+    try {
+      const next = decodeURIComponent(decoded);
+      if (next === decoded) break;
+      decoded = next;
+    } catch {
+      break;
+    }
+  }
+  return decoded;
 }
 
 async function modelDeliveryHop(request: Request): Promise<ModelDeliveryHop> {
@@ -607,7 +722,6 @@ async function modelDeliveryHop(request: Request): Promise<ModelDeliveryHop> {
       url: request.url(),
       method: request.method(),
       headers: headers.range === undefined ? undefined : { range: headers.range },
-      credentials: 'same-origin',
       body: request.postData() ?? undefined,
     },
     response: {
@@ -668,11 +782,17 @@ async function validateRequestPrivacy(
     const url = new URL(request.url());
     const headers = await request.allHeaders();
     const body = request.postData();
-    const serializedRequest = [
+    const requestValues = [
       url.href,
+      url.pathname,
+      url.search,
+      ...url.searchParams.values(),
       body ?? '',
       ...Object.entries(headers).flat(),
-    ].join('\n');
+    ];
+    const serializedRequest = requestValues
+      .flatMap((value) => [value, decodedRequestValue(value)])
+      .join('\n');
     contentFreeAssert(
       sentinels.every((sentinel) => !serializedRequest.includes(sentinel)),
       'CONVERSATION_DATA_IN_REQUEST',
@@ -692,13 +812,24 @@ async function validateRequestPrivacy(
     const documentRequest = sameOrigin
       && [GHOST_PATH, ROUTE_AWAY_PATH].includes(url.pathname);
     const model = isTrustedModelOrigin(url.href, JETS_GHOST_MODEL.trustedOrigins);
-    const analytics = isAnalyticsRequest(url, applicationOrigin);
+    const analytics = isAnalyticsRequest(url);
+    const partytownTransport = isPartytownTransport(url, applicationOrigin);
 
     contentFreeAssert(
-      corpus || applicationChunk || runtimeAsset || documentRequest || model || analytics,
+      corpus
+        || applicationChunk
+        || runtimeAsset
+        || documentRequest
+        || model
+        || analytics
+        || partytownTransport,
       'NONALLOWLISTED_REQUEST',
     );
-    if (!analytics) {
+    if (analytics) {
+      validateAnalyticsRequest(request, url, headers, body);
+    } else if (partytownTransport) {
+      validatePartytownTransport(request, headers, body);
+    } else {
       contentFreeAssert(
         request.method() === 'GET' || (model && request.method() === 'HEAD'),
         'REQUEST_METHOD_FORBIDDEN',
@@ -770,29 +901,27 @@ test("qualifies Jet's Ghost with the real local model", async ({ browser, page }
   await assertFreshApplicationStorage(page);
   const applicationOrigin = new URL(page.url()).origin;
   const ledger = new RequestLedger(page);
-  await page.getByRole('button', { name: 'Check compatibility' }).click();
-  await expect(page.getByRole('button', { name: /Load Jet's Ghost/ })).toBeVisible();
-  contentFreeAssert(
-    ledger.observations.every(({ request }) => !assistantResourceRequest(request, applicationOrigin)),
-    'ASSISTANT_REQUEST_BEFORE_LOAD',
-  );
+  const productCaseFailures: string[] = [];
+  await assertCompatibilityDoesNotLoadAssistant(page, ledger, applicationOrigin);
 
   if (mode === 'qualification') {
     console.info('phase=cold-activation');
     const cold = await activationMeasurement(page, ledger, { sampleLoading: true });
     printActivation('cold', cold);
     await unloadAndAssertSettled(page);
-    await page.getByRole('button', { name: 'Check compatibility' }).click();
+    await assertCompatibilityDoesNotLoadAssistant(page, ledger, applicationOrigin);
     console.info('phase=warm-activation');
     const warm = await activationMeasurement(page, ledger, { sampleLoading: false });
     printActivation('warm', warm);
 
     console.info('phase=product-cases');
     for (const acceptanceCase of acceptanceCases) {
-      await runProductCase(page, acceptanceCase);
+      productCaseFailures.push(...(await runProductCase(page, acceptanceCase)).map((failure) => (
+        `${acceptanceCase.id}:${failure}`
+      )));
     }
     console.info('phase=lifecycle-closeout');
-    await qualificationCloseout(page);
+    await qualificationCloseout(page, ledger, applicationOrigin);
   } else {
     const smokeActivationMark = ledger.mark();
     await page.getByRole('button', { name: /Load Jet's Ghost/ }).click();
@@ -801,7 +930,9 @@ test("qualifies Jet's Ghost with the real local model", async ({ browser, page }
     const smokeCases = SMOKE_CASE_IDS.map((id) => acceptanceCases.find((item) => item.id === id));
     contentFreeAssert(smokeCases.every((item) => item !== undefined), 'SMOKE_CASE_MISSING');
     for (const acceptanceCase of smokeCases) {
-      await runProductCase(page, acceptanceCase!);
+      productCaseFailures.push(...(await runProductCase(page, acceptanceCase!)).map((failure) => (
+        `${acceptanceCase!.id}:${failure}`
+      )));
     }
     await unloadAndAssertSettled(page);
   }
@@ -815,4 +946,8 @@ test("qualifies Jet's Ghost with the real local model", async ({ browser, page }
     'lifecycle=pass',
     `device-loss-count=${device.deviceLossCount}`,
   ].join(' '));
+  contentFreeAssert(
+    productCaseFailures.length === 0,
+    `PRODUCT_CASES_FAILED_${productCaseFailures.join('_')}`,
+  );
 });
