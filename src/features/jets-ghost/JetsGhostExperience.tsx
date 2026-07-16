@@ -25,7 +25,7 @@ import {
   type UIEvent,
 } from 'react';
 
-import { JETS_GHOST_CONTEXT } from './config';
+import { JETS_GHOST_CONTEXT, JETS_GHOST_PATHS } from './config';
 import { StaticKnowledgeRepository } from './corpus/repository';
 import type { JetsGhostErrorCode } from './errors';
 import {
@@ -659,7 +659,7 @@ export default function JetsGhostExperience({
         ].includes(status) && (
           <main
             data-testid="activation-main"
-            className="flex flex-1 items-center justify-center overflow-y-auto px-gutter py-m max-[369px]:pb-5xl"
+            className="flex flex-1 items-center justify-center overflow-y-auto px-gutter py-m max-[369px]:pb-[calc(var(--space-5xl)+var(--space-s))]"
           >
             <div className="w-full max-w-3xl text-center">
               <AnimatedGhost mode={ghostAnimationMode} />
@@ -669,10 +669,23 @@ export default function JetsGhostExperience({
               <p className="mx-auto mt-s max-w-2xl text-base leading-relaxed text-text-secondary">
                 Jet&apos;s Ghost runs frontier local AI in this browser. Starting it downloads about 2 GB and may use substantial GPU memory. Your prompts and responses stay on this device.
               </p>
+              <p className="mx-auto mt-xs inline-flex flex-wrap items-center justify-center gap-x-3xs text-sm leading-relaxed text-text-tertiary">
+                <span>Model:</span>
+                <span className="font-medium text-text-secondary">Gemma 4 E2B</span>
+                <span aria-hidden="true">·</span>
+                <a
+                  href={JETS_GHOST_PATHS.licenses}
+                  aria-label="View model and open-source licenses for Gemma 4 E2B"
+                  title="Model and open-source licenses"
+                  className="font-medium text-brand-text underline underline-offset-4 transition-colors hover:text-brand-hover focus:outline-none focus:ring-2 focus:ring-brand-base"
+                >
+                  Licenses
+                </a>
+              </p>
 
               <div
                 data-testid="activation-privacy-facts"
-                className="mx-auto mt-m flex max-w-xl flex-wrap items-center justify-center gap-x-s gap-y-2xs text-xs text-text-tertiary"
+                className="mx-auto mt-s flex max-w-xl flex-wrap items-center justify-center gap-x-s gap-y-2xs text-xs text-text-tertiary"
               >
                 <span className="inline-flex items-center justify-center gap-3xs whitespace-nowrap">
                   <LockKeyhole aria-hidden="true" size={15} />

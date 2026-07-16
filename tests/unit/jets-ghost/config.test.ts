@@ -27,12 +27,14 @@ describe("Jet's Ghost configuration", () => {
       .reduce((sum, [, value]) => sum + value, 0)).toBe(16_384);
   });
 
-  it('uses same-origin corpus paths', () => {
+  it('uses same-origin corpus, runtime, and license paths', () => {
     expect(JETS_GHOST_PATHS).toEqual({
       manifest: '/assistant/corpus/manifest.json',
       content: '/assistant/corpus/content.json',
       index: '/assistant/corpus/index.json',
       liteRtWasm: '/assistant/runtime/litert-lm/0.14.0/',
+      liteRtLicense: '/assistant/runtime/litert-lm/0.14.0/LICENSE.txt',
+      licenses: '/licenses/jets-ghost/',
     });
   });
 });

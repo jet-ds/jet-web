@@ -28,4 +28,6 @@ export const JETS_GHOST_PATHS = {
   content: '/assistant/corpus/content.json',
   index: '/assistant/corpus/index.json',
   liteRtWasm: '/assistant/runtime/litert-lm/0.14.0/',
+  liteRtLicense: '/assistant/runtime/litert-lm/0.14.0/LICENSE.txt',
+  licenses: '/licenses/jets-ghost/',
 } as const;

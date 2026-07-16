@@ -1590,8 +1590,14 @@ git commit -m "test(chatbot): add product acceptance qualification"
 
 **Files:**
 - Create: `docs/verification/jets-ghost-licenses.md`
+- Create: `THIRD_PARTY_NOTICES.md`
+- Create: `LICENSES/Apache-2.0.txt`
+- Create: `LICENSES/minisearch-7.2.0-MIT.txt`
+- Create: `LICENSES/stemmer-2.0.1-MIT.txt`
+- Create: public model/open-source license surface and a versioned LiteRT-LM license sibling
 - Modify if required by the review: `README.md`
-- Modify if required by the review: `src/pages/chatbot.astro`
+- Modify: the pre-load Jet's Ghost UI to link the public license surface
+- Create or modify: focused license-bundle and production-artifact tests
 
 **Interfaces:**
 - Produces: reviewed evidence that the exact Gemma and LiteRT-LM artifacts may be used as designed, plus every required public/repository notice.
@@ -1599,21 +1605,22 @@ git commit -m "test(chatbot): add product acceptance qualification"
 
 - [ ] **Step 1: Inventory exact artifacts and authoritative terms**
 
-Record the pinned model repository/revision, filename, size, SHA-256, model-card URL, applicable Gemma terms URL/version/date, `@litert-lm/core@0.14.0`, `minisearch@7.2.0`, `stemmer@2.0.1`, and every bundled/transitive license and notice. Use authoritative model/vendor/package sources. Distinguish legal/model attribution from the repository's intentionally removed agent-attribution commit rule.
+Record the pinned model repository/revision, filename, size, SHA-256, model-card URL, applicable Gemma 4 license source/date, `@litert-lm/core@0.14.0`, `@litertjs/wasm-utils@2.5.0`, `minisearch@7.2.0`, `stemmer@2.0.1`, and every identified bundled license and notice. Use authoritative model/vendor/package sources. Distinguish legal/model attribution from the repository's intentionally removed agent-attribution commit rule.
+
+Separate confirmed license obligations, verified upstream packaging/provenance defects, hypothetical undisclosed transitive-license risk, and actual release blockers. The absence of an upstream SBOM or third-party inventory is not itself an Apache 2.0 redistribution prohibition. Do not infer or invent undisclosed component obligations without identified authoritative evidence.
 
 - [ ] **Step 2: Resolve distribution and disclosure questions**
 
-Document whether browser download from Hugging Face, browser caching, bundling LiteRT-LM assets, public model naming, and any future mirroring are permitted. List every required attribution, terms link, acceptable-use notice, license file, or UI disclosure. Any unresolved obligation blocks release and retention of `noindex`.
+Document whether browser download from Hugging Face, browser caching, bundling LiteRT-LM assets, public model naming, and any future mirroring are permitted. List every confirmed attribution, license copy, notice, or UI disclosure obligation and cite the applicable provision or identified bundled-component evidence. Search indexing is irrelevant to redistribution compliance and must not appear in this legal analysis. Recommend legal advice for residual uncertainty without representing that recommendation as a release prohibition.
 
 - [ ] **Step 3: Implement and verify required notices**
 
-Add only notices required by the reviewed terms. If no public notice is required, record that conclusion and its source rather than inventing attribution. Verify README/UI links resolve, package/license versions match the lockfile, and the displayed model identity matches the pinned artifact.
+Implement the complete known bundle for Gemma 4, LiteRT-LM core and its eight served assets, wasm-utils, MiniSearch, and stemmer. Include the full applicable license texts, exact artifact/version/hash mapping, and only copyright or NOTICE material established by the reviewed evidence. Document the LiteRT-LM v0.14.0 source-tag/package mismatch and absent upstream inventory as residual supply-chain risk. Verify public and repository license surfaces, README/UI links, package/license versions, artifact identities, and displayed model identity. Declare release blocked only for a specific unmet applicable provision or identified bundled-component obligation; after the known bundle is implemented, no presently identified license blocks distribution.
 
 - [ ] **Step 4: Commit the license evidence**
 
 ```bash
-git add docs/verification/jets-ghost-licenses.md
-# Add README.md and src/pages/chatbot.astro only if the review required changes.
+git add docs/verification/jets-ghost-licenses.md THIRD_PARTY_NOTICES.md LICENSES README.md src tests public
 git commit -m "docs(chatbot): record model and runtime licensing"
 ```
 

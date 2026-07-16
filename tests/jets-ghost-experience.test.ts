@@ -427,7 +427,7 @@ test('activation privacy facts wrap naturally instead of colliding on narrow mob
   assert.match(experienceSource, /data-testid="activation-main"/);
   assert.match(
     experienceSource,
-    /data-testid="activation-main"[\s\S]{0,260}max-\[369px\]:pb-5xl/,
+    /data-testid="activation-main"[\s\S]{0,300}max-\[369px\]:pb-\[calc\(var\(--space-5xl\)\+var\(--space-s\)\)\]/,
   );
   assert.doesNotMatch(experienceSource, /data-testid="activation-main"[\s\S]{0,260}md:py-m/);
   assert.match(

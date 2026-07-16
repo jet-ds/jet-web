@@ -1,4 +1,5 @@
 import {
+  existsSync,
   readFileSync,
   readdirSync,
   statSync,
@@ -65,10 +66,78 @@ export function assertProductionArtifactsContainNoFakeRuntime(
     .join(',')}`);
 }
 
+const REQUIRED_LICENSE_ARTIFACTS = [
+  {
+    emittedPath: 'licenses/THIRD_PARTY_NOTICES.md',
+    sourcePath: 'THIRD_PARTY_NOTICES.md',
+  },
+  {
+    emittedPath: 'licenses/apache-2.0.txt',
+    sourcePath: 'LICENSES/Apache-2.0.txt',
+  },
+  {
+    emittedPath: 'licenses/minisearch-7.2.0-MIT.txt',
+    sourcePath: 'LICENSES/minisearch-7.2.0-MIT.txt',
+  },
+  {
+    emittedPath: 'licenses/stemmer-2.0.1-MIT.txt',
+    sourcePath: 'LICENSES/stemmer-2.0.1-MIT.txt',
+  },
+  {
+    emittedPath: 'assistant/runtime/litert-lm/0.14.0/LICENSE.txt',
+    sourcePath: 'LICENSES/Apache-2.0.txt',
+  },
+] as const;
+
+const REQUIRED_LICENSE_PAGE_FRAGMENTS = [
+  'Gemma 4 E2B',
+  '/licenses/THIRD_PARTY_NOTICES.md',
+  '/licenses/apache-2.0.txt',
+  '/licenses/minisearch-7.2.0-MIT.txt',
+  '/licenses/stemmer-2.0.1-MIT.txt',
+  '/assistant/runtime/litert-lm/0.14.0/LICENSE.txt',
+] as const;
+
+export function assertProductionLicenseArtifacts(
+  directory = resolve('dist'),
+): void {
+  const root = resolve(directory);
+  for (const artifact of REQUIRED_LICENSE_ARTIFACTS) {
+    const emittedPath = resolve(root, artifact.emittedPath);
+    if (!existsSync(emittedPath)) {
+      throw new Error(`PRODUCTION_LICENSE_ARTIFACT_MISSING:${artifact.emittedPath}`);
+    }
+
+    const emitted = readFileSync(emittedPath);
+    const expected = readFileSync(resolve(artifact.sourcePath));
+    if (!emitted.equals(expected)) {
+      throw new Error(`PRODUCTION_LICENSE_ARTIFACT_MISMATCH:${artifact.emittedPath}`);
+    }
+  }
+
+  const licensePagePath = resolve(root, 'licenses/jets-ghost/index.html');
+  if (!existsSync(licensePagePath)) {
+    throw new Error('PRODUCTION_LICENSE_ARTIFACT_MISSING:licenses/jets-ghost/index.html');
+  }
+
+  const licensePage = readFileSync(licensePagePath, 'utf8');
+  for (const fragment of REQUIRED_LICENSE_PAGE_FRAGMENTS) {
+    if (!licensePage.includes(fragment)) {
+      throw new Error(
+        `PRODUCTION_LICENSE_PAGE_INCOMPLETE:licenses/jets-ghost/index.html:${fragment}`,
+      );
+    }
+  }
+}
+
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
-    assertProductionArtifactsContainNoFakeRuntime(process.argv[2] ?? resolve('dist'));
-    process.stdout.write('Production artifacts contain no Jet\'s Ghost fake-runtime seam.\n');
+    const directory = process.argv[2] ?? resolve('dist');
+    assertProductionArtifactsContainNoFakeRuntime(directory);
+    assertProductionLicenseArtifacts(directory);
+    process.stdout.write(
+      'Production artifacts contain no Jet\'s Ghost fake-runtime seam; the license surface is complete and byte-exact.\n',
+    );
   } catch (error) {
     const message = error instanceof Error ? error.message : 'UNEXPECTED_ERROR';
     process.stderr.write(`Production artifact verification failed: ${message}\n`);
