@@ -1,6 +1,7 @@
 ---
 export interface Props {
   class?: string;
+  clip?: boolean;
   padding?: 'none' | 'sm' | 'md' | 'lg' | 'card';
   radius?: 'lg' | 'xl';
   surface?: 'base' | 'subtle';
@@ -9,6 +10,7 @@ export interface Props {
 
 const {
   class: className = '',
+  clip = false,
   padding,
   radius,
   surface = 'base',
@@ -42,8 +44,9 @@ const paddingClasses = {
 const hoverClasses = hover
   ? 'hover:border-brand-base hover:shadow-md cursor-pointer'
   : '';
+const clipClass = clip ? 'overflow-hidden' : '';
 
-const classes = `${surfaceClasses[surface]} ${radiusClasses[resolvedRadius]} ${baseClasses} ${paddingClasses[resolvedPadding]} ${hoverClasses} ${className}`;
+const classes = `${surfaceClasses[surface]} ${radiusClasses[resolvedRadius]} ${baseClasses} ${paddingClasses[resolvedPadding]} ${hoverClasses} ${clipClass} ${className}`;
 ---
 
 <div class={classes} {...rest}>

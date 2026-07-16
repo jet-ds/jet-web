@@ -4,11 +4,13 @@ import { describe, expect, test } from 'vitest';
 const readSource = (path: string) => readFileSync(new URL(path, import.meta.url), 'utf8');
 
 const cardSource = readSource('../../src/components/ui/Card.astro');
+const blogCardSource = readSource('../../src/components/blog/BlogCard.astro');
 const buttonSource = readSource('../../src/components/ui/Button.astro');
 const globalStyles = readSource('../../src/styles/global.css');
 const licenseSource = readSource('../../src/pages/licenses/jets-ghost.astro');
 const aboutSource = readSource('../../src/pages/about.astro');
 const contactSource = readSource('../../src/pages/contact.astro');
+const workCardSource = readSource('../../src/components/works/WorkCard.astro');
 
 const countMatches = (source: string, pattern: RegExp) => source.match(pattern)?.length ?? 0;
 
@@ -39,6 +41,22 @@ describe('annotation 2 shared card system', () => {
     expect(cardSource).toContain('paddingClasses[resolvedPadding]');
   });
 
+  test('Card clipping is opt-in for image-boundary consumers', () => {
+    expect(cardSource).toContain('clip?: boolean;');
+    expect(cardSource).toContain('clip = false');
+    expect(cardSource).toContain("const clipClass = clip ? 'overflow-hidden' : '';");
+    expect(cardSource).toContain('${clipClass}');
+    expect(cardSource).not.toContain("baseClasses = 'overflow-hidden");
+
+    expect(aboutSource).toMatch(
+      /<Card clip padding="none" radius="xl">[\s\S]*?<OptimizedImage/u,
+    );
+    for (const source of [blogCardSource, workCardSource]) {
+      expect(source).toMatch(/<Card\s+hover\s+clip\s+padding="none"/u);
+      expect(source).toContain('group-hover:scale-105');
+    }
+  });
+
   test('Licenses consumes four subtle Cards while preserving valid section and list structure', () => {
     expect(licenseSource).toContain(
       "import Card from '../../components/ui/Card.astro';",
@@ -63,7 +81,7 @@ describe('annotation 2 shared card system', () => {
 
     expect(countMatches(aboutSource, /<Card\s+surface="subtle"/gu)).toBe(3);
     expect(aboutSource).toMatch(
-      /<Card padding="none" radius="xl" class="overflow-hidden">[\s\S]*?<OptimizedImage/u,
+      /<Card clip padding="none" radius="xl">[\s\S]*?<OptimizedImage/u,
     );
     expect(portraitCardOpeningTag).not.toContain('surface="subtle"');
     expect(portraitCardOpeningTag).toContain('radius="xl"');

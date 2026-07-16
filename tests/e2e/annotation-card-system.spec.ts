@@ -64,6 +64,53 @@ async function expectDefaultAccentAction(action: Locator) {
   expect(style.paddingInline).toBeGreaterThan(0);
 }
 
+async function expectClippedImageCard(page: Page, route: '/blog/' | '/works/') {
+  await page.goto(route);
+
+  if (route === '/works/') {
+    await page.locator('[data-filter-item]').first().evaluate(async (card) => {
+      const anchor = card.querySelector('a.group');
+      if (!anchor) throw new Error('WorkCard primary link missing');
+      const wrapper = document.createElement('div');
+      wrapper.className = 'aspect-video overflow-hidden';
+      const image = document.createElement('img');
+      image.alt = 'WorkCard clipping fixture';
+      image.className = 'w-full h-full object-cover transition-transform duration-300 group-hover:scale-105';
+      image.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450"><rect width="800" height="450" fill="%23ef4444"/></svg>';
+      wrapper.append(image);
+      anchor.prepend(wrapper);
+      await image.decode();
+    });
+  }
+
+  const card = page.locator('[data-filter-item]:has(.aspect-video img)').first();
+  const image = card.locator('.aspect-video img');
+  await expect(card).toBeVisible();
+  await expect(image).toBeVisible();
+
+  const readBoundary = () => card.evaluate((element) => {
+    const media = element.querySelector('.aspect-video');
+    const imageElement = media?.querySelector('img');
+    if (!media || !imageElement) throw new Error('Card image boundary missing');
+    const cardStyle = getComputedStyle(element);
+    return {
+      borderRadius: Number.parseFloat(cardStyle.borderRadius),
+      overflow: cardStyle.overflow,
+      transform: getComputedStyle(imageElement).transform,
+    };
+  });
+
+  const rest = await readBoundary();
+  expect(rest.overflow).toBe('hidden');
+  expect(rest.borderRadius).toBe(8);
+
+  await card.locator('a.group').hover();
+  const hover = await readBoundary();
+  expect(hover.transform).not.toBe('none');
+  expect(hover.overflow).toBe('hidden');
+  expect(hover.borderRadius).toBe(rest.borderRadius);
+}
+
 test('Licenses, About, and Contact resolve one subtle card surface in both themes', async ({ page }) => {
   const routes = [
     ['/licenses/jets-ghost/', 4],
@@ -249,6 +296,14 @@ test('About Connect retains four compact shared soft actions in both themes', as
     expect(focus.backgroundColor).not.toMatch(/rgba\([^)]*,\s*0\s*\)$/u);
     expect(focus.outlineStyle).not.toBe('none');
     expect(focus.outlineWidth).toBeGreaterThanOrEqual(2);
+  }
+});
+
+test('Blog and Works image cards clip rest and hover media to shared Card corners', async ({ page }) => {
+  for (const width of [320, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+    await expectClippedImageCard(page, '/blog/');
+    await expectClippedImageCard(page, '/works/');
   }
 });
 
