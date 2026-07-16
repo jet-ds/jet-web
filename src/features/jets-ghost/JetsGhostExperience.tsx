@@ -18,6 +18,7 @@ import {
   useMemo,
   useRef,
   useState,
+  type CSSProperties,
   type FormEvent,
   type KeyboardEvent,
   type PointerEvent as ReactPointerEvent,
@@ -42,9 +43,22 @@ import {
   extractValidCitations,
   getCitedDocumentSources,
 } from './prompt/citations';
-import { FakeRuntime, type FakeRuntimeCall } from './runtime/fakeRuntime';
+import {
+  FakeRuntime,
+  FakeRuntimeRecorder,
+  type FakeRuntimeCall,
+} from './runtime/fakeRuntime';
+import {
+  configureFakeCitationSelection,
+  getFakeScenarioConfiguration,
+  resolveFakeScenario,
+} from './runtime/fakeScenario';
 import { LiteRtGemmaRuntime } from './runtime/liteRtGemma';
 import type { JetsGhostLifecycleStatus } from './runtime/lifecycle';
+import {
+  createRuntimeError,
+  type LocalModelRuntime,
+} from './runtime/types';
 import { rankAndPackContext } from './selection/rankAndPack';
 import type { ConversationTurn } from './state/types';
 import {
@@ -60,6 +74,7 @@ const suggestedQuestions = [
 
 type JetsGhostE2EWindow = Window & {
   __JETS_GHOST_E2E__?: {
+    readonly runtimeId: number;
     readonly calls: readonly FakeRuntimeCall[];
   };
 };
@@ -84,19 +99,193 @@ function scrollConversationToLatest(
   scroller.scrollTop = scroller.scrollHeight;
 }
 
-function waitForSlowFakeChunk(): Promise<void> {
+function useLiveReducedMotion(): boolean {
+  const initialPreference = Boolean(useReducedMotion());
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(initialPreference);
+
+  useEffect(() => {
+    if (typeof window.matchMedia !== 'function') return undefined;
+
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const updatePreference = () => setPrefersReducedMotion(mediaQuery.matches);
+
+    updatePreference();
+    mediaQuery.addEventListener('change', updatePreference);
+    return () => mediaQuery.removeEventListener('change', updatePreference);
+  }, []);
+
+  return prefersReducedMotion;
+}
+
+function waitForFakeDelay(delayMs: number): Promise<void> {
   return new Promise((resolve) => {
-    let framesRemaining = 15;
-    const advance = () => {
-      framesRemaining -= 1;
-      if (framesRemaining === 0) resolve();
-      else requestAnimationFrame(advance);
-    };
-    requestAnimationFrame(advance);
+    window.setTimeout(resolve, delayMs);
   });
 }
 
-function createRuntime() {
+function allocateE2ERuntimeId(): number {
+  const storageKey = 'jets-ghost-e2e-runtime-id';
+  const previous = Number.parseInt(window.sessionStorage.getItem(storageKey) ?? '0', 10);
+  const runtimeId = Number.isSafeInteger(previous) && previous >= 0
+    ? previous + 1
+    : 1;
+  window.sessionStorage.setItem(storageKey, String(runtimeId));
+  return runtimeId;
+}
+
+function exposeE2EAudit(recorder: FakeRuntimeRecorder): void {
+  Object.defineProperty(window as JetsGhostE2EWindow, '__JETS_GHOST_E2E__', {
+    configurable: true,
+    value: Object.freeze({
+      runtimeId: recorder.runtimeId,
+      get calls() {
+        return recorder.calls;
+      },
+    }),
+  });
+}
+
+function createAuditedProductionRuntime(
+  runtime: LocalModelRuntime,
+  recorder: FakeRuntimeRecorder,
+): LocalModelRuntime {
+  return {
+    checkCapabilities: () => {
+      recorder.record('checkCapabilities');
+      return runtime.checkCapabilities();
+    },
+    load: (options) => runtime.load(options),
+    createSession: (preface) => runtime.createSession(preface),
+    generate: (message, handlers) => runtime.generate(message, handlers),
+    cancel: () => runtime.cancel(),
+    reset: () => runtime.reset(),
+    unload: () => runtime.unload(),
+  };
+}
+
+function createTestBuildDependencies(): JetsGhostDependencies {
+  let nextTurnId = 0;
+  const searchParams = new URL(window.location.href).searchParams;
+  const explicitFakeRuntime = searchParams.get('runtime') === 'fake';
+  const slowFakeStream = searchParams.get('stream') === 'slow';
+  const fakeSessionKey = 'jets-ghost-e2e-fake-authorized';
+  const resolvedFakeScenario = resolveFakeScenario({
+    testBuild: true,
+    hostname: window.location.hostname,
+    pathname: window.location.pathname,
+    search: window.location.search,
+    sessionAuthorized: window.sessionStorage.getItem(fakeSessionKey) === '1',
+  });
+
+  if (resolvedFakeScenario !== null) {
+    if (explicitFakeRuntime) window.sessionStorage.setItem(fakeSessionKey, '1');
+    const { scenario } = resolvedFakeScenario;
+    const configuration = getFakeScenarioConfiguration(scenario);
+    const runtimeId = allocateE2ERuntimeId();
+    const recorder = new FakeRuntimeRecorder(runtimeId);
+    const chunkDelayMs = configuration.chunkDelayMs
+      ?? (slowFakeStream || resolvedFakeScenario.slowStream ? 120 : 0);
+    const scheduler = {
+      waitForChunk: async () => {
+        if (chunkDelayMs > 0) await waitForFakeDelay(chunkDelayMs);
+      },
+      ...(configuration.capabilityDelayMs === undefined ? {} : {
+        waitForCapability: async () => waitForFakeDelay(configuration.capabilityDelayMs!),
+      }),
+      ...(configuration.loadDelayMs === undefined ? {} : {
+        waitForLoad: async () => waitForFakeDelay(configuration.loadDelayMs!),
+      }),
+      ...(configuration.unloadDelayMs === undefined ? {} : {
+        waitForUnload: async () => waitForFakeDelay(configuration.unloadDelayMs!),
+      }),
+    };
+    const runtime = new FakeRuntime({
+      testOnly: true,
+      recorder,
+      recordResourceLifecycle: true,
+      responseChunks: configuration.responseChunks,
+      failures: configuration.failures,
+      scheduler: scheduler,
+      emitLateChunkAfterCancellation: configuration.emitLateChunkAfterCancellation,
+    });
+    const repository = new StaticKnowledgeRepository();
+    let completedAssemblies = 0;
+
+    exposeE2EAudit(recorder);
+
+    return {
+      createRepository: () => ({
+        load: (signal) => {
+          recorder.record('repository.load');
+          return repository.load(signal);
+        },
+        unload: () => {
+          recorder.record('repository.unload');
+          return repository.unload();
+        },
+      }),
+      createRuntime: () => runtime,
+      rankAndPackContext: (input) => {
+        const selection = rankAndPackContext(input);
+        return scenario === 'citations'
+          ? configureFakeCitationSelection(selection)
+          : selection;
+      },
+      assemblePrompt: (...args) => {
+        if (
+          configuration.exhaustAfterCompletedGenerations !== undefined
+          && completedAssemblies >= configuration.exhaustAfterCompletedGenerations
+        ) {
+          throw createRuntimeError(
+            'conversation-limit-reached',
+            'The deterministic fake conversation is full.',
+            true,
+          );
+        }
+        const assembled = assemblePrompt(...args);
+        completedAssemblies += 1;
+        return assembled;
+      },
+      extractValidCitations,
+      contextBudget: JETS_GHOST_CONTEXT,
+      createTurnId: () => `turn-${++nextTurnId}`,
+      now: () => performance.now(),
+    };
+  }
+
+  const productionRuntime = new LiteRtGemmaRuntime();
+  const recorder = new FakeRuntimeRecorder(allocateE2ERuntimeId());
+  exposeE2EAudit(recorder);
+  const runtime = createAuditedProductionRuntime(productionRuntime, recorder);
+
+  return {
+    createRepository: () => new StaticKnowledgeRepository(),
+    createRuntime: () => runtime,
+    rankAndPackContext,
+    assemblePrompt,
+    extractValidCitations,
+    contextBudget: JETS_GHOST_CONTEXT,
+    createTurnId: () => `turn-${++nextTurnId}`,
+    now: () => performance.now(),
+  };
+}
+
+function createProductionDependencies(): JetsGhostDependencies {
+  let nextTurnId = 0;
+  const runtime = new LiteRtGemmaRuntime();
+  return {
+    createRepository: () => new StaticKnowledgeRepository(),
+    createRuntime: () => runtime,
+    rankAndPackContext,
+    assemblePrompt,
+    extractValidCitations,
+    contextBudget: JETS_GHOST_CONTEXT,
+    createTurnId: () => `turn-${++nextTurnId}`,
+    now: () => performance.now(),
+  };
+}
+
+function createDependencies(): JetsGhostDependencies {
   const localHost = typeof window !== 'undefined'
     && (
       window.location.hostname === '127.0.0.1'
@@ -105,44 +294,8 @@ function createRuntime() {
   if (
     import.meta.env.PUBLIC_JETS_GHOST_E2E === '1'
     && localHost
-    && new URL(window.location.href).searchParams.get('runtime') === 'fake'
-  ) {
-    const slowFakeStream = new URL(window.location.href).searchParams.get('stream') === 'slow';
-    const runtime = new FakeRuntime({
-      testOnly: true,
-      responseChunks: [
-        "Jet's published work connects local-first AI ",
-        'with systems thinking [S1].',
-      ],
-      scheduler: slowFakeStream
-        ? { waitForChunk: waitForSlowFakeChunk }
-        : undefined,
-    });
-    Object.defineProperty(window as JetsGhostE2EWindow, '__JETS_GHOST_E2E__', {
-      configurable: true,
-      value: {
-        get calls() {
-          return runtime.calls.map(({ method, operationId }) => ({ method, operationId }));
-        },
-      },
-    });
-    return runtime;
-  }
-  return new LiteRtGemmaRuntime();
-}
-
-function createDependencies(): JetsGhostDependencies {
-  let nextTurnId = 0;
-  return {
-    createRepository: () => new StaticKnowledgeRepository(),
-    createRuntime,
-    rankAndPackContext,
-    assemblePrompt,
-    extractValidCitations,
-    contextBudget: JETS_GHOST_CONTEXT,
-    createTurnId: () => `turn-${++nextTurnId}`,
-    now: () => performance.now(),
-  };
+  ) return createTestBuildDependencies();
+  return createProductionDependencies();
 }
 
 interface JetsGhostExperienceProps {
@@ -167,7 +320,7 @@ export default function JetsGhostExperience({
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [hasSubmittedInSession, setHasSubmittedInSession] = useState(false);
   const [hasUnseenContent, setHasUnseenContent] = useState(false);
-  const prefersReducedMotion = useReducedMotion();
+  const prefersReducedMotion = useLiveReducedMotion();
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const conversationScrollerRef = useRef<HTMLDivElement>(null);
   const conversationEndRef = useRef<HTMLDivElement>(null);
@@ -181,6 +334,7 @@ export default function JetsGhostExperience({
   const composerFocusModalityRef = useRef<InteractionModality>('keyboard');
   const readyFocusModalityRef = useRef<InteractionModality>('keyboard');
   const messageSubmissionModalityRef = useRef<InteractionModality>('keyboard');
+  const suppressComposerRestoreRef = useRef(false);
   const stickyFollowRef = useRef(true);
   const pendingSubmissionFollowRef = useRef(false);
   const submissionFollowCleanupRef = useRef<(() => void) | null>(null);
@@ -217,11 +371,13 @@ export default function JetsGhostExperience({
     const previousStatus = previousStatusRef.current;
     const readyTransitionModality = previousStatus === 'loading'
       || previousStatus === 'resetting'
+      || previousStatus === 'generation-error'
       ? readyFocusModalityRef.current
       : messageSubmissionModalityRef.current;
     if (
       shouldFocusComposer(previousStatus, status)
       && readyTransitionModality === 'keyboard'
+      && !suppressComposerRestoreRef.current
     ) {
       inputRef.current?.focus();
     }
@@ -236,6 +392,7 @@ export default function JetsGhostExperience({
       && (previousStatus === 'generating' || previousStatus === 'cancelling')
     ) {
       lastSubmittedRef.current = null;
+      suppressComposerRestoreRef.current = false;
     }
     if (previousStatus === 'resetting' && status === 'ready') {
       setDraft('');
@@ -313,6 +470,15 @@ export default function JetsGhostExperience({
     void ghost.load();
   };
 
+  const handleRecoverFromError = () => {
+    const modality = lastInteractionModalityRef.current;
+    readyFocusModalityRef.current = modality;
+    ghost.recoverFromError();
+    if (modality === 'keyboard') {
+      requestAnimationFrame(() => inputRef.current?.focus());
+    }
+  };
+
   const handleStop = () => ghost.stop();
 
   const scrollToLatest = (behavior: ScrollBehavior = 'auto') => {
@@ -378,6 +544,7 @@ export default function JetsGhostExperience({
     if (!cleanQuestion || status !== 'ready') return;
     const submissionModality = lastInteractionModalityRef.current;
     messageSubmissionModalityRef.current = submissionModality;
+    suppressComposerRestoreRef.current = false;
     if (submissionModality !== 'keyboard') inputRef.current?.blur();
     stickyFollowRef.current = true;
     setHasUnseenContent(false);
@@ -438,6 +605,7 @@ export default function JetsGhostExperience({
   };
 
   const handleJumpToLatest = () => {
+    suppressComposerRestoreRef.current = true;
     stickyFollowRef.current = true;
     setHasUnseenContent(false);
     scrollToLatest(prefersReducedMotion ? 'auto' : 'smooth');
@@ -759,7 +927,7 @@ export default function JetsGhostExperience({
                       errorCode={ghost.state.error.code}
                       message={ghost.state.error.message}
                       status={status}
-                      onRecover={ghost.recoverFromError}
+                      onRecover={handleRecoverFromError}
                       onRetryReset={handleNewSession}
                       onRetryUnload={handleUnload}
                     />
@@ -794,7 +962,7 @@ export default function JetsGhostExperience({
                   errorCode={ghost.state.error.code}
                   message={ghost.state.error.message}
                   status={status}
-                  onRecover={ghost.recoverFromError}
+                  onRecover={handleRecoverFromError}
                   onRetryReset={handleNewSession}
                   onRetryUnload={handleUnload}
                 />
@@ -1153,11 +1321,36 @@ function LoadingPhaseGhost({ reduceMotion }: { reduceMotion: boolean }) {
       className="relative mx-auto mb-s h-16 w-36 shrink-0 text-brand-base"
       aria-hidden="true"
     >
+      <style>{`
+        @media (prefers-reduced-motion: reduce) {
+          [data-testid="loading-ghost-afterimage"] {
+            opacity: var(--jets-ghost-reduced-opacity) !important;
+            transform: scale(var(--jets-ghost-reduced-scale)) !important;
+          }
+
+          [data-testid="loading-inward-particle"] {
+            opacity: 0.3 !important;
+            transform: translate(
+              var(--jets-ghost-reduced-x),
+              var(--jets-ghost-reduced-y)
+            ) scale(0.85) !important;
+          }
+
+          [data-testid="loading-main-ghost"] {
+            opacity: 1 !important;
+            transform: none !important;
+          }
+        }
+      `}</style>
       {loadingAfterimageDelays.map((delay, index) => (
         <motion.div
           key={delay}
           data-testid="loading-ghost-afterimage"
           className="absolute inset-0 flex items-center justify-center text-brand-base"
+          style={{
+            '--jets-ghost-reduced-opacity': index === 0 ? 0.14 : 0.08,
+            '--jets-ghost-reduced-scale': index === 0 ? 1.14 : 1.3,
+          } as CSSProperties}
           initial={reduceMotion ? false : { opacity: 0, scale: 0.88 }}
           animate={reduceMotion
             ? { opacity: index === 0 ? 0.14 : 0.08, scale: index === 0 ? 1.14 : 1.3 }
@@ -1175,6 +1368,10 @@ function LoadingPhaseGhost({ reduceMotion }: { reduceMotion: boolean }) {
           key={`${particle.value}-${particle.delay}`}
           data-testid="loading-inward-particle"
           className="absolute left-1/2 top-1/2 z-10 -ml-1 -mt-2 font-mono text-xs font-semibold text-accent-base"
+          style={{
+            '--jets-ghost-reduced-x': `${particle.x[1]}px`,
+            '--jets-ghost-reduced-y': `${particle.y[1]}px`,
+          } as CSSProperties}
           initial={reduceMotion
             ? false
             : {
@@ -1228,7 +1425,7 @@ function LoadingPhaseGhost({ reduceMotion }: { reduceMotion: boolean }) {
 }
 
 function AnimatedGhost({ compact = false, mode }: AnimatedGhostProps) {
-  const reduceMotion = Boolean(useReducedMotion());
+  const reduceMotion = useLiveReducedMotion();
   if (mode === 'loading') return <LoadingPhaseGhost reduceMotion={reduceMotion} />;
 
   const motionProfile = ghostMotion[mode];

@@ -1,17 +1,197 @@
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test } from '@playwright/test';
+import {
+  expect,
+  test,
+  type Locator,
+  type Page,
+} from '@playwright/test';
 
-for (const route of ['/', '/blog/', '/works/', '/tools/chatbot/']) {
+const suggestedQuestions = [
+  'What does Jet write about agentic work?',
+  'Summarize the recursive convergence hypothesis.',
+  'Which projects connect AI and systems thinking?',
+];
+
+async function expectNoSeriousAxeViolations(page: Page, state: string) {
+  const lifecycleLabels = page.getByTestId('lifecycle-visual-label');
+  if (await lifecycleLabels.count() > 0) {
+    await expect(lifecycleLabels).toHaveCount(1);
+    await expect(lifecycleLabels).toHaveCSS('opacity', '1');
+  }
+
+  const results = await new AxeBuilder({ page })
+    .analyze();
+  const serious = results.violations.filter((violation) =>
+    violation.impact === 'serious' || violation.impact === 'critical');
+  expect(serious, `${state} has serious or critical axe violations`).toEqual([]);
+}
+
+async function focusWithKeyboard(page: Page, target: Locator) {
+  await expect(target).toBeVisible();
+  await expect(target).toBeEnabled();
+  for (let attempt = 0; attempt < 40; attempt += 1) {
+    if (await target.evaluate((element) => element === document.activeElement)) return;
+    await page.keyboard.press('Tab');
+  }
+  await expect(target).toBeFocused();
+}
+
+async function expectLifecycleAccessibility(page: Page, announcement: string) {
+  const fullStatus = page.getByTestId('lifecycle-announcement');
+  await expect(fullStatus).toHaveAttribute('role', 'status');
+  await expect(fullStatus).toHaveAttribute('aria-live', 'polite');
+  await expect(fullStatus).toHaveAttribute('aria-atomic', 'true');
+  await expect(fullStatus).toHaveText(announcement);
+
+  const compactStatus = page.getByTestId('lifecycle-visible-status');
+  await expect(compactStatus).toBeVisible();
+  await expect(compactStatus).toHaveAttribute('aria-hidden', 'true');
+  await expect(compactStatus).not.toHaveAttribute('aria-live', /.+/);
+  await expect(compactStatus).not.toHaveAttribute('role', /.+/);
+
+  const chrome = await compactStatus.evaluate((element) => {
+    const style = getComputedStyle(element);
+    const bounds = element.getBoundingClientRect();
+    return {
+      backgroundColor: style.backgroundColor,
+      backgroundImage: style.backgroundImage,
+      borderRadius: style.borderRadius,
+      borderWidths: [
+        style.borderTopWidth,
+        style.borderRightWidth,
+        style.borderBottomWidth,
+        style.borderLeftWidth,
+      ],
+      boxShadow: style.boxShadow,
+      height: bounds.height,
+      minWidth: style.minWidth,
+      paddings: [
+        style.paddingTop,
+        style.paddingRight,
+        style.paddingBottom,
+        style.paddingLeft,
+      ],
+      width: bounds.width,
+    };
+  });
+  expect(chrome.backgroundColor).toBe('rgba(0, 0, 0, 0)');
+  expect(chrome.backgroundImage).toBe('none');
+  expect(chrome.borderRadius).toBe('0px');
+  expect(chrome.borderWidths).toEqual(['0px', '0px', '0px', '0px']);
+  expect(chrome.boxShadow).toBe('none');
+  expect(chrome.height).toBeLessThan(32);
+  expect(chrome.minWidth).toBe('auto');
+  expect(chrome.paddings).toEqual(['0px', '0px', '0px', '0px']);
+  expect(chrome.width).toBeLessThan(160);
+}
+
+for (const route of ['/', '/blog/', '/works/', '/chatbot/']) {
   test(`${route} has no serious axe violations`, async ({ page }) => {
     await page.goto(route);
-    const results = await new AxeBuilder({ page })
-      .disableRules(['color-contrast'])
-      .analyze();
-    const serious = results.violations.filter((violation) =>
-      violation.impact === 'serious' || violation.impact === 'critical');
-    expect(serious).toEqual([]);
+    await expectNoSeriousAxeViolations(page, route);
   });
 }
+
+test("Jet's Ghost introduction, ready, and response states remain accessible by keyboard", async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'chromium');
+  await page.goto('/chatbot/?runtime=fake&stream=slow');
+
+  await expectLifecycleAccessibility(page, "Jet's Ghost is not running.");
+  await expectNoSeriousAxeViolations(page, 'introduction');
+
+  const compatibility = page.getByRole('button', { name: 'Check compatibility' });
+  await focusWithKeyboard(page, compatibility);
+  await page.keyboard.press('Enter');
+
+  const load = page.getByRole('button', { name: /Load Jet's Ghost/ });
+  await focusWithKeyboard(page, load);
+  await page.keyboard.press('Enter');
+
+  const composer = page.getByRole('textbox', { name: "Ask Jet's Ghost" });
+  await expect(composer).toBeFocused();
+  await expectLifecycleAccessibility(page, "Jet's Ghost is ready.");
+  await expectNoSeriousAxeViolations(page, 'ready');
+
+  const newSession = page.getByRole('button', { name: 'New session' });
+  const unload = page.getByRole('button', { name: 'Unload' });
+  await focusWithKeyboard(page, newSession);
+  await focusWithKeyboard(page, unload);
+  for (const question of suggestedQuestions) {
+    await focusWithKeyboard(page, page.getByRole('button', { name: question }));
+  }
+
+  const firstSuggestion = page.getByRole('button', { name: suggestedQuestions[0] });
+  await focusWithKeyboard(page, firstSuggestion);
+  await page.keyboard.press('Enter');
+  await expect(composer).toBeFocused();
+  await expect(composer).toHaveValue(suggestedQuestions[0]);
+
+  const send = page.getByRole('button', { name: 'Send message' });
+  await focusWithKeyboard(page, send);
+  await page.keyboard.press('Enter');
+  await expectLifecycleAccessibility(page, "Jet's Ghost is responding.");
+
+  const conversation = page.getByLabel('Conversation');
+  const response = conversation.locator('article').filter({
+    hasText: "Jet's published work connects local-first AI",
+  }).locator('p').first();
+  await expect(response).toContainText(
+    "Jet's published work connects local-first AI with systems thinking [S1].",
+  );
+  await expect(response).not.toHaveAttribute('aria-live', /.+/);
+  expect(await response.evaluate((element) => Boolean(element.closest('[aria-live]')))).toBe(false);
+  await expectNoSeriousAxeViolations(page, 'response');
+
+  const sources = page.getByRole('button', { name: /^\d+ sources?$/ });
+  await focusWithKeyboard(page, sources);
+  await page.keyboard.press('Enter');
+  const sourceRegion = page.getByRole('region', { name: 'Sources for this response' });
+  await expect(sourceRegion).toBeVisible();
+  await focusWithKeyboard(page, sourceRegion.getByRole('link').first());
+
+  await focusWithKeyboard(page, newSession);
+  await page.keyboard.press('Enter');
+  await expect(composer).toBeFocused();
+  await expect(composer).toHaveValue('');
+});
+
+test("Jet's Ghost recoverable error is axe-clean and keyboard operable", async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'chromium');
+  await page.route('**/assistant/corpus/manifest.json', async (route) => {
+    await route.fulfill({
+      status: 503,
+      contentType: 'text/plain',
+      body: 'Temporarily unavailable',
+    });
+  });
+  await page.goto('/chatbot/?runtime=fake');
+
+  const compatibility = page.getByRole('button', { name: 'Check compatibility' });
+  await focusWithKeyboard(page, compatibility);
+  await page.keyboard.press('Enter');
+  const load = page.getByRole('button', { name: /Load Jet's Ghost/ });
+  await focusWithKeyboard(page, load);
+  await page.keyboard.press('Enter');
+
+  const returnToLoad = page.getByRole('button', { name: 'Return to load' });
+  await expect(returnToLoad).toBeFocused();
+  await expect(returnToLoad).toHaveAttribute(
+    'aria-describedby',
+    'jets-ghost-activation-status',
+  );
+  await expectLifecycleAccessibility(
+    page,
+    "Jet's Ghost did not finish loading. Review the recovery action.",
+  );
+  await expectNoSeriousAxeViolations(page, 'recoverable error');
+
+  await page.keyboard.press('Enter');
+  await expect(load).toBeFocused();
+});
 
 test('dock is keyboard navigable', async ({ page }) => {
   await page.goto('/');

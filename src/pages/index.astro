@@ -12,6 +12,8 @@ import Grainient from '../components/ui/Grainient';
 import { SITE, SOCIAL_LINKS } from '../config/site';
 import { isPublished } from '../content/policy';
 
+const homepageUrl = `${SITE.siteUrl}/`;
+
 // Fetch latest blog posts (limit to 3)
 const allBlogPosts = await getCollection('blog', ({ data }) => isPublished(data));
 const latestPosts = allBlogPosts
@@ -41,7 +43,7 @@ const typeLabel: Record<string, string> = {
   <StructuredData
     slot="structured-data"
     type="website"
-    url={SITE.siteUrl}
+    url={homepageUrl}
     name={SITE.title}
     description={SITE.description}
   />
@@ -56,7 +58,7 @@ const typeLabel: Record<string, string> = {
     alternateName={SITE.alternateNames}
     jobTitle={SITE.jobTitle}
     email={SITE.email}
-    url={SITE.siteUrl}
+    url={homepageUrl}
     sameAs={Object.values(SOCIAL_LINKS).filter(url => url)}
   />
 

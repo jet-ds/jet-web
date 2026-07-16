@@ -20,7 +20,7 @@
     /* Text hierarchy */
     --color-text-primary: oklch(0.3151 0.0143 256.78);   /* neutral.11 - Headings */
     --color-text-secondary: oklch(0.5122 0.03 253.72);   /* neutral.9 - Body */
-    --color-text-tertiary: oklch(0.6596 0.0375 252.38);  /* neutral.7 - Muted */
+    --color-text-tertiary: oklch(0.55 0.0375 252.38);    /* Accessible muted text */
     --color-text-disabled: oklch(0.7975 0.0252 234.52);  /* neutral.5 - Disabled */
 
     /* Border hierarchy */
@@ -29,7 +29,7 @@
     --color-border-strong: oklch(0.7342 0.0322 242.16);  /* neutral.6 */
 
     /* Brand/Interactive */
-    --color-brand-base: oklch(0.5725 0.0587 245.59);     /* brand.6 */
+    --color-brand-base: oklch(0.562 0.0587 245.59);      /* Accessible brand base */
     --color-brand-hover: oklch(0.4956 0.0566 248.16);    /* brand.7 */
     --color-brand-active: oklch(0.4296 0.0477 248.99);   /* brand.8 */
     --color-brand-subtle: oklch(0.8895 0.0164 245.1);    /* brand.3 */

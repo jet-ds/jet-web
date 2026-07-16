@@ -175,7 +175,7 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
         id="site-navigation-dock"
         inert={isDockClosedOnMobile ? true : undefined}
         aria-hidden={isDockClosedOnMobile ? true : undefined}
-        className='fixed bottom-4 md:top-4 left-1/2 z-50'
+        className='fixed bottom-4 lg:bottom-auto lg:top-4 left-1/2 z-50'
         initial={{ x: '-50%' }}
         animate={isMobile ? {
           opacity: dockVisible ? 1 : 0,
@@ -196,9 +196,9 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
           backgroundOpacity={0.33}
           brightness={50}
           opacity={0.9}
-          className={`px-2 py-3 md:px-3 md:py-6 !overflow-visible ${isDockClosedOnMobile ? 'pointer-events-none' : 'pointer-events-auto'}`}
+          className={`px-2 max-[359px]:px-0 py-3 md:px-3 md:py-6 !overflow-visible ${isDockClosedOnMobile ? 'pointer-events-none' : 'pointer-events-auto'}`}
         >
-          <div ref={dockRef} className='flex items-end space-x-2 md:space-x-6 overflow-visible'>
+          <div ref={dockRef} className='flex items-end space-x-2 max-[359px]:space-x-1 md:space-x-6 overflow-visible'>
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
               const isActive = isActiveNavItem(currentPath, item.href);
@@ -215,7 +215,7 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
                   className='relative dock-icon-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-base focus-visible:ring-offset-2 focus-visible:ring-offset-bg-base rounded-xl'
                   style={{ transformOrigin: 'bottom center' }}
                 >
-                  <div className={`w-10 h-10 md:w-14 md:h-14 bg-gradient-to-t ${item.gradient} rounded-lg md:rounded-xl flex items-center justify-center shadow-lg transition-transform ${isActive ? 'ring-2 ring-white/50' : ''}`}>
+                  <div className={`w-10 h-10 max-[359px]:w-9 max-[359px]:h-9 md:w-14 md:h-14 bg-gradient-to-t ${item.gradient} rounded-lg md:rounded-xl flex items-center justify-center shadow-lg transition-transform ${isActive ? 'ring-2 ring-white/50' : ''}`}>
                     <Icon size={isMobile ? 24 : 32} className='text-white' strokeWidth={2} />
                   </div>
                   {hoveredIcon === item.id && !isMobile && <Tooltip text={item.label} />}
@@ -237,7 +237,7 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
               style={{ transformOrigin: 'bottom center' }}
               aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
             >
-              <div className='w-10 h-10 md:w-14 md:h-14 bg-gradient-to-t from-gray-700 to-gray-500 rounded-lg md:rounded-xl flex items-center justify-center shadow-lg transition-transform'>
+              <div className='w-10 h-10 max-[359px]:w-9 max-[359px]:h-9 md:w-14 md:h-14 bg-gradient-to-t from-gray-700 to-gray-500 rounded-lg md:rounded-xl flex items-center justify-center shadow-lg transition-transform'>
                 {theme === 'dark' ? (
                   <Sun size={isMobile ? 24 : 32} className='text-yellow-300' strokeWidth={2} />
                 ) : (

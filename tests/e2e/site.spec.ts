@@ -1,4 +1,4 @@
-import { expect, test } from '@playwright/test';
+import { expect, test, type Page } from '@playwright/test';
 
 const routes = [
   '/',
@@ -7,9 +7,27 @@ const routes = [
   '/blog/how-to-install-claude-code-cli-2026/',
   '/works/',
   '/works/recursive-convergence-hypothesis/',
+  '/chatbot/',
   '/tools/',
   '/contact/',
 ];
+
+type JsonLdSchema = {
+  '@type'?: string;
+  '@id'?: string;
+  url?: string;
+  mainEntity?: { '@id'?: string };
+  mainEntityOfPage?: { '@id'?: string };
+  hasPart?: Array<{ '@type'?: string; name?: string; url?: string }>;
+  applicationCategory?: string;
+  operatingSystem?: string;
+  offers?: { '@type'?: string; price?: string; priceCurrency?: string };
+};
+
+async function readSchemas(page: Page): Promise<JsonLdSchema[]> {
+  const schemas = await page.locator('script[type="application/ld+json"]').allTextContents();
+  return schemas.map((schema) => JSON.parse(schema) as JsonLdSchema);
+}
 
 const defaultOpenGraphImage = {
   url: 'https://jetsanchez.com/images/og-default.jpg',
@@ -20,13 +38,72 @@ const defaultOpenGraphImage = {
 
 for (const route of routes) {
   test(`${route} renders one main heading`, async ({ page }) => {
-    await page.goto(route);
+    const response = await page.goto(route);
+    expect(response?.status()).toBe(200);
     await expect(page.locator('h1')).toHaveCount(1);
+  });
+
+  test(`${route} keeps canonical metadata and WebPage JSON-LD aligned`, async ({ page }) => {
+    await page.goto(route);
     const expected = new URL(route, 'https://jetsanchez.com').toString();
     await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', expected);
     await expect(page.locator('meta[property="og:url"]')).toHaveAttribute('content', expected);
+    await expect(page.locator('meta[name="twitter:url"]')).toHaveAttribute('content', expected);
+
+    const schemas = await readSchemas(page);
+    if (route === '/') {
+      expect(schemas.find((schema) => schema['@type'] === 'WebSite')).toMatchObject({
+        '@id': 'https://jetsanchez.com/#website',
+        url: expected,
+      });
+      expect(schemas.some((schema) => schema['@type'] === 'WebPage')).toBe(false);
+    } else {
+      expect(schemas.find((schema) => schema['@type'] === 'WebPage')).toMatchObject({
+        '@id': `${expected}#webpage`,
+        url: expected,
+      });
+    }
   });
 }
+
+test("Jet's Ghost exposes canonical qualification metadata", async ({ page }) => {
+  const canonical = 'https://jetsanchez.com/chatbot/';
+  const softwareId = `${canonical}#softwareapplication`;
+
+  await page.goto('/chatbot/');
+  await expect(page).toHaveTitle("Jet's Ghost — Local-First AI Assistant | Jet Sanchez");
+  await expect(page.locator('meta[name="description"]')).toHaveAttribute(
+    'content',
+    "Chat with Jet's published writing, research, and projects using a local-first AI assistant in compatible WebGPU browsers.",
+  );
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
+
+  const schemas = await readSchemas(page);
+  expect(schemas.find((schema) => schema['@type'] === 'WebPage')).toMatchObject({
+    '@id': `${canonical}#webpage`,
+    url: canonical,
+    mainEntity: { '@id': softwareId },
+  });
+  expect(schemas.find((schema) => schema['@type'] === 'SoftwareApplication')).toMatchObject({
+    '@id': softwareId,
+    url: canonical,
+    applicationCategory: 'ChatApplication',
+    operatingSystem: 'Web browser with WebGPU',
+    offers: {
+      '@type': 'Offer',
+      price: '0',
+      priceCurrency: 'USD',
+    },
+  });
+});
+
+test('Tools remains a dormant noindexed route', async ({ page }) => {
+  await page.goto('/tools/');
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
+  await expect(page.locator('main h1')).toHaveText('Tools');
+  await expect(page.locator('main')).toContainText('reserved for future standalone utilities');
+  await expect(page.locator('main a')).toHaveCount(0);
+});
 
 test('research exposes one DOI-backed action', async ({ page }) => {
   await page.goto('/works/recursive-convergence-hypothesis/');
@@ -64,17 +141,40 @@ test('theme choice persists across navigation', async ({ page }) => {
   await expect(page.locator('html')).toHaveClass(/dark/);
 });
 
-test('machine-readable routes are available', async ({ request }) => {
+test('RSS is served as XML without a redirect', async ({ request }) => {
   const rss = await request.get('/rss.xml', { maxRedirects: 0 });
   expect(rss.status()).toBe(200);
   expect(rss.headers().location).toBeUndefined();
+  expect(rss.headers()['content-type']).toContain('xml');
   expect(await rss.text()).toContain('<rss');
+});
 
-  for (const path of ['/robots.txt', '/sitemap-index.xml']) {
-    const response = await request.get(path, { maxRedirects: 0 });
-    expect(response.status()).toBe(200);
-    expect(response.headers().location).toBeUndefined();
-  }
+test('robots allows crawling and names the canonical sitemap index', async ({ request }) => {
+  const response = await request.get('/robots.txt', { maxRedirects: 0 });
+  expect(response.status()).toBe(200);
+  expect(response.headers().location).toBeUndefined();
+  const robots = await response.text();
+  expect(robots).toMatch(/^User-agent: \*$/mu);
+  expect(robots).toMatch(/^Allow: \/$/mu);
+  expect(robots).toMatch(/^Sitemap: https:\/\/jetsanchez\.com\/sitemap-index\.xml$/mu);
+});
+
+test('sitemap index points to a valid canonical XML sitemap', async ({ request }) => {
+  const indexResponse = await request.get('/sitemap-index.xml', { maxRedirects: 0 });
+  expect(indexResponse.status()).toBe(200);
+  expect(indexResponse.headers().location).toBeUndefined();
+  expect(indexResponse.headers()['content-type']).toContain('xml');
+  const index = await indexResponse.text();
+  expect(index).toContain('<sitemapindex xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">');
+  expect(index).toContain('<loc>https://jetsanchez.com/sitemap-0.xml</loc>');
+
+  const sitemapResponse = await request.get('/sitemap-0.xml', { maxRedirects: 0 });
+  expect(sitemapResponse.status()).toBe(200);
+  expect(sitemapResponse.headers().location).toBeUndefined();
+  expect(sitemapResponse.headers()['content-type']).toContain('xml');
+  expect(await sitemapResponse.text()).toContain(
+    '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"',
+  );
 });
 
 test('about metadata and sitemap use one canonical URL', async ({ page, request }) => {
@@ -83,10 +183,15 @@ test('about metadata and sitemap use one canonical URL', async ({ page, request 
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'index, follow');
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', canonical);
   await expect(page.locator('meta[property="og:url"]')).toHaveAttribute('content', canonical);
-  const schemas = await page.locator('script[type="application/ld+json"]').allTextContents();
-  const serialized = schemas.map((schema) => JSON.stringify(JSON.parse(schema))).join('\n');
-  expect(serialized).toContain(`${canonical}#webpage`);
-  expect(serialized).toContain(`"url":"${canonical}"`);
+  await expect(page.locator('meta[name="twitter:url"]')).toHaveAttribute('content', canonical);
+  const schemas = await readSchemas(page);
+  expect(schemas.find((schema) => schema['@type'] === 'WebPage')).toMatchObject({
+    '@id': `${canonical}#webpage`,
+    url: canonical,
+  });
+  expect(schemas.find((schema) => schema['@type'] === 'Person')).toMatchObject({
+    mainEntityOfPage: { '@id': `${canonical}#webpage` },
+  });
   const sitemap = await request.get('/sitemap-0.xml');
   const matches = (await sitemap.text()).match(/https:\/\/jetsanchez\.com\/about\//g) ?? [];
   expect(matches).toHaveLength(1);
@@ -106,9 +211,8 @@ test('retired routes stay retired and out of feeds', async ({ request }) => {
 
 test('content pages expose parseable typed JSON-LD', async ({ page }) => {
   await page.goto('/works/recursive-convergence-hypothesis/');
-  const schemas = await page.locator('script[type="application/ld+json"]').allTextContents();
-  const parsed = schemas.map((schema) => JSON.parse(schema) as { '@type'?: string });
-  expect(parsed.some((schema) => schema['@type'] === 'ScholarlyArticle')).toBe(true);
+  const schemas = await readSchemas(page);
+  expect(schemas.some((schema) => schema['@type'] === 'ScholarlyArticle')).toBe(true);
 });
 
 test('draft routes are absent', async ({ request }) => {
@@ -129,21 +233,19 @@ test('navigation representations use canonical route identities', async ({ page,
     ['About', '/about/'],
     ['Blog', '/blog/'],
     ['Works', '/works/'],
-    ['Tools', '/tools/'],
+    ["Jet's Ghost", '/chatbot/'],
     ['Contact', '/contact/'],
   ] as const;
 
   await page.goto('/');
+  const dock = page.locator('#site-navigation-dock');
   for (const [name, href] of navigation) {
-    await expect(page.getByRole('link', { name, exact: true }).first()).toHaveAttribute('href', href);
+    await expect(dock.getByRole('link', { name, exact: true })).toHaveAttribute('href', href);
   }
+  await expect(dock.getByRole('link', { name: 'Tools', exact: true })).toHaveCount(0);
 
-  const schemas = await page.locator('script[type="application/ld+json"]').allTextContents();
+  const schemas = await readSchemas(page);
   const structuredNavigation = schemas
-    .map((schema) => JSON.parse(schema) as {
-      '@type'?: string;
-      hasPart?: Array<{ name?: string; url?: string }>;
-    })
     .find((schema) => schema['@type'] === 'SiteNavigationElement');
   expect(structuredNavigation?.hasPart).toEqual(navigation.map(([name, href]) => ({
     '@type': 'WebPage',
@@ -154,21 +256,43 @@ test('navigation representations use canonical route identities', async ({ page,
   const html = await (await request.get('/')).text();
   const noscript = /<noscript>([\s\S]*?)<\/noscript>/u.exec(html)?.[1];
   expect(noscript).toBeDefined();
-  for (const [, href] of navigation) {
+  for (const [name, href] of navigation) {
     expect(noscript).toContain(`href="${href}"`);
+    expect(noscript).toContain(`>${name.replaceAll("'", '&#39;')}</a>`);
   }
+  expect(noscript).not.toContain('href="/tools/"');
+  expect(noscript).not.toContain('>Tools</a>');
 });
 
-test('sitemap and RSS emit slashful HTML route identities', async ({ request }) => {
+test('qualification and dormant routes stay out of the sitemap', async ({ request }) => {
   const sitemap = await (await request.get('/sitemap-0.xml')).text();
   const sitemapUrls = [...sitemap.matchAll(/<loc>(https:\/\/jetsanchez\.com\/[^<]*)<\/loc>/gu)]
     .map((match) => match[1]);
   expect(sitemapUrls.length).toBeGreaterThan(0);
   expect(sitemapUrls.every((url) => new URL(url).pathname.endsWith('/'))).toBe(true);
+  expect(sitemapUrls).not.toContain('https://jetsanchez.com/chatbot/');
+  expect(sitemapUrls.every((url) => {
+    const pathname = new URL(url).pathname;
+    return pathname !== '/tools/' && !pathname.startsWith('/tools/');
+  })).toBe(true);
+});
 
+test('RSS emits only slashful public blog item URLs', async ({ request }) => {
   const rss = await (await request.get('/rss.xml')).text();
-  const itemLinks = [...rss.matchAll(/<link>(https:\/\/jetsanchez\.com\/blog\/[^<]*)<\/link>/gu)]
+  const itemLinks = [...rss.matchAll(/<item>[\s\S]*?<link>(https:\/\/jetsanchez\.com\/[^<]*)<\/link>[\s\S]*?<\/item>/gu)]
     .map((match) => match[1]);
   expect(itemLinks.length).toBeGreaterThan(0);
-  expect(itemLinks.every((url) => new URL(url).pathname.endsWith('/'))).toBe(true);
+  expect(itemLinks.every((url) => {
+    const pathname = new URL(url).pathname;
+    return pathname.startsWith('/blog/') && pathname.endsWith('/');
+  })).toBe(true);
+  for (const excluded of [
+    'https://jetsanchez.com/chatbot/',
+    'https://jetsanchez.com/tools/',
+    'https://jetsanchez.com/blog/the-future-of-ai/',
+    'https://jetsanchez.com/blog/building-with-astro/',
+    'https://jetsanchez.com/blog/how-to-install-and-get-started-with-codex-cli-2026/',
+  ]) {
+    expect(itemLinks).not.toContain(excluded);
+  }
 });

@@ -20,12 +20,18 @@ export interface FakeRuntimeOptions {
   testOnly: true;
   responseChunks?: readonly string[];
   capabilityReport?: CapabilityReport;
-  failures?: Partial<Record<FakeRuntimeFailurePoint, boolean>>;
+  failures?: Partial<Record<FakeRuntimeFailurePoint, boolean | number>>;
   scheduler?: FakeRuntimeScheduler;
+  recorder?: FakeRuntimeRecorder;
+  recordResourceLifecycle?: boolean;
+  emitLateChunkAfterCancellation?: boolean;
 }
 
 export interface FakeRuntimeScheduler {
   waitForChunk(operationId: number, chunkIndex: number): Promise<void>;
+  waitForCapability?(operationId: number): Promise<void>;
+  waitForLoad?(operationId: number): Promise<void>;
+  waitForUnload?(operationId: number): Promise<void>;
 }
 
 export interface FakeRuntimeCall {
@@ -36,8 +42,35 @@ export interface FakeRuntimeCall {
     | 'generate'
     | 'cancel'
     | 'reset'
-    | 'unload';
+    | 'unload'
+    | 'repository.load'
+    | 'runtime.load'
+    | 'engine.create'
+    | 'conversation.create'
+    | 'conversation.delete'
+    | 'repository.unload'
+    | 'engine.delete'
+    | 'sdk.unload';
   operationId: number;
+  runtimeId: number;
+}
+
+export class FakeRuntimeRecorder {
+  private readonly callLog: FakeRuntimeCall[] = [];
+  private nextOperationId = 1;
+
+  constructor(readonly runtimeId: number) {}
+
+  get calls(): readonly FakeRuntimeCall[] {
+    return Object.freeze(this.callLog.map((call) => Object.freeze({ ...call })));
+  }
+
+  record(method: FakeRuntimeCall['method']): number {
+    const operationId = this.nextOperationId;
+    this.nextOperationId += 1;
+    this.callLog.push({ method, operationId, runtimeId: this.runtimeId });
+    return operationId;
+  }
 }
 
 const DEFAULT_CAPABILITY_REPORT: CapabilityReport = {
@@ -88,11 +121,14 @@ interface ActiveGeneration {
 export class FakeRuntime implements LocalModelRuntime {
   private readonly responseChunks: readonly string[];
   private readonly capabilityReport: CapabilityReport;
-  private readonly failures: Partial<Record<FakeRuntimeFailurePoint, boolean>>;
+  private readonly failures: Partial<Record<FakeRuntimeFailurePoint, boolean | number>>;
   private readonly scheduler: FakeRuntimeScheduler;
-  private readonly callLog: FakeRuntimeCall[] = [];
-  private nextOperationId = 1;
+  private readonly recorder: FakeRuntimeRecorder;
+  private readonly recordResourceLifecycle: boolean;
+  private readonly emitLateChunkAfterCancellation: boolean;
   private activeGeneration: ActiveGeneration | null = null;
+  private hasEngine = false;
+  private hasConversation = false;
 
   constructor(options: FakeRuntimeOptions) {
     if (options.testOnly !== true) {
@@ -103,23 +139,29 @@ export class FakeRuntime implements LocalModelRuntime {
     this.capabilityReport = options.capabilityReport ?? DEFAULT_CAPABILITY_REPORT;
     this.failures = { ...options.failures };
     this.scheduler = options.scheduler ?? DEFAULT_SCHEDULER;
+    this.recorder = options.recorder ?? new FakeRuntimeRecorder(1);
+    this.recordResourceLifecycle = options.recordResourceLifecycle ?? false;
+    this.emitLateChunkAfterCancellation = options.emitLateChunkAfterCancellation ?? false;
   }
 
   get calls(): readonly FakeRuntimeCall[] {
-    return this.callLog;
+    return this.recorder.calls;
   }
 
   private record(method: FakeRuntimeCall['method']): number {
-    const operationId = this.nextOperationId;
-    this.nextOperationId += 1;
-    this.callLog.push({ method, operationId });
-    return operationId;
+    return this.recorder.record(method);
   }
 
   private configuredFailure(
     point: Exclude<FakeRuntimeFailurePoint, 'capability'>,
   ): void {
-    if (!this.failures[point]) return;
+    const configured = this.failures[point];
+    if (!configured) return;
+
+    if (typeof configured === 'number') {
+      if (configured <= 0) return;
+      this.failures[point] = configured - 1;
+    }
 
     const failure = FAILURE_DETAILS[point];
     throw createRuntimeError(failure.code, failure.message, true);
@@ -133,7 +175,8 @@ export class FakeRuntime implements LocalModelRuntime {
   }
 
   async checkCapabilities(): Promise<CapabilityReport> {
-    this.record('checkCapabilities');
+    const operationId = this.record('checkCapabilities');
+    await this.scheduler.waitForCapability?.(operationId);
 
     if (this.failures.capability) {
       return {
@@ -152,14 +195,22 @@ export class FakeRuntime implements LocalModelRuntime {
   }
 
   async load(options: LoadOptions): Promise<void> {
-    this.record('load');
+    const operationId = this.record(
+      this.recordResourceLifecycle ? 'runtime.load' : 'load',
+    );
     options.onPhase?.('runtime');
     this.configuredFailure('load');
+    await this.scheduler.waitForLoad?.(operationId);
+    if (this.recordResourceLifecycle) this.record('engine.create');
+    this.hasEngine = true;
     options.onPhase?.('model');
   }
 
   async createSession(_preface: ModelMessage[]): Promise<void> {
-    this.record('createSession');
+    this.record(
+      this.recordResourceLifecycle ? 'conversation.create' : 'createSession',
+    );
+    this.hasConversation = true;
   }
 
   async generate(
@@ -189,7 +240,10 @@ export class FakeRuntime implements LocalModelRuntime {
         if (
           generation.cancelled
           || this.activeGeneration?.operationId !== generation.operationId
-        ) break;
+        ) {
+          if (this.emitLateChunkAfterCancellation) handlers.onText(chunk);
+          break;
+        }
         handlers.onText(chunk);
       }
 
@@ -204,6 +258,7 @@ export class FakeRuntime implements LocalModelRuntime {
   }
 
   cancel(): void {
+    if (this.recordResourceLifecycle && this.activeGeneration === null) return;
     this.record('cancel');
     if (this.activeGeneration) {
       this.activeGeneration.cancelled = true;
@@ -211,14 +266,25 @@ export class FakeRuntime implements LocalModelRuntime {
   }
 
   async reset(): Promise<void> {
-    this.record('reset');
+    if (this.recordResourceLifecycle) {
+      if (this.hasConversation) this.record('conversation.delete');
+    } else {
+      this.record('reset');
+    }
     this.invalidateActiveGeneration();
     this.configuredFailure('reset');
+    this.hasConversation = false;
   }
 
   async unload(): Promise<void> {
-    this.record('unload');
+    if (!this.recordResourceLifecycle) this.record('unload');
     this.invalidateActiveGeneration();
+    const operationId = this.calls.at(-1)?.operationId ?? 0;
+    await this.scheduler.waitForUnload?.(operationId);
+    if (this.recordResourceLifecycle && this.hasEngine) this.record('engine.delete');
     this.configuredFailure('unload');
+    if (this.recordResourceLifecycle && this.hasEngine) this.record('sdk.unload');
+    this.hasEngine = false;
+    this.hasConversation = false;
   }
 }
