@@ -903,6 +903,8 @@ test.describe("Jet's Ghost supported lifecycle", () => {
     const mobile = testInfo.project.name === 'mobile-chromium';
     await page.setViewportSize(mobile ? { width: 430, height: 932 } : { width: 1280, height: 800 });
     const composer = await startFakeAssistant(page, 'long-stream');
+    await page.clock.install();
+    await page.clock.pauseAt(await page.evaluate(() => Date.now()) + 1_000);
     const header = page.locator('.jets-ghost-header');
     const brand = header.locator(':scope > div').first();
     const identity = page.getByTestId('jets-ghost-identity');
@@ -983,6 +985,7 @@ test.describe("Jet's Ghost supported lifecycle", () => {
 
     const statusLabels = page.getByTestId('lifecycle-visual-label');
     expect(await statusLabels.count()).toBeLessThanOrEqual(2);
+    await page.clock.runFor(1_000);
     await waitForCompletedResponse(page);
     await expect(newSession).toBeEnabled();
     await expect(unload).toBeEnabled();
