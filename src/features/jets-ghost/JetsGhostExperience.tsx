@@ -90,14 +90,7 @@ function isNearConversationBottom(scroller: HTMLElement): boolean {
     <= STICKY_FOLLOW_THRESHOLD_PX;
 }
 
-function scrollConversationToLatest(
-  scroller: HTMLElement,
-  behavior: ScrollBehavior,
-): void {
-  if (behavior === 'smooth' && typeof scroller.scrollTo === 'function') {
-    scroller.scrollTo({ top: scroller.scrollHeight, behavior });
-    return;
-  }
+function scrollConversationToLatest(scroller: HTMLElement): void {
   scroller.scrollTop = scroller.scrollHeight;
 }
 
@@ -307,7 +300,6 @@ export default function JetsGhostExperience({
   const [elapsedSeconds, setElapsedSeconds] = useState(0);
   const [hasSubmittedInSession, setHasSubmittedInSession] = useState(false);
   const [hasUnseenContent, setHasUnseenContent] = useState(false);
-  const prefersReducedMotion = useLiveReducedMotion();
   const inputRef = useRef<HTMLTextAreaElement>(null);
   const conversationScrollerRef = useRef<HTMLDivElement>(null);
   const conversationEndRef = useRef<HTMLDivElement>(null);
@@ -440,7 +432,7 @@ export default function JetsGhostExperience({
       || pendingSubmissionFollowRef.current
     ) return;
     if (stickyFollowRef.current) {
-      scrollConversationToLatest(scroller, 'auto');
+      scrollConversationToLatest(scroller);
     } else {
       setHasUnseenContent(true);
     }
@@ -499,10 +491,10 @@ export default function JetsGhostExperience({
 
   const handleStop = () => ghost.stop();
 
-  const scrollToLatest = (behavior: ScrollBehavior = 'auto') => {
+  const scrollToLatest = () => {
     const scroller = conversationScrollerRef.current;
     if (scroller === null || conversationEndRef.current === null) return;
-    scrollConversationToLatest(scroller, behavior);
+    scrollConversationToLatest(scroller);
   };
 
   const scheduleSubmissionFollow = (modality: InteractionModality) => {
@@ -526,7 +518,7 @@ export default function JetsGhostExperience({
         secondFrame = requestAnimationFrame(() => {
           if (cancelled) return;
           pendingSubmissionFollowRef.current = false;
-          scrollToLatest('auto');
+          scrollToLatest();
         });
       });
     };
@@ -626,7 +618,7 @@ export default function JetsGhostExperience({
     suppressComposerRestoreRef.current = true;
     stickyFollowRef.current = true;
     setHasUnseenContent(false);
-    scrollToLatest(prefersReducedMotion ? 'auto' : 'smooth');
+    scrollToLatest();
   };
 
   return (

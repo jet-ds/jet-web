@@ -6,6 +6,10 @@ const workflowSource = readFileSync(
   resolve(process.cwd(), '.github/workflows/verify.yml'),
   'utf8',
 );
+const playwrightConfigSource = readFileSync(
+  resolve(process.cwd(), 'playwright.config.ts'),
+  'utf8',
+);
 
 describe('durable verification workflow', () => {
   it('runs on pull requests, main pushes, manual dispatch, and the Manila nightly schedule', () => {
@@ -36,6 +40,18 @@ describe('durable verification workflow', () => {
       '- run: npx playwright install --with-deps chromium',
     );
     expect(workflowSource).toContain('- run: npm run verify:browser');
+  });
+
+  it('uses JavaScript actions that run natively on Node 24', () => {
+    expect(workflowSource.match(/actions\/checkout@v5/g)).toHaveLength(2);
+    expect(workflowSource.match(/actions\/setup-node@v6/g)).toHaveLength(2);
+    expect(workflowSource).not.toMatch(/actions\/(?:checkout|setup-node)@v4/);
+  });
+
+  it('fails CI when a browser test passes only on retry', () => {
+    expect(playwrightConfigSource).toContain(
+      'failOnFlakyTests: Boolean(process.env.CI)',
+    );
   });
 
   it('keeps the approximately 2 GB real-model gate out of routine and nightly CI', () => {

@@ -370,6 +370,7 @@ export default defineConfig({
   outputDir: 'test-results/playwright',
   fullyParallel: false,
   forbidOnly: Boolean(process.env.CI),
+  failOnFlakyTests: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,
   reporter: process.env.CI ? 'github' : 'list',
   use: {
@@ -387,6 +388,8 @@ export default defineConfig({
   ],
 });
 ```
+
+CI retries preserve diagnostics for an intermittent failure, but `failOnFlakyTests` keeps any pass-on-retry outcome red so routine and nightly verification cannot normalize flakes.
 
 Do not run Playwright until Task 3 has replaced the current remote-writing build. From that point onward, every browser test exercises the built static artifact through `astro preview`.
 
@@ -1105,8 +1108,8 @@ jobs:
   verify:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: npm
@@ -1817,8 +1820,8 @@ The completed workflow contains this second job:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v5
+      - uses: actions/setup-node@v6
         with:
           node-version: 24
           cache: npm

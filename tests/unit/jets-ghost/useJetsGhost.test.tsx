@@ -1628,7 +1628,12 @@ describe('JetsGhostExperience production composition', () => {
   it('suspends sticky follow after manual scroll-away and restores it on demand or at bottom', async () => {
     const scheduler = new ManualScheduler();
     const harness = createHarness({
-      responseChunks: ['First overflow chunk. ', 'Second unseen chunk. ', 'Final chunk [S1].'],
+      responseChunks: [
+        'First overflow chunk. ',
+        'Second unseen chunk. ',
+        'Third chunk after jump. ',
+        'Final chunk [S1].',
+      ],
       scheduler,
     });
     render(<JetsGhostExperience dependencies={harness.dependencies} />);
@@ -1669,12 +1674,22 @@ describe('JetsGhostExperience production composition', () => {
     expect(screen.queryByRole('button', { name: 'Jump to latest' })).not.toBeInTheDocument();
     expect(composer).toHaveFocus();
 
-    assignedScrollTop = 700;
+    await waitFor(() => expect(scheduler.pendingCount).toBe(1));
+    act(() => scheduler.releaseNext());
+    await screen.findByText(/Third chunk after jump/);
+    await waitFor(() => expect(assignedScrollTop).toBe(900));
+    expect(screen.queryByRole('button', { name: 'Jump to latest' })).not.toBeInTheDocument();
+
+    assignedScrollTop = 200;
     fireEvent.scroll(scroller);
     await waitFor(() => expect(scheduler.pendingCount).toBe(1));
     act(() => scheduler.releaseNext());
     await screen.findByRole('link', { name: '[S1] Grounded source' });
-    await waitFor(() => expect(assignedScrollTop).toBe(900));
+    expect(assignedScrollTop).toBe(200);
+    await screen.findByRole('button', { name: 'Jump to latest' });
+
+    assignedScrollTop = 700;
+    fireEvent.scroll(scroller);
     expect(screen.queryByRole('button', { name: 'Jump to latest' })).not.toBeInTheDocument();
   });
 

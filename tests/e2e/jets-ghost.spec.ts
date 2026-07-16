@@ -1336,16 +1336,21 @@ test.describe("Jet's Ghost loading hierarchy and activation recovery", () => {
     }
 
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    const reducedBefore = await animated.evaluate((element) => {
-      const style = getComputedStyle(element);
-      return `${style.transform}|${style.opacity}`;
-    });
+    await expect(largeGhostLayers(page)).toHaveCount(1);
+    await expect(page.locator(
+      '[data-testid="animated-ghost-mode-layer"][data-mode="loading"]',
+    )).toHaveCount(1);
+    await expect(animated).toHaveCSS('opacity', '0.14');
+    await expect(animated).toHaveCSS(
+      'transform',
+      'matrix(1.14, 0, 0, 1.14, 0, 0)',
+    );
     await page.clock.runFor(500);
-    const reducedAfter = await animated.evaluate((element) => {
-      const style = getComputedStyle(element);
-      return `${style.transform}|${style.opacity}`;
-    });
-    expect(reducedAfter).toBe(reducedBefore);
+    await expect(animated).toHaveCSS('opacity', '0.14');
+    await expect(animated).toHaveCSS(
+      'transform',
+      'matrix(1.14, 0, 0, 1.14, 0, 0)',
+    );
 
     await page.clock.runFor(5_000);
     const elapsedAfterForty = Number((await elapsed.textContent())?.match(/\d+/)?.[0]);
