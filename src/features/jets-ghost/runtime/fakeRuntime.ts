@@ -73,6 +73,42 @@ export class FakeRuntimeRecorder {
   }
 }
 
+export function createAuditedRuntime(
+  runtime: LocalModelRuntime,
+  recorder: FakeRuntimeRecorder,
+): LocalModelRuntime {
+  return {
+    checkCapabilities: () => {
+      recorder.record('checkCapabilities');
+      return runtime.checkCapabilities();
+    },
+    load: (options) => {
+      recorder.record('load');
+      return runtime.load(options);
+    },
+    createSession: (preface) => {
+      recorder.record('createSession');
+      return runtime.createSession(preface);
+    },
+    generate: (message, handlers) => {
+      recorder.record('generate');
+      return runtime.generate(message, handlers);
+    },
+    cancel: () => {
+      recorder.record('cancel');
+      runtime.cancel();
+    },
+    reset: () => {
+      recorder.record('reset');
+      return runtime.reset();
+    },
+    unload: () => {
+      recorder.record('unload');
+      return runtime.unload();
+    },
+  };
+}
+
 const DEFAULT_CAPABILITY_REPORT: CapabilityReport = {
   supported: true,
   warnings: [],

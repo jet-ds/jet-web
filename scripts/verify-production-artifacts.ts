@@ -11,6 +11,9 @@ export const FORBIDDEN_PRODUCTION_ARTIFACT_MARKERS = [
   'runtime=fake',
   '__JETS_GHOST_E2E__',
   "Jet's published work connects local-first AI with systems thinking [S1].",
+  'stop-recovery',
+  'late-event',
+  'JG_SOURCE_SENTINEL_4a6c1b',
 ] as const;
 
 export interface ForbiddenProductionArtifact {

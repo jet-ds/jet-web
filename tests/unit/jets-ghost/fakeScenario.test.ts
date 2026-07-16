@@ -1,12 +1,14 @@
 import { describe, expect, it } from 'vitest';
 
 import {
+  createAuditedRuntime,
   FakeRuntime,
   FakeRuntimeRecorder,
 } from '../../../src/features/jets-ghost/runtime/fakeRuntime';
 import {
   FAKE_SCENARIOS,
   configureFakeCitationSelection,
+  configureFakeSourceSentinel,
   getFakeScenarioConfiguration,
   resolveFakeScenario,
 } from '../../../src/features/jets-ghost/runtime/fakeScenario';
@@ -163,6 +165,68 @@ describe('Jet\'s Ghost fake browser scenarios', () => {
     expect(JSON.stringify(runtime.calls)).not.toMatch(/PRIVATE|prompt|preface|response/i);
   });
 
+  it('audits every production-runtime method without recording method payloads', async () => {
+    const forwarded: string[] = [];
+    const recorder = new FakeRuntimeRecorder(11);
+    const runtime = createAuditedRuntime({
+      checkCapabilities: async () => {
+        forwarded.push('checkCapabilities');
+        return {
+          supported: true,
+          warnings: [],
+          failures: [],
+          secureContext: true,
+          webGpuAvailable: true,
+          adapterAvailable: true,
+          browser: { family: 'unknown', version: null },
+          storageEstimate: null,
+        };
+      },
+      load: async () => {
+        forwarded.push('load');
+      },
+      createSession: async () => {
+        forwarded.push('createSession');
+      },
+      generate: async () => {
+        forwarded.push('generate');
+        return { finishReason: 'completed' };
+      },
+      cancel: () => {
+        forwarded.push('cancel');
+      },
+      reset: async () => {
+        forwarded.push('reset');
+      },
+      unload: async () => {
+        forwarded.push('unload');
+      },
+    }, recorder);
+
+    await runtime.checkCapabilities();
+    await runtime.load({ onPhase: () => undefined });
+    await runtime.createSession([{ role: 'system', content: 'PRIVATE_PREFACE' }]);
+    await runtime.generate('PRIVATE_PROMPT', { onText: () => undefined });
+    runtime.cancel();
+    await runtime.reset();
+    await runtime.unload();
+
+    expect(forwarded).toEqual([
+      'checkCapabilities',
+      'load',
+      'createSession',
+      'generate',
+      'cancel',
+      'reset',
+      'unload',
+    ]);
+    expect(recorder.calls.map(({ method }) => method)).toEqual(forwarded);
+    expect(recorder.calls.map((call) => Object.keys(call).sort())).toEqual(
+      forwarded.map(() => ['method', 'operationId', 'runtimeId']),
+    );
+    expect(JSON.stringify(recorder.calls)).not.toMatch(/PRIVATE/);
+  });
+
   it('consumes numeric failures once so keyboard recovery can succeed', async () => {
     const runtime = new FakeRuntime({
       testOnly: true,
@@ -302,5 +366,23 @@ describe('Jet\'s Ghost fake browser scenarios', () => {
     ]);
     expect(configured).not.toBe(packed);
     expect(packed.sources.map(({ citationId }) => citationId)).toEqual(['S1', 'S2', 'S3']);
+  });
+
+  it('seeds an independent privacy sentinel into fake selected context only', () => {
+    const packed = {
+      sources: [
+        { citationId: 'S1', text: 'Published source text.' },
+        { citationId: 'S2', text: 'Second published source.' },
+      ],
+    } as unknown as SelectionResult;
+
+    const configured = configureFakeSourceSentinel(packed);
+
+    expect(configured.sources[0]?.text).toBe(
+      'Published source text. JG_SOURCE_SENTINEL_4a6c1b',
+    );
+    expect(configured.sources[1]?.text).toBe('Second published source.');
+    expect(packed.sources[0]?.text).toBe('Published source text.');
+    expect(JSON.stringify(configured)).not.toContain('JG_PROMPT_SENTINEL_7f9e2d');
   });
 });

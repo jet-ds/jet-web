@@ -44,12 +44,14 @@ import {
   getCitedDocumentSources,
 } from './prompt/citations';
 import {
+  createAuditedRuntime,
   FakeRuntime,
   FakeRuntimeRecorder,
   type FakeRuntimeCall,
 } from './runtime/fakeRuntime';
 import {
   configureFakeCitationSelection,
+  configureFakeSourceSentinel,
   getFakeScenarioConfiguration,
   resolveFakeScenario,
 } from './runtime/fakeScenario';
@@ -57,7 +59,6 @@ import { LiteRtGemmaRuntime } from './runtime/liteRtGemma';
 import type { JetsGhostLifecycleStatus } from './runtime/lifecycle';
 import {
   createRuntimeError,
-  type LocalModelRuntime,
 } from './runtime/types';
 import { rankAndPackContext } from './selection/rankAndPack';
 import type { ConversationTurn } from './state/types';
@@ -145,24 +146,6 @@ function exposeE2EAudit(recorder: FakeRuntimeRecorder): void {
   });
 }
 
-function createAuditedProductionRuntime(
-  runtime: LocalModelRuntime,
-  recorder: FakeRuntimeRecorder,
-): LocalModelRuntime {
-  return {
-    checkCapabilities: () => {
-      recorder.record('checkCapabilities');
-      return runtime.checkCapabilities();
-    },
-    load: (options) => runtime.load(options),
-    createSession: (preface) => runtime.createSession(preface),
-    generate: (message, handlers) => runtime.generate(message, handlers),
-    cancel: () => runtime.cancel(),
-    reset: () => runtime.reset(),
-    unload: () => runtime.unload(),
-  };
-}
-
 function createTestBuildDependencies(): JetsGhostDependencies {
   let nextTurnId = 0;
   const searchParams = new URL(window.location.href).searchParams;
@@ -227,9 +210,10 @@ function createTestBuildDependencies(): JetsGhostDependencies {
       createRuntime: () => runtime,
       rankAndPackContext: (input) => {
         const selection = rankAndPackContext(input);
-        return scenario === 'citations'
+        const scenarioSelection = scenario === 'citations'
           ? configureFakeCitationSelection(selection)
           : selection;
+        return configureFakeSourceSentinel(scenarioSelection);
       },
       assemblePrompt: (...args) => {
         if (
@@ -256,7 +240,7 @@ function createTestBuildDependencies(): JetsGhostDependencies {
   const productionRuntime = new LiteRtGemmaRuntime();
   const recorder = new FakeRuntimeRecorder(allocateE2ERuntimeId());
   exposeE2EAudit(recorder);
-  const runtime = createAuditedProductionRuntime(productionRuntime, recorder);
+  const runtime = createAuditedRuntime(productionRuntime, recorder);
 
   return {
     createRepository: () => new StaticKnowledgeRepository(),

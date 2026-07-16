@@ -220,6 +220,27 @@ function sha256(value: string): string {
   return createHash('sha256').update(value).digest('hex');
 }
 
+function expectNoApplicationCredentials(
+  headers: Record<string, string> | Array<[string, string]>,
+  options: { allowBrowserCookie: boolean },
+): void {
+  const entries = Array.isArray(headers) ? headers : Object.entries(headers);
+  for (const [rawName, value] of entries) {
+    const name = rawName.toLowerCase();
+    expect(
+      name,
+      `Application-defined credential/custom header: ${rawName}`,
+    ).not.toMatch(/^(?:authorization|proxy-authorization|x-|api[-_]?key$|apikey$|auth(?:entication)?[-_]?token$|access[-_]?token$|id[-_]?token$|credential$)/u);
+    expect(
+      `${name}:${value}`,
+      `Credential-bearing header value: ${rawName}`,
+    ).not.toMatch(/(?:^|\s)(?:bearer|basic)\s+|api[-_]?key|auth[-_]?token|access[-_]?token/iu);
+    if (name === 'cookie' && !options.allowBrowserCookie) {
+      expect(name, 'Browser cookie is not allowed for this request class').not.toBe('cookie');
+    }
+  }
+}
+
 function emittedLiteRtChunkPaths(): string[] {
   const assetDirectory = join(process.cwd(), 'dist', '_astro');
   return readdirSync(assetDirectory)
@@ -303,7 +324,7 @@ test.describe("Jet's Ghost consent and local privacy", () => {
         value: {
           requestAdapter: async () => {
             state.__JETS_GHOST_CAPABILITY_CALLS__ = (state.__JETS_GHOST_CAPABILITY_CALLS__ ?? 0) + 1;
-            return null;
+            return {};
           },
         },
       });
@@ -311,11 +332,15 @@ test.describe("Jet's Ghost consent and local privacy", () => {
     requests.length = 0;
     await page.goto(GHOST_PATH);
     await page.getByRole('button', { name: 'Check compatibility' }).click();
-    await expect(page.getByRole('heading', { name: "This browser cannot run Jet's Ghost" })).toBeVisible();
+    await expect(page.getByRole('button', { name: /Load Jet's Ghost/ })).toBeVisible();
     expect(await page.evaluate(() => (
       window as typeof window & { __JETS_GHOST_CAPABILITY_CALLS__?: number }
     ).__JETS_GHOST_CAPABILITY_CALLS__)).toBe(1);
-    expect(await runtimeMethods(page)).toEqual(['checkCapabilities']);
+    const supportedAudit = await runtimeCalls(page);
+    expect(supportedAudit.map(({ method }) => method)).toEqual(['checkCapabilities']);
+    expect(supportedAudit.map((call) => Object.keys(call).sort())).toEqual([
+      ['method', 'operationId', 'runtimeId'],
+    ]);
     expect(requests.map((request) => request.url()).filter((url) => (
       CORPUS_PATHS.some((path) => url.includes(path))
       || url.includes(RUNTIME_ROOT)
@@ -341,7 +366,7 @@ test.describe("Jet's Ghost consent and local privacy", () => {
     await page.getByRole('button', { name: /Load Jet's Ghost/ }).click();
     await expect(page.getByRole('textbox', { name: "Ask Jet's Ghost" })).toBeEnabled();
 
-    await submitQuestion(page, `${PROMPT_SENTINEL} ${SOURCE_SENTINEL}`);
+    await submitQuestion(page, PROMPT_SENTINEL);
     await waitForCompletedResponse(page);
 
     const fetches = await auditedFetches(page);
@@ -354,6 +379,9 @@ test.describe("Jet's Ghost consent and local privacy", () => {
       expect(record.credentials).toBe('omit');
       expect(record.body).toBeNull();
       expect(record.headers).toEqual([]);
+    }
+    for (const record of fetches) {
+      expectNoApplicationCredentials(record.headers, { allowBrowserCookie: false });
     }
 
     const serialized = JSON.stringify({
@@ -412,11 +440,10 @@ test.describe("Jet's Ghost consent and local privacy", () => {
         expect(analyticsPayload).not.toContain(SOURCE_SENTINEL);
       }
       if (isCorpus || isApplicationAsset || isRuntimeAsset) expect(url.search).toBe('');
-      if (isCorpus) {
-        const headers = await request.allHeaders();
-        expect(headers.cookie).toBeUndefined();
-        expect(headers.authorization).toBeUndefined();
-      }
+      const headers = await request.allHeaders();
+      expectNoApplicationCredentials(headers, {
+        allowBrowserCookie: isApplicationAsset || isAnalytics,
+      });
     }
   });
 });
@@ -1230,17 +1257,22 @@ test.describe("Jet's Ghost ClientRouter cleanup", () => {
     await expect(page.getByText("Jet's published work connects local-first AI", { exact: false })).toBeVisible();
     await navigateAwayThroughDock(page);
 
+    await page.waitForTimeout(750);
     const methods = await runtimeMethods(page);
-    const cleanup = methods.slice(methods.indexOf('cancel'));
-    expect(cleanup.slice(0, 5)).toEqual([
+    const requiredCleanup = [
       'cancel',
       'conversation.delete',
       'repository.unload',
       'engine.delete',
       'sdk.unload',
-    ]);
-    await page.waitForTimeout(750);
+    ];
+    const cleanup = methods.slice(methods.indexOf('cancel'));
+    expect(cleanup).toEqual(requiredCleanup);
+    for (const method of requiredCleanup) {
+      expect(methods.filter((candidate) => candidate === method), method).toHaveLength(1);
+    }
     await expect(page.getByText('with systems thinking [S1].', { exact: false })).toHaveCount(0);
     await expect(page.getByTestId('lifecycle-visible-status')).toHaveCount(0);
+    await expect(page.getByRole('heading', { name: /About/i })).toBeVisible();
   });
 });

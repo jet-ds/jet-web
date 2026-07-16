@@ -53,8 +53,6 @@ export interface FakeScenarioConfiguration {
   emitLateChunkAfterCancellation?: boolean;
 }
 
-const FAKE_SCENARIO_SET = new Set<string>(FAKE_SCENARIOS);
-
 const DEFAULT_RESPONSE_CHUNKS = [
   "Jet's published work connects local-first AI ",
   'with systems thinking [S1].',
@@ -68,6 +66,8 @@ const LONG_RESPONSE_CHUNKS = [
   'That combination keeps the answer useful while preserving a clear path back ',
   'to the exact source a reader can inspect for context and nuance.',
 ] as const;
+
+const FAKE_SOURCE_SENTINEL = 'JG_SOURCE_SENTINEL_4a6c1b';
 
 export function getFakeScenarioConfiguration(
   scenario: FakeScenario,
@@ -156,6 +156,21 @@ export function configureFakeCitationSelection(
   };
 }
 
+export function configureFakeSourceSentinel(
+  selection: SelectionResult,
+): SelectionResult {
+  if (selection.sources.length === 0) return selection;
+
+  return {
+    ...selection,
+    sources: selection.sources.map((source, index) => (
+      index === 0
+        ? { ...source, text: `${source.text} ${FAKE_SOURCE_SENTINEL}` }
+        : source
+    )),
+  };
+}
+
 export function resolveFakeScenario({
   testBuild,
   hostname,
@@ -177,7 +192,7 @@ export function resolveFakeScenario({
 
   const requestedScenario = searchParams.get('scenario');
   const scenario = requestedScenario !== null
-    && FAKE_SCENARIO_SET.has(requestedScenario)
+    && (FAKE_SCENARIOS as readonly string[]).includes(requestedScenario)
     ? requestedScenario as FakeScenario
     : 'default';
 

@@ -48,6 +48,9 @@ describe('ordinary production artifact containment', () => {
       'runtime=fake',
       '__JETS_GHOST_E2E__',
       "Jet's published work connects local-first AI with systems thinking [S1].",
+      'stop-recovery',
+      'late-event',
+      'JG_SOURCE_SENTINEL_4a6c1b',
     ];
     markers.forEach((marker, index) => {
       writeFileSync(join(nested, `chunk-${index}.js`), `/* ${marker} */`);
