@@ -349,7 +349,33 @@ export default function JetsGhostExperience({
     );
   const canUnload = showHeaderActions && status !== 'unloading';
   const ghostAnimationMode = getGhostAnimationMode(status);
-  const previousGhostAnimationMode = getGhostAnimationMode(previousStatusRef.current);
+  const visibleLargeGhostMode = (
+    [
+      'idle',
+      'checking-capabilities',
+      'awaiting-consent',
+      'load-error',
+      'unsupported',
+      'loading',
+      'unloading',
+    ].includes(status)
+    || (
+      showPreConversation
+      && [
+        'ready',
+        'generating',
+        'cancelling',
+        'generation-error',
+        'resetting',
+        'reset-error',
+        'unload-error',
+      ].includes(status)
+    )
+  ) ? ghostAnimationMode : null;
+  const previousVisibleLargeGhostModeRef = useRef<GhostAnimationMode | null>(
+    visibleLargeGhostMode,
+  );
+  const previousVisibleLargeGhostMode = previousVisibleLargeGhostModeRef.current;
   const loadingHeadline = getLoadingHeadline(elapsedSeconds);
   const loadingReassurance = status === 'loading'
     ? getLoadingReassurance(elapsedSeconds)
@@ -396,6 +422,10 @@ export default function JetsGhostExperience({
     }
     previousStatusRef.current = status;
   }, [status]);
+
+  useEffect(() => {
+    previousVisibleLargeGhostModeRef.current = visibleLargeGhostMode;
+  }, [visibleLargeGhostMode]);
 
   useEffect(() => {
     if (ghost.state.turns.length === 0) {
@@ -684,7 +714,7 @@ export default function JetsGhostExperience({
             <div className="w-full max-w-3xl text-center">
               <AnimatedGhost
                 mode={ghostAnimationMode}
-                previousMode={previousGhostAnimationMode}
+                previousMode={previousVisibleLargeGhostMode}
               />
               <h1 className="mx-auto max-w-2xl text-5xl font-bold leading-[1.04] text-text-primary">
                 Ask the part of the site that reads everything.
@@ -806,7 +836,7 @@ export default function JetsGhostExperience({
             <div className="w-full max-w-2xl text-center">
               <AnimatedGhost
                 mode={ghostAnimationMode}
-                previousMode={previousGhostAnimationMode}
+                previousMode={previousVisibleLargeGhostMode}
               />
               <h1 className="text-3xl font-bold text-text-primary">This browser cannot run Jet&apos;s Ghost</h1>
               <p className="mx-auto mt-s max-w-xl text-base text-text-secondary">
@@ -835,7 +865,7 @@ export default function JetsGhostExperience({
             <div data-testid="loading-stack" className="w-full max-w-xl text-center">
               <AnimatedGhost
                 mode={ghostAnimationMode}
-                previousMode={previousGhostAnimationMode}
+                previousMode={previousVisibleLargeGhostMode}
               />
               <div>
                 <p className="mb-2xs font-mono text-xs uppercase tracking-[0.16em] text-brand-text">
@@ -885,7 +915,7 @@ export default function JetsGhostExperience({
                 <div className="w-full max-w-3xl text-center">
                   <AnimatedGhost
                     mode={ghostAnimationMode}
-                    previousMode={previousGhostAnimationMode}
+                    previousMode={previousVisibleLargeGhostMode}
                   />
                   <h1 className="text-2xl font-bold leading-tight tracking-tight min-[370px]:whitespace-nowrap">What are you curious about?</h1>
                   <p className="mx-auto mt-xs max-w-xl text-xs text-text-tertiary min-[370px]:whitespace-nowrap">
@@ -1311,7 +1341,7 @@ function Composer({
 interface AnimatedGhostProps {
   compact?: boolean;
   mode: GhostAnimationMode;
-  previousMode?: GhostAnimationMode;
+  previousMode?: GhostAnimationMode | null;
 }
 
 type NonLoadingGhostAnimationMode = Exclude<GhostAnimationMode, 'loading'>;
@@ -1538,7 +1568,7 @@ function AnimatedGhost({
 }: AnimatedGhostProps) {
   const reduceMotion = useLiveReducedMotion();
   const [displayedMode, setDisplayedMode] = useState<GhostAnimationMode>(() => (
-    compact ? mode : previousMode
+    compact ? mode : previousMode ?? mode
   ));
 
   useEffect(() => {

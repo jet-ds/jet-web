@@ -743,6 +743,56 @@ test.describe("Jet's Ghost supported lifecycle", () => {
     await expect(largeGhostLayers(page)).toHaveCount(0);
   });
 
+  test('mounts one idle layer when unload follows a completed conversation with no large Ghost', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium');
+    await installLargeGhostLayerAudit(page);
+    const composer = await startFakeAssistant(page, 'unloading');
+    await submitQuestion(page, 'Summarize the recursive convergence hypothesis.');
+    await waitForCompletedResponse(page);
+    await expect(composer).toBeEnabled();
+    await expect(largeGhostViewport(page)).toHaveCount(0);
+    const auditStart = (await largeGhostLayerAudit(page)).length;
+
+    await page.getByRole('button', { name: /Unload/ }).click();
+    await expect(largeGhostViewport(page)).toHaveAttribute('data-mode', 'idle');
+    await page.waitForTimeout(220);
+    await expect(largeGhostLayers(page)).toHaveCount(1);
+    await expect(largeGhostLayers(page)).toHaveAttribute('data-mode', 'idle');
+
+    const mountedEntries = (await largeGhostLayerAudit(page))
+      .slice(auditStart)
+      .filter((entry) => entry.viewportCount === 1);
+    expect(mountedEntries.length).toBeGreaterThan(0);
+    expect(mountedEntries.every((entry) => (
+      entry.modes.length === 1 && entry.modes[0] === 'idle'
+    ))).toBe(true);
+  });
+
+  test('does not fabricate a thinking layer when unload mounts a large Ghost during generation', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium');
+    await installLargeGhostLayerAudit(page);
+    const composer = await startFakeAssistant(page, 'long-stream');
+    await submitQuestion(page, 'Summarize the recursive convergence hypothesis.');
+    await expect(currentStatusLabel(page)).toHaveText('Responding');
+    await expect(composer).toBeDisabled();
+    await expect(largeGhostViewport(page)).toHaveCount(0);
+    const auditStart = (await largeGhostLayerAudit(page)).length;
+
+    await page.getByRole('button', { name: /Unload/ }).click();
+    await expect(largeGhostViewport(page)).toHaveAttribute('data-mode', 'idle');
+    await page.waitForTimeout(220);
+    await expect(largeGhostLayers(page)).toHaveCount(1);
+    await expect(largeGhostLayers(page)).toHaveAttribute('data-mode', 'idle');
+
+    const mountedEntries = (await largeGhostLayerAudit(page))
+      .slice(auditStart)
+      .filter((entry) => entry.viewportCount === 1);
+    expect(mountedEntries.length).toBeGreaterThan(0);
+    expect(mountedEntries.every((entry) => (
+      entry.modes.length === 1 && entry.modes[0] === 'idle'
+    ))).toBe(true);
+  });
+
   test('settles the current lifecycle label before it becomes visible', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'chromium');
     await page.setViewportSize({ width: 1280, height: 800 });

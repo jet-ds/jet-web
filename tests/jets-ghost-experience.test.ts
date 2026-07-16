@@ -446,6 +446,18 @@ test('active experience contract requires a remount-safe large Ghost crossfade',
   assert.match(experienceNote, /reduced motion[^.]*one visual layer/i);
   assert.match(experienceNote, /elapsed timer[^.]*does not restart/i);
   assert.match(experienceNote, /compact[^.]*turn avatar[^.]*not[^.]*large-Ghost crossfade/i);
+  assert.match(experienceNote, /previous render[^.]*large viewport/i);
+  assert.match(experienceNote, /completed conversation[^.]*Unload[^.]*one current idle layer/i);
+  assert.match(
+    experienceSource,
+    /useRef<GhostAnimationMode \| null>[\s\S]*?previousVisibleLargeGhostMode/,
+  );
+  assert.match(experienceSource, /previousMode={previousVisibleLargeGhostMode}/);
+  assert.match(experienceSource, /compact \? mode : previousMode \?\? mode/);
+  assert.doesNotMatch(
+    experienceSource,
+    /previousGhostAnimationMode = getGhostAnimationMode\(previousStatusRef\.current\)/,
+  );
 });
 
 test('loading liveness changes independently of coarse runtime phases without fake progress', () => {
@@ -471,7 +483,7 @@ test('loading liveness changes independently of coarse runtime phases without fa
   assert.match(experienceSource, /data-testid="loading-inward-particle"/);
   assert.match(
     experienceSource,
-    /<AnimatedGhost[\s\S]*?mode={ghostAnimationMode}[\s\S]*?previousMode={previousGhostAnimationMode}/,
+    /<AnimatedGhost[\s\S]*?mode={ghostAnimationMode}[\s\S]*?previousMode={previousVisibleLargeGhostMode}/,
   );
   assert.match(experienceSource, /data-testid="loading-reassurance-slot"/);
   assert.match(
