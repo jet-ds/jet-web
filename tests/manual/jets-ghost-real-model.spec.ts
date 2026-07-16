@@ -20,7 +20,9 @@ import {
   type ModelDeliveryHop,
 } from '../../src/features/jets-ghost/runtime/modelDelivery';
 import { JETS_GHOST_ABSTENTION_PREFIX } from '../../src/features/jets-ghost/prompt/assemble';
+import { establishDeploymentProtectionBypass } from '../support/deploymentProtection';
 import {
+  isAllowedDeploymentProtectionCookie,
   isPartytownBlobScript,
   isPartytownSandboxDocument,
 } from './requestPrivacy';
@@ -985,6 +987,9 @@ async function validateRequestPrivacy(
   ledger: RequestLedger,
   applicationOrigin: string,
 ): Promise<void> {
+  const deploymentProtectionSecret = process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
+  const deploymentProtectionBypassEnabled = deploymentProtectionSecret !== undefined
+    && deploymentProtectionSecret.trim() !== '';
   const sentinels = [
     CLOSEOUT_PROMPT_SENTINEL,
     SELECTED_SOURCE_SENTINEL,
@@ -1066,7 +1071,17 @@ async function validateRequestPrivacy(
     if (corpus || applicationChunk || runtimeAsset || documentRequest) {
       contentFreeAssert(url.search === '', 'VARIABLE_APPLICATION_REQUEST_FORBIDDEN');
     }
-    if (corpus || model) {
+    if (corpus) {
+      contentFreeAssert(
+        isAllowedDeploymentProtectionCookie(
+          headers.cookie,
+          deploymentProtectionBypassEnabled,
+        ),
+        'ASSISTANT_COOKIE_FORBIDDEN',
+      );
+      contentFreeAssert(headers.authorization === undefined, 'ASSISTANT_AUTHORIZATION_FORBIDDEN');
+    }
+    if (model) {
       contentFreeAssert(headers.cookie === undefined, 'ASSISTANT_COOKIE_FORBIDDEN');
       contentFreeAssert(headers.authorization === undefined, 'ASSISTANT_AUTHORIZATION_FORBIDDEN');
     }
@@ -1122,6 +1137,12 @@ test("qualifies Jet's Ghost with the real local model", async ({ browser, page }
     throw new Error('QUALIFICATION_REQUIRES_APPLE_SILICON_MAC');
   }
 
+  const applicationBaseUrl = process.env.REAL_MODEL_BASE_URL ?? 'http://127.0.0.1:4322';
+  await establishDeploymentProtectionBypass(
+    page.context(),
+    new URL(applicationBaseUrl).origin,
+    process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
+  );
   await installDeviceObservation(page);
   await installConsentAudit(page);
   await page.goto(GHOST_PATH);

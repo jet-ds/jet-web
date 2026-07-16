@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import {
+  isAllowedDeploymentProtectionCookie,
   isPartytownBlobScript,
   isPartytownSandboxDocument,
 } from '../../manual/requestPrivacy';
@@ -65,5 +66,22 @@ describe('real-model Partytown privacy classifiers', () => {
       new URL(valid),
       origin,
     )).toBe(false);
+  });
+
+  it('allows only the infrastructure bypass cookie during protected Preview smoke', () => {
+    expect(isAllowedDeploymentProtectionCookie(undefined, false)).toBe(true);
+    expect(isAllowedDeploymentProtectionCookie(
+      '_vercel_jwt=header.payload.signature',
+      true,
+    )).toBe(true);
+    expect(isAllowedDeploymentProtectionCookie(
+      '_vercel_jwt=header.payload.signature',
+      false,
+    )).toBe(false);
+    expect(isAllowedDeploymentProtectionCookie(
+      '_vercel_jwt=header.payload.signature; other=value',
+      true,
+    )).toBe(false);
+    expect(isAllowedDeploymentProtectionCookie('other=value', true)).toBe(false);
   });
 });

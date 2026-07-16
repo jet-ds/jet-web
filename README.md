@@ -56,6 +56,8 @@ npm run verify:browser
 npm run verify:production
 ```
 
+GitHub Actions runs the stable `verify` and `browser` jobs on every pull request, every push to `main`, manual dispatch, and nightly at `18:17 UTC` (`02:17` Asia/Manila). Release setup requires both jobs on `main`. Nightly CI exercises the complete routine gate but deliberately excludes the roughly 2 GB real-model qualification, which remains release-only.
+
 ## Content
 
 Blog posts and work records are MDX files in `src/data/blog/` and `src/data/works/`. Their frontmatter is validated by the schemas in `src/schemas/content.ts`.

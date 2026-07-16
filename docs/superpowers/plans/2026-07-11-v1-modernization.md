@@ -1089,6 +1089,14 @@ on:
   pull_request:
   push:
     branches: [main]
+  workflow_dispatch:
+  schedule:
+    # 02:17 Asia/Manila; the off-hour minute avoids the busiest cron boundary.
+    - cron: '17 18 * * *'
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'schedule' && 'nightly' || github.ref }}
+  cancel-in-progress: ${{ github.event_name != 'schedule' }}
 
 permissions:
   contents: read
@@ -1105,6 +1113,8 @@ jobs:
       - run: npm ci
       - run: npm run verify
 ```
+
+The later browser job completes the routine gate. Keep the stable job names `verify` and `browser`: both become strict required checks on `main`, bound to GitHub Actions and enforced for administrators, while force pushes and deletion remain disabled. Do not require a human approval count. If GitHub disables the scheduled workflow after prolonged public-repository inactivity, re-enable it first through the GitHub UI, API, or `gh workflow enable`, then use manual dispatch for the recovery run. The nightly run uses the latest default-branch commit and intentionally excludes all real-model commands.
 
 - [ ] **Step 8: Commit**
 
@@ -1818,6 +1828,8 @@ The completed workflow contains this second job:
 ```
 
 The production deployment suite is not run against the old production alias in pull-request CI. It is a required postdeployment gate in Task 12 and fails on any status or destination mismatch.
+
+The completed `verify` and `browser` jobs run on pull requests, `main` pushes, manual dispatch, and the `17 18 * * *` nightly schedule. Neither job may invoke the roughly 2 GB Jet's Ghost real-model qualification or deployment smoke; those remain explicit release gates.
 
 Both Playwright configurations set `outputDir: 'test-results/playwright'`. Browser runs may clean only that disposable subdirectory; they must not own or erase preserved release evidence under `test-results/core-*`.
 

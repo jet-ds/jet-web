@@ -2122,10 +2122,21 @@ test -z "$(git status --porcelain=v1 --untracked-files=no)"
 
 - [ ] **Step 9: Qualify the exact final Preview, then build and read back Production**
 
-Push the final release-candidate commit through the user-approved remote workflow and wait for its Git-backed Vercel Preview. Production remains on the prior noindexed release throughout this blocking qualification. Set `CANDIDATE_URL` to the preview hostname, then bind and qualify that exact commit:
+Push the final release-candidate branch and open a pull request so the exact candidate SHA receives the stable GitHub Actions `verify` and `browser` checks. Wait for both to pass; no human approval count is required. Vercel may build the Git-backed Preview in parallel, but do not qualify or integrate a SHA whose pull-request checks are absent, pending, cancelled, or failed. Production remains on the prior noindexed release throughout this blocking qualification. Set `CANDIDATE_URL` to the exact Preview hostname and initially supply the existing Vercel automation-bypass credential through `VERCEL_AUTOMATION_BYPASS_SECRET`. The block first disables shell xtrace, immediately moves the credential into a non-exported shell variable, unsets the inherited environment value, and scopes it only to the two Playwright commands that enter the protected Preview. Never print, commit, persist, or place the credential in Playwright artifacts:
 
 ```bash
+set +x
 set -euo pipefail
+BYPASS_SECRET="${VERCEL_AUTOMATION_BYPASS_SECRET:-}"
+unset VERCEL_AUTOMATION_BYPASS_SECRET
+typeset +x BYPASS_SECRET
+EVIDENCE_TMP=''
+cleanup_preview_qualification() {
+  unset BYPASS_SECRET VERCEL_AUTOMATION_BYPASS_SECRET
+  if test -n "${EVIDENCE_TMP:-}"; then rm -rf "$EVIDENCE_TMP"; fi
+}
+trap cleanup_preview_qualification EXIT HUP INT TERM
+test -n "$BYPASS_SECRET"
 cd /Users/jet/jet-web
 test "$(pwd -P)" = /Users/jet/jet-web
 test "$(node -p "process.versions.node.split('.')[0]")" = 24
@@ -2135,7 +2146,6 @@ mkdir -p test-results
 umask 077
 EVIDENCE_TMP=$(mktemp -d)
 chmod 700 "$EVIDENCE_TMP"
-trap 'rm -rf "$EVIDENCE_TMP"' EXIT HUP INT TERM
 npx --yes vercel@55.0.0 inspect "$CANDIDATE_URL" --wait --timeout=5m --format=json > "$EVIDENCE_TMP/final-preview-inspect.raw.json"
 npx tsx scripts/sanitize-vercel-evidence.ts sanitize-inspect --input="$EVIDENCE_TMP/final-preview-inspect.raw.json" --output="$EVIDENCE_TMP/final-preview-inspect.json"
 PREVIEW_DEPLOYMENT_ID=$(EVIDENCE_TMP="$EVIDENCE_TMP" node -e "const d=require(process.env.EVIDENCE_TMP+'/final-preview-inspect.json'); process.stdout.write(d.id)")
@@ -2144,15 +2154,19 @@ npx tsx scripts/sanitize-vercel-evidence.ts sanitize-deployment --input="$EVIDEN
 EXPECTED_SHA="$EXPECTED_SHA" node -e "const d=require('./test-results/jets-ghost-2.1.0-final-preview-vercel-deployment.json'); if(d.readyState!=='READY'||d.target==='production'||d.gitSource?.sha!==process.env.EXPECTED_SHA) process.exit(1)"
 npx tsx scripts/sanitize-vercel-evidence.ts verify-safe --input=test-results/jets-ghost-2.1.0-final-preview-vercel-deployment.json
 rm -rf "$EVIDENCE_TMP"
-trap - EXIT HUP INT TERM
-EXPECTED_JETS_GHOST_NOINDEX=1 PRODUCTION_ORIGIN="https://$CANDIDATE_URL" npm run verify:production
+unset EVIDENCE_TMP
+VERCEL_AUTOMATION_BYPASS_SECRET="$BYPASS_SECRET" EXPECTED_JETS_GHOST_NOINDEX=1 PRODUCTION_ORIGIN="https://$CANDIDATE_URL" npm run verify:production
 npx tsx scripts/verify-model-delivery.ts --transport-only --output=test-results/jets-ghost-2.1.0-final-preview-model-delivery.json
-npx cross-env REAL_MODEL_BASE_URL="https://$CANDIDATE_URL" npm run smoke:jets-ghost
+VERCEL_AUTOMATION_BYPASS_SECRET="$BYPASS_SECRET" npx cross-env REAL_MODEL_BASE_URL="https://$CANDIDATE_URL" npm run smoke:jets-ghost
+unset BYPASS_SECRET
+trap - EXIT HUP INT TERM
 ```
 
 This is a proportional two-case Preview smoke, not another full acceptance or 2 GB hash run. The transport-only check proves the pinned initial URL and durable redirect/origin/privacy policy; Task 13 Step 2 remains the byte-integrity proof. The smoke must prove one supported grounded answer with a valid citation and inspectable source, one unsupported abstention, privacy allowlist compliance, cleanup, exact canonical/OG/JSON-LD/navigation behavior, the complete platform-plus-explicit route matrix, About correctness, both retired `404`s, robots/sitemap/RSS behavior, exact `Cache-Control: public, max-age=31536000, immutable` on one versioned LiteRT `.wasm` response, and Preview `noindex` with zero `/chatbot/` sitemap memberships. If it fails, do not promote; the public production route remains on the earlier hard-noindex deployment. Terminal output must contain no question, response, history, selected source text, complete signed URL or value, signature, policy, transient CDN path, sensitive header, or prompt-bearing request record.
 
-Only after the exact Preview passes may that exact commit receive a fresh Git-backed **Production-target build**. Do not promote or alias the Preview deployment itself: its `VERCEL_ENV=preview` build intentionally contains the noindex/sitemap-exclusion artifact and cannot become the public release artifact. Trigger and await a new Production build from the exact Previewed SHA, then require the Production deployment record to report `target: production` and the same Git SHA. If integration creates a merge/squash/rebase SHA, stop and repeat exact-Preview binding and the two-case Preview smoke for the new SHA. Repeat the one-Mac six-case qualification only if integration changed runtime code, corpus/index generation or content, context configuration, model/library pins, or lockfile resolution.
+Only after the exact Preview passes may that exact commit receive a fresh Git-backed **Production-target build**. Fast-forward the already checked and previewed SHA to `main`; do not squash, rebase, or create a merge commit. The `main` push reruns the same `verify` and `browser` jobs and triggers the Production-target Vercel build from that exact SHA. Wait for both GitHub jobs and the Production deployment to finish before production readback. After this workflow version has landed on `main` and both jobs have passed there once, configure one durable classic branch-protection rule for `main`: strict required checks `verify` and `browser`, each bound to the GitHub Actions app; administrator enforcement enabled; force pushes and deletion disabled; no required reviews, bypass list, or second overlapping ruleset. If GitHub disables the schedule after prolonged public-repository inactivity, first re-enable the workflow through the GitHub UI, API, or `gh workflow enable`, then use manual dispatch as the recovery run. The nightly `17 18 * * *` run remains routine-only.
+
+Do not promote or alias the Preview deployment itself: its `VERCEL_ENV=preview` build intentionally contains the noindex/sitemap-exclusion artifact and cannot become the public release artifact. Require the Production deployment record to report `target: production` and the same Git SHA. If integration creates a merge/squash/rebase SHA, stop and repeat exact-Preview binding and the two-case Preview smoke for the new SHA. Repeat the one-Mac six-case qualification only if integration changed runtime code, corpus/index generation or content, context configuration, model/library pins, or lockfile resolution.
 
 After the fresh Production-target build completes, perform production-specific readback and one two-case grounded smoke using the same harness in smoke mode:
 

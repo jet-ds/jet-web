@@ -1,12 +1,25 @@
 import { expect, test } from '@playwright/test';
+import { establishDeploymentProtectionBypass } from '../support/deploymentProtection';
 
 const expectedNoindexValue = process.env.EXPECTED_JETS_GHOST_NOINDEX;
 if (expectedNoindexValue !== '0' && expectedNoindexValue !== '1') {
   throw new Error('EXPECTED_JETS_GHOST_NOINDEX must be exactly 0 or 1');
 }
 const expectedNoindex = expectedNoindexValue === '1';
+const deploymentOrigin = new URL(
+  process.env.PRODUCTION_ORIGIN ?? 'https://jetsanchez.com',
+).origin;
 
-test('production preserves core containment and canonical redirects', async ({ request }) => {
+test.beforeEach(async ({ context }) => {
+  await establishDeploymentProtectionBypass(
+    context,
+    deploymentOrigin,
+    process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
+  );
+});
+
+test('production preserves core containment and canonical redirects', async ({ context }) => {
+  const request = context.request;
   const apiRedirect = await request.post('/api/chat', { maxRedirects: 0 });
   expect(apiRedirect.status()).toBe(308);
   expect(new URL(apiRedirect.headers().location, 'https://jetsanchez.com').toString())
@@ -59,7 +72,8 @@ test('production preserves core containment and canonical redirects', async ({ r
   expect(about.headers().location).toBe('/about/');
 });
 
-test('deployment exposes the target-gated canonical Ghost identity', async ({ page, request }) => {
+test('deployment exposes the target-gated canonical Ghost identity', async ({ page, context }) => {
+  const request = context.request;
   const canonical = 'https://jetsanchez.com/chatbot/';
   const response = await page.goto('/chatbot/');
   expect(response?.status()).toBe(200);
@@ -116,7 +130,8 @@ test('deployment exposes the target-gated canonical Ghost identity', async ({ pa
   expect(sitemap).not.toContain('https://jetsanchez.com/tools/');
 });
 
-test('production About has one canonical indexable identity', async ({ page, request }) => {
+test('production About has one canonical indexable identity', async ({ page, context }) => {
+  const request = context.request;
   const canonical = 'https://jetsanchez.com/about/';
   const response = await page.goto('/about/');
   expect(response?.status()).toBe(200);
@@ -138,7 +153,8 @@ test('production About has one canonical indexable identity', async ({ page, req
   expect(sitemap.match(/https:\/\/jetsanchez\.com\/about\//g) ?? []).toHaveLength(1);
 });
 
-test('production retired routes are direct 404s and absent from feeds', async ({ request }) => {
+test('production retired routes are direct 404s and absent from feeds', async ({ context }) => {
+  const request = context.request;
   const slugs = ['the-future-of-ai', 'building-with-astro'];
   for (const slug of slugs) {
     const response = await request.get(`/blog/${slug}/`, { maxRedirects: 0 });
@@ -154,7 +170,8 @@ test('production retired routes are direct 404s and absent from feeds', async ({
   }
 });
 
-test('production machine endpoints retain extension-bearing paths', async ({ request }) => {
+test('production machine endpoints retain extension-bearing paths', async ({ context }) => {
+  const request = context.request;
   for (const path of ['/rss.xml', '/robots.txt', '/sitemap-index.xml']) {
     const response = await request.get(path, { maxRedirects: 0 });
     expect(response.status()).toBe(200);
@@ -162,7 +179,8 @@ test('production machine endpoints retain extension-bearing paths', async ({ req
   }
 });
 
-test('production HTTP-noindexes assistant corpus JSON only', async ({ request }) => {
+test('production HTTP-noindexes assistant corpus JSON only', async ({ context }) => {
+  const request = context.request;
   const corpusPaths = [
     '/assistant/corpus/manifest.json',
     '/assistant/corpus/content.json',

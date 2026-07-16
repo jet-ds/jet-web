@@ -225,8 +225,9 @@ Downloading external model or font assets during a browser session is runtime be
 
 - Pin the supported runtime to Node.js `24.x` in `package.json` and a repository version file.
 - Keep `package-lock.json` authoritative and use `npm ci` in CI.
-- Add a GitHub Actions workflow that runs `npm ci` and `npm run verify` on pull requests and pushes to `main`.
-- The production deployment consumes only a commit that passed the same verification command.
+- Run the GitHub Actions workflow on pull requests, pushes to `main`, manual dispatch, and a daily `17 18 * * *` schedule (`02:17` Asia/Manila). The two stable jobs are `verify` and `browser`; scheduled runs use the latest default-branch commit and cannot be cancelled by ordinary push activity.
+- Require both `verify` and `browser` on `main`, bound to GitHub Actions with strict up-to-date checks and administrator enforcement. Force pushes and branch deletion remain disabled; this single-maintainer repository does not require an artificial human approval count.
+- The production deployment consumes only an exact commit that passed both routine jobs. The roughly 2 GB real-model qualification remains a separate release-only gate and never enters routine or nightly CI.
 - A build failure must not leave uploaded artifacts or modify tracked source files.
 - Build-purity verification snapshots tracked-file hashes and `git status --porcelain=v1 -uall` before and after the build, excluding only declared build outputs. It covers staged, unstaged, and untracked source/configuration changes.
 
@@ -416,7 +417,7 @@ Minimum browser coverage protects:
 - reduced-motion Grainient behavior;
 - the approved noindexed Jet's Ghost prototype or released activation flow, depending on milestone.
 
-Browser regression tests run against the built static output through `astro preview`, not the development server. The checked-in suite includes each listed route and assertion, parses JSON-LD as JSON, verifies active navigation and mobile disclosure behavior, and installs its browser plus system dependencies in CI. Vercel-only redirect behavior is a separate deployment assertion with an exact status and destination.
+Browser regression tests run against the built static output through `astro preview`, not the development server. The checked-in suite includes each listed route and assertion, parses JSON-LD as JSON, verifies active navigation and mobile disclosure behavior, and installs its browser plus system dependencies in CI. Pull-request, `main`, manual, and nightly runs execute this same pair of routine jobs. Vercel-only redirect behavior is a separate deployment assertion with an exact status and destination.
 
 Real-model Jet's Ghost evaluation is kept out of the routine CI path because it requires WebGPU and a roughly 2 GB model download. The companion design defines its separate release gate.
 
