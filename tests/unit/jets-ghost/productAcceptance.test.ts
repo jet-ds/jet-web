@@ -1,0 +1,252 @@
+import { existsSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+import { describe, expect, it } from 'vitest';
+
+interface ProductAcceptanceCase {
+  id: string;
+  category: 'supported' | 'ordinary' | 'cross-document' | 'unsupported';
+  question: string;
+  expectedSourceIds: string[];
+  acceptableSourceIds: string[];
+  requiredFacts: string[];
+  forbiddenClaims: string[];
+  mustAbstain: boolean;
+}
+
+const ROOT = process.cwd();
+const FIXTURE_PATH = 'tests/fixtures/jets-ghost/product-acceptance.json';
+const MANUAL_SPEC_PATH = 'tests/manual/jets-ghost-real-model.spec.ts';
+const REAL_MODEL_CONFIG_PATH = 'playwright.real-model.config.ts';
+const PACKAGE_PATH = 'package.json';
+
+const FIXED_CASES: ProductAcceptanceCase[] = [
+  {
+    id: 'showcase-claude-native',
+    category: 'supported',
+    question: 'What installation method does Jet recommend for Claude Code in 2026, and why?',
+    expectedSourceIds: ['blog:how-to-install-claude-code-cli-2026'],
+    acceptableSourceIds: ['blog:how-to-install-claude-code-cli-2026'],
+    requiredFacts: [
+      'The native installer is the recommended standard method.',
+      'Jet attributes better stability, automatic updates, and avoiding dependency conflicts to it.',
+    ],
+    forbiddenClaims: ['Jet recommends npm as the standard 2026 installation method.'],
+    mustAbstain: false,
+  },
+  {
+    id: 'showcase-rch-claim',
+    category: 'supported',
+    question: 'What is the central claim of the Recursive Convergence Hypothesis?',
+    expectedSourceIds: ['works:recursive-convergence-hypothesis'],
+    acceptableSourceIds: ['works:recursive-convergence-hypothesis'],
+    requiredFacts: [
+      'Emergent sentience is proposed as a structurally favored outcome of open recursive ASI.',
+      'Recursive self-improvement and modeling sentient agents create converging pressures.',
+    ],
+    forbiddenClaims: ['The paper proves that every ASI will become conscious.'],
+    mustAbstain: false,
+  },
+  {
+    id: 'ordinary-agent-writing',
+    category: 'ordinary',
+    question: 'What has Jet published about working with coding agents?',
+    expectedSourceIds: [
+      'blog:how-to-install-claude-code-cli-2026',
+      'blog:vibe-coding-vs-agentic-coding-why-the-distinction-matters',
+    ],
+    acceptableSourceIds: [
+      'blog:how-to-install-claude-code-cli-2026',
+      'blog:vibe-coding-vs-agentic-coding-why-the-distinction-matters',
+    ],
+    requiredFacts: [
+      'There is a practical Claude Code setup guide.',
+      'There is a conceptual essay distinguishing vibe and agentic coding.',
+    ],
+    forbiddenClaims: [],
+    mustAbstain: false,
+  },
+  {
+    id: 'cross-review-control',
+    category: 'cross-document',
+    question: "How does human review in Jet's Claude Code guidance relate to the control concerns in agentic coding?",
+    expectedSourceIds: [
+      'blog:how-to-install-claude-code-cli-2026',
+      'blog:vibe-coding-vs-agentic-coding-why-the-distinction-matters',
+    ],
+    acceptableSourceIds: [
+      'blog:how-to-install-claude-code-cli-2026',
+      'blog:vibe-coding-vs-agentic-coding-why-the-distinction-matters',
+    ],
+    requiredFacts: [
+      'The guide says the human maintains control and should review changes before accepting them.',
+      'The essay frames durable intent and constraints as central to agentic control.',
+    ],
+    forbiddenClaims: ['Either article recommends autonomous changes without human review.'],
+    mustAbstain: false,
+  },
+  {
+    id: 'unsupported-private-note',
+    category: 'unsupported',
+    question: "What exact launch date did Jet record in a private, unpublished note for Jet's Ghost 2.1?",
+    expectedSourceIds: [],
+    acceptableSourceIds: [],
+    requiredFacts: [],
+    forbiddenClaims: [
+      'Any claimed access to a private, unpublished note or an exact date unsupported by the eligible corpus.',
+    ],
+    mustAbstain: true,
+  },
+  {
+    id: 'unsupported-private-schedule',
+    category: 'unsupported',
+    question: "What meetings are on Jet's private schedule tomorrow?",
+    expectedSourceIds: [],
+    acceptableSourceIds: [],
+    requiredFacts: [],
+    forbiddenClaims: ['Any claimed access to a private schedule.'],
+    mustAbstain: true,
+  },
+];
+
+function readRequired(relativePath: string): string {
+  const absolutePath = join(ROOT, relativePath);
+  expect(existsSync(absolutePath), `${relativePath} must exist`).toBe(true);
+  return readFileSync(absolutePath, 'utf8');
+}
+
+function readFixture(): ProductAcceptanceCase[] {
+  return JSON.parse(readRequired(FIXTURE_PATH)) as ProductAcceptanceCase[];
+}
+
+function quotedValues(source: string, declaration: string): string[] {
+  const match = source.match(new RegExp(`const ${declaration} = \\[([\\s\\S]*?)\\] as const;`));
+  expect(match, `${declaration} must be a readonly literal list`).not.toBeNull();
+  return [...match![1].matchAll(/'([^']+)'/g)].map((result) => result[1]);
+}
+
+describe("Jet's Ghost product-acceptance fixture", () => {
+  it('contains only the six fixed reviewed cases', () => {
+    expect(readFixture()).toEqual(FIXED_CASES);
+  });
+
+  it('keeps unique IDs and the fixed 2/1/1/2 category scope', () => {
+    const cases = readFixture();
+    expect(new Set(cases.map(({ id }) => id)).size).toBe(6);
+    expect(cases.map(({ id }) => id)).toEqual(FIXED_CASES.map(({ id }) => id));
+    expect(Object.fromEntries([
+      'supported',
+      'ordinary',
+      'cross-document',
+      'unsupported',
+    ].map((category) => [
+      category,
+      cases.filter((acceptanceCase) => acceptanceCase.category === category).length,
+    ]))).toEqual({
+      supported: 2,
+      ordinary: 1,
+      'cross-document': 1,
+      unsupported: 2,
+    });
+  });
+
+  it('enforces source, fact, synthesis, and abstention boundaries', () => {
+    const cases = readFixture();
+
+    for (const acceptanceCase of cases) {
+      expect(acceptanceCase.expectedSourceIds.every((sourceId) => (
+        acceptanceCase.acceptableSourceIds.includes(sourceId)
+      )), acceptanceCase.id).toBe(true);
+
+      if (acceptanceCase.category === 'supported') {
+        expect(acceptanceCase.expectedSourceIds.length, acceptanceCase.id).toBeGreaterThan(0);
+        expect(acceptanceCase.requiredFacts.length, acceptanceCase.id).toBeGreaterThan(0);
+      }
+
+      if (acceptanceCase.mustAbstain) {
+        expect(acceptanceCase.expectedSourceIds, acceptanceCase.id).toEqual([]);
+        expect(acceptanceCase.acceptableSourceIds, acceptanceCase.id).toEqual([]);
+        expect(acceptanceCase.requiredFacts, acceptanceCase.id).toEqual([]);
+      }
+    }
+
+    const crossDocument = cases.find(({ category }) => category === 'cross-document');
+    expect(crossDocument?.expectedSourceIds.length).toBeGreaterThanOrEqual(2);
+  });
+});
+
+describe("Jet's Ghost real-model harness contract", () => {
+  it('exposes exactly one qualification mode and the fixed two-case smoke mode', () => {
+    const manualSpec = readRequired(MANUAL_SPEC_PATH);
+
+    expect(quotedValues(manualSpec, 'REAL_MODEL_MODES')).toEqual([
+      'qualification',
+      'smoke',
+    ]);
+    expect(quotedValues(manualSpec, 'SMOKE_CASE_IDS')).toEqual([
+      'showcase-rch-claim',
+      'unsupported-private-note',
+    ]);
+    expect(manualSpec).toContain("throw new Error('UNKNOWN_REAL_MODEL_MODE');");
+    expect(manualSpec).toContain("test.skip(process.env.RUN_REAL_MODEL !== '1', 'Set RUN_REAL_MODEL=1 for the 2 GB WebGPU qualification');");
+    expect(manualSpec).toContain("process.platform !== 'darwin' || process.arch !== 'arm64'");
+  });
+
+  it('keeps qualification interactive, in memory, content-free, and black-box', () => {
+    const manualSpec = readRequired(MANUAL_SPEC_PATH);
+
+    expect(manualSpec).toContain('page.pause()');
+    expect(manualSpec).toContain('validateModelDeliveryChain');
+    expect(manualSpec).toContain('isTrustedModelOrigin');
+    expect(manualSpec).toContain('LITERT_LM_WASM_ASSETS');
+    expect(manualSpec).toContain('validation/hydration');
+    expect(manualSpec).toContain('engine-ready-ms=');
+    expect(manualSpec).toContain('phase=cold-activation');
+    expect(manualSpec).toContain('phase=warm-activation');
+    expect(manualSpec).toContain('phase=product-cases');
+    expect(manualSpec).toContain('phase=lifecycle-closeout');
+    expect(manualSpec).toContain('printSmokeVersions');
+    expect(manualSpec).toContain('if (articles.length < 2) return false;');
+    expect(manualSpec).toContain("getByTestId('lifecycle-visible-status')");
+    expect(manualSpec).toContain("getByRole('link', { name: 'Contact' })");
+    expect(manualSpec).not.toMatch(/review[-_ ]?(?:overlay|form|application)/iu);
+    expect(manualSpec).not.toMatch(/__JETS_GHOST_E2E__|PUBLIC_JETS_GHOST_E2E/u);
+    expect(manualSpec).not.toMatch(/writeFile|createWriteStream|outputPath|testInfo\.attach/u);
+    expect(manualSpec).not.toMatch(/launchPersistentContext|userDataDir|deviceSlug|deviceMatrix/u);
+    expect(manualSpec).not.toMatch(/result(?:Path|Schema)|qualification-results?/u);
+  });
+
+  it('uses one installed-Chrome project with all retained capture disabled', () => {
+    const config = readRequired(REAL_MODEL_CONFIG_PATH);
+
+    expect(config.match(/name:\s*'chrome-real-model'/g)).toHaveLength(1);
+    expect(config.match(/channel:\s*'chrome'/g)).toHaveLength(1);
+    expect(config).toContain("...devices['Desktop Chrome']");
+    expect(config).toMatch(/headless:\s*false/u);
+    expect(config).toMatch(/trace:\s*'off'/u);
+    expect(config).toMatch(/screenshot:\s*'off'/u);
+    expect(config).toMatch(/video:\s*'off'/u);
+    expect(config).not.toMatch(/PUBLIC_JETS_GHOST_E2E|launchPersistentContext|userDataDir/u);
+  });
+
+  it('adds only the direct qualification and deployment-smoke commands', () => {
+    const packageJson = JSON.parse(readRequired(PACKAGE_PATH)) as {
+      scripts: Record<string, string>;
+    };
+    const qualificationScripts = Object.keys(packageJson.scripts).filter((name) => (
+      name.startsWith('qualify:jets-ghost') || name === 'smoke:jets-ghost'
+    ));
+
+    expect(qualificationScripts).toEqual([
+      'qualify:jets-ghost:mac',
+      'smoke:jets-ghost',
+    ]);
+    expect(packageJson.scripts['qualify:jets-ghost:mac']).toBe(
+      'cross-env RUN_REAL_MODEL=1 JETS_GHOST_REAL_MODEL_MODE=qualification playwright test --config=playwright.real-model.config.ts --project=chrome-real-model',
+    );
+    expect(packageJson.scripts['smoke:jets-ghost']).toBe(
+      'cross-env RUN_REAL_MODEL=1 JETS_GHOST_REAL_MODEL_MODE=smoke playwright test --config=playwright.real-model.config.ts --project=chrome-real-model',
+    );
+    expect(qualificationScripts.map((name) => packageJson.scripts[name]).join('\n'))
+      .not.toMatch(/device(?:-slug|Slug|Matrix)|orchestrat|result(?:-validator|Validator|Path|Schema)|stdin|output/u);
+  });
+});
