@@ -605,7 +605,7 @@ export default function JetsGhostExperience({
       onKeyDownCapture={handleInteractionKeyDownCapture}
     >
       <header className="jets-ghost-header relative z-10 flex items-center justify-between gap-s px-gutter">
-        <div className="flex min-w-0 items-center gap-xs">
+        <div className="flex min-w-0 items-start gap-xs">
           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-border-default bg-surface-base text-brand-base shadow-sm">
             <Ghost aria-hidden="true" size={24} strokeWidth={1.8} />
           </span>
@@ -1022,7 +1022,7 @@ function LifecycleStatus({ status }: { status: JetsGhostLifecycleStatus }) {
       className="inline-flex w-fit shrink-0 items-center gap-2xs text-xs font-medium text-text-secondary"
     >
       <span className={`h-2 w-2 shrink-0 rounded-full ${dotColor}`} />
-      <span className="relative grid h-4">
+      <span className="relative grid">
         {prefersReducedMotion ? (
           <span
             data-testid="lifecycle-visual-label"

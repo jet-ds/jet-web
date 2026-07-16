@@ -166,8 +166,8 @@ test('content-sized lifecycle status stays with the identity while actions remai
   );
   assert.match(statusSource, /<AnimatePresence initial={false} mode="popLayout">/);
   assert.match(statusSource, /key={compactLabel}/);
-  assert.match(statusSource, /<span className="relative grid h-4">/);
-  assert.doesNotMatch(statusSource, /overflow-hidden/);
+  assert.match(statusSource, /<span className="relative grid">/);
+  assert.doesNotMatch(statusSource, /<span className="relative grid [^"]*(?:overflow-hidden|h-(?:\[|\d))/);
   assert.match(
     statusSource,
     /className="col-start-1 row-start-1 flex items-center whitespace-nowrap motion-reduce:transition-none"/,
@@ -205,6 +205,7 @@ test('canonical docs require a chrome-free status group and no capsule or pill t
     assert.match(source, /actions[^.]*stable/i);
     assert.match(source, /outgoing label[^.]*intrinsic layout[^.]*immediately/i);
     assert.match(source, /current label[^.]*normal flow[^.]*width/i);
+    assert.match(source, /48px[^.]*24px[^.]*top-aligns[^.]*three-line identity stack/i);
     assert.match(source, /keyboard hint/i);
     assert.match(source, /Local only/);
   }

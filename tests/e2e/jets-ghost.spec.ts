@@ -208,6 +208,25 @@ function expectStableBox(before: Box, after: Box, tolerance = 1): void {
   }
 }
 
+async function expectLifecycleLabelContained(page: Page, expectedLabel: string): Promise<void> {
+  const label = currentStatusLabel(page);
+  const status = page.getByTestId('lifecycle-visible-status');
+  const header = page.locator('.jets-ghost-header');
+  await expect(label).toHaveText(expectedLabel);
+  await page.waitForTimeout(220);
+  await expect(page.getByTestId('lifecycle-visual-label')).toHaveCount(1);
+
+  const [labelBox, statusBox, headerBox] = await Promise.all([
+    boxOf(label),
+    boxOf(status),
+    boxOf(header),
+  ]);
+  expect(labelBox.y).toBeGreaterThanOrEqual(statusBox.y - 1);
+  expect(labelBox.y + labelBox.height).toBeLessThanOrEqual(statusBox.y + statusBox.height + 1);
+  expect(statusBox.y).toBeGreaterThanOrEqual(headerBox.y - 1);
+  expect(statusBox.y + statusBox.height).toBeLessThanOrEqual(headerBox.y + headerBox.height + 1);
+}
+
 async function renderedContrastRatio(locator: Locator): Promise<number> {
   return locator.evaluate((element) => {
     const readColor = (color: string): [number, number, number, number] => {
@@ -801,7 +820,7 @@ test.describe("Jet's Ghost supported lifecycle", () => {
 
     for (const viewport of viewports) {
       await page.setViewportSize(viewport);
-      await startFakeAssistant(page);
+      const composer = await startFakeAssistant(page, 'long-stream');
 
       const header = page.locator('.jets-ghost-header');
       const identityGroup = header.locator(':scope > div').first();
@@ -811,16 +830,21 @@ test.describe("Jet's Ghost supported lifecycle", () => {
       const licenses = metadata.getByRole('link', { name: /licenses/i });
       const status = page.getByTestId('lifecycle-visible-status');
       const actionGroup = page.getByTestId('jets-ghost-header-actions');
-      const [headerBox, identityGroupBox, metadataBox, statusBox, actionBox] = await Promise.all([
+      const newSession = page.getByRole('button', { name: /New session|Start a new session/ });
+      const unload = page.getByRole('button', { name: /Unload/ });
+      const [headerBox, identityGroupBox, metadataBox, statusBox, actionBox, readyNewSessionBox, readyUnloadBox] = await Promise.all([
         boxOf(header),
         boxOf(identityGroup),
         boxOf(metadata),
         boxOf(status),
         boxOf(actionGroup),
+        boxOf(newSession),
+        boxOf(unload),
       ]);
 
       await expect(version).toHaveText(/^jet-web \d+\.\d+\.\d+$/);
       await expect(licenses).toBeVisible();
+      await expectLifecycleLabelContained(page, 'Ready');
       expect(statusBox.x).toBeCloseTo(metadataBox.x, 0);
       expect(statusBox.y).toBeGreaterThanOrEqual(metadataBox.y + metadataBox.height);
       expect(statusBox.y + statusBox.height).toBeLessThanOrEqual(headerBox.y + headerBox.height + 1);
@@ -828,6 +852,60 @@ test.describe("Jet's Ghost supported lifecycle", () => {
       expect(await page.evaluate(() => (
         document.documentElement.scrollWidth - document.documentElement.clientWidth
       ))).toBe(0);
+
+      await composer.fill('What does Jet write about agentic work?');
+      await page.getByRole('button', { name: 'Send message' }).click();
+      await expectLifecycleLabelContained(page, 'Responding');
+      const [respondingHeaderBox, respondingIdentityBox, respondingActionBox, respondingNewSessionBox, respondingUnloadBox] = await Promise.all([
+        boxOf(header),
+        boxOf(identityGroup),
+        boxOf(actionGroup),
+        boxOf(newSession),
+        boxOf(unload),
+      ]);
+      expectStableBox(readyNewSessionBox, respondingNewSessionBox);
+      expectStableBox(readyUnloadBox, respondingUnloadBox);
+      expect(respondingIdentityBox.x + respondingIdentityBox.width)
+        .toBeLessThanOrEqual(respondingActionBox.x + 1);
+      expect(respondingActionBox.x + respondingActionBox.width)
+        .toBeLessThanOrEqual(respondingHeaderBox.x + respondingHeaderBox.width + 1);
+      expect(await page.evaluate(() => (
+        document.documentElement.scrollWidth - document.documentElement.clientWidth
+      ))).toBe(0);
+    }
+  });
+
+  test('contains every compact lifecycle label inside the status and header', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium');
+    for (const viewport of [
+      { width: 320, height: 800 },
+      { width: 430, height: 932 },
+      { width: 768, height: 1024 },
+      { width: 1280, height: 800 },
+    ]) {
+      await page.setViewportSize(viewport);
+
+      await page.goto(fakePath());
+      await expectLifecycleLabelContained(page, 'Not running');
+
+      await page.goto(fakePath('checking'));
+      await page.getByRole('button', { name: 'Check compatibility' }).click();
+      await expectLifecycleLabelContained(page, 'Checking');
+
+      await page.goto(fakePath());
+      await page.getByRole('button', { name: 'Check compatibility' }).click();
+      await expectLifecycleLabelContained(page, 'Load ready');
+
+      await page.goto(fakePath('loading'));
+      await page.getByRole('button', { name: 'Check compatibility' }).click();
+      await page.getByRole('button', { name: /Load Jet's Ghost/ }).click();
+      await expectLifecycleLabelContained(page, 'Loading');
+
+      const composer = await startFakeAssistant(page, 'long-stream');
+      await expectLifecycleLabelContained(page, 'Ready');
+      await composer.fill('What does Jet write about agentic work?');
+      await page.getByRole('button', { name: 'Send message' }).click();
+      await expectLifecycleLabelContained(page, 'Responding');
     }
   });
 
@@ -859,8 +937,10 @@ test.describe("Jet's Ghost supported lifecycle", () => {
       expect(glyphBox.width).toBeCloseTo(glyphBox.height, 1);
       expect(glyphBox.width).toBeCloseTo(24, 1);
       expect(glyphBox.width / iconBox.width).toBeCloseTo(0.5, 2);
-      expect(iconBox.height / identityBox.height).toBeGreaterThanOrEqual(0.7);
-      expect(iconBox.height / identityBox.height).toBeLessThan(0.8);
+      expect(Math.abs(iconBox.y - identityBox.y)).toBeLessThanOrEqual(1);
+      expect(await page.evaluate(() => (
+        document.documentElement.scrollWidth - document.documentElement.clientWidth
+      ))).toBe(0);
     }
   });
 });
