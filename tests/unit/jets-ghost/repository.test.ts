@@ -141,7 +141,7 @@ describe('StaticKnowledgeRepository', () => {
     ['index corpus version', (value: Fixture) => { value.index.corpusVersion = 'stale'; }, false],
     ['content byte hash', (value: Fixture) => { value.manifest.contentSha256 = '0'.repeat(64); }, true],
     ['index byte hash', (value: Fixture) => { value.manifest.indexSha256 = '0'.repeat(64); }, true],
-    ['index config version', (value: Fixture) => { value.index.indexConfigVersion = 'stale' as '1.0.0'; }, false],
+    ['index config version', (value: Fixture) => { value.index.indexConfigVersion = 'stale' as '1.1.0'; }, false],
     ['MiniSearch version', (value: Fixture) => { value.index.miniSearchVersion = 'stale' as '7.2.0'; }, false],
     ['stemmer version', (value: Fixture) => { value.index.stemmerVersion = 'stale' as '2.0.1'; }, false],
     ['indexed count', (value: Fixture) => { value.manifest.indexedChunkCount += 1; }, false],

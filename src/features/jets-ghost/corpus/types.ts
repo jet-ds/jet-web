@@ -68,7 +68,7 @@ export interface CorpusStatistics {
 
 export interface SearchIndexArtifact {
   corpusVersion: string;
-  indexConfigVersion: '1.0.0';
+  indexConfigVersion: '1.1.0';
   miniSearchVersion: '7.2.0';
   stemmerVersion: '2.0.1';
   chunkCount: number;
@@ -90,7 +90,7 @@ export interface CorpusManifest {
   sourceCommit: string;
   contentSha256: string;
   indexSha256: string;
-  indexConfigVersion: '1.0.0';
+  indexConfigVersion: '1.1.0';
   miniSearchVersion: '7.2.0';
   stemmerVersion: '2.0.1';
   indexedChunkCount: number;

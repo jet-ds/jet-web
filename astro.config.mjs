@@ -7,6 +7,8 @@ import tailwind from '@astrojs/tailwind';
 import sitemap from '@astrojs/sitemap';
 import partytown from '@astrojs/partytown';
 
+const isProduction = process.env.VERCEL_ENV === 'production';
+
 // https://astro.build/config
 export default defineConfig({
   site: 'https://jetsanchez.com',
@@ -20,7 +22,7 @@ export default defineConfig({
     sitemap({
       filter: (page) => {
         const pathname = new URL(page).pathname.replace(/\/$/, '') || '/';
-        return pathname !== '/chatbot'
+        return (isProduction || pathname !== '/chatbot')
           && pathname !== '/tools'
           && !pathname.startsWith('/tools/');
       },

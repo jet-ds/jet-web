@@ -8,7 +8,7 @@ import type {
   SearchIndexArtifact,
 } from '../corpus/types';
 
-export const INDEX_CONFIG_VERSION = '1.0.0' as const;
+export const INDEX_CONFIG_VERSION = '1.1.0' as const;
 export const MINISEARCH_VERSION = '7.2.0' as const;
 export const STEMMER_VERSION = '2.0.1' as const;
 
@@ -24,7 +24,7 @@ export const MINISEARCH_OPTIONS = {
   storeFields: ['id'],
   processTerm: (term: string) => {
     const normalized = normalizeCanonicalString(term).toLowerCase();
-    return STOP_WORDS.has(normalized) ? null : stemmer(normalized);
+    return normalized.length < 2 || STOP_WORDS.has(normalized) ? null : stemmer(normalized);
   },
   searchOptions: {
     boost: {

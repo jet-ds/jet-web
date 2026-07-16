@@ -587,9 +587,13 @@ test('immersive chat layout uses Utopia type and spacing tokens', () => {
   assert.match(canonicalRouteSource, /var\(--space-xl\)/);
 });
 
-test('canonical route owns qualification metadata while Tools stays dormant', () => {
+test('canonical route owns target-gated metadata while Tools stays dormant', () => {
   assert.match(canonicalRouteSource, /canonicalURL="https:\/\/jetsanchez\.com\/chatbot\/"/);
-  assert.match(canonicalRouteSource, /noindex={true}/);
+  assert.match(
+    canonicalRouteSource,
+    /const noindex = process\.env\.VERCEL_ENV !== 'production';/,
+  );
+  assert.match(canonicalRouteSource, /noindex={noindex}/);
   assert.match(canonicalRouteSource, /mainEntityId="https:\/\/jetsanchez\.com\/chatbot\/#softwareapplication"/);
   assert.match(canonicalRouteSource, /type="software"/);
   assert.match(canonicalRouteSource, /id="https:\/\/jetsanchez\.com\/chatbot\/#softwareapplication"/);

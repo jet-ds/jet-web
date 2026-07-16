@@ -427,7 +427,7 @@ describe('deterministic MiniSearch rank and pack', () => {
     expect(result).toMatchObject({
       pipeline: 'minisearch-rank-pack',
       indexSha256: INDEX_SHA,
-      indexConfigVersion: '1.0.0',
+      indexConfigVersion: '1.1.0',
       miniSearchVersion: '7.2.0',
       stemmerVersion: '2.0.1',
       corpusVersion: CORPUS_VERSION,

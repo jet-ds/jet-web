@@ -6,6 +6,7 @@ import packageJson from '../../package.json';
 
 const title = "Jet's Ghost: Local-First AI Assistant";
 const description = "Chat with Jet's published writing, research, and projects using a local-first AI assistant in compatible WebGPU browsers.";
+const noindex = process.env.VERCEL_ENV !== 'production';
 ---
 
 <BaseLayout
@@ -13,7 +14,7 @@ const description = "Chat with Jet's published writing, research, and projects u
   description={description}
   canonicalURL="https://jetsanchez.com/chatbot/"
   mainEntityId="https://jetsanchez.com/chatbot/#softwareapplication"
-  noindex={true}
+  noindex={noindex}
   immersive
 >
   <StructuredData

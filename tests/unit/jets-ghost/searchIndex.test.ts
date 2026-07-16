@@ -178,6 +178,16 @@ describe('deterministic MiniSearch artifact', () => {
     expect(index.search('retr')).toEqual([]);
   });
 
+  it('drops one-character possessive and version fragments while retaining meaningful terms', () => {
+    const processTerm = MINISEARCH_OPTIONS.processTerm;
+
+    expect(processTerm('s')).toBeNull();
+    expect(processTerm('2')).toBeNull();
+    expect(processTerm('1')).toBeNull();
+    expect(processTerm('AI')).toBe('ai');
+    expect(processTerm('record')).toBe('record');
+  });
+
   it('hydrates with the exact checked-in options', async () => {
     const fixture = buildFixture();
     const implementation = MiniSearch.loadJSAsync.bind(MiniSearch);
@@ -202,7 +212,7 @@ describe('deterministic MiniSearch artifact', () => {
   });
 
   it('pins the evaluated index dependency versions', () => {
-    expect(INDEX_CONFIG_VERSION).toBe('1.0.0');
+    expect(INDEX_CONFIG_VERSION).toBe('1.1.0');
     expect(MINISEARCH_VERSION).toBe('7.2.0');
     expect(STEMMER_VERSION).toBe('2.0.1');
   });

@@ -53,7 +53,7 @@ function selection(sources: SelectedSource[]): SelectionResult {
   return {
     pipeline: 'minisearch-rank-pack',
     indexSha256: 'd'.repeat(64),
-    indexConfigVersion: '1.0.0',
+    indexConfigVersion: '1.1.0',
     miniSearchVersion: '7.2.0',
     stemmerVersion: '2.0.1',
     corpusVersion: 'c'.repeat(64),
@@ -125,7 +125,12 @@ describe('grounded prompt assembly', () => {
     expect(systemContent).toMatch(/only.*supplied sources/i);
     expect(systemContent).toMatch(/\[S#\]/);
     expect(systemContent).toMatch(/published claims.*synthesis/i);
-    expect(systemContent).toMatch(/not supported.*say so|say.*not supported/i);
+    expect(systemContent).toMatch(/not supported.*begin exactly/iu);
+    expect(systemContent).toContain(
+      `I don't have support for that in the supplied sources.`,
+    );
+    expect(systemContent).toMatch(/begin exactly.*I don't have support/iu);
+    expect(systemContent).toMatch(/multiple works.*cite each work/iu);
     expect(result.selectedSources).toEqual([adversarial]);
     expect(result.diagnostics.knowledgeTokens).toBe(sourcePayload.estimatedTokens);
   });

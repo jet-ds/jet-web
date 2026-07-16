@@ -54,7 +54,7 @@ export interface SelectionDiagnostics {
 export interface SelectionResult {
   pipeline: 'minisearch-rank-pack';
   indexSha256: string;
-  indexConfigVersion: '1.0.0';
+  indexConfigVersion: '1.1.0';
   miniSearchVersion: '7.2.0';
   stemmerVersion: '2.0.1';
   corpusVersion: string;

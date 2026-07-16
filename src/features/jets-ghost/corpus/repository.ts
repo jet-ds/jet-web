@@ -32,7 +32,7 @@ export interface LoadedKnowledgeBase {
   chunksById: ReadonlyMap<ChunkId, KnowledgeChunk>;
   neighborsByChunkId: ReadonlyMap<ChunkId, { previous?: ChunkId; next?: ChunkId }>;
   indexSha256: string;
-  indexConfigVersion: '1.0.0';
+  indexConfigVersion: '1.1.0';
   miniSearchVersion: '7.2.0';
   stemmerVersion: '2.0.1';
 }

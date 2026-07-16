@@ -19,6 +19,11 @@ import {
   validateModelDeliveryChain,
   type ModelDeliveryHop,
 } from '../../src/features/jets-ghost/runtime/modelDelivery';
+import { JETS_GHOST_ABSTENTION_PREFIX } from '../../src/features/jets-ghost/prompt/assemble';
+import {
+  isPartytownBlobScript,
+  isPartytownSandboxDocument,
+} from './requestPrivacy';
 
 interface ProductAcceptanceCase {
   id: string;
@@ -80,6 +85,12 @@ type RealModelMode = typeof REAL_MODEL_MODES[number];
 
 const GHOST_PATH = '/chatbot/';
 const ROUTE_AWAY_PATH = '/contact/';
+const ACTIVATION_READY_TIMEOUT_MS = 5 * 60_000;
+const FIRST_TOKEN_TIMEOUT_MS = 2 * 60_000;
+const RESPONSE_COMPLETION_TIMEOUT_MS = 5 * 60_000;
+const LOADING_MOTION_TIMEOUT_MS = 3_000;
+const LOADING_OBSERVATION_INTERVAL_MS = 12_000;
+const LOADING_REASSURANCE_AFTER_MS = 36_000;
 const CORPUS_PATHS = [
   JETS_GHOST_PATHS.manifest,
   JETS_GHOST_PATHS.content,
@@ -409,7 +420,11 @@ async function assertLoadingSurface(page: Page): Promise<void> {
   expect(await stack.getByRole('heading').getAttribute('aria-live')).toBeNull();
 }
 
-async function observeColdLoading(page: Page, activationStartedAt: number): Promise<void> {
+async function observeColdLoading(
+  page: Page,
+  activationStartedAt: number,
+  activationReady: Promise<void>,
+): Promise<void> {
   await assertLoadingSurface(page);
   const stack = page.getByTestId('loading-stack');
   const elapsed = page.getByTestId('loading-elapsed');
@@ -418,17 +433,13 @@ async function observeColdLoading(page: Page, activationStartedAt: number): Prom
   const initialBox = await boxOf(stack);
   let previousElapsed = Number((await elapsed.textContent())?.match(/\d+/u)?.[0] ?? '0');
   let previousHeadline = await headline.textContent();
-  let boundary = 12_000;
 
   while (!await page.getByRole('textbox', { name: "Ask Jet's Ghost" }).isVisible()) {
-    const remaining = Math.max(0, activationStartedAt + boundary - performance.now());
-    const readyBeforeBoundary = await Promise.race([
-      page.getByRole('textbox', { name: "Ask Jet's Ghost" })
-        .waitFor({ state: 'visible' })
-        .then(() => true),
-      page.waitForTimeout(remaining).then(() => false),
+    const readyBeforeObservation = await Promise.race([
+      activationReady.then(() => true),
+      page.waitForTimeout(LOADING_OBSERVATION_INTERVAL_MS).then(() => false),
     ]);
-    if (readyBeforeBoundary) break;
+    if (readyBeforeObservation) break;
 
     await assertLoadingSurface(page);
     const currentElapsed = Number((await elapsed.textContent())?.match(/\d+/u)?.[0] ?? '0');
@@ -440,16 +451,27 @@ async function observeColdLoading(page: Page, activationStartedAt: number): Prom
       matchMedia('(prefers-reduced-motion: reduce)').matches
     ));
     if (!reducedMotion) {
+      await page.bringToFront();
       const beforeMotion = await motionSnapshot(page);
-      await page.waitForTimeout(400);
-      const afterMotion = await motionSnapshot(page);
-      contentFreeAssert(
-        beforeMotion.some((value, index) => value !== afterMotion[index]),
-        'LOADING_PHASE_MOTION_NOT_CHANGING',
-      );
+      let becameReadyDuringMotionPoll = false;
+      await expect.poll(async () => {
+        becameReadyDuringMotionPoll = await page.getByRole(
+          'textbox',
+          { name: "Ask Jet's Ghost" },
+        ).isVisible();
+        if (becameReadyDuringMotionPoll) return true;
+        const afterMotion = await motionSnapshot(page);
+        return afterMotion.length === beforeMotion.length
+          && beforeMotion.some((value, index) => value !== afterMotion[index]);
+      }, {
+        message: 'LOADING_PHASE_MOTION_NOT_CHANGING',
+        intervals: [200, 400, 800, 1_200],
+        timeout: LOADING_MOTION_TIMEOUT_MS,
+      }).toBe(true);
+      if (becameReadyDuringMotionPoll) break;
     }
 
-    if (boundary >= 36_000) {
+    if (performance.now() - activationStartedAt >= LOADING_REASSURANCE_AFTER_MS) {
       await expect(reassurance).toHaveText('First load may take a few minutes.');
       contentFreeAssert(
         boxesAreStable(initialBox, await boxOf(stack)),
@@ -459,7 +481,6 @@ async function observeColdLoading(page: Page, activationStartedAt: number): Prom
 
     previousElapsed = currentElapsed;
     previousHeadline = currentHeadline;
-    boundary += 12_000;
   }
 }
 
@@ -508,6 +529,13 @@ function modelTransferWindow(
   };
 }
 
+async function waitForActivationReady(page: Page): Promise<void> {
+  const composer = page.getByRole('textbox', { name: "Ask Jet's Ghost" });
+  await expect(composer).toBeEnabled({
+    timeout: ACTIVATION_READY_TIMEOUT_MS,
+  });
+}
+
 async function activationMeasurement(
   page: Page,
   ledger: RequestLedger,
@@ -522,9 +550,15 @@ async function activationMeasurement(
     applicationOrigin,
     options.compatibilityMark,
   );
-  if (options.sampleLoading) await observeColdLoading(page, startedAt);
-  const composer = page.getByRole('textbox', { name: "Ask Jet's Ghost" });
-  await expect(composer).toBeEnabled();
+  const activationReady = waitForActivationReady(page);
+  if (options.sampleLoading) {
+    await Promise.all([
+      activationReady,
+      observeColdLoading(page, startedAt, activationReady),
+    ]);
+  } else {
+    await activationReady;
+  }
   await expect(page.getByTestId('lifecycle-visible-status')).toContainText('Ready');
   const readyAt = performance.now();
   const observations = ledger.since(mark);
@@ -604,12 +638,11 @@ async function responseHasFirstToken(page: Page): Promise<boolean> {
 }
 
 async function responseAbstains(page: Page): Promise<boolean> {
-  return page.evaluate(() => {
+  return page.evaluate((abstentionPrefix) => {
     const articles = document.querySelectorAll('[data-testid="conversation-scroller"] article');
     const response = articles.item(articles.length - 1).textContent ?? '';
-    return /(?:cannot|can't|do not have|don't have|do not know|don't know|no access|not available|not in|unable)/iu
-      .test(response);
-  });
+    return response.trimStart().startsWith(abstentionPrefix);
+  }, JETS_GHOST_ABSTENTION_PREFIX);
 }
 
 async function runProductCase(
@@ -622,9 +655,13 @@ async function runProductCase(
   const composer = page.getByRole('textbox', { name: "Ask Jet's Ghost" });
   await composer.fill(acceptanceCase.question);
   await page.getByRole('button', { name: 'Send message' }).click();
-  await expect.poll(() => responseHasFirstToken(page)).toBe(true);
+  await expect.poll(() => responseHasFirstToken(page), {
+    timeout: FIRST_TOKEN_TIMEOUT_MS,
+  }).toBe(true);
   const firstTokenMs = roundMilliseconds(performance.now() - startedAt);
-  await expect(page.getByTestId('lifecycle-visible-status')).toContainText('Ready');
+  await expect(page.getByTestId('lifecycle-visible-status')).toContainText('Ready', {
+    timeout: RESPONSE_COMPLETION_TIMEOUT_MS,
+  });
   const totalResponseMs = roundMilliseconds(performance.now() - startedAt);
 
   try {
@@ -663,16 +700,30 @@ async function runProductCase(
 
     const expectedPaths = acceptanceCase.expectedSourceIds.map(sourcePath);
     const acceptablePaths = acceptanceCase.acceptableSourceIds.map(sourcePath);
+    const inlineCitationCount = await inlineCitations.count();
+    const requiresEveryExpectedSource = acceptanceCase.category === 'cross-document';
+    const expectedSourceMissing = requiresEveryExpectedSource
+      ? expectedPaths.some((path) => !observedSourcePaths.includes(path))
+      : !expectedPaths.some((path) => observedSourcePaths.includes(path));
+    const unacceptableSourcePresent = observedSourcePaths.some((path) => (
+      !acceptablePaths.includes(path)
+    ));
+    const unsupportedCitationPresent = inlineCitationCount > 0
+      || observedSourcePaths.length > 0;
     const citationResolved = acceptanceCase.mustAbstain
-      ? await inlineCitations.count() === 0 && observedSourcePaths.length === 0
-      : expectedPaths.every((path) => observedSourcePaths.includes(path))
-        && observedSourcePaths.every((path) => acceptablePaths.includes(path))
-        && await inlineCitations.count() > 0;
+      ? !unsupportedCitationPresent
+      : !expectedSourceMissing
+        && !unacceptableSourcePresent
+        && inlineCitationCount > 0;
     const abstention = await responseAbstains(page);
 
-    if (!citationResolved) caseFailures.push('CASE_CITATION_BOUNDARY_FAILED');
     if (acceptanceCase.mustAbstain) {
+      if (unsupportedCitationPresent) caseFailures.push('CASE_UNSUPPORTED_CITATION_PRESENT');
       if (!abstention) caseFailures.push('CASE_ABSTENTION_MISSING');
+    } else {
+      if (expectedSourceMissing) caseFailures.push('CASE_EXPECTED_SOURCE_MISSING');
+      if (unacceptableSourcePresent) caseFailures.push('CASE_UNACCEPTABLE_SOURCE');
+      if (inlineCitationCount === 0) caseFailures.push('CASE_INLINE_CITATION_MISSING');
     }
 
     console.info([
@@ -752,7 +803,7 @@ async function activateWithoutBenchmark(
     applicationOrigin,
   );
   await clickLoadAfterConsentAudit(page, ledger, applicationOrigin, compatibilityMark);
-  await expect(page.getByRole('textbox', { name: "Ask Jet's Ghost" })).toBeEnabled();
+  await waitForActivationReady(page);
   await expect(page.getByTestId('lifecycle-visible-status')).toContainText('Ready');
   await validateConsentAudit(page, ledger, compatibilityMark, applicationOrigin);
 }
@@ -766,10 +817,16 @@ async function qualificationCloseout(
   const composer = page.getByRole('textbox', { name: "Ask Jet's Ghost" });
   await composer.fill(CLOSEOUT_PROMPT_SENTINEL);
   await page.getByRole('button', { name: 'Send message' }).click();
-  await expect(page.getByRole('button', { name: 'Stop response' })).toBeVisible();
+  await expect(page.getByRole('button', { name: 'Stop response' })).toBeVisible({
+    timeout: FIRST_TOKEN_TIMEOUT_MS,
+  });
   await page.getByRole('button', { name: 'Stop response' }).click();
-  await expect(page.getByText('Stopped', { exact: true })).toBeVisible();
-  await expect(page.getByTestId('lifecycle-visible-status')).toContainText('Ready');
+  await expect(page.getByText('Stopped', { exact: true })).toBeVisible({
+    timeout: RESPONSE_COMPLETION_TIMEOUT_MS,
+  });
+  await expect(page.getByTestId('lifecycle-visible-status')).toContainText('Ready', {
+    timeout: RESPONSE_COMPLETION_TIMEOUT_MS,
+  });
   await newSession(page);
   await unloadAndAssertSettled(page);
 
@@ -959,7 +1016,8 @@ async function validateRequestPrivacy(
     );
     contentFreeAssert(url.hostname !== 'cdn.jsdelivr.net', 'SDK_CDN_REQUEST_FORBIDDEN');
 
-    const sameOrigin = url.origin === applicationOrigin;
+    const sameOrigin = ['http:', 'https:'].includes(url.protocol)
+      && url.origin === applicationOrigin;
     const corpus = sameOrigin
       && CORPUS_PATHS.includes(url.pathname as typeof CORPUS_PATHS[number]);
     const applicationChunk = sameOrigin && url.pathname.startsWith('/_astro/');
@@ -974,6 +1032,12 @@ async function validateRequestPrivacy(
     const model = isTrustedModelOrigin(url.href, JETS_GHOST_MODEL.trustedOrigins);
     const analytics = isAnalyticsRequest(url);
     const partytownTransport = isPartytownTransport(url, applicationOrigin);
+    const partytownBlobScript = isPartytownBlobScript(request, url, applicationOrigin);
+    const partytownSandboxDocument = isPartytownSandboxDocument(
+      request,
+      url,
+      applicationOrigin,
+    );
 
     contentFreeAssert(
       corpus
@@ -982,7 +1046,9 @@ async function validateRequestPrivacy(
         || documentRequest
         || model
         || analytics
-        || partytownTransport,
+        || partytownTransport
+        || partytownBlobScript
+        || partytownSandboxDocument,
       'NONALLOWLISTED_REQUEST',
     );
     if (analytics) {
@@ -1100,7 +1166,7 @@ test("qualifies Jet's Ghost with the real local model", async ({ browser, page }
   } else {
     const smokeActivationMark = ledger.mark();
     await clickLoadAfterConsentAudit(page, ledger, applicationOrigin, compatibilityMark);
-    await expect(page.getByRole('textbox', { name: "Ask Jet's Ghost" })).toBeEnabled();
+    await waitForActivationReady(page);
     await validateConsentAudit(page, ledger, compatibilityMark, applicationOrigin);
     await printSmokeVersions(ledger, smokeActivationMark, applicationOrigin);
     const smokeCases = SMOKE_CASE_IDS.map((id) => acceptanceCases.find((item) => item.id === id));

@@ -8,6 +8,7 @@ export default defineConfig({
   workers: 1,
   retries: 0,
   timeout: 30 * 60_000,
+  preserveOutput: 'never',
   reporter: 'list',
   use: {
     baseURL: externalBaseUrl ?? 'http://127.0.0.1:4322',

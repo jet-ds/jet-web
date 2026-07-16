@@ -16,6 +16,7 @@ interface ProductAcceptanceCase {
 const ROOT = process.cwd();
 const FIXTURE_PATH = 'tests/fixtures/jets-ghost/product-acceptance.json';
 const MANUAL_SPEC_PATH = 'tests/manual/jets-ghost-real-model.spec.ts';
+const REQUEST_PRIVACY_PATH = 'tests/manual/requestPrivacy.ts';
 const REAL_MODEL_CONFIG_PATH = 'playwright.real-model.config.ts';
 const PACKAGE_PATH = 'package.json';
 
@@ -240,6 +241,60 @@ describe("Jet's Ghost real-model harness contract", () => {
     expect(manualSpec).not.toContain("credentials: 'same-origin'");
   });
 
+  it('classifies only the exact non-network Partytown blob-script shape', () => {
+    const manualSpec = readRequired(MANUAL_SPEC_PATH);
+    const privacySource = readRequired(REQUEST_PRIVACY_PATH);
+
+    expect(manualSpec).toContain("from './requestPrivacy';");
+    expect(privacySource).toContain('export function isPartytownBlobScript');
+    expect(privacySource).toContain("url.protocol !== 'blob:'");
+    expect(privacySource).toContain("url.search !== ''");
+    expect(privacySource).toContain("url.hash !== ''");
+    expect(manualSpec).toContain('|| partytownBlobScript');
+  });
+
+  it('classifies only the exact same-origin Partytown sandbox document shape', () => {
+    const manualSpec = readRequired(MANUAL_SPEC_PATH);
+    const privacySource = readRequired(REQUEST_PRIVACY_PATH);
+
+    expect(privacySource).toContain('export function isPartytownSandboxDocument');
+    expect(privacySource).toContain("url.pathname !== '/~partytown/partytown-sandbox-sw.html'");
+    expect(privacySource).toContain('PARTYTOWN_SANDBOX_SEARCH.test(url.search)');
+    expect(manualSpec).toContain('|| partytownSandboxDocument');
+  });
+
+  it('uses the production unsupported-answer prefix without a loose abstention regex', () => {
+    const manualSpec = readRequired(MANUAL_SPEC_PATH);
+
+    expect(manualSpec).toContain('JETS_GHOST_ABSTENTION_PREFIX');
+    expect(manualSpec).toContain('response.trimStart().startsWith(abstentionPrefix)');
+    expect(manualSpec).not.toContain("not available|not in|unable");
+  });
+
+  it('keeps citation diagnostics categorical without retaining answer content', () => {
+    const manualSpec = readRequired(MANUAL_SPEC_PATH);
+
+    expect(manualSpec).toContain('CASE_EXPECTED_SOURCE_MISSING');
+    expect(manualSpec).toContain('CASE_UNACCEPTABLE_SOURCE');
+    expect(manualSpec).toContain('CASE_INLINE_CITATION_MISSING');
+    expect(manualSpec).toContain('CASE_UNSUPPORTED_CITATION_PRESENT');
+    expect(manualSpec).not.toContain('CASE_CITATION_BOUNDARY_FAILED');
+  });
+
+  it('reserves complete expected-source coverage for the cross-document case', () => {
+    const manualSpec = readRequired(MANUAL_SPEC_PATH);
+
+    expect(manualSpec).toContain(
+      "const requiresEveryExpectedSource = acceptanceCase.category === 'cross-document';",
+    );
+    expect(manualSpec).toContain(
+      'const expectedSourceMissing = requiresEveryExpectedSource',
+    );
+    expect(manualSpec).toContain(
+      ': !expectedPaths.some((path) => observedSourcePaths.includes(path));',
+    );
+  });
+
   it('times every exact pinned model root through the last terminal transfer', () => {
     const manualSpec = readRequired(MANUAL_SPEC_PATH);
 
@@ -247,6 +302,60 @@ describe("Jet's Ghost real-model harness contract", () => {
     expect(manualSpec).toContain('Math.min(...modelRoots.map');
     expect(manualSpec).toContain('Math.max(...modelTerminals.map');
     expect(manualSpec).toContain('modelTransferFinishedAt');
+  });
+
+  it('separates cold-loading observations instead of catching up to stale activation boundaries', () => {
+    const manualSpec = readRequired(MANUAL_SPEC_PATH);
+
+    expect(manualSpec).toContain('const LOADING_OBSERVATION_INTERVAL_MS = 12_000;');
+    expect(manualSpec).toContain('page.waitForTimeout(LOADING_OBSERVATION_INTERVAL_MS)');
+    expect(manualSpec).not.toContain('activationStartedAt + boundary');
+    expect(manualSpec).toContain(
+      'performance.now() - activationStartedAt >= LOADING_REASSURANCE_AFTER_MS',
+    );
+  });
+
+  it('foregrounds and polls real loading motion through browser throttling', () => {
+    const manualSpec = readRequired(MANUAL_SPEC_PATH);
+
+    expect(manualSpec).toContain('const LOADING_MOTION_TIMEOUT_MS = 3_000;');
+    expect(manualSpec).toMatch(/if \(!reducedMotion\) \{\s+await page\.bringToFront\(\);/u);
+    expect(manualSpec).toContain('await expect.poll(async () => {');
+    expect(manualSpec).toContain("message: 'LOADING_PHASE_MOTION_NOT_CHANGING'");
+    expect(manualSpec).toContain('intervals: [200, 400, 800, 1_200],');
+    expect(manualSpec).toContain('timeout: LOADING_MOTION_TIMEOUT_MS');
+    expect(manualSpec).toContain('if (becameReadyDuringMotionPoll) break;');
+    expect(manualSpec).not.toContain('await page.waitForTimeout(400);');
+  });
+
+  it('uses one bounded model-readiness wait for every activation path', () => {
+    const manualSpec = readRequired(MANUAL_SPEC_PATH);
+
+    expect(manualSpec).toContain('const ACTIVATION_READY_TIMEOUT_MS = 5 * 60_000;');
+    expect(manualSpec).toMatch(
+      /async function waitForActivationReady\(page: Page\): Promise<void> \{[\s\S]*?toBeEnabled\(\{[\s\S]*?timeout: ACTIVATION_READY_TIMEOUT_MS,[\s\S]*?\}\);[\s\S]*?\}/u,
+    );
+    expect(manualSpec.match(/waitForActivationReady\(page\);/g)).toHaveLength(3);
+    expect(manualSpec).toMatch(
+      /const activationReady = waitForActivationReady\(page\);\s+if \(options\.sampleLoading\) \{\s+await Promise\.all\(\[\s+activationReady,\s+observeColdLoading\(page, startedAt, activationReady\),\s+\]\);\s+\} else \{\s+await activationReady;\s+\}/u,
+    );
+    expect(manualSpec).toMatch(
+      /async function observeColdLoading\([\s\S]*?activationReady: Promise<void>[\s\S]*?Promise\.race\(\[\s+activationReady\.then\(\(\) => true\),/u,
+    );
+    expect(manualSpec).toContain('await expect(loadButton).toBeEnabled();');
+  });
+
+  it('bounds local generation while preserving completion and closeout assertions', () => {
+    const manualSpec = readRequired(MANUAL_SPEC_PATH);
+
+    expect(manualSpec).toContain('const FIRST_TOKEN_TIMEOUT_MS = 2 * 60_000;');
+    expect(manualSpec).toContain('const RESPONSE_COMPLETION_TIMEOUT_MS = 5 * 60_000;');
+    expect(manualSpec).toMatch(
+      /async function runProductCase\([\s\S]*?expect\.poll\(\(\) => responseHasFirstToken\(page\), \{\s+timeout: FIRST_TOKEN_TIMEOUT_MS,\s+\}\)\.toBe\(true\);[\s\S]*?getByTestId\('lifecycle-visible-status'\)\)\.toContainText\('Ready', \{\s+timeout: RESPONSE_COMPLETION_TIMEOUT_MS,\s+\}\);[\s\S]*?const totalResponseMs/u,
+    );
+    expect(manualSpec).toMatch(
+      /async function qualificationCloseout\([\s\S]*?getByRole\('button', \{ name: 'Stop response' \}\)\)\.toBeVisible\(\{\s+timeout: FIRST_TOKEN_TIMEOUT_MS,\s+\}\);[\s\S]*?getByText\('Stopped', \{ exact: true \}\)\)\.toBeVisible\(\{\s+timeout: RESPONSE_COMPLETION_TIMEOUT_MS,\s+\}\);[\s\S]*?getByTestId\('lifecycle-visible-status'\)\)\.toContainText\('Ready', \{\s+timeout: RESPONSE_COMPLETION_TIMEOUT_MS,\s+\}\);/u,
+    );
   });
 
   it('pauses every completed product case before aggregating case failures', () => {
@@ -257,7 +366,10 @@ describe("Jet's Ghost real-model harness contract", () => {
     expect(manualSpec).toContain("caseFailures.push('CASE_SOURCE_HREF_MALFORMED')");
     expect(manualSpec).toContain("caseFailures.push('CASE_SOURCE_TARGET_INVALID')");
     expect(manualSpec).toContain("caseFailures.push('CASE_SOURCE_REL_INVALID')");
-    expect(manualSpec).toContain("caseFailures.push('CASE_CITATION_BOUNDARY_FAILED')");
+    expect(manualSpec).toContain("caseFailures.push('CASE_EXPECTED_SOURCE_MISSING')");
+    expect(manualSpec).toContain("caseFailures.push('CASE_UNACCEPTABLE_SOURCE')");
+    expect(manualSpec).toContain("caseFailures.push('CASE_INLINE_CITATION_MISSING')");
+    expect(manualSpec).toContain("caseFailures.push('CASE_UNSUPPORTED_CITATION_PRESENT')");
     expect(manualSpec).toContain("caseFailures.push('CASE_ABSTENTION_MISSING')");
     expect(manualSpec).not.toContain('CASE_REVIEW_EVALUATION_FAILED');
     expect(manualSpec).toMatch(/finally \{\s+await page\.pause\(\);\s+\}\s+return caseFailures;/u);
@@ -294,6 +406,7 @@ describe("Jet's Ghost real-model harness contract", () => {
     expect(config).toMatch(/trace:\s*'off'/u);
     expect(config).toMatch(/screenshot:\s*'off'/u);
     expect(config).toMatch(/video:\s*'off'/u);
+    expect(config).toContain("preserveOutput: 'never',");
     expect(config).not.toMatch(/PUBLIC_JETS_GHOST_E2E|launchPersistentContext|userDataDir/u);
   });
 
@@ -310,10 +423,10 @@ describe("Jet's Ghost real-model harness contract", () => {
       'smoke:jets-ghost',
     ]);
     expect(packageJson.scripts['qualify:jets-ghost:mac']).toBe(
-      'cross-env RUN_REAL_MODEL=1 JETS_GHOST_REAL_MODEL_MODE=qualification playwright test --config=playwright.real-model.config.ts --project=chrome-real-model',
+      'cross-env PLAYWRIGHT_NO_COPY_PROMPT=1 RUN_REAL_MODEL=1 JETS_GHOST_REAL_MODEL_MODE=qualification playwright test --config=playwright.real-model.config.ts --project=chrome-real-model',
     );
     expect(packageJson.scripts['smoke:jets-ghost']).toBe(
-      'cross-env RUN_REAL_MODEL=1 JETS_GHOST_REAL_MODEL_MODE=smoke playwright test --config=playwright.real-model.config.ts --project=chrome-real-model',
+      'cross-env PLAYWRIGHT_NO_COPY_PROMPT=1 RUN_REAL_MODEL=1 JETS_GHOST_REAL_MODEL_MODE=smoke playwright test --config=playwright.real-model.config.ts --project=chrome-real-model',
     );
     expect(qualificationScripts.map((name) => packageJson.scripts[name]).join('\n'))
       .not.toMatch(/device(?:-slug|Slug|Matrix)|orchestrat|result(?:-validator|Validator|Path|Schema)|stdin|output/u);

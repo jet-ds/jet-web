@@ -81,9 +81,12 @@ describe('static production boundary', () => {
     });
   });
 
-  it('filters only qualification routes from the sitemap without hiding lookalikes', () => {
+  it('target-gates only the canonical assistant route while always excluding dormant Tools', () => {
+    expect(astroConfig).toContain(
+      "const isProduction = process.env.VERCEL_ENV === 'production';",
+    );
     expect(astroConfig).toContain("const pathname = new URL(page).pathname.replace(/\\/$/, '') || '/';");
-    expect(astroConfig).toContain("pathname !== '/chatbot'");
+    expect(astroConfig).toContain("(isProduction || pathname !== '/chatbot')");
     expect(astroConfig).toContain("pathname !== '/tools'");
     expect(astroConfig).toContain("!pathname.startsWith('/tools/')");
     expect(astroConfig).not.toContain("page.includes('/chatbot')");
