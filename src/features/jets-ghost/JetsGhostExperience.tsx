@@ -349,6 +349,7 @@ export default function JetsGhostExperience({
     );
   const canUnload = showHeaderActions && status !== 'unloading';
   const ghostAnimationMode = getGhostAnimationMode(status);
+  const previousGhostAnimationMode = getGhostAnimationMode(previousStatusRef.current);
   const loadingHeadline = getLoadingHeadline(elapsedSeconds);
   const loadingReassurance = status === 'loading'
     ? getLoadingReassurance(elapsedSeconds)
@@ -681,7 +682,10 @@ export default function JetsGhostExperience({
             className="flex flex-1 items-center justify-center overflow-y-auto px-gutter py-m max-[369px]:pb-[calc(var(--space-5xl)+var(--space-s))]"
           >
             <div className="w-full max-w-3xl text-center">
-              <AnimatedGhost mode={ghostAnimationMode} />
+              <AnimatedGhost
+                mode={ghostAnimationMode}
+                previousMode={previousGhostAnimationMode}
+              />
               <h1 className="mx-auto max-w-2xl text-5xl font-bold leading-[1.04] text-text-primary">
                 Ask the part of the site that reads everything.
               </h1>
@@ -800,7 +804,10 @@ export default function JetsGhostExperience({
         {status === 'unsupported' && (
           <main className="flex flex-1 items-center justify-center overflow-y-auto px-gutter py-m">
             <div className="w-full max-w-2xl text-center">
-              <AnimatedGhost mode="idle" />
+              <AnimatedGhost
+                mode={ghostAnimationMode}
+                previousMode={previousGhostAnimationMode}
+              />
               <h1 className="text-3xl font-bold text-text-primary">This browser cannot run Jet&apos;s Ghost</h1>
               <p className="mx-auto mt-s max-w-xl text-base text-text-secondary">
                 {ghost.state.error?.message ?? 'The required local AI capabilities are not available here.'}
@@ -826,7 +833,10 @@ export default function JetsGhostExperience({
         {(status === 'loading' || status === 'unloading') && (
           <main className="flex flex-1 items-center justify-center px-gutter py-m">
             <div data-testid="loading-stack" className="w-full max-w-xl text-center">
-              <AnimatedGhost mode={status === 'loading' ? 'loading' : 'idle'} />
+              <AnimatedGhost
+                mode={ghostAnimationMode}
+                previousMode={previousGhostAnimationMode}
+              />
               <div>
                 <p className="mb-2xs font-mono text-xs uppercase tracking-[0.16em] text-brand-text">
                   {status === 'loading' ? 'Loading on this device' : 'Releasing this device'}
@@ -873,7 +883,10 @@ export default function JetsGhostExperience({
             {showPreConversation ? (
               <div className="flex flex-1 items-center justify-center overflow-y-auto px-gutter py-m">
                 <div className="w-full max-w-3xl text-center">
-                  <AnimatedGhost mode="ready" />
+                  <AnimatedGhost
+                    mode={ghostAnimationMode}
+                    previousMode={previousGhostAnimationMode}
+                  />
                   <h1 className="text-2xl font-bold leading-tight tracking-tight min-[370px]:whitespace-nowrap">What are you curious about?</h1>
                   <p className="mx-auto mt-xs max-w-xl text-xs text-text-tertiary min-[370px]:whitespace-nowrap">
                     Ask about Jet&apos;s writing, research, projects, or ideas.
@@ -1298,6 +1311,7 @@ function Composer({
 interface AnimatedGhostProps {
   compact?: boolean;
   mode: GhostAnimationMode;
+  previousMode?: GhostAnimationMode;
 }
 
 type NonLoadingGhostAnimationMode = Exclude<GhostAnimationMode, 'loading'>;
@@ -1342,8 +1356,7 @@ function LoadingPhaseGhost({ reduceMotion }: { reduceMotion: boolean }) {
   return (
     <div
       data-testid="loading-phase-visual"
-      className="relative mx-auto mb-s h-16 w-36 shrink-0 text-brand-base"
-      aria-hidden="true"
+      className="relative h-full w-full text-brand-base"
     >
       <style>{`
         @media (prefers-reduced-motion: reduce) {
@@ -1448,18 +1461,20 @@ function LoadingPhaseGhost({ reduceMotion }: { reduceMotion: boolean }) {
   );
 }
 
-function AnimatedGhost({ compact = false, mode }: AnimatedGhostProps) {
-  const reduceMotion = useLiveReducedMotion();
-  if (mode === 'loading') return <LoadingPhaseGhost reduceMotion={reduceMotion} />;
-
+function StandardPhaseGhost({
+  compact,
+  mode,
+  reduceMotion,
+}: {
+  compact: boolean;
+  mode: NonLoadingGhostAnimationMode;
+  reduceMotion: boolean;
+}) {
   const motionProfile = ghostMotion[mode];
   const particleDuration = mode === 'scanning' ? 1.6 : 2.7;
 
   return (
-    <div
-      className={`relative shrink-0 text-brand-base ${compact ? 'mt-1 h-8 w-10' : 'mx-auto mb-s h-16 w-36'}`}
-      aria-hidden="true"
-    >
+    <div className="relative h-full w-full text-brand-base">
       {!compact && binaryParticles.map((particle) => (
         <motion.span
           key={`${particle.value}-${particle.delay}`}
@@ -1468,12 +1483,14 @@ function AnimatedGhost({ compact = false, mode }: AnimatedGhostProps) {
           animate={reduceMotion
             ? { opacity: 0.35 }
             : { x: [0, -38, -62], opacity: [0, 0.7, 0], scale: [0.9, 1, 0.55] }}
-          transition={{
-            delay: particle.delay,
-            duration: particleDuration,
-            ease: 'easeInOut',
-            repeat: Infinity,
-          }}
+          transition={reduceMotion
+            ? { duration: 0 }
+            : {
+                delay: particle.delay,
+                duration: particleDuration,
+                ease: 'easeInOut',
+                repeat: Infinity,
+              }}
         >
           {particle.value}
         </motion.span>
@@ -1491,6 +1508,89 @@ function AnimatedGhost({ compact = false, mode }: AnimatedGhostProps) {
           <Ghost size={compact ? 20 : 38} strokeWidth={1.65} />
         </motion.div>
       </div>
+    </div>
+  );
+}
+
+function GhostModeVisual({
+  compact,
+  mode,
+  reduceMotion,
+}: {
+  compact: boolean;
+  mode: GhostAnimationMode;
+  reduceMotion: boolean;
+}) {
+  if (mode === 'loading') return <LoadingPhaseGhost reduceMotion={reduceMotion} />;
+  return (
+    <StandardPhaseGhost
+      compact={compact}
+      mode={mode}
+      reduceMotion={reduceMotion}
+    />
+  );
+}
+
+function AnimatedGhost({
+  compact = false,
+  mode,
+  previousMode = mode,
+}: AnimatedGhostProps) {
+  const reduceMotion = useLiveReducedMotion();
+  const [displayedMode, setDisplayedMode] = useState<GhostAnimationMode>(() => (
+    compact ? mode : previousMode
+  ));
+
+  useEffect(() => {
+    setDisplayedMode(mode);
+  }, [mode, reduceMotion]);
+
+  if (compact) {
+    return (
+      <div
+        className="relative mt-1 h-8 w-10 shrink-0 text-brand-base"
+        aria-hidden="true"
+      >
+        <GhostModeVisual compact mode={mode} reduceMotion={reduceMotion} />
+      </div>
+    );
+  }
+
+  return (
+    <div
+      data-testid="animated-ghost-viewport"
+      data-mode={mode}
+      className="relative mx-auto mb-s h-16 w-36 shrink-0 text-brand-base"
+      aria-hidden="true"
+    >
+      {reduceMotion ? (
+        <div
+          data-testid="animated-ghost-mode-layer"
+          data-mode={mode}
+          className="absolute inset-0"
+        >
+          <GhostModeVisual compact={false} mode={mode} reduceMotion />
+        </div>
+      ) : (
+        <AnimatePresence initial={false}>
+          <motion.div
+            data-testid="animated-ghost-mode-layer"
+            data-mode={displayedMode}
+            key={displayedMode}
+            className="absolute inset-0"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.16, ease: 'easeOut' }}
+          >
+            <GhostModeVisual
+              compact={false}
+              mode={displayedMode}
+              reduceMotion={false}
+            />
+          </motion.div>
+        </AnimatePresence>
+      )}
     </div>
   );
 }

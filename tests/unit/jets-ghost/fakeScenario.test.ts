@@ -71,6 +71,7 @@ describe('Jet\'s Ghost fake browser scenarios', () => {
       'unload-failure',
       'loading',
       'unloading',
+      'crossfade',
       'long-stream',
       'stop-recovery',
       'citations',
@@ -104,6 +105,10 @@ describe('Jet\'s Ghost fake browser scenarios', () => {
     });
     expect(getFakeScenarioConfiguration('unloading')).toMatchObject({
       unloadDelayMs: 5_000,
+    });
+    expect(getFakeScenarioConfiguration('crossfade')).toMatchObject({
+      capabilityDelayMs: 50,
+      loadDelayMs: 650,
     });
     expect(getFakeScenarioConfiguration('long-stream')).toMatchObject({
       chunkDelayMs: 120,

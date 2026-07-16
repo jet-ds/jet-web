@@ -13,6 +13,7 @@ export const FAKE_SCENARIOS = [
   'unload-failure',
   'loading',
   'unloading',
+  'crossfade',
   'long-stream',
   'stop-recovery',
   'citations',
@@ -90,6 +91,12 @@ export function getFakeScenarioConfiguration(
       return { responseChunks: DEFAULT_RESPONSE_CHUNKS, loadDelayMs: 60_000 };
     case 'unloading':
       return { responseChunks: DEFAULT_RESPONSE_CHUNKS, unloadDelayMs: 5_000 };
+    case 'crossfade':
+      return {
+        responseChunks: DEFAULT_RESPONSE_CHUNKS,
+        capabilityDelayMs: 50,
+        loadDelayMs: 650,
+      };
     case 'long-stream':
     case 'stop-recovery':
       return { responseChunks: LONG_RESPONSE_CHUNKS, chunkDelayMs: 120 };

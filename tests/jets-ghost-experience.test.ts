@@ -437,6 +437,17 @@ test('ghost animation follows every lifecycle context including loading', () => 
   assert.equal(getGhostAnimationMode('cancelling'), 'thinking');
 });
 
+test('active experience contract requires a remount-safe large Ghost crossfade', () => {
+  assert.match(experienceNote, /large animated Ghost[^.]*crossfades/i);
+  assert.match(experienceNote, /idle, scanning, loading, ready, and thinking/i);
+  assert.match(experienceNote, /160ms[^.]*ease-out/i);
+  assert.match(experienceNote, /fixed[^.]*16[^.]*36[^.]*viewport/i);
+  assert.match(experienceNote, /outgoing visual[^.]*absolute/i);
+  assert.match(experienceNote, /reduced motion[^.]*one visual layer/i);
+  assert.match(experienceNote, /elapsed timer[^.]*does not restart/i);
+  assert.match(experienceNote, /compact[^.]*turn avatar[^.]*not[^.]*large-Ghost crossfade/i);
+});
+
 test('loading liveness changes independently of coarse runtime phases without fake progress', () => {
   assert.equal(getLoadingHeadline(0), "Haunting Jet's archive");
   assert.equal(getLoadingHeadline(12), 'Waking the ghost');
@@ -460,7 +471,7 @@ test('loading liveness changes independently of coarse runtime phases without fa
   assert.match(experienceSource, /data-testid="loading-inward-particle"/);
   assert.match(
     experienceSource,
-    /<AnimatedGhost mode={status === 'loading' \? 'loading' : 'idle'} \/>/,
+    /<AnimatedGhost[\s\S]*?mode={ghostAnimationMode}[\s\S]*?previousMode={previousGhostAnimationMode}/,
   );
   assert.match(experienceSource, /data-testid="loading-reassurance-slot"/);
   assert.match(

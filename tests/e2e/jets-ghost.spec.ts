@@ -42,6 +42,7 @@ type FakeScenario =
   | 'unload-failure'
   | 'loading'
   | 'unloading'
+  | 'crossfade'
   | 'long-stream'
   | 'stop-recovery'
   | 'citations'
@@ -70,8 +71,22 @@ interface Box {
   height: number;
 }
 
+interface LargeGhostLayerAuditEntry {
+  currentMode: string | null;
+  modes: string[];
+  viewportCount: number;
+}
+
 function currentStatusLabel(page: Page): Locator {
   return page.getByTestId('lifecycle-visual-label').last();
+}
+
+function largeGhostViewport(page: Page): Locator {
+  return page.getByTestId('animated-ghost-viewport');
+}
+
+function largeGhostLayers(page: Page): Locator {
+  return page.getByTestId('animated-ghost-mode-layer');
 }
 
 function fakePath(scenario: FakeScenario = 'default'): string {
@@ -147,6 +162,55 @@ async function installLifecycleLabelAudit(page: Page): Promise<void> {
       characterData: true,
       subtree: true,
     });
+  });
+}
+
+async function installLargeGhostLayerAudit(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    interface AuditEntry {
+      currentMode: string | null;
+      modes: string[];
+      viewportCount: number;
+    }
+    const auditedWindow = window as typeof window & {
+      __JETS_GHOST_LAYER_AUDIT__?: AuditEntry[];
+    };
+    auditedWindow.__JETS_GHOST_LAYER_AUDIT__ = [];
+    let previousSignature = '';
+    const record = () => {
+      const viewports = [...document.querySelectorAll<HTMLElement>(
+        '[data-testid="animated-ghost-viewport"]',
+      )];
+      const modes = [...document.querySelectorAll<HTMLElement>(
+        '[data-testid="animated-ghost-mode-layer"]',
+      )].map((layer) => layer.dataset.mode ?? '');
+      const currentMode = viewports[0]?.dataset.mode ?? null;
+      const signature = JSON.stringify({ currentMode, modes, viewportCount: viewports.length });
+      if (signature === previousSignature) return;
+      previousSignature = signature;
+      auditedWindow.__JETS_GHOST_LAYER_AUDIT__?.push({
+        currentMode,
+        modes,
+        viewportCount: viewports.length,
+      });
+    };
+    new MutationObserver(record).observe(document, {
+      childList: true,
+      subtree: true,
+    });
+    document.addEventListener('DOMContentLoaded', record, { once: true });
+  });
+}
+
+async function largeGhostLayerAudit(page: Page): Promise<LargeGhostLayerAuditEntry[]> {
+  return page.evaluate(() => {
+    const auditedWindow = window as typeof window & {
+      __JETS_GHOST_LAYER_AUDIT__?: LargeGhostLayerAuditEntry[];
+    };
+    return auditedWindow.__JETS_GHOST_LAYER_AUDIT__?.map((entry) => ({
+      ...entry,
+      modes: [...entry.modes],
+    })) ?? [];
   });
 }
 
@@ -526,6 +590,159 @@ test.describe("Jet's Ghost consent and local privacy", () => {
 });
 
 test.describe("Jet's Ghost supported lifecycle", () => {
+  test('crossfades idle to scanning inside one fixed large-Ghost viewport', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium');
+    await page.goto(fakePath('checking'));
+
+    const viewport = largeGhostViewport(page);
+    const layers = largeGhostLayers(page);
+    await expect(viewport).toHaveAttribute('data-mode', 'idle');
+    await expect(layers).toHaveCount(1);
+    const before = await boxOf(viewport);
+
+    await page.getByRole('button', { name: 'Check compatibility' }).click();
+    await expect(viewport).toHaveAttribute('data-mode', 'scanning');
+    await expect(layers).toHaveCount(2);
+    await expect(page.locator('[data-testid="animated-ghost-mode-layer"][data-mode="idle"]')).toHaveCount(1);
+    await expect(page.locator('[data-testid="animated-ghost-mode-layer"][data-mode="scanning"]')).toHaveCount(1);
+    const during = await boxOf(viewport);
+    expectStableBox(before, during);
+    expect(await layers.evaluateAll((elements) => elements.map((element) => (
+      getComputedStyle(element).position
+    )))).toEqual(['absolute', 'absolute']);
+
+    await page.waitForTimeout(220);
+    await expect(layers).toHaveCount(1);
+    await expect(layers).toHaveAttribute('data-mode', 'scanning');
+    expectStableBox(before, await boxOf(viewport));
+  });
+
+  test('crossfades ready to loading and loading to ready across remounted screen branches', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium');
+    await installLargeGhostLayerAudit(page);
+    await page.goto(fakePath('crossfade'));
+    await page.getByRole('button', { name: 'Check compatibility' }).click();
+    const load = page.getByRole('button', { name: /Load Jet's Ghost/ });
+    await expect(load).toBeVisible();
+    await page.waitForTimeout(220);
+
+    const viewport = largeGhostViewport(page);
+    const layers = largeGhostLayers(page);
+    await expect(viewport).toHaveAttribute('data-mode', 'ready');
+    await expect(layers).toHaveCount(1);
+    const readyBeforeLoad = await boxOf(viewport);
+
+    await load.click();
+    await expect(viewport).toHaveAttribute('data-mode', 'loading');
+    await expect(layers).toHaveCount(2);
+    await expect(page.locator('[data-testid="animated-ghost-mode-layer"][data-mode="ready"]')).toHaveCount(1);
+    await expect(page.locator('[data-testid="animated-ghost-mode-layer"][data-mode="loading"]')).toHaveCount(1);
+    const loadingDuringFade = await boxOf(viewport);
+    expect(loadingDuringFade.width).toBe(readyBeforeLoad.width);
+    expect(loadingDuringFade.height).toBe(readyBeforeLoad.height);
+
+    await page.waitForTimeout(220);
+    await expect(layers).toHaveCount(1);
+    await expect(layers).toHaveAttribute('data-mode', 'loading');
+    await expect(currentStatusLabel(page)).toHaveText('Ready');
+    await page.waitForTimeout(220);
+    await expect(viewport).toHaveAttribute('data-mode', 'ready');
+    await expect(layers).toHaveCount(1);
+    await expect(layers).toHaveAttribute('data-mode', 'ready');
+    const readyAfterLoad = await boxOf(viewport);
+    expect(readyAfterLoad.width).toBe(readyBeforeLoad.width);
+    expect(readyAfterLoad.height).toBe(readyBeforeLoad.height);
+
+    const audit = await largeGhostLayerAudit(page);
+    expect(audit).toContainEqual(expect.objectContaining({
+      currentMode: 'loading',
+      modes: expect.arrayContaining(['ready', 'loading']),
+      viewportCount: 1,
+    }));
+    expect(audit).toContainEqual(expect.objectContaining({
+      currentMode: 'ready',
+      modes: expect.arrayContaining(['loading', 'ready']),
+      viewportCount: 1,
+    }));
+  });
+
+  test('settles rapid lifecycle changes on one current large-Ghost layer', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium');
+    await installLargeGhostLayerAudit(page);
+    await page.goto(fakePath());
+    await page.getByRole('button', { name: 'Check compatibility' }).click();
+    await expect(page.getByRole('button', { name: /Load Jet's Ghost/ })).toBeVisible();
+    await page.waitForTimeout(220);
+
+    await expect(largeGhostLayers(page)).toHaveCount(1);
+    await expect(largeGhostLayers(page)).toHaveAttribute('data-mode', 'ready');
+    const audit = await largeGhostLayerAudit(page);
+    expect(audit.some((entry) => entry.modes.includes('scanning'))).toBe(true);
+    expect(audit.at(-1)).toEqual({
+      currentMode: 'ready',
+      modes: ['ready'],
+      viewportCount: 1,
+    });
+  });
+
+  test('switches large-Ghost modes immediately with one layer for reduced motion', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium');
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await installLargeGhostLayerAudit(page);
+    await page.goto(fakePath('checking'));
+    await page.getByRole('button', { name: 'Check compatibility' }).click();
+
+    const layers = largeGhostLayers(page);
+    await expect(largeGhostViewport(page)).toHaveAttribute('data-mode', 'scanning');
+    await expect(layers).toHaveCount(1);
+    await expect(layers).toHaveAttribute('data-mode', 'scanning');
+    expect(await layers.evaluate((element) => ({
+      animationCount: element.getAnimations().length,
+      opacity: getComputedStyle(element).opacity,
+      transitionDuration: getComputedStyle(element).transitionDuration,
+    }))).toEqual({
+      animationCount: 0,
+      opacity: '1',
+      transitionDuration: '0s',
+    });
+    expect(Math.max(...(await largeGhostLayerAudit(page)).map((entry) => entry.modes.length)))
+      .toBeLessThanOrEqual(1);
+  });
+
+  test('does not restart the large loading visual when elapsed time rerenders', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium');
+    await page.goto(fakePath('loading'));
+    await page.getByRole('button', { name: 'Check compatibility' }).click();
+    const load = page.getByRole('button', { name: /Load Jet's Ghost/ });
+    await expect(load).toBeVisible();
+    await load.click();
+    const viewport = largeGhostViewport(page);
+    const layers = largeGhostLayers(page);
+    await expect(viewport).toHaveAttribute('data-mode', 'loading');
+    await page.waitForTimeout(220);
+    await expect(layers).toHaveCount(1);
+    await layers.evaluate((element) => element.setAttribute('data-stability-marker', 'same-node'));
+    const beforeTick = await boxOf(viewport);
+
+    await expect(page.getByTestId('loading-elapsed')).toHaveText('Elapsed 1s');
+    await expect(page.locator('[data-stability-marker="same-node"]')).toHaveCount(1);
+    await expect(layers).toHaveCount(1);
+    await expect(layers).toHaveAttribute('data-mode', 'loading');
+    expectStableBox(beforeTick, await boxOf(viewport));
+  });
+
+  test('does not claim a ready-to-thinking crossfade after send removes the large Ghost', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium');
+    const composer = await startFakeAssistant(page, 'long-stream');
+    await expect(largeGhostViewport(page)).toHaveAttribute('data-mode', 'ready');
+
+    await composer.fill('Summarize the recursive convergence hypothesis.');
+    await page.getByRole('button', { name: 'Send message' }).click();
+    await expect(currentStatusLabel(page)).toHaveText('Responding');
+    await expect(largeGhostViewport(page)).toHaveCount(0);
+    await expect(largeGhostLayers(page)).toHaveCount(0);
+  });
+
   test('settles the current lifecycle label before it becomes visible', async ({ page }, testInfo) => {
     test.skip(testInfo.project.name !== 'chromium');
     await page.setViewportSize({ width: 1280, height: 800 });
