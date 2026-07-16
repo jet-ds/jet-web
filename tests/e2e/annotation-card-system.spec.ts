@@ -71,6 +71,7 @@ async function expectClippedImageCard(page: Page, route: '/blog/' | '/works/') {
     await page.locator('[data-filter-item]').first().evaluate(async (card) => {
       const anchor = card.querySelector('a.group');
       if (!anchor) throw new Error('WorkCard primary link missing');
+      if (anchor.querySelector('.aspect-video img')) return;
       const wrapper = document.createElement('div');
       wrapper.className = 'aspect-video overflow-hidden';
       const image = document.createElement('img');
@@ -84,6 +85,7 @@ async function expectClippedImageCard(page: Page, route: '/blog/' | '/works/') {
   }
 
   const card = page.locator('[data-filter-item]:has(.aspect-video img)').first();
+  const anchor = card.locator('a.group');
   const image = card.locator('.aspect-video img');
   await expect(card).toBeVisible();
   await expect(image).toBeVisible();
@@ -109,6 +111,72 @@ async function expectClippedImageCard(page: Page, route: '/blog/' | '/works/') {
   expect(hover.transform).not.toBe('none');
   expect(hover.overflow).toBe('hidden');
   expect(hover.borderRadius).toBe(rest.borderRadius);
+
+  await page.mouse.move(1, 1);
+  await page.evaluate(() => {
+    document.addEventListener('click', (event) => event.preventDefault(), {
+      capture: true,
+      once: true,
+    });
+  });
+  await anchor.click();
+  const pointerFocus = await card.evaluate((element) => {
+    const computed = getComputedStyle(element);
+    const link = element.querySelector('a.group');
+    return {
+      focusVisible: link?.matches(':focus-visible') ?? false,
+      outlineStyle: computed.outlineStyle,
+    };
+  });
+  expect(pointerFocus.focusVisible).toBe(false);
+  expect(pointerFocus.outlineStyle).toBe('none');
+
+  await page.reload();
+  if (route === '/works/') {
+    await page.locator('[data-filter-item]').first().evaluate(async (element) => {
+      const link = element.querySelector('a.group');
+      if (!link) throw new Error('WorkCard primary link missing');
+      if (link.querySelector('.aspect-video img')) return;
+      const wrapper = document.createElement('div');
+      wrapper.className = 'aspect-video overflow-hidden';
+      const fixtureImage = document.createElement('img');
+      fixtureImage.alt = 'WorkCard clipping fixture';
+      fixtureImage.className = 'w-full h-full object-cover transition-transform duration-300 group-hover:scale-105';
+      fixtureImage.src = 'data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="800" height="450"><rect width="800" height="450" fill="%23ef4444"/></svg>';
+      wrapper.append(fixtureImage);
+      link.prepend(wrapper);
+      await fixtureImage.decode();
+    });
+  }
+
+  const focusCard = page.locator('[data-filter-item]:has(.aspect-video img)').first();
+  const focusAnchor = focusCard.locator('a.group');
+  for (let presses = 0; presses < 30; presses += 1) {
+    await page.keyboard.press('Tab');
+    if (await focusAnchor.evaluate((element) => element === document.activeElement)) break;
+  }
+  await expect(focusAnchor).toBeFocused();
+  const keyboardFocus = await focusCard.evaluate((element) => {
+    const computed = getComputedStyle(element);
+    const link = element.querySelector('a.group');
+    const expectedColor = getComputedStyle(document.documentElement)
+      .getPropertyValue('--color-brand-base').trim();
+    return {
+      expectedColor,
+      focusVisible: link?.matches(':focus-visible') ?? false,
+      outlineColor: computed.outlineColor,
+      outlineOffset: Number.parseFloat(computed.outlineOffset),
+      outlineStyle: computed.outlineStyle,
+      outlineWidth: Number.parseFloat(computed.outlineWidth),
+      overflow: computed.overflow,
+    };
+  });
+  expect(keyboardFocus.focusVisible).toBe(true);
+  expect(keyboardFocus.outlineStyle).toBe('solid');
+  expect(keyboardFocus.outlineWidth).toBe(2);
+  expect(keyboardFocus.outlineOffset).toBe(2);
+  expect(keyboardFocus.outlineColor).toBe(keyboardFocus.expectedColor);
+  expect(keyboardFocus.overflow).toBe('hidden');
 }
 
 test('Licenses, About, and Contact resolve one subtle card surface in both themes', async ({ page }) => {

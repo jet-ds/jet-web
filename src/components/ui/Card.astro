@@ -2,7 +2,7 @@
 export interface Props {
   class?: string;
   clip?: boolean;
-  padding?: 'none' | 'sm' | 'md' | 'lg' | 'card';
+  padding?: 'none' | 'sm' | 'md' | 'lg';
   radius?: 'lg' | 'xl';
   surface?: 'base' | 'subtle';
   hover?: boolean;
@@ -25,7 +25,7 @@ const surfaceClasses = {
   subtle: 'bg-bg-subtle',
 };
 
-const resolvedPadding = padding ?? (surface === 'subtle' ? 'card' : 'md');
+const resolvedPadding = padding ?? (surface === 'subtle' ? 'lg' : 'md');
 const resolvedRadius = radius ?? (surface === 'subtle' ? 'xl' : 'lg');
 
 const radiusClasses = {
@@ -38,15 +38,17 @@ const paddingClasses = {
   sm: 'p-s',
   md: 'p-m',
   lg: 'p-card',
-  card: 'p-card',
 };
 
 const hoverClasses = hover
   ? 'hover:border-brand-base hover:shadow-md cursor-pointer'
   : '';
 const clipClass = clip ? 'overflow-hidden' : '';
+const clippedFocusClass = clip && hover
+  ? 'has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-brand-base'
+  : '';
 
-const classes = `${surfaceClasses[surface]} ${radiusClasses[resolvedRadius]} ${baseClasses} ${paddingClasses[resolvedPadding]} ${hoverClasses} ${clipClass} ${className}`;
+const classes = `${surfaceClasses[surface]} ${radiusClasses[resolvedRadius]} ${baseClasses} ${paddingClasses[resolvedPadding]} ${hoverClasses} ${clipClass} ${clippedFocusClass} ${className}`;
 ---
 
 <div class={classes} {...rest}>

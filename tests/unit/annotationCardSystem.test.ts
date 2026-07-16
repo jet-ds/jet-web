@@ -18,7 +18,8 @@ describe('annotation 2 shared card system', () => {
   test('Card keeps base geometry while subtle defaults to the approved Licenses recipe', () => {
     expect(cardSource).toContain("surface?: 'base' | 'subtle';");
     expect(cardSource).toContain("surface = 'base'");
-    expect(cardSource).toContain("padding?: 'none' | 'sm' | 'md' | 'lg' | 'card';");
+    expect(cardSource).toContain("padding?: 'none' | 'sm' | 'md' | 'lg';");
+    expect(cardSource).not.toContain("| 'card'");
     expect(cardSource).toContain("radius?: 'lg' | 'xl';");
     expect(cardSource).toContain("base: 'bg-surface-base'");
     expect(cardSource).toContain("subtle: 'bg-bg-subtle'");
@@ -26,7 +27,7 @@ describe('annotation 2 shared card system', () => {
       'border border-border-default transition-colors',
     );
     expect(cardSource).toContain(
-      "const resolvedPadding = padding ?? (surface === 'subtle' ? 'card' : 'md');",
+      "const resolvedPadding = padding ?? (surface === 'subtle' ? 'lg' : 'md');",
     );
     expect(cardSource).toContain(
       "const resolvedRadius = radius ?? (surface === 'subtle' ? 'xl' : 'lg');",
@@ -36,7 +37,7 @@ describe('annotation 2 shared card system', () => {
     expect(cardSource).toContain("sm: 'p-s'");
     expect(cardSource).toContain("md: 'p-m'");
     expect(cardSource).toContain("lg: 'p-card'");
-    expect(cardSource).toContain("card: 'p-card'");
+    expect(cardSource).not.toContain("card: 'p-card'");
     expect(cardSource).toContain('radiusClasses[resolvedRadius]');
     expect(cardSource).toContain('paddingClasses[resolvedPadding]');
   });
@@ -55,6 +56,20 @@ describe('annotation 2 shared card system', () => {
       expect(source).toMatch(/<Card\s+hover\s+clip\s+padding="none"/u);
       expect(source).toContain('group-hover:scale-105');
     }
+  });
+
+  test('clipped hover Cards mirror descendant keyboard focus outside their boundary', () => {
+    expect(cardSource).toContain('clip && hover');
+    for (const className of [
+      'has-[:focus-visible]:outline',
+      'has-[:focus-visible]:outline-2',
+      'has-[:focus-visible]:outline-offset-2',
+      'has-[:focus-visible]:outline-brand-base',
+    ]) {
+      expect(cardSource).toContain(className);
+    }
+    expect(cardSource).toContain('${clippedFocusClass}');
+    expect(cardSource).not.toContain('focus-within:outline');
   });
 
   test('Licenses consumes four subtle Cards while preserving valid section and list structure', () => {
