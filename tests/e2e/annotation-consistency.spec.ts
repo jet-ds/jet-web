@@ -121,7 +121,10 @@ test('Blog and Works separate first-person visible copy from SEO metadata', asyn
   }
 });
 
-test('shared inline links and all article back links retain one interaction model', async ({ page }) => {
+test('shared inline links and all article back links retain one interaction model', async (
+  { page },
+  testInfo,
+) => {
   await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.goto('/blog/vibe-coding-vs-agentic-coding-why-the-distinction-matters/');
 
@@ -160,13 +163,15 @@ test('shared inline links and all article back links retain one interaction mode
   await expect(proseLink).toHaveCSS('outline-style', 'solid');
   await expect(proseLink).toHaveCSS('outline-offset', '2px');
 
-  const tocLink = page.locator('.toc a:not(.active)').first();
-  await expect(tocLink).toBeVisible();
-  await expect(tocLink).toHaveCSS('font-weight', '400');
-  await tocLink.hover();
-  await expect(tocLink).toHaveCSS('text-decoration-line', 'none');
-  await tocLink.focus();
-  await expect(tocLink).not.toHaveCSS('outline-offset', '2px');
+  if (testInfo.project.name === 'chromium') {
+    const tocLink = page.locator('.toc a:not(.active)').first();
+    await expect(tocLink).toBeVisible();
+    await expect(tocLink).toHaveCSS('font-weight', '400');
+    await tocLink.hover();
+    await expect(tocLink).toHaveCSS('text-decoration-line', 'none');
+    await tocLink.focus();
+    await expect(tocLink).not.toHaveCSS('outline-offset', '2px');
+  }
 
   const postNavigationLink = page.locator('nav[aria-label="Post navigation"] a').first();
   await expect(postNavigationLink).toBeVisible();

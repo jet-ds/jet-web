@@ -1628,7 +1628,7 @@ git commit -m "docs(chatbot): record model and runtime licensing"
 
 ### Task 13: Qualify Gemma E2B and release Jet's Ghost 2.1.0
 
-**Current release state:** Paused. This pre-release reconciliation does not authorize a push, Preview promotion, Production deployment, `noindex` removal, Search Console action, tag, or release.
+**Current release state:** Authorized by the user on 2026-07-16, subject to every gate below. A push, fresh exact-SHA Preview and Production deployment, Production-only `noindex` removal, sitemap re-submission, and annotated tag may proceed only in the stated order after their preceding checks pass.
 
 **Files:**
 - Modify: `src/pages/chatbot.astro`
@@ -1639,7 +1639,15 @@ git commit -m "docs(chatbot): record model and runtime licensing"
 - Modify: `tests/e2e/jets-ghost.spec.ts`
 - Modify: `tests/e2e/site.spec.ts`
 - Modify: `tests/deployment/core-production.spec.ts`
-- Modify: `tests/unit/ops/archiveLegacyDocs.test.ts`
+- Delete: `scripts/archive-legacy-docs.ts`
+- Delete: `tests/unit/ops/archiveLegacyDocs.test.ts`
+- Delete: `scripts/capture-production-baseline.ts`
+- Delete: `tests/unit/ops/productionBaselineCapture.test.ts`
+- Delete: `scripts/contain-chatbot-blobs.ts`
+- Delete: `tests/unit/ops/chatbotContainment.test.ts`
+- Delete: `scripts/verify-production-containment.ts`
+- Delete: `tests/unit/ops/productionContainment.test.ts`
+- Delete: `tests/e2e/preview-toolbar-routing.spec.ts`
 - Create: `docs/verification/jets-ghost-2.1.0.md`
 - Create: `docs/verification/jets-ghost-2.1.0-consolidation.md`
 
@@ -1705,8 +1713,8 @@ touch "$STATE_DIR/report-path-absent"
 printf '%s\n' "$IMPLEMENTATION_SHA" > "$STATE_DIR/implementation-sha"
 printf '%s\n' "$IMPLEMENTATION_TREE" > "$STATE_DIR/implementation-tree"
 git -C "$CANONICAL_ROOT" ls-files --others --exclude-standard -z > "$STATE_DIR/untracked-before.z"
-while IFS= read -r -d '' path; do
-  stat -f '%HT\t%i\t%z\t%Lp\t%m\t%c' "$CANONICAL_ROOT/$path"
+while IFS= read -r -d '' relative_path; do
+  stat -f '%HT\t%i\t%z\t%Lp\t%m\t%c' "$CANONICAL_ROOT/$relative_path"
 done < "$STATE_DIR/untracked-before.z" > "$STATE_DIR/untracked-before.meta"
 git -C "$CANONICAL_ROOT" switch -c codex/jets-ghost-2.1-canonical "$IMPLEMENTATION_SHA"
 test "$(git -C "$CANONICAL_ROOT" rev-parse HEAD)" = "$IMPLEMENTATION_SHA"
@@ -1715,6 +1723,8 @@ touch "$STATE_DIR/bootstrap.complete"
 ```
 
 The bootstrap is phase-aware. A completed marker validates and resumes the canonical integration branch. An incomplete state may be reset only while tracked state is clean and the partial branch still equals the saved implementation SHA; unknown states fail closed.
+
+If the temporary implementation worktree already contains a nonignored user-owned scratch file, inventory its relative path and file type, inode, byte size, permissions, modification time, and change time in the same private state directory without opening or hashing it. Require that inventory to remain unchanged throughout tracked implementation. Immediately before worktree removal, relocate the inventoried file into the canonical checkout's ignored `Untracked/` directory only if the destination is absent. Verify the same file type, inode, byte size, permissions, and modification time after the same-filesystem rename; the path move may legitimately change ctime. No newly appearing implementation-worktree file is eligible for automatic relocation, and no user-owned file may be staged or deleted.
 
 From the canonical folder, perform an explicit residue audit covering every category below. Remove anything obsolete; retain only infrastructure that is intentional and reusable. Record each disposition in `docs/verification/jets-ghost-2.1.0-consolidation.md`, separate from feature-implementation status:
 
@@ -1727,6 +1737,15 @@ From the canonical folder, perform an explicit residue audit covering every cate
 - intentional permanent test and verification infrastructure, listed explicitly with why it remains.
 
 Install the exact lockfile first. Search only Git-tracked paths; never recursively search a directory that may contain untracked drafts. Review every match rather than requiring zero matches: permanent redirects, the dormant Tools contract, a fail-closed test-only fake-runtime seam, and historical verification records may remain only with an explicit owner. Retain the fake runtime only as permanent deterministic browser-test infrastructure: its exact test-build flag, localhost hostname, explicit-query gate, and ordinary-production artifact rejection remain mandatory. Remove implementation-only screenshots, review diffs, task reports, generated builds, and other scratch with the temporary worktree rather than preserving a parallel evidence archive. Include one report row for every direct dependency and retained match category; remove entries without a current production, build, test, redirect, or verification purpose.
+
+The residue disposition is explicit rather than heuristic:
+
+- retire the completed archive migration utility and its unit test;
+- retire the one-off core-2.0 baseline capture, Blob containment, and production-containment utilities, their unit tests, and the Preview-toolbar routing test while retaining their committed historical evidence;
+- retain `scripts/sanitize-vercel-evidence.ts` and its unit test as permanent safe Preview/Production evidence tooling;
+- retain `scripts/verify-model-delivery.ts` as the permanent pinned-model transport and qualification-integrity verifier;
+- retain the fake runtime and browser harness as permanent deterministic test infrastructure owned by the Jet's Ghost browser suite, with the localhost, explicit-query, test-build, and ordinary-production-artifact gates unchanged; and
+- remove unused direct `mdast-util-to-string` and unused `@vitest/coverage-v8` from both manifests.
 
 ```bash
 set -euo pipefail
@@ -1742,17 +1761,18 @@ IMPLEMENTATION_TREE=$(<"$STATE_DIR/implementation-tree")
 test "$(git branch --show-current)" = codex/jets-ghost-2.1-canonical
 test "$(git rev-parse HEAD)" = "$IMPLEMENTATION_SHA"
 test "$(git rev-parse "${IMPLEMENTATION_SHA}^{tree}")" = "$IMPLEMENTATION_TREE"
+test "$(node -p "process.versions.node.split('.')[0]")" = 24
 npm ci
 set +e
 git grep -n -i -E -- 'v1-modernization|prototype|migration|compat(ibility)?|shim|staging|one-off|temporary|todo|original plan'
-status=$?
+command_status=$?
 set -e
-test "$status" -le 1
+test "$command_status" -le 1
 set +e
 git grep -n -E -- 'PUBLIC_JETS_GHOST_E2E|fakeRuntime|/tools/chatbot|/tools/'
-status=$?
+command_status=$?
 set -e
-test "$status" -le 1
+test "$command_status" -le 1
 npm ls --all
 npm run verify:docs
 npm run verify:content
@@ -1772,15 +1792,15 @@ if test -f "$STATE_DIR/residue.complete"; then exit 0; fi
 IMPLEMENTATION_SHA=$(<"$STATE_DIR/implementation-sha")
 test "$(git branch --show-current)" = codex/jets-ghost-2.1-canonical
 test "$(git rev-parse HEAD)" = "$IMPLEMENTATION_SHA"
-while IFS= read -r -d '' path; do
-  case "$path" in
+while IFS= read -r -d '' relative_path; do
+  case "$relative_path" in
     Untracked/*.mdx)
-      basename=${path##*/}
+      basename=${relative_path##*/}
       set +e
       git grep -qF -e "$basename" -- src scripts tests package.json package-lock.json astro.config.mjs vercel.json
-      status=$?
+      command_status=$?
       set -e
-      case "$status" in
+      case "$command_status" in
         0) echo 'Executable tracked files depend on a current untracked MDX filename.' >&2; exit 1 ;;
         1) ;;
         *) echo 'Unable to complete the tracked executable draft-dependency search.' >&2; exit 1 ;;
@@ -1817,6 +1837,7 @@ if test "$(git rev-parse HEAD)" != "$IMPLEMENTATION_SHA"; then
   touch "$STATE_DIR/residue.complete"
   exit 0
 fi
+test "$(node -p "process.versions.node.split('.')[0]")" = 24
 npm run verify:all
 npm run build
 git diff --check
@@ -1831,7 +1852,7 @@ git rev-parse HEAD > "$STATE_DIR/residue-commit"
 touch "$STATE_DIR/residue.complete"
 ```
 
-Now recapture and compare the private untracked path and metadata manifests. Only after they match exactly, the full canonical gate has passed, and the residue commit exists may the temporary worktree be removed. Require its tracked and nonignored state to be clean. Inventory ignored entries privately and allow forced removal only when every ignored path is a known disposable dependency, build/test output, Vercel link, macOS metadata file, or `.superpowers/sdd` execution scratch. Any environment file, image-staging asset, or other unmatched ignored path stops cleanup for inspection. Then delete only local branches proven integrated, rename the canonical branch, and verify one folder/worktree remains:
+Now recapture and compare the canonical checkout's original private untracked path and metadata manifests before relocating any separately inventoried implementation-worktree scratch file. After that exact comparison passes, perform the approved same-filesystem relocation into canonical `Untracked/`, verify its preserved metadata as described above, and require the implementation worktree's nonignored state to be empty. Only after those checks, the full canonical gate, and the residue commit may the temporary worktree be removed. Inventory ignored entries privately and allow forced removal only when every ignored path is a known disposable dependency, build/test output, Vercel link, macOS metadata file, or `.superpowers/sdd` execution scratch. Any environment file, image-staging asset, or other unmatched ignored path stops cleanup for inspection. Then delete only local branches proven integrated (including a patch/tree-equivalent duplicate when that equivalence is recorded), rename the canonical branch, and verify one folder/worktree remains:
 
 ```bash
 set -euo pipefail
@@ -1871,8 +1892,8 @@ if test -n "$ui_branch"; then
   git merge-base --is-ancestor codex/jets-ghost-full-screen-chat HEAD
 fi
 git ls-files --others --exclude-standard -z > "$STATE_DIR/untracked-after.z"
-while IFS= read -r -d '' path; do
-  stat -f '%HT\t%i\t%z\t%Lp\t%m\t%c' "$CANONICAL_ROOT/$path"
+while IFS= read -r -d '' relative_path; do
+  stat -f '%HT\t%i\t%z\t%Lp\t%m\t%c' "$CANONICAL_ROOT/$relative_path"
 done < "$STATE_DIR/untracked-after.z" > "$STATE_DIR/untracked-after.meta"
 cmp "$STATE_DIR/untracked-before.z" "$STATE_DIR/untracked-after.z"
 cmp "$STATE_DIR/untracked-before.meta" "$STATE_DIR/untracked-after.meta"
@@ -1880,12 +1901,31 @@ if test -e "$IMPLEMENTATION_ROOT"; then
   test "$(git -C "$IMPLEMENTATION_ROOT" branch --show-current)" = codex/jets-ghost-2.1
   test "$(git -C "$IMPLEMENTATION_ROOT" rev-parse HEAD)" = "$IMPLEMENTATION_SHA"
   test "$(git -C "$IMPLEMENTATION_ROOT" rev-parse HEAD^{tree})" = "$IMPLEMENTATION_TREE"
+  test -f "$STATE_DIR/implementation-preserved-before.z"
+  test -f "$STATE_DIR/implementation-preserved-before.meta"
+  test -f "$STATE_DIR/implementation-preserved-target.z"
+  git -C "$IMPLEMENTATION_ROOT" ls-files --others --exclude-standard -z > "$STATE_DIR/implementation-preserved-current.z"
+  cmp "$STATE_DIR/implementation-preserved-before.z" "$STATE_DIR/implementation-preserved-current.z"
+  while IFS= read -r -d '' relative_path; do
+    stat -f '%HT\t%i\t%z\t%Lp\t%m\t%c' "$IMPLEMENTATION_ROOT/$relative_path"
+  done < "$STATE_DIR/implementation-preserved-current.z" > "$STATE_DIR/implementation-preserved-current.meta"
+  cmp "$STATE_DIR/implementation-preserved-before.meta" "$STATE_DIR/implementation-preserved-current.meta"
+  source_relative_path=$(tr '\0' '\n' < "$STATE_DIR/implementation-preserved-before.z")
+  target_relative_path=$(tr '\0' '\n' < "$STATE_DIR/implementation-preserved-target.z")
+  test -n "$source_relative_path"
+  test -n "$target_relative_path"
+  test ! -e "$CANONICAL_ROOT/$target_relative_path"
+  mkdir -p "$(dirname "$CANONICAL_ROOT/$target_relative_path")"
+  /bin/mv "$IMPLEMENTATION_ROOT/$source_relative_path" "$CANONICAL_ROOT/$target_relative_path"
+  stat -f '%HT\t%i\t%z\t%Lp\t%m' "$CANONICAL_ROOT/$target_relative_path" > "$STATE_DIR/implementation-preserved-target.meta"
+  cut -f 1-5 "$STATE_DIR/implementation-preserved-before.meta" > "$STATE_DIR/implementation-preserved-before-stable.meta"
+  cmp "$STATE_DIR/implementation-preserved-before-stable.meta" "$STATE_DIR/implementation-preserved-target.meta"
   test -z "$(git -C "$IMPLEMENTATION_ROOT" status --porcelain=v1 --untracked-files=all)"
   git -C "$IMPLEMENTATION_ROOT" status --porcelain=v1 --ignored=matching -z > "$STATE_DIR/implementation-ignored.z"
   while IFS= read -r -d '' record; do
     test "${record:0:2}" = '!!'
-    path=${record:3}
-    case "$path" in
+    relative_path=${record:3}
+    case "$relative_path" in
       .DS_Store|*/.DS_Store|.astro/|.astro/*|.superpowers/sdd/|.superpowers/sdd/*|.vercel/|.vercel/*|coverage/|coverage/*|dist/|dist/*|node_modules/|node_modules/*|playwright-report/|playwright-report/*|test-results/|test-results/*|npm-debug.log*|yarn-debug.log*|yarn-error.log*|pnpm-debug.log*|test-config.json) ;;
       *) echo 'Unexpected ignored implementation-worktree residue; inspect before removal.' >&2; exit 1 ;;
     esac
@@ -1936,6 +1976,7 @@ if test "$(git rev-parse HEAD)" != "$RESIDUE_COMMIT"; then
   test "$(git log -1 --format=%s)" = 'docs(repo): record canonical consolidation'
   test -z "$(git status --porcelain=v1 --untracked-files=no)"
 else
+  test "$(node -p "process.versions.node.split('.')[0]")" = 24
   npm run verify:docs
   git diff --check
   git add -- docs/verification/jets-ghost-2.1.0-consolidation.md
@@ -1944,11 +1985,14 @@ else
   test -z "$(git status --porcelain=v1 --untracked-files=no)"
 fi
 git ls-files --others --exclude-standard -z > "$STATE_DIR/untracked-final.z"
-while IFS= read -r -d '' path; do
-  stat -f '%HT\t%i\t%z\t%Lp\t%m\t%c' "$CANONICAL_ROOT/$path"
-done < "$STATE_DIR/untracked-final.z" > "$STATE_DIR/untracked-final.meta"
-cmp "$STATE_DIR/untracked-before.z" "$STATE_DIR/untracked-final.z"
-cmp "$STATE_DIR/untracked-before.meta" "$STATE_DIR/untracked-final.meta"
+node -e "const fs=require('fs'); const read=p=>fs.readFileSync(p).toString('utf8').split('\\0').filter(Boolean); const before=read(process.argv[1]); const target=read(process.argv[2]); const final=read(process.argv[3]); const expected=new Set([...before,...target]); if(target.length!==1||final.length!==expected.size||final.some(p=>!expected.has(p))) process.exit(1)" "$STATE_DIR/untracked-before.z" "$STATE_DIR/implementation-preserved-target.z" "$STATE_DIR/untracked-final.z"
+while IFS= read -r -d '' relative_path; do
+  stat -f '%HT\t%i\t%z\t%Lp\t%m\t%c' "$CANONICAL_ROOT/$relative_path"
+done < "$STATE_DIR/untracked-before.z" > "$STATE_DIR/untracked-original-final.meta"
+cmp "$STATE_DIR/untracked-before.meta" "$STATE_DIR/untracked-original-final.meta"
+target_relative_path=$(tr '\0' '\n' < "$STATE_DIR/implementation-preserved-target.z")
+stat -f '%HT\t%i\t%z\t%Lp\t%m' "$CANONICAL_ROOT/$target_relative_path" > "$STATE_DIR/implementation-preserved-final.meta"
+cmp "$STATE_DIR/implementation-preserved-before-stable.meta" "$STATE_DIR/implementation-preserved-final.meta"
 rm -rf "$STATE_DIR"
 ```
 
@@ -1960,6 +2004,7 @@ Before the approximately 2 GB load, create `docs/verification/jets-ghost-2.1.0.m
 set -euo pipefail
 cd /Users/jet/jet-web
 test "$(pwd -P)" = /Users/jet/jet-web
+test "$(node -p "process.versions.node.split('.')[0]")" = 24
 mkdir -p test-results
 npx tsx scripts/verify-model-delivery.ts --hash-artifact --output=test-results/jets-ghost-2.1.0-mac-model-delivery.json
 npm run qualify:jets-ghost:mac
@@ -2020,6 +2065,7 @@ The annotation refinement declares `2.1.0` in both package manifests before the 
 set -euo pipefail
 cd /Users/jet/jet-web
 test "$(pwd -P)" = /Users/jet/jet-web
+test "$(node -p "process.versions.node.split('.')[0]")" = 24
 test "$(node -p "require('./package.json').version")" = 2.1.0
 test "$(node -p "require('./package-lock.json').version")" = 2.1.0
 test "$(node -p "require('./package-lock.json').packages[''].version")" = 2.1.0
@@ -2049,6 +2095,7 @@ Do not include prompts, questions, responses, conversation history, selected sou
 set -euo pipefail
 cd /Users/jet/jet-web
 test "$(pwd -P)" = /Users/jet/jet-web
+test "$(node -p "process.versions.node.split('.')[0]")" = 24
 npm ci
 npm run verify:all
 git diff --check
@@ -2062,14 +2109,17 @@ Expected: all pass.
 set -euo pipefail
 cd /Users/jet/jet-web
 test "$(pwd -P)" = /Users/jet/jet-web
-git add src/pages/chatbot.astro astro.config.mjs README.md package.json package-lock.json tests/e2e/jets-ghost.spec.ts tests/deployment/core-production.spec.ts docs/verification/jets-ghost-2.1.0.md
+test "$(node -p "process.versions.node.split('.')[0]")" = 24
+git add -u
+git add -- docs/verification/jets-ghost-2.1.0.md
 git diff --cached --check
 git diff --cached --name-only
+test -z "$(git diff --name-only)"
 git commit -m "feat(chatbot): release local Jet's Ghost"
 test -z "$(git status --porcelain=v1 --untracked-files=no)"
 ```
 
-- [ ] **Step 9: Qualify the exact final preview, then promote and read back production**
+- [ ] **Step 9: Qualify the exact final Preview, then build and read back Production**
 
 Push the final release-candidate commit through the user-approved remote workflow and wait for its Git-backed Vercel Preview. Production remains on the prior noindexed release throughout this blocking qualification. Set `CANDIDATE_URL` to the preview hostname, then bind and qualify that exact commit:
 
@@ -2077,6 +2127,7 @@ Push the final release-candidate commit through the user-approved remote workflo
 set -euo pipefail
 cd /Users/jet/jet-web
 test "$(pwd -P)" = /Users/jet/jet-web
+test "$(node -p "process.versions.node.split('.')[0]")" = 24
 EXPECTED_SHA=$(git rev-parse HEAD)
 test -n "$CANDIDATE_URL"
 mkdir -p test-results
@@ -2100,14 +2151,15 @@ npx cross-env REAL_MODEL_BASE_URL="https://$CANDIDATE_URL" npm run smoke:jets-gh
 
 This is a proportional two-case Preview smoke, not another full acceptance or 2 GB hash run. The transport-only check proves the pinned initial URL and durable redirect/origin/privacy policy; Task 13 Step 2 remains the byte-integrity proof. The smoke must prove one supported grounded answer with a valid citation and inspectable source, one unsupported abstention, privacy allowlist compliance, cleanup, exact canonical/OG/JSON-LD/navigation behavior, the complete platform-plus-explicit route matrix, About correctness, both retired `404`s, robots/sitemap/RSS behavior, exact `Cache-Control: public, max-age=31536000, immutable` on one versioned LiteRT `.wasm` response, and Preview `noindex` with zero `/chatbot/` sitemap memberships. If it fails, do not promote; the public production route remains on the earlier hard-noindex deployment. Terminal output must contain no question, response, history, selected source text, complete signed URL or value, signature, policy, transient CDN path, sensitive header, or prompt-bearing request record.
 
-Only after the exact Preview passes may that exact commit be fast-forwarded/promoted to Production. If integration creates a merge/squash/rebase SHA, stop and repeat exact-Preview binding and the two-case Preview smoke for the new SHA. Repeat the one-Mac six-case qualification only if integration changed runtime code, corpus/index generation or content, context configuration, model/library pins, or lockfile resolution.
+Only after the exact Preview passes may that exact commit receive a fresh Git-backed **Production-target build**. Do not promote or alias the Preview deployment itself: its `VERCEL_ENV=preview` build intentionally contains the noindex/sitemap-exclusion artifact and cannot become the public release artifact. Trigger and await a new Production build from the exact Previewed SHA, then require the Production deployment record to report `target: production` and the same Git SHA. If integration creates a merge/squash/rebase SHA, stop and repeat exact-Preview binding and the two-case Preview smoke for the new SHA. Repeat the one-Mac six-case qualification only if integration changed runtime code, corpus/index generation or content, context configuration, model/library pins, or lockfile resolution.
 
-After exact promotion, perform production-specific readback and one two-case grounded smoke using the same harness in smoke mode:
+After the fresh Production-target build completes, perform production-specific readback and one two-case grounded smoke using the same harness in smoke mode:
 
 ```bash
 set -euo pipefail
 cd /Users/jet/jet-web
 test "$(pwd -P)" = /Users/jet/jet-web
+test "$(node -p "process.versions.node.split('.')[0]")" = 24
 EXPECTED_SHA=$(git rev-parse HEAD)
 EXPECTED_SHA="$EXPECTED_SHA" node -e "const d=require('./test-results/jets-ghost-2.1.0-final-preview-vercel-deployment.json'); if(d.gitSource?.sha!==process.env.EXPECTED_SHA) process.exit(1)"
 umask 077
@@ -2144,6 +2196,7 @@ After Production readback and both real-model smoke cases pass, create a normal 
 set -euo pipefail
 cd /Users/jet/jet-web
 test "$(pwd -P)" = /Users/jet/jet-web
+test "$(node -p "process.versions.node.split('.')[0]")" = 24
 EXPECTED_SHA=$(git rev-parse HEAD)
 EXPECTED_SHA="$EXPECTED_SHA" node -e "const d=require('./test-results/jets-ghost-2.1.0-vercel-deployment.json'); if(d.readyState!=='READY'||d.target!=='production'||d.gitSource?.sha!==process.env.EXPECTED_SHA) process.exit(1)"
 EXPECTED_SHA="$EXPECTED_SHA" node -e "const d=require('./test-results/jets-ghost-2.1.0-final-preview-vercel-deployment.json'); if(d.target==='production'||d.gitSource?.sha!==process.env.EXPECTED_SHA) process.exit(1)"
@@ -2185,7 +2238,7 @@ Expected: the local annotated tag and remote `v2.1.0` tag point to the exact Pro
 [ ] README and verification evidence name the exact tested Mac, macOS, branded Chrome, measured behavior, unsupported configurations, and known limitations
 [ ] License and attribution evidence is complete
 [ ] Exact noindexed Preview passes automated verification plus one supported and one unsupported real-model smoke
-[ ] Production is healthy at 2.1.0 and bound to the release Git SHA
+[ ] Production is a fresh Production-target build of the exact Previewed 2.1.0 Git SHA, not an alias promotion of the noindexed Preview artifact
 [ ] Production /chatbot/ is index-follow with exact canonical/OG/JSON-LD agreement and exactly one sitemap entry; About, retired 404s, robots, RSS, and sitemap checks remain correct
 [ ] Production passes one supported and one unsupported grounded smoke before the normal v2.1.0 tag is pushed
 [ ] Only after the exact verified 2.1.0 Production deployment passed was https://jetsanchez.com/sitemap-index.xml re-submitted in GSC and the action recorded; this was sitemap submission, not URL Inspection/request indexing or Validate Fix

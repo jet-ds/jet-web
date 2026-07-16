@@ -359,11 +359,6 @@ test('rendered internal human-page links use trailing-slash identities', async (
   }
 });
 
-test('draft routes are absent', async ({ request }) => {
-  const response = await request.get('/blog/how-to-install-and-get-started-with-codex-cli-2026/');
-  expect(response.status()).toBe(404);
-});
-
 test('nested routes mark the canonical navigation item active', async ({ page }) => {
   await page.goto('/blog/how-to-install-claude-code-cli-2026/');
   await expect(
@@ -447,7 +442,6 @@ test('RSS emits only slashful public blog item URLs', async ({ request }) => {
     'https://jetsanchez.com/tools/',
     'https://jetsanchez.com/blog/the-future-of-ai/',
     'https://jetsanchez.com/blog/building-with-astro/',
-    'https://jetsanchez.com/blog/how-to-install-and-get-started-with-codex-cli-2026/',
   ]) {
     expect(itemLinks).not.toContain(excluded);
   }

@@ -5,6 +5,10 @@ type Theme = 'light' | 'dark';
 
 const themes: Theme[] = ['light', 'dark'];
 
+function normalizeCssColorSerialization(value: string): string {
+  return value.replace(/(^|[\s(])\.(?=\d)/gu, (_match, prefix: string) => `${prefix}0.`);
+}
+
 const expectedLinks = [
   {
     name: 'GitHub',
@@ -175,7 +179,8 @@ async function expectClippedImageCard(page: Page, route: '/blog/' | '/works/') {
   expect(keyboardFocus.outlineStyle).toBe('solid');
   expect(keyboardFocus.outlineWidth).toBe(2);
   expect(keyboardFocus.outlineOffset).toBe(2);
-  expect(keyboardFocus.outlineColor).toBe(keyboardFocus.expectedColor);
+  expect(normalizeCssColorSerialization(keyboardFocus.outlineColor))
+    .toBe(normalizeCssColorSerialization(keyboardFocus.expectedColor));
   expect(keyboardFocus.overflow).toBe('hidden');
 }
 

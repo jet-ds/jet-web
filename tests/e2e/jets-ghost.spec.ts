@@ -227,6 +227,7 @@ async function startFakeAssistant(
   loadModality: 'pointer' | 'keyboard' = 'pointer',
 ): Promise<Locator> {
   await page.goto(fakePath(scenario));
+  await expect.poll(() => runtimeId(page)).not.toBeNull();
   await page.getByRole('button', { name: 'Check compatibility' }).click();
   const load = page.getByRole('button', { name: /Load Jet's Ghost/ });
   await expect(load).toBeVisible();
