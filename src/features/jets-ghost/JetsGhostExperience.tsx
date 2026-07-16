@@ -609,7 +609,7 @@ export default function JetsGhostExperience({
           <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border-default bg-surface-base text-brand-base shadow-sm">
             <Ghost aria-hidden="true" size={20} strokeWidth={1.8} />
           </span>
-          <div className="min-w-0">
+          <div data-testid="jets-ghost-identity" className="min-w-0">
             <p className="truncate font-serif text-lg font-bold">Jet&apos;s Ghost</p>
             <p className="flex min-w-0 items-center gap-3xs whitespace-nowrap text-xs text-text-tertiary">
               <span className="min-w-0 truncate">jet-web {appVersion}</span>
@@ -622,20 +622,22 @@ export default function JetsGhostExperience({
                 Licenses
               </a>
             </p>
+            <div className="mt-3xs flex items-center">
+              <span
+                data-testid="lifecycle-announcement"
+                className="sr-only"
+                role="status"
+                aria-live="polite"
+                aria-atomic="true"
+              >
+                {getLifecycleAnnouncement(status)}
+              </span>
+              <LifecycleStatus status={status} />
+            </div>
           </div>
         </div>
 
-        <div className="flex items-center gap-3xs sm:gap-2xs">
-          <span
-            data-testid="lifecycle-announcement"
-            className="sr-only"
-            role="status"
-            aria-live="polite"
-            aria-atomic="true"
-          >
-            {getLifecycleAnnouncement(status)}
-          </span>
-          <LifecycleStatus status={status} />
+        <div data-testid="jets-ghost-header-actions" className="flex items-center gap-3xs sm:gap-2xs">
           {showHeaderActions && (
             <>
               <button
@@ -1020,7 +1022,7 @@ function LifecycleStatus({ status }: { status: JetsGhostLifecycleStatus }) {
       className="inline-flex w-fit shrink-0 items-center gap-2xs text-xs font-medium text-text-secondary"
     >
       <span className={`h-2 w-2 shrink-0 rounded-full ${dotColor}`} />
-      <span className="grid h-4 overflow-hidden">
+      <span className="relative grid h-4">
         {prefersReducedMotion ? (
           <span
             data-testid="lifecycle-visual-label"
@@ -1029,7 +1031,7 @@ function LifecycleStatus({ status }: { status: JetsGhostLifecycleStatus }) {
             {compactLabel}
           </span>
         ) : (
-          <AnimatePresence initial={false}>
+          <AnimatePresence initial={false} mode="popLayout">
             <motion.span
               data-testid="lifecycle-visual-label"
               key={compactLabel}

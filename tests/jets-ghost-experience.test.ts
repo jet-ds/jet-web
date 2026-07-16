@@ -124,7 +124,7 @@ test('production lifecycle presentation begins idle and separates compatibility 
   assert.match(experienceSource, />\s*Load Jet&apos;s Ghost · about 2 GB\s*</);
 });
 
-test('content-sized lifecycle status precedes stable conversational header actions', () => {
+test('content-sized lifecycle status stays with the identity while actions remain independent', () => {
   assert.doesNotMatch(experienceSource, /lifecycle-status-slot/);
   const statusSource = experienceSource.match(
     /function LifecycleStatus[\s\S]*?\n}\n/,
@@ -142,6 +142,17 @@ test('content-sized lifecycle status precedes stable conversational header actio
   );
   assert.match(visibleStatusClass, /(?:^|\s)w-fit(?:\s|$)/);
   assert.doesNotMatch(experienceSource, /LifecycleCapsule|lifecycle-capsule/);
+  const identityIndex = experienceSource.indexOf('data-testid="jets-ghost-identity"');
+  const statusInvocationIndex = experienceSource.indexOf('<LifecycleStatus status={status} />');
+  const actionsIndex = experienceSource.indexOf('data-testid="jets-ghost-header-actions"');
+  assert.ok(identityIndex >= 0);
+  assert.ok(statusInvocationIndex > identityIndex);
+  assert.ok(actionsIndex > statusInvocationIndex);
+  assert.equal(
+    experienceSource.slice(actionsIndex, experienceSource.indexOf('</header>', actionsIndex))
+      .includes('<LifecycleStatus'),
+    false,
+  );
   assert.match(
     experienceSource,
     /const showHeaderActions = \[[\s\S]*?'ready'[\s\S]*?'generating'[\s\S]*?'cancelling'[\s\S]*?'generation-error'[\s\S]*?'resetting'[\s\S]*?'reset-error'[\s\S]*?'unloading'[\s\S]*?'unload-error'[\s\S]*?\]\.includes\(status\);/,
@@ -151,11 +162,12 @@ test('content-sized lifecycle status precedes stable conversational header actio
   assert.doesNotMatch(experienceSource, /{status === 'ready' && \(/);
   assert.match(
     experienceSource,
-    /<LifecycleStatus status={status} \/>[\s\S]*?{showHeaderActions && \([\s\S]*?disabled={!canStartNewSession}[\s\S]*?>New session<[\s\S]*?disabled={!canUnload}[\s\S]*?>Unload</,
+    /data-testid="jets-ghost-header-actions"[\s\S]*?{showHeaderActions && \([\s\S]*?disabled={!canStartNewSession}[\s\S]*?>New session<[\s\S]*?disabled={!canUnload}[\s\S]*?>Unload</,
   );
-  assert.match(statusSource, /<AnimatePresence initial={false}>/);
+  assert.match(statusSource, /<AnimatePresence initial={false} mode="popLayout">/);
   assert.match(statusSource, /key={compactLabel}/);
-  assert.match(statusSource, /<span className="grid h-4 overflow-hidden">/);
+  assert.match(statusSource, /<span className="relative grid h-4">/);
+  assert.doesNotMatch(statusSource, /overflow-hidden/);
   assert.match(
     statusSource,
     /className="col-start-1 row-start-1 flex items-center whitespace-nowrap motion-reduce:transition-none"/,
@@ -188,7 +200,11 @@ test('canonical docs require a chrome-free status group and no capsule or pill t
     assert.match(source, /chrome-free status group/i, `${name} must name the approved treatment`);
     assert.doesNotMatch(source, /\b(?:capsule|pill)\b/i, `${name} retains superseded chrome terminology`);
     assert.doesNotMatch(source, /7\.5rem|fixed[^.]{0,40}status slot/i, `${name} retains the removed slot`);
-    assert.match(source, /status group[^.]*before[^.]*stable header actions/i);
+    assert.match(source, /status group[^.]*left identity block[^.]*below[^.]*version[^.]*Licenses metadata/i);
+    assert.match(source, /right[^.]*actions-only/i);
+    assert.match(source, /actions[^.]*stable/i);
+    assert.match(source, /outgoing label[^.]*intrinsic layout[^.]*immediately/i);
+    assert.match(source, /current label[^.]*normal flow[^.]*width/i);
     assert.match(source, /keyboard hint/i);
     assert.match(source, /Local only/);
   }
@@ -202,7 +218,8 @@ test('canonical docs require a chrome-free status group and no capsule or pill t
     implementationPlan,
     /desktop and (?:representative )?mobile[^.]*Ready[^.]*Responding[^.]*action x\/y\/width\/height[^.]*1px/i,
   );
-  assert.match(implementationPlan, /no artificial gap beyond[^.]*gap-2xs/i);
+  assert.match(implementationPlan, /320px[^.]*430px[^.]*tablet[^.]*desktop[^.]*zero horizontal overflow/i);
+  assert.match(implementationPlan, /status[^.]*metadata[^.]*x[^.]*1px/i);
   assert.match(implementationPlan, /430px touch[^.]*display[^.]*none/i);
   assert.match(implementationPlan, /desktop keyboard[^.]*both[^.]*one line/i);
 });

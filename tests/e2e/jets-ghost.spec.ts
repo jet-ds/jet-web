@@ -507,6 +507,30 @@ test.describe("Jet's Ghost consent and local privacy", () => {
 });
 
 test.describe("Jet's Ghost supported lifecycle", () => {
+  test('settles the current lifecycle label before it becomes visible', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium');
+    await page.setViewportSize({ width: 1280, height: 800 });
+    await page.goto(fakePath());
+
+    const header = page.locator('.jets-ghost-header');
+    const identity = header.locator(':scope > div').first();
+    const status = page.getByTestId('lifecycle-visible-status');
+
+    await page.getByRole('button', { name: 'Check compatibility' }).click();
+    await expect(currentStatusLabel(page)).toHaveText('Load ready');
+
+    const immediateLabel = await boxOf(currentStatusLabel(page));
+    const immediateStatus = await boxOf(status);
+    await page.waitForTimeout(220);
+    await expect(page.getByTestId('lifecycle-visual-label')).toHaveCount(1);
+    const settledLabel = await boxOf(currentStatusLabel(page));
+    const settledStatus = await boxOf(status);
+
+    expectStableBox(immediateLabel, settledLabel);
+    expectStableBox(immediateStatus, settledStatus);
+    await expect(identity.getByTestId('lifecycle-visible-status')).toHaveCount(1);
+  });
+
   test('supports compatibility, load, suggestion, cited response, reset, and unload', async ({ page }) => {
     const composer = await startFakeAssistant(page, 'long-stream');
     await expect(composer).not.toBeFocused();
@@ -573,18 +597,22 @@ test.describe("Jet's Ghost supported lifecycle", () => {
     }
   });
 
-  test('keeps brand and actions fixed while the chrome-free status expands left', async ({ page }, testInfo) => {
+  test('keeps status left-aligned with identity while stable actions stay anchored', async ({ page }, testInfo) => {
     const mobile = testInfo.project.name === 'mobile-chromium';
     await page.setViewportSize(mobile ? { width: 430, height: 932 } : { width: 1280, height: 800 });
     const composer = await startFakeAssistant(page, 'long-stream');
     const header = page.locator('.jets-ghost-header');
     const brand = header.locator(':scope > div').first();
+    const identity = page.getByTestId('jets-ghost-identity');
+    const identityMetadata = identity.locator('p').nth(1);
+    const actionGroup = page.getByTestId('jets-ghost-header-actions');
     const newSession = page.getByRole('button', { name: /New session|Start a new session/ });
     const unload = page.getByRole('button', { name: /Unload/ });
     const status = page.getByTestId('lifecycle-visible-status');
     await expect(page.getByTestId('lifecycle-visual-label')).toHaveCount(1);
     const before = {
       brand: await boxOf(brand),
+      metadata: await boxOf(identityMetadata),
       newSession: await boxOf(newSession),
       unload: await boxOf(unload),
       status: await boxOf(status),
@@ -613,24 +641,41 @@ test.describe("Jet's Ghost supported lifecycle", () => {
     expect(statusChrome.borderRadius).toBe('0px');
     expect(statusChrome.padding).toEqual(['0px', '0px', '0px', '0px']);
     expect(['0px', 'auto']).toContain(statusChrome.minWidth);
+    expect(before.status.x).toBeCloseTo(before.metadata.x, 0);
+    await expect(identity.getByTestId('lifecycle-visible-status')).toHaveCount(1);
+    await expect(actionGroup.getByTestId('lifecycle-visible-status')).toHaveCount(0);
 
     await composer.fill('Summarize the recursive convergence hypothesis.');
     await page.getByRole('button', { name: 'Send message' }).click();
     await expect(currentStatusLabel(page)).toHaveText('Responding');
-    await expect(page.getByTestId('lifecycle-visual-label')).toHaveCount(1);
-    const responding = {
+    const respondingImmediate = {
       brand: await boxOf(brand),
       newSession: await boxOf(newSession),
       unload: await boxOf(unload),
       status: await boxOf(status),
+      label: await boxOf(currentStatusLabel(page)),
     };
-    expectStableBox(before.brand, responding.brand);
-    expectStableBox(before.newSession, responding.newSession);
-    expectStableBox(before.unload, responding.unload);
-    expect(responding.status.width).toBeGreaterThan(before.status.width);
-    expect(responding.status.x).toBeLessThan(before.status.x);
-    expect(responding.status.x + responding.status.width)
-      .toBeCloseTo(before.status.x + before.status.width, 0);
+    await page.waitForTimeout(220);
+    await expect(page.getByTestId('lifecycle-visual-label')).toHaveCount(1);
+    const respondingSettled = {
+      brand: await boxOf(brand),
+      newSession: await boxOf(newSession),
+      unload: await boxOf(unload),
+      status: await boxOf(status),
+      label: await boxOf(currentStatusLabel(page)),
+    };
+    expectStableBox(before.brand, respondingImmediate.brand);
+    expectStableBox(before.newSession, respondingImmediate.newSession);
+    expectStableBox(before.unload, respondingImmediate.unload);
+    expectStableBox(respondingImmediate.brand, respondingSettled.brand);
+    expectStableBox(respondingImmediate.newSession, respondingSettled.newSession);
+    expectStableBox(respondingImmediate.unload, respondingSettled.unload);
+    expectStableBox(respondingImmediate.status, respondingSettled.status);
+    expectStableBox(respondingImmediate.label, respondingSettled.label);
+    expect(respondingImmediate.status.width).toBeGreaterThan(before.status.width);
+    expect(respondingImmediate.status.x).toBeCloseTo(before.status.x, 0);
+    expect(respondingImmediate.status.x + respondingImmediate.status.width)
+      .toBeGreaterThan(before.status.x + before.status.width);
     await expect(newSession).toBeDisabled();
     await expect(unload).toBeEnabled();
 
@@ -729,18 +774,10 @@ test.describe("Jet's Ghost supported lifecycle", () => {
     ));
     expect(hiddenSizingContent).toEqual([]);
 
-    const actionGroupOrder = await status.evaluate((statusElement) => {
-      const group = statusElement.parentElement;
-      if (!group) return { statusIndex: -1, followingTags: [] };
-      const children = [...group.children];
-      const statusIndex = children.indexOf(statusElement);
-      return {
-        statusIndex,
-        followingTags: children.slice(statusIndex + 1).map((element) => element.tagName),
-      };
-    });
-    expect(actionGroupOrder.statusIndex).toBeGreaterThanOrEqual(1);
-    expect(actionGroupOrder.followingTags).toEqual(['BUTTON', 'BUTTON']);
+    const actionGroup = page.getByTestId('jets-ghost-header-actions');
+    expect(await actionGroup.locator(':scope > *').evaluateAll((elements) => (
+      elements.map((element) => element.tagName)
+    ))).toEqual(['BUTTON', 'BUTTON']);
     await expect(composer).toBeEnabled();
 
     await page.emulateMedia({ reducedMotion: 'reduce' });
@@ -751,6 +788,47 @@ test.describe("Jet's Ghost supported lifecycle", () => {
     await submitQuestion(page, 'What does Jet write about agentic work?');
     await expect(currentStatusLabel(page)).toHaveText('Responding');
     await expect(page.getByTestId('lifecycle-visual-label')).toHaveCount(1);
+  });
+
+  test('keeps identity status and actions uncrowded across the supported header widths', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium');
+    const viewports = [
+      { width: 320, height: 800 },
+      { width: 430, height: 932 },
+      { width: 768, height: 1024 },
+      { width: 1280, height: 800 },
+    ];
+
+    for (const viewport of viewports) {
+      await page.setViewportSize(viewport);
+      await startFakeAssistant(page);
+
+      const header = page.locator('.jets-ghost-header');
+      const identityGroup = header.locator(':scope > div').first();
+      const identity = page.getByTestId('jets-ghost-identity');
+      const metadata = identity.locator('p').nth(1);
+      const version = metadata.locator('span').first();
+      const licenses = metadata.getByRole('link', { name: /licenses/i });
+      const status = page.getByTestId('lifecycle-visible-status');
+      const actionGroup = page.getByTestId('jets-ghost-header-actions');
+      const [headerBox, identityGroupBox, metadataBox, statusBox, actionBox] = await Promise.all([
+        boxOf(header),
+        boxOf(identityGroup),
+        boxOf(metadata),
+        boxOf(status),
+        boxOf(actionGroup),
+      ]);
+
+      await expect(version).toHaveText(/^jet-web \d+\.\d+\.\d+$/);
+      await expect(licenses).toBeVisible();
+      expect(statusBox.x).toBeCloseTo(metadataBox.x, 0);
+      expect(statusBox.y).toBeGreaterThanOrEqual(metadataBox.y + metadataBox.height);
+      expect(statusBox.y + statusBox.height).toBeLessThanOrEqual(headerBox.y + headerBox.height + 1);
+      expect(identityGroupBox.x + identityGroupBox.width).toBeLessThanOrEqual(actionBox.x + 1);
+      expect(await page.evaluate(() => (
+        document.documentElement.scrollWidth - document.documentElement.clientWidth
+      ))).toBe(0);
+    }
   });
 });
 
