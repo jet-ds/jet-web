@@ -271,9 +271,13 @@ describe("Jet's Ghost exact license bundle", () => {
     }
     expect(licensePage).toContain('href="/licenses/THIRD_PARTY_NOTICES.md"');
     expect(licensePage).not.toContain('underline underline-offset-4');
-    expect(
-      licensePage.match(/rounded-xl border border-border-default bg-bg-subtle p-card/g),
-    ).toHaveLength(4);
+    expect(licensePage).toContain(
+      "import Card from '../../components/ui/Card.astro';",
+    );
+    expect(licensePage.match(/<Card\s+surface="subtle"/g)).toHaveLength(4);
+    expect(licensePage).not.toContain(
+      'rounded-xl border border-border-default bg-bg-subtle p-card',
+    );
     expect(licensePage).toContain('space-y-xl');
     expect(licensePage).toContain('space-y-s');
     expect(licensePage).toContain('mb-l');

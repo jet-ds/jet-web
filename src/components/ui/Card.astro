@@ -2,17 +2,24 @@
 export interface Props {
   class?: string;
   padding?: 'none' | 'sm' | 'md' | 'lg';
+  surface?: 'base' | 'subtle';
   hover?: boolean;
 }
 
 const {
   class: className = '',
   padding = 'md',
+  surface = 'base',
   hover = false,
   ...rest
 } = Astro.props;
 
-const baseClasses = 'bg-surface-base border border-border-default rounded-lg transition-colors';
+const baseClasses = 'border border-border-default rounded-lg transition-colors';
+
+const surfaceClasses = {
+  base: 'bg-surface-base',
+  subtle: 'bg-bg-subtle',
+};
 
 const paddingClasses = {
   none: '',
@@ -25,7 +32,7 @@ const hoverClasses = hover
   ? 'hover:border-brand-base hover:shadow-md cursor-pointer'
   : '';
 
-const classes = `${baseClasses} ${paddingClasses[padding]} ${hoverClasses} ${className}`;
+const classes = `${surfaceClasses[surface]} ${baseClasses} ${paddingClasses[padding]} ${hoverClasses} ${className}`;
 ---
 
 <div class={classes} {...rest}>

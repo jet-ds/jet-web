@@ -4,29 +4,31 @@ import PageWrapper from '../components/layout/PageWrapper.astro';
 import Container from '../components/ui/Container.astro';
 import Card from '../components/ui/Card.astro';
 import Button from '../components/ui/Button.astro';
+import Link from '../components/ui/Link.astro';
 import { SITE, SOCIAL_LINKS } from '../config/site';
 
-// Map platform keys to proper brand names
-const platformNames: Record<string, string> = {
-  github: 'GitHub',
-  linkedin: 'LinkedIn',
-  ssrn: 'SSRN',
-  scholar: 'Google Scholar',
-};
-
-const activeSocialLinks = Object.entries(SOCIAL_LINKS)
-  .filter(([_, url]) => url)
-  .map(([platform, url]) => ({
-    platform: platformNames[platform],
-    url,
-    icon: platform, // Could be used for icon mapping later
-  }));
-
-// Professional/Academic links (SSRN, Google Scholar, etc.)
-const professionalLinks = [
-  { name: 'SSRN', url: SOCIAL_LINKS.ssrn, description: 'Research papers and publications' },
-  { name: 'Google Scholar', url: SOCIAL_LINKS.scholar, description: 'Academic citations and research profile' },
-].filter(link => link.url);
+const contactLinks = [
+  {
+    name: 'GitHub',
+    url: SOCIAL_LINKS.github,
+    description: 'Code, experiments, and open-source work',
+  },
+  {
+    name: 'LinkedIn',
+    url: SOCIAL_LINKS.linkedin,
+    description: 'Professional profile and updates',
+  },
+  {
+    name: 'SSRN',
+    url: SOCIAL_LINKS.ssrn,
+    description: 'Research papers and publications',
+  },
+  {
+    name: 'Google Scholar',
+    url: SOCIAL_LINKS.scholar,
+    description: 'Academic citations and research profile',
+  },
+].filter(({ url }) => url);
 ---
 
 <BaseLayout
@@ -46,8 +48,7 @@ const professionalLinks = [
       </div>
 
       <div class="space-y-m">
-        <!-- Email Card -->
-        <Card hover>
+        <Card surface="subtle">
           <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-s">
             <div class="flex-1">
               <h2 class="text-xl font-semibold mb-2xs text-text-primary">
@@ -56,97 +57,53 @@ const professionalLinks = [
               <p class="text-text-secondary mb-xs">
                 The best way to reach me for inquiries, collaborations, or just to say hello.
               </p>
-            <a
+              <Link href={`mailto:${SITE.email}`} variant="primary">
+                {SITE.email}
+              </Link>
+            </div>
+            <Button
               href={`mailto:${SITE.email}`}
-              class="text-lg font-medium text-brand-text hover:underline"
+              variant="accent"
+              density="default"
             >
-              {SITE.email}
-            </a>
-          </div>
-          <Button href={`mailto:${SITE.email}`} variant="accent">
-            Send Email
-          </Button>
-        </div>
-      </Card>
-
-      <!-- Social Media Card -->
-      {activeSocialLinks.length > 0 && (
-        <Card>
-          <h2 class="text-xl font-semibold mb-s text-text-primary">
-            Social Media
-          </h2>
-          <p class="text-text-secondary mb-m">
-            Connect with me on social platforms
-          </p>
-          <div class="grid grid-cols-1 sm:grid-cols-2 gap-s">
-            {activeSocialLinks.map((social) => (
-              <a
-                href={social.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="flex items-center justify-between p-s rounded-lg border border-border-default hover:border-brand-base hover:bg-bg-hover transition-all group"
-              >
-                <span class="font-medium text-text-primary group-hover:text-brand-text">
-                  {social.platform}
-                </span>
-                <span class="text-accent-base">
-                  →
-                </span>
-              </a>
-            ))}
+              Send email
+            </Button>
           </div>
         </Card>
-      )}
 
-      <!-- Professional/Academic Links Card -->
-      {professionalLinks.length > 0 && (
-        <Card>
+        {contactLinks.length > 0 && (
+          <Card surface="subtle">
           <h2 class="text-xl font-semibold mb-s text-text-primary">
-            Professional Links
+            Links
           </h2>
           <p class="text-text-secondary mb-m">
-            Find my research and professional profiles
+            Find my profiles, publications, and open-source work
           </p>
           <div class="space-y-s">
-            {professionalLinks.map((link) => (
+            {contactLinks.map((link) => (
               <a
                 href={link.url}
                 target="_blank"
                 rel="noopener noreferrer"
                 class="flex items-start justify-between p-s rounded-lg border border-border-default hover:border-brand-base hover:bg-bg-hover transition-all group"
               >
-                <div>
-                  <div class="font-medium text-text-primary group-hover:text-brand-text">
+                <span>
+                  <span class="block font-medium text-text-primary group-hover:text-brand-text">
                     {link.name}
-                  </div>
-                  <div class="text-sm text-text-tertiary mt-3xs">
+                  </span>
+                  <span class="block text-sm text-text-tertiary mt-3xs">
                     {link.description}
-                  </div>
-                </div>
-                <span class="text-accent-base flex-shrink-0 ml-s">
+                  </span>
+                </span>
+                <span class="text-accent-base flex-shrink-0 ml-s" aria-hidden="true">
                   ↗
                 </span>
+                <span class="sr-only">(opens in a new tab)</span>
               </a>
             ))}
           </div>
-        </Card>
-      )}
-
-      <!-- Response Time Notice -->
-      <Card class="bg-accent-subtle border-accent-base/20">
-        <div class="flex items-start gap-xs">
-          <span class="text-2xl">💡</span>
-          <div>
-            <h3 class="font-semibold text-text-primary mb-2xs">
-              Response Time
-            </h3>
-            <p class="text-text-tertiary">
-              I aim to respond to all messages within 2-3 business days. For urgent matters,
-              please indicate that in your subject line.
-            </p>
-          </div>
-        </div>
-      </Card>
+          </Card>
+        )}
       </div>
     </Container>
   </PageWrapper>

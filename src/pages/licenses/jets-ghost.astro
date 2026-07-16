@@ -2,6 +2,7 @@
 import BaseLayout from '../../components/layout/BaseLayout.astro';
 import PageWrapper from '../../components/layout/PageWrapper.astro';
 import Container from '../../components/ui/Container.astro';
+import Card from '../../components/ui/Card.astro';
 import Link from '../../components/ui/Link.astro';
 ---
 
@@ -35,7 +36,7 @@ import Link from '../../components/ui/Link.astro';
           <h2 id="model-license" class="text-3xl font-bold text-text-primary">
             Model
           </h2>
-          <div class="rounded-xl border border-border-default bg-bg-subtle p-card">
+          <Card surface="subtle">
             <h3 class="text-xl font-semibold text-text-primary">Gemma 4 E2B LiteRT-LM</h3>
             <dl class="mt-s grid gap-xs text-sm sm:grid-cols-[max-content_1fr]">
               <dt class="font-medium text-text-primary">Repository</dt>
@@ -50,7 +51,7 @@ import Link from '../../components/ui/Link.astro';
             <p class="mt-s text-sm leading-relaxed text-text-secondary">
               The browser downloads this pinned model directly from Hugging Face only after an explicit visitor action. The site does not mirror or rename the model file.
             </p>
-          </div>
+          </Card>
         </section>
 
         <section aria-labelledby="bundle-licenses" class="space-y-s">
@@ -58,17 +59,23 @@ import Link from '../../components/ui/Link.astro';
             Runtime and retrieval libraries
           </h2>
           <ul class="grid gap-xs">
-            <li class="rounded-xl border border-border-default bg-bg-subtle p-card">
-              <p class="font-semibold text-text-primary">LiteRT-LM 0.14.0 and LiteRT wasm-utils 2.5.0</p>
-              <p class="mt-2xs text-sm text-text-secondary"><Link href="/assistant/runtime/litert-lm/0.14.0/LICENSE.txt" variant="primary">Versioned Apache License 2.0 sibling</Link></p>
+            <li>
+              <Card surface="subtle">
+                <p class="font-semibold text-text-primary">LiteRT-LM 0.14.0 and LiteRT wasm-utils 2.5.0</p>
+                <p class="mt-2xs text-sm text-text-secondary"><Link href="/assistant/runtime/litert-lm/0.14.0/LICENSE.txt" variant="primary">Versioned Apache License 2.0 sibling</Link></p>
+              </Card>
             </li>
-            <li class="rounded-xl border border-border-default bg-bg-subtle p-card">
-              <p class="font-semibold text-text-primary">MiniSearch 7.2.0</p>
-              <p class="mt-2xs text-sm text-text-secondary"><Link href="/licenses/minisearch-7.2.0-MIT.txt" variant="primary">MIT license</Link></p>
+            <li>
+              <Card surface="subtle">
+                <p class="font-semibold text-text-primary">MiniSearch 7.2.0</p>
+                <p class="mt-2xs text-sm text-text-secondary"><Link href="/licenses/minisearch-7.2.0-MIT.txt" variant="primary">MIT license</Link></p>
+              </Card>
             </li>
-            <li class="rounded-xl border border-border-default bg-bg-subtle p-card">
-              <p class="font-semibold text-text-primary">stemmer 2.0.1</p>
-              <p class="mt-2xs text-sm text-text-secondary"><Link href="/licenses/stemmer-2.0.1-MIT.txt" variant="primary">MIT license</Link></p>
+            <li>
+              <Card surface="subtle">
+                <p class="font-semibold text-text-primary">stemmer 2.0.1</p>
+                <p class="mt-2xs text-sm text-text-secondary"><Link href="/licenses/stemmer-2.0.1-MIT.txt" variant="primary">MIT license</Link></p>
+              </Card>
             </li>
           </ul>
         </section>

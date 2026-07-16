@@ -28,6 +28,22 @@ const actionVariant = {
   filter: 'filter',
 } as const;
 
+const actionVariantClasses = {
+  primary: 'action--brand',
+  accent: 'action--accent',
+  brand: 'action--soft',
+  secondary: 'action--neutral',
+  outline: 'action--outline',
+  ghost: 'action--ghost',
+  filter: 'action--filter',
+};
+
+const densityClasses = {
+  compact: 'action--compact',
+  default: 'action--default',
+  immersive: 'action--immersive',
+};
+
 const densityTextClasses = {
   compact: 'text-sm',
   default: 'text-base',
@@ -35,7 +51,7 @@ const densityTextClasses = {
 };
 
 const resolvedVariant = actionVariant[variant];
-const classes = `action action--${resolvedVariant} action--${density} ${densityTextClasses[density]} ${className}`;
+const classes = `action ${actionVariantClasses[variant]} ${densityClasses[density]} ${densityTextClasses[density]} ${className}`;
 
 const Element = href ? 'a' : 'button';
 const elementProps = href ? { href } : { type };

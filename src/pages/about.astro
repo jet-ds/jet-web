@@ -61,7 +61,7 @@ const activeSocialLinks = Object.entries(SOCIAL_LINKS)
       <!-- Bio Section with Image -->
       <div class="grid grid-cols-1 md:grid-cols-2 gap-m-l mb-l items-stretch">
         <!-- Background Card -->
-        <Card>
+        <Card surface="subtle">
           <div class="prose prose-lg dark:prose-invert max-w-none">
             <h2 class="text-2xl font-bold leading-tight mb-s">Background</h2>
             <p>
@@ -94,7 +94,7 @@ const activeSocialLinks = Object.entries(SOCIAL_LINKS)
       </div>
 
       <!-- Interests & Expertise -->
-      <Card class="mb-l">
+      <Card surface="subtle" class="mb-l">
       <h2 class="text-2xl font-bold mb-m text-text-primary">
         Interests & Expertise
       </h2>
@@ -131,7 +131,7 @@ const activeSocialLinks = Object.entries(SOCIAL_LINKS)
     </Card>
 
     <!-- Connect Section -->
-    <Card>
+    <Card surface="subtle">
       <h2 class="text-2xl font-bold mb-m text-text-primary">
         Connect
       </h2>
@@ -147,7 +147,6 @@ const activeSocialLinks = Object.entries(SOCIAL_LINKS)
               external
               variant="brand"
               density="compact"
-              class="hover:bg-brand-subtle/80 hover:text-brand-hover"
             >
               {social.platform}
               <span class="text-xs text-accent-base" aria-hidden="true">↗</span>
