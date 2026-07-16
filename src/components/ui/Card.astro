@@ -1,24 +1,34 @@
 ---
 export interface Props {
   class?: string;
-  padding?: 'none' | 'sm' | 'md' | 'lg';
+  padding?: 'none' | 'sm' | 'md' | 'lg' | 'card';
+  radius?: 'lg' | 'xl';
   surface?: 'base' | 'subtle';
   hover?: boolean;
 }
 
 const {
   class: className = '',
-  padding = 'md',
+  padding,
+  radius,
   surface = 'base',
   hover = false,
   ...rest
 } = Astro.props;
 
-const baseClasses = 'border border-border-default rounded-lg transition-colors';
+const baseClasses = 'border border-border-default transition-colors';
 
 const surfaceClasses = {
   base: 'bg-surface-base',
   subtle: 'bg-bg-subtle',
+};
+
+const resolvedPadding = padding ?? (surface === 'subtle' ? 'card' : 'md');
+const resolvedRadius = radius ?? (surface === 'subtle' ? 'xl' : 'lg');
+
+const radiusClasses = {
+  lg: 'rounded-lg',
+  xl: 'rounded-xl',
 };
 
 const paddingClasses = {
@@ -26,13 +36,14 @@ const paddingClasses = {
   sm: 'p-s',
   md: 'p-m',
   lg: 'p-card',
+  card: 'p-card',
 };
 
 const hoverClasses = hover
   ? 'hover:border-brand-base hover:shadow-md cursor-pointer'
   : '';
 
-const classes = `${surfaceClasses[surface]} ${baseClasses} ${paddingClasses[padding]} ${hoverClasses} ${className}`;
+const classes = `${surfaceClasses[surface]} ${radiusClasses[resolvedRadius]} ${baseClasses} ${paddingClasses[resolvedPadding]} ${hoverClasses} ${className}`;
 ---
 
 <div class={classes} {...rest}>

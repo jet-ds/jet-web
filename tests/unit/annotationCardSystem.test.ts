@@ -13,17 +13,30 @@ const contactSource = readSource('../../src/pages/contact.astro');
 const countMatches = (source: string, pattern: RegExp) => source.match(pattern)?.length ?? 0;
 
 describe('annotation 2 shared card system', () => {
-  test('Card exposes base and subtle semantic surfaces with shared structure and Utopia padding', () => {
+  test('Card keeps base geometry while subtle defaults to the approved Licenses recipe', () => {
     expect(cardSource).toContain("surface?: 'base' | 'subtle';");
     expect(cardSource).toContain("surface = 'base'");
+    expect(cardSource).toContain("padding?: 'none' | 'sm' | 'md' | 'lg' | 'card';");
+    expect(cardSource).toContain("radius?: 'lg' | 'xl';");
     expect(cardSource).toContain("base: 'bg-surface-base'");
     expect(cardSource).toContain("subtle: 'bg-bg-subtle'");
     expect(cardSource).toContain(
-      "border border-border-default rounded-lg transition-colors",
+      'border border-border-default transition-colors',
     );
+    expect(cardSource).toContain(
+      "const resolvedPadding = padding ?? (surface === 'subtle' ? 'card' : 'md');",
+    );
+    expect(cardSource).toContain(
+      "const resolvedRadius = radius ?? (surface === 'subtle' ? 'xl' : 'lg');",
+    );
+    expect(cardSource).toContain("lg: 'rounded-lg'");
+    expect(cardSource).toContain("xl: 'rounded-xl'");
     expect(cardSource).toContain("sm: 'p-s'");
     expect(cardSource).toContain("md: 'p-m'");
     expect(cardSource).toContain("lg: 'p-card'");
+    expect(cardSource).toContain("card: 'p-card'");
+    expect(cardSource).toContain('radiusClasses[resolvedRadius]');
+    expect(cardSource).toContain('paddingClasses[resolvedPadding]');
   });
 
   test('Licenses consumes four subtle Cards while preserving valid section and list structure', () => {
@@ -50,9 +63,10 @@ describe('annotation 2 shared card system', () => {
 
     expect(countMatches(aboutSource, /<Card\s+surface="subtle"/gu)).toBe(3);
     expect(aboutSource).toMatch(
-      /<Card padding="none" class="overflow-hidden">[\s\S]*?<OptimizedImage/u,
+      /<Card padding="none" radius="xl" class="overflow-hidden">[\s\S]*?<OptimizedImage/u,
     );
     expect(portraitCardOpeningTag).not.toContain('surface="subtle"');
+    expect(portraitCardOpeningTag).toContain('radius="xl"');
     expect(aboutSource).not.toContain('bg-bg-subtle');
   });
 

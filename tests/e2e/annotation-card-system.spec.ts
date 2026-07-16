@@ -71,41 +71,99 @@ test('Licenses, About, and Contact resolve one subtle card surface in both theme
     ['/contact/', 2],
   ] as const;
 
-  for (const theme of themes) {
-    const routeStyles: Array<{ backgroundColor: string; borderColor: string }> = [];
+  for (const width of [320, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
 
-    for (const [route, expectedCount] of routes) {
-      await page.goto(route);
+    for (const theme of themes) {
+      const routeStyles: Array<{
+        backgroundColor: string;
+        borderColor: string;
+        borderRadius: number;
+        padding: number[];
+      }> = [];
+
+      for (const [route, expectedCount] of routes) {
+        await page.goto(route);
+        await applyTheme(page, theme);
+
+        const expectedCardPadding = await page.evaluate(() => {
+          const probe = document.createElement('div');
+          probe.style.padding = 'var(--space-card)';
+          document.body.append(probe);
+          const padding = Number.parseFloat(getComputedStyle(probe).paddingTop);
+          probe.remove();
+          return padding;
+        });
+
+        const cards = page.locator('main .bg-bg-subtle.border-border-default');
+        await expect(cards).toHaveCount(expectedCount);
+        const styles = await cards.evaluateAll((elements) => elements.map((element) => {
+          const computed = getComputedStyle(element);
+          return {
+            backgroundColor: computed.backgroundColor,
+            borderColor: computed.borderColor,
+            borderRadius: Number.parseFloat(computed.borderRadius),
+            padding: [
+              computed.paddingTop,
+              computed.paddingRight,
+              computed.paddingBottom,
+              computed.paddingLeft,
+            ].map(Number.parseFloat),
+          };
+        }));
+
+        expect(new Set(styles.map(({ backgroundColor }) => backgroundColor)).size).toBe(1);
+        expect(new Set(styles.map(({ borderColor }) => borderColor)).size).toBe(1);
+        for (const style of styles) {
+          expect(style.borderRadius).toBe(12);
+          for (const padding of style.padding) {
+            expect(padding).toBeCloseTo(expectedCardPadding, 2);
+          }
+        }
+        routeStyles.push(styles[0]);
+      }
+
+      expect(new Set(routeStyles.map(({ backgroundColor }) => backgroundColor)).size).toBe(1);
+      expect(new Set(routeStyles.map(({ borderColor }) => borderColor)).size).toBe(1);
+      expect(new Set(routeStyles.map(({ borderRadius }) => borderRadius))).toEqual(new Set([12]));
+      expect(new Set(routeStyles.map(({ padding }) => padding.join(','))).size).toBe(1);
+
+      await page.goto('/about/');
       await applyTheme(page, theme);
-
-      const cards = page.locator('main .bg-bg-subtle.border-border-default');
-      await expect(cards).toHaveCount(expectedCount);
-      const styles = await cards.evaluateAll((elements) => elements.map((element) => {
-        const computed = getComputedStyle(element);
+      const backgroundCard = page.locator('main .bg-bg-subtle.border-border-default').first();
+      const portraitCard = page.locator('main .bg-surface-base:has(img[alt="Jet Sanchez"])');
+      await expect(portraitCard).toHaveCount(1);
+      const backgroundRadius = await backgroundCard.evaluate(
+        (card) => Number.parseFloat(getComputedStyle(card).borderRadius),
+      );
+      const portraitStyle = await portraitCard.evaluate((card) => {
+        const image = card.querySelector('img[alt="Jet Sanchez"]');
+        if (!image) throw new Error('Portrait image missing');
+        const cardStyle = getComputedStyle(card);
+        const imageStyle = getComputedStyle(image);
+        const cardBounds = card.getBoundingClientRect();
+        const imageBounds = image.getBoundingClientRect();
         return {
-          backgroundColor: computed.backgroundColor,
-          borderColor: computed.borderColor,
+          borderRadius: Number.parseFloat(cardStyle.borderRadius),
+          clippedWithinCard: imageBounds.left >= cardBounds.left - 0.5
+            && imageBounds.top >= cardBounds.top - 0.5
+            && imageBounds.right <= cardBounds.right + 0.5
+            && imageBounds.bottom <= cardBounds.bottom + 0.5,
+          filter: imageStyle.filter,
+          opacity: imageStyle.opacity,
+          overflow: cardStyle.overflow,
+          padding: Number.parseFloat(cardStyle.paddingTop),
         };
-      }));
-
-      expect(new Set(styles.map(({ backgroundColor }) => backgroundColor)).size).toBe(1);
-      expect(new Set(styles.map(({ borderColor }) => borderColor)).size).toBe(1);
-      routeStyles.push(styles[0]);
+      });
+      expect(portraitStyle.borderRadius).toBe(12);
+      expect(portraitStyle.borderRadius).toBe(backgroundRadius);
+      expect(portraitStyle.clippedWithinCard).toBe(true);
+      expect(portraitStyle.filter).toBe('none');
+      expect(portraitStyle.opacity).toBe('1');
+      expect(portraitStyle.overflow).toBe('hidden');
+      expect(portraitStyle.padding).toBe(0);
     }
-
-    expect(new Set(routeStyles.map(({ backgroundColor }) => backgroundColor)).size).toBe(1);
-    expect(new Set(routeStyles.map(({ borderColor }) => borderColor)).size).toBe(1);
   }
-
-  await page.goto('/about/');
-  const portraitCard = page.locator('main .bg-surface-base:has(img[alt="Jet Sanchez"])');
-  await expect(portraitCard).toHaveCount(1);
-  const portraitStyle = await portraitCard.locator('img[alt="Jet Sanchez"]').evaluate((image) => {
-    const computed = getComputedStyle(image);
-    return { filter: computed.filter, opacity: computed.opacity };
-  });
-  expect(portraitStyle.filter).toBe('none');
-  expect(portraitStyle.opacity).toBe('1');
 });
 
 test('About Connect retains four compact shared soft actions in both themes', async ({ page }) => {
