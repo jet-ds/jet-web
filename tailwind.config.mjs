@@ -59,6 +59,7 @@ export default {
         'surface-base': 'var(--color-surface-base)',
         'surface-raised': 'var(--color-surface-raised)',
         'surface-overlay': 'var(--color-surface-overlay)',
+        'section-brand': 'var(--color-section-brand)',
         // Text hierarchy
         'text-primary': 'var(--color-text-primary)',
         'text-secondary': 'var(--color-text-secondary)',

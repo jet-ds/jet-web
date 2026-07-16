@@ -16,6 +16,7 @@
     --color-surface-base: oklch(1 0 0);               /* White - Cards, panels */
     --color-surface-raised: oklch(0.9764 0.0045 214.33); /* neutral.1 - Elevated */
     --color-surface-overlay: oklch(1 0 0);            /* White - Modals */
+    --color-section-brand: oklch(0.9502 0.0069 247.9); /* brand.2 - Broad blue sections */
 
     /* Text hierarchy */
     --color-text-primary: oklch(0.3151 0.0143 256.78);   /* neutral.11 - Headings */
@@ -141,6 +142,7 @@
     --color-surface-base: oklch(0.3151 0.0143 256.78);  /* neutral.11 */
     --color-surface-raised: oklch(0.3536 0.0306 248.71); /* brand.10 */
     --color-surface-overlay: oklch(0.384 0.0392 251.63); /* brand.9 */
+    --color-section-brand: oklch(0.3536 0.0306 248.71); /* brand.10 - Broad blue sections */
 
     /* Text hierarchy (inverted) */
     --color-text-primary: oklch(0.9764 0.0045 214.33);  /* neutral.1 */
@@ -183,7 +185,8 @@
 
 @layer components {
   /* Framework-neutral inline link recipe for Astro, React, and plain HTML. */
-  .text-link {
+  .text-link,
+  .prose :where(a):not(:where([class~="not-prose"] *)) {
     color: var(--color-brand-text);
     font-weight: 500;
     text-decoration: none;
@@ -194,12 +197,15 @@
   }
 
   .text-link:hover,
-  .text-link:focus-visible {
+  .text-link:focus-visible,
+  .prose :where(a):not(:where([class~="not-prose"] *)):hover,
+  .prose :where(a):not(:where([class~="not-prose"] *)):focus-visible {
     color: var(--color-brand-hover);
     text-decoration: underline;
   }
 
-  .text-link:focus-visible {
+  .text-link:focus-visible,
+  .prose :where(a):not(:where([class~="not-prose"] *)):focus-visible {
     outline: 2px solid var(--color-brand-base);
     outline-offset: 2px;
   }
@@ -356,6 +362,7 @@
 
   @media (prefers-reduced-motion: reduce) {
     .text-link,
+    .prose :where(a):not(:where([class~="not-prose"] *)),
     .action {
       transition: none;
     }
@@ -380,10 +387,6 @@
   /* Prose/Typography customization for MDX content */
   .prose {
     @apply text-text-primary;
-  }
-
-  .prose :where(a):not(:where([class~="not-prose"] *)) {
-    @apply text-brand-text no-underline hover:underline;
   }
 
   .prose :where(code):not(:where([class~="not-prose"] *)) {

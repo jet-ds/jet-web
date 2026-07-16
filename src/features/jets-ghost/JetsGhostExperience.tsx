@@ -843,8 +843,8 @@ export default function JetsGhostExperience({
                 {ghost.state.error?.message ?? 'The required local AI capabilities are not available here.'}
               </p>
               <div className="mt-m flex flex-wrap items-center justify-center gap-xs">
-                <a href="/blog/" data-action-variant="outline" data-action-density="immersive" className="action action--outline action--immersive border-border-strong bg-surface-base font-semibold hover:border-brand-base hover:bg-bg-subtle">Visit Blog</a>
-                <a href="/works/" data-action-variant="outline" data-action-density="immersive" className="action action--outline action--immersive border-border-strong bg-surface-base font-semibold hover:border-brand-base hover:bg-bg-subtle">Visit Works</a>
+                <a href="/blog/" data-action-variant="outline" data-action-density="immersive" className="action action--outline action--immersive border-border-strong bg-surface-base font-semibold hover:border-brand-base hover:bg-bg-subtle">Visit blog</a>
+                <a href="/works/" data-action-variant="outline" data-action-density="immersive" className="action action--outline action--immersive border-border-strong bg-surface-base font-semibold hover:border-brand-base hover:bg-bg-subtle">Visit works</a>
                 <button
                   ref={errorActionRef}
                   type="button"

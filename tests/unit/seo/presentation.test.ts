@@ -56,5 +56,38 @@ describe('SEO text presentation', () => {
     expect(description.length).toBeGreaterThanOrEqual(120);
     expect(description.length).toBeLessThanOrEqual(160);
     expect(source).toContain(description);
+    if (file !== 'src/pages/contact.astro') {
+      expect(source).toContain('description={pageDescription}');
+    }
+  });
+
+  it.each([
+    {
+      file: 'src/pages/blog/index.astro',
+      heading: 'Blog',
+      subheading: 'Explore my articles on AI, agentic software development, local-first tools, technical workflows, and the systems shaping modern work.',
+    },
+    {
+      file: 'src/pages/works/index.astro',
+      heading: 'Works',
+      subheading: 'Explore my research papers, software projects, and applied AI experiments spanning agentic systems, AI governance, and emerging technology.',
+    },
+  ])('keeps first-person visible listing copy independent from metadata in $file', ({
+    file,
+    heading,
+    subheading,
+  }) => {
+    const source = readFileSync(file, 'utf8');
+    const subheadingAssignment = source.match(
+      /const pageSubheading = (['"])(.*?)\1;/u,
+    )?.[2] ?? '';
+    const visibleHeader = source.match(
+      new RegExp(`<h1[^>]*>${heading}</h1>\\s*<p[^>]*>([\\s\\S]*?)<\\/p>`, 'u'),
+    )?.[1] ?? '';
+
+    expect(subheadingAssignment).toBe(subheading);
+    expect(subheadingAssignment).not.toContain("Jet Sanchez's");
+    expect(visibleHeader).toContain('{pageSubheading}');
+    expect(visibleHeader).not.toContain('{pageDescription}');
   });
 });
