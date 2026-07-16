@@ -612,7 +612,7 @@ export default function JetsGhostExperience({
           </div>
         </div>
 
-        <div className="flex items-center gap-2xs">
+        <div className="flex items-center gap-3xs sm:gap-2xs">
           <span
             data-testid="lifecycle-announcement"
             className="sr-only"
@@ -741,9 +741,9 @@ export default function JetsGhostExperience({
                   <button
                     type="button"
                     disabled
-                    data-action-variant="disabled"
+                    data-action-variant="neutral"
                     data-action-density="immersive"
-                    className="action action--disabled action--immersive cursor-wait gap-xs font-semibold opacity-100"
+                    className="action action--neutral action--immersive gap-xs font-semibold disabled:cursor-wait disabled:opacity-100"
                   >
                     <span className="h-4 w-4 animate-spin rounded-full border-2 border-border-strong border-t-brand-base motion-reduce:animate-none" />
                     Checking WebGPU and memory

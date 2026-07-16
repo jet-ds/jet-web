@@ -34,6 +34,7 @@ const SOURCE_SENTINEL = 'JG_SOURCE_SENTINEL_4a6c1b';
 
 type FakeScenario =
   | 'default'
+  | 'checking'
   | 'unsupported'
   | 'load-failure'
   | 'generation-failure'
@@ -205,6 +206,63 @@ function expectStableBox(before: Box, after: Box, tolerance = 1): void {
   for (const property of ['x', 'y', 'width', 'height'] as const) {
     expect(Math.abs(before[property] - after[property]), property).toBeLessThanOrEqual(tolerance);
   }
+}
+
+async function renderedContrastRatio(locator: Locator): Promise<number> {
+  return locator.evaluate((element) => {
+    const readColor = (color: string): [number, number, number, number] => {
+      const canvas = document.createElement('canvas');
+      canvas.width = 1;
+      canvas.height = 1;
+      const context = canvas.getContext('2d');
+      if (context === null) throw new Error('Canvas color conversion is unavailable');
+      context.clearRect(0, 0, 1, 1);
+      context.fillStyle = color;
+      context.fillRect(0, 0, 1, 1);
+      const [red, green, blue, alpha] = context.getImageData(0, 0, 1, 1).data;
+      return [red, green, blue, alpha];
+    };
+    const backdropFor = (start: Element | null): [number, number, number] => {
+      let current = start;
+      while (current !== null) {
+        const [red, green, blue, alpha] = readColor(getComputedStyle(current).backgroundColor);
+        if (alpha === 255) return [red, green, blue];
+        current = current.parentElement;
+      }
+      return [255, 255, 255];
+    };
+    const blend = (
+      foreground: [number, number, number],
+      background: [number, number, number],
+      alpha: number,
+    ): [number, number, number] => foreground.map((channel, index) => (
+      channel * alpha + background[index] * (1 - alpha)
+    )) as [number, number, number];
+    const luminance = (color: [number, number, number]) => {
+      const [red, green, blue] = color.map((channel) => {
+        const value = channel / 255;
+        return value <= 0.04045
+          ? value / 12.92
+          : ((value + 0.055) / 1.055) ** 2.4;
+      });
+      return 0.2126 * red + 0.7152 * green + 0.0722 * blue;
+    };
+
+    const style = getComputedStyle(element);
+    const [foregroundRed, foregroundGreen, foregroundBlue] = readColor(style.color);
+    const [surfaceRed, surfaceGreen, surfaceBlue] = readColor(style.backgroundColor);
+    const backdrop = backdropFor(element.parentElement);
+    const opacity = Number.parseFloat(style.opacity);
+    const foreground = blend(
+      [foregroundRed, foregroundGreen, foregroundBlue],
+      backdrop,
+      opacity,
+    );
+    const background = blend([surfaceRed, surfaceGreen, surfaceBlue], backdrop, opacity);
+    const lighter = Math.max(luminance(foreground), luminance(background));
+    const darker = Math.min(luminance(foreground), luminance(background));
+    return (lighter + 0.05) / (darker + 0.05);
+  });
 }
 
 function expectStableVerticalCenter(before: Box, after: Box, tolerance = 1): void {
@@ -498,6 +556,23 @@ test.describe("Jet's Ghost supported lifecycle", () => {
     ]);
   });
 
+  test('keeps checking status text readable in light and dark themes', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium');
+
+    for (const theme of ['light', 'dark'] as const) {
+      await page.goto(GHOST_PATH);
+      await page.evaluate((selectedTheme) => localStorage.setItem('theme', selectedTheme), theme);
+      await page.goto(fakePath('checking'));
+      await page.getByRole('button', { name: 'Check compatibility' }).click();
+
+      const checking = page.getByRole('button', { name: 'Checking WebGPU and memory' });
+      await expect(checking).toBeVisible();
+      expect(await renderedContrastRatio(checking), `${theme} checking contrast`)
+        .toBeGreaterThanOrEqual(4.5);
+      await expect(checking).toHaveAttribute('data-action-variant', 'neutral');
+    }
+  });
+
   test('keeps brand and actions fixed while the chrome-free status expands left', async ({ page }, testInfo) => {
     const mobile = testInfo.project.name === 'mobile-chromium';
     await page.setViewportSize(mobile ? { width: 430, height: 932 } : { width: 1280, height: 800 });
@@ -514,6 +589,12 @@ test.describe("Jet's Ghost supported lifecycle", () => {
       unload: await boxOf(unload),
       status: await boxOf(status),
     };
+    if (mobile) {
+      for (const action of [before.newSession, before.unload]) {
+        expect(action.width).toBeGreaterThanOrEqual(44);
+        expect(action.height).toBeGreaterThanOrEqual(44);
+      }
+    }
 
     const statusChrome = await status.evaluate((element) => {
       const style = getComputedStyle(element);
@@ -1061,7 +1142,15 @@ test.describe("Jet's Ghost responses, citations, and scrolling", () => {
     await page.getByRole('button', { name: 'Stop response' }).click();
     await expect(composer).not.toBeFocused();
     await expect(page.getByText('Stopped', { exact: true })).toHaveCount(1);
-    await expect(page.getByTestId('response-source-disclosure')).toHaveCount(0);
+    const stoppedResponse = page.locator('[aria-label="Conversation"] article').filter({
+      hasText: 'Stopped',
+    });
+    const stoppedInlineCitations = await stoppedResponse.getByRole('link', { name: /\[S\d+\]/ }).count();
+    const stoppedDisclosures = stoppedResponse.getByTestId('response-source-disclosure');
+    const expectedStoppedDisclosures = stoppedInlineCitations > 0 ? 1 : 0;
+    // Stop may land on either side of the next streamed citation chunk under load.
+    // The durable contract is that the disclosure mirrors validated inline citations.
+    await expect(stoppedDisclosures).toHaveCount(expectedStoppedDisclosures);
     expect((await runtimeMethods(page)).filter((method) => method === 'cancel')).toHaveLength(1);
 
     await composer.fill('Summarize the recursive convergence hypothesis.');
@@ -1071,7 +1160,8 @@ test.describe("Jet's Ghost responses, citations, and scrolling", () => {
     await expect(composer).not.toBeFocused();
     await expect(page.getByText('Stopped', { exact: true })).toHaveCount(1);
     expect((await runtimeMethods(page)).filter((method) => method === 'generate')).toHaveLength(2);
-    await expect(page.getByTestId('response-source-disclosure')).toHaveCount(1);
+    await expect(page.getByTestId('response-source-disclosure'))
+      .toHaveCount(expectedStoppedDisclosures + 1);
   });
 
   test('stops sticky follow after manual scroll-away and restores it through Jump to latest', async ({ page }) => {

@@ -307,18 +307,21 @@
   }
 
   .action--compact {
+    min-width: 2.75rem;
     min-height: 2.75rem;
     padding-inline: var(--space-xs);
     border-radius: 0.5rem;
   }
 
   .action--default {
+    min-width: 2.75rem;
     min-height: 2.75rem;
     padding-inline: var(--space-s);
     border-radius: 0.5rem;
   }
 
   .action--immersive {
+    min-width: 3rem;
     min-height: 3rem;
     padding-inline: var(--space-m);
     border-radius: 0.75rem;

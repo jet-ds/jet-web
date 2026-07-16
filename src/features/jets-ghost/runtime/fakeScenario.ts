@@ -5,6 +5,7 @@ import type {
 
 export const FAKE_SCENARIOS = [
   'default',
+  'checking',
   'unsupported',
   'load-failure',
   'generation-failure',
@@ -73,6 +74,8 @@ export function getFakeScenarioConfiguration(
   scenario: FakeScenario,
 ): FakeScenarioConfiguration {
   switch (scenario) {
+    case 'checking':
+      return { responseChunks: DEFAULT_RESPONSE_CHUNKS, capabilityDelayMs: 60_000 };
     case 'unsupported':
       return { responseChunks: DEFAULT_RESPONSE_CHUNKS, failures: { capability: true } };
     case 'load-failure':

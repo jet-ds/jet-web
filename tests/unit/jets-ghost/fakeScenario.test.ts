@@ -63,6 +63,7 @@ describe('Jet\'s Ghost fake browser scenarios', () => {
 
     expect(FAKE_SCENARIOS).toEqual([
       'default',
+      'checking',
       'unsupported',
       'load-failure',
       'generation-failure',
@@ -80,6 +81,9 @@ describe('Jet\'s Ghost fake browser scenarios', () => {
   });
 
   it('maps the allowlist to fixed behavior without accepting payload configuration', () => {
+    expect(getFakeScenarioConfiguration('checking')).toMatchObject({
+      capabilityDelayMs: 60_000,
+    });
     expect(getFakeScenarioConfiguration('unsupported')).toMatchObject({
       failures: { capability: true },
     });

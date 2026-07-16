@@ -29,6 +29,18 @@ describe('design-system role contracts', () => {
     expect(globalStyles).toMatch(/\.action--filter\[aria-pressed=['"]true['"]\]/u);
   });
 
+  test('action densities guarantee square minimum touch targets', () => {
+    for (const [density, size] of [
+      ['compact', '2.75rem'],
+      ['default', '2.75rem'],
+      ['immersive', '3rem'],
+    ] as const) {
+      const rule = globalStyles.match(new RegExp(`\\.action--${density}\\s*\\{([^}]*)\\}`, 'u'))?.[1] ?? '';
+      expect(rule).toContain(`min-width: ${size};`);
+      expect(rule).toContain(`min-height: ${size};`);
+    }
+  });
+
   test('Ghost status and Stop controls use honest semantic roles', () => {
     expect(globalStyles).toContain('--color-status-idle');
     expect(globalStyles).toContain('--color-control-stop-fill');

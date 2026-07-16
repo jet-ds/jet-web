@@ -43,6 +43,7 @@ async function expectSharedAction(
   await expect(action).toHaveAttribute('data-action-variant', variant);
   await expect(action).toHaveAttribute('data-action-density', density);
   const bounds = await action.boundingBox();
+  expect(bounds?.width ?? 0).toBeGreaterThanOrEqual(minimumHeight);
   expect(bounds?.height ?? 0).toBeGreaterThanOrEqual(minimumHeight);
 }
 
