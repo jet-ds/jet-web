@@ -87,7 +87,7 @@ type RealModelMode = typeof REAL_MODEL_MODES[number];
 
 const GHOST_PATH = '/chatbot/';
 const ROUTE_AWAY_PATH = '/contact/';
-const ACTIVATION_READY_TIMEOUT_MS = 5 * 60_000;
+const ACTIVATION_READY_TIMEOUT_MS = 10 * 60_000;
 const FIRST_TOKEN_TIMEOUT_MS = 2 * 60_000;
 const RESPONSE_COMPLETION_TIMEOUT_MS = 5 * 60_000;
 const LOADING_MOTION_TIMEOUT_MS = 3_000;
@@ -531,11 +531,45 @@ function modelTransferWindow(
   };
 }
 
-async function waitForActivationReady(page: Page): Promise<void> {
+function modelActivationTimeoutCode(
+  ledger: RequestLedger,
+  activationMark: number,
+): string {
+  const modelObservations = ledger.since(activationMark).filter(({ request }) => (
+    isTrustedModelOrigin(request.url(), JETS_GHOST_MODEL.trustedOrigins)
+  ));
+  if (modelObservations.length === 0) return 'MODEL_NOT_STARTED';
+  if (modelObservations.some(({ request }) => request.failure() !== null)) {
+    return 'MODEL_TRANSFER_FAILED';
+  }
+  if (modelObservations.some(({ finishedAt }) => finishedAt === undefined)) {
+    return 'MODEL_TRANSFER_PENDING';
+  }
+  return 'MODEL_TRANSFER_FINISHED_ENGINE_NOT_READY';
+}
+
+async function waitForActivationReady(
+  page: Page,
+  ledger: RequestLedger,
+  activationMark: number,
+): Promise<void> {
   const composer = page.getByRole('textbox', { name: "Ask Jet's Ghost" });
-  await expect(composer).toBeEnabled({
-    timeout: ACTIVATION_READY_TIMEOUT_MS,
+  const recoveryAction = page.getByRole('button', {
+    name: /^(?:Return to load|Unload Jet's Ghost)$/u,
   });
+  try {
+    await expect(composer.or(recoveryAction)).toBeVisible({
+      timeout: ACTIVATION_READY_TIMEOUT_MS,
+    });
+  } catch {
+    const stillLoading = await page.getByTestId('loading-stack').isVisible()
+      .catch(() => false);
+    throw new Error(stillLoading
+      ? modelActivationTimeoutCode(ledger, activationMark)
+      : 'ACTIVATION_TIMEOUT_UNKNOWN');
+  }
+  contentFreeAssert(!(await recoveryAction.isVisible()), 'ACTIVATION_LOAD_FAILED');
+  await expect(composer).toBeEnabled();
 }
 
 async function activationMeasurement(
@@ -552,7 +586,7 @@ async function activationMeasurement(
     applicationOrigin,
     options.compatibilityMark,
   );
-  const activationReady = waitForActivationReady(page);
+  const activationReady = waitForActivationReady(page, ledger, mark);
   if (options.sampleLoading) {
     await Promise.all([
       activationReady,
@@ -804,8 +838,9 @@ async function activateWithoutBenchmark(
     ledger,
     applicationOrigin,
   );
+  const activationMark = ledger.mark();
   await clickLoadAfterConsentAudit(page, ledger, applicationOrigin, compatibilityMark);
-  await waitForActivationReady(page);
+  await waitForActivationReady(page, ledger, activationMark);
   await expect(page.getByTestId('lifecycle-visible-status')).toContainText('Ready');
   await validateConsentAudit(page, ledger, compatibilityMark, applicationOrigin);
 }
@@ -1185,9 +1220,10 @@ test("qualifies Jet's Ghost with the real local model", async ({ browser, page }
     console.info('phase=lifecycle-closeout');
     await qualificationCloseout(page, ledger, applicationOrigin);
   } else {
+    console.info('phase=smoke-activation');
     const smokeActivationMark = ledger.mark();
     await clickLoadAfterConsentAudit(page, ledger, applicationOrigin, compatibilityMark);
-    await waitForActivationReady(page);
+    await waitForActivationReady(page, ledger, smokeActivationMark);
     await validateConsentAudit(page, ledger, compatibilityMark, applicationOrigin);
     await printSmokeVersions(ledger, smokeActivationMark, applicationOrigin);
     const smokeCases = SMOKE_CASE_IDS.map((id) => acceptanceCases.find((item) => item.id === id));

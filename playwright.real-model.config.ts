@@ -4,6 +4,7 @@ const externalBaseUrl = process.env.REAL_MODEL_BASE_URL;
 
 export default defineConfig({
   testDir: './tests/manual',
+  outputDir: 'test-results/playwright',
   fullyParallel: false,
   workers: 1,
   retries: 0,

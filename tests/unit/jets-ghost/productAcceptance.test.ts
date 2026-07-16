@@ -328,16 +328,19 @@ describe("Jet's Ghost real-model harness contract", () => {
     expect(manualSpec).not.toContain('await page.waitForTimeout(400);');
   });
 
-  it('uses one bounded model-readiness wait for every activation path', () => {
+  it('uses one bounded, failure-aware model-readiness wait for every activation path', () => {
     const manualSpec = readRequired(MANUAL_SPEC_PATH);
 
-    expect(manualSpec).toContain('const ACTIVATION_READY_TIMEOUT_MS = 5 * 60_000;');
+    expect(manualSpec).toContain('const ACTIVATION_READY_TIMEOUT_MS = 10 * 60_000;');
     expect(manualSpec).toMatch(
-      /async function waitForActivationReady\(page: Page\): Promise<void> \{[\s\S]*?toBeEnabled\(\{[\s\S]*?timeout: ACTIVATION_READY_TIMEOUT_MS,[\s\S]*?\}\);[\s\S]*?\}/u,
+      /function modelActivationTimeoutCode\([\s\S]*?MODEL_NOT_STARTED[\s\S]*?MODEL_TRANSFER_FAILED[\s\S]*?MODEL_TRANSFER_PENDING[\s\S]*?MODEL_TRANSFER_FINISHED_ENGINE_NOT_READY[\s\S]*?\}/u,
     );
-    expect(manualSpec.match(/waitForActivationReady\(page\);/g)).toHaveLength(3);
     expect(manualSpec).toMatch(
-      /const activationReady = waitForActivationReady\(page\);\s+if \(options\.sampleLoading\) \{\s+await Promise\.all\(\[\s+activationReady,\s+observeColdLoading\(page, startedAt, activationReady\),\s+\]\);\s+\} else \{\s+await activationReady;\s+\}/u,
+      /async function waitForActivationReady\(\s+page: Page,[\s\S]*?ledger: RequestLedger,[\s\S]*?activationMark: number,[\s\S]*?composer\.or\(recoveryAction\)[\s\S]*?timeout: ACTIVATION_READY_TIMEOUT_MS,[\s\S]*?modelActivationTimeoutCode\(ledger, activationMark\)[\s\S]*?ACTIVATION_TIMEOUT_UNKNOWN[\s\S]*?ACTIVATION_LOAD_FAILED[\s\S]*?toBeEnabled\(\);[\s\S]*?\}/u,
+    );
+    expect(manualSpec.match(/waitForActivationReady\(page, ledger,/g)).toHaveLength(3);
+    expect(manualSpec).toMatch(
+      /const activationReady = waitForActivationReady\(page, ledger, mark\);\s+if \(options\.sampleLoading\) \{\s+await Promise\.all\(\[\s+activationReady,\s+observeColdLoading\(page, startedAt, activationReady\),\s+\]\);\s+\} else \{\s+await activationReady;\s+\}/u,
     );
     expect(manualSpec).toMatch(
       /async function observeColdLoading\([\s\S]*?activationReady: Promise<void>[\s\S]*?Promise\.race\(\[\s+activationReady\.then\(\(\) => true\),/u,
@@ -407,6 +410,7 @@ describe("Jet's Ghost real-model harness contract", () => {
     expect(config).toMatch(/screenshot:\s*'off'/u);
     expect(config).toMatch(/video:\s*'off'/u);
     expect(config).toContain("preserveOutput: 'never',");
+    expect(config).toContain("outputDir: 'test-results/playwright',");
     expect(config).not.toMatch(/PUBLIC_JETS_GHOST_E2E|launchPersistentContext|userDataDir/u);
   });
 

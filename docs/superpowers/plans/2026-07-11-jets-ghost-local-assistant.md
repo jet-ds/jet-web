@@ -1510,6 +1510,7 @@ const externalBaseUrl = process.env.REAL_MODEL_BASE_URL;
 
 export default defineConfig({
   testDir: './tests/manual',
+  outputDir: 'test-results/playwright',
   fullyParallel: false,
   workers: 1,
   retries: 0,
@@ -1536,7 +1537,7 @@ export default defineConfig({
 });
 ```
 
-This config intentionally omits `PUBLIC_JETS_GHOST_E2E`; it qualifies the actual runtime in the currently installed Google Chrome on the available Apple Silicon Mac, not Playwright Chromium or the fake runtime. Trace, screenshot, and video capture stay disabled. Both direct commands set `PLAYWRIGHT_NO_COPY_PROMPT=1` in the worker environment so Playwright does not capture a failure-page accessibility snapshot, and `preserveOutput: 'never'` removes the remaining stack-only test output directory even when a run fails. Other hardware and browsers are not emulated and do not block this release.
+This config intentionally omits `PUBLIC_JETS_GHOST_E2E`; it qualifies the actual runtime in the currently installed Google Chrome on the available Apple Silicon Mac, not Playwright Chromium or the fake runtime. Trace, screenshot, and video capture stay disabled. Both direct commands set `PLAYWRIGHT_NO_COPY_PROMPT=1` in the worker environment so Playwright does not capture a failure-page accessibility snapshot, and `preserveOutput: 'never'` removes the remaining stack-only output under the dedicated `test-results/playwright/` directory even when a run fails. It must not own or erase sibling sanitized deployment and model-delivery evidence retained temporarily for the release readback. Other hardware and browsers are not emulated and do not block this release.
 
 - [ ] **Step 3: Implement the opt-in real-model Playwright test**
 
@@ -1547,6 +1548,8 @@ test.skip(process.env.RUN_REAL_MODEL !== '1', 'Set RUN_REAL_MODEL=1 for the 2 GB
 ```
 
 Support two explicit modes in the same test file: `qualification` and `smoke`, selected by `JETS_GHOST_REAL_MODEL_MODE`; reject any other value. Full qualification requires `process.platform === 'darwin'` and `process.arch === 'arm64'`, then records the branded Chrome, macOS, and safely exposed adapter identifiers. Open canonical `/chatbot/` and run the full `qualification` mode once on the available Mac through four exact phases:
+
+Use one ten-minute bounded engine-readiness wait for every local and deployment activation path. This accommodates the disclosed approximately 2 GB transfer under real network and host pressure without making the gate unbounded. Race readiness against the visible load-recovery action: fail immediately with a content-free activation-failure code when recovery appears, and distinguish a still-loading timeout from an unknown non-ready state without persisting page content. If the loading UI reaches the bound, classify only the existing request ledger as model-not-started, model-transfer-failed, model-transfer-pending, or model-transfer-finished-but-engine-not-ready; never print the request URL, failure text, response data, or page content.
 
 1. **Cold activation** — launch the test in a new Playwright-owned temporary Chrome profile, assert Cache Storage, IndexedDB, localStorage, and service-worker registrations contain no Jet's Ghost application state, then use the visible compatibility and Load actions once. Record corpus/index/model transfer, validation/hydration, and engine-ready timings. While the real load remains pending, sample the loading UI across every available 12-second boundary: require monotonically increasing elapsed time, the independently cycling themed headline, changing phase-in afterimage/particle motion unless reduced motion is requested, no progress-shaped indicator, the neutral **Cancel and reload** document-reload escape, and no Unload action. Do not activate the reload escape during this timed cold-load phase. If the cold load reaches 36 seconds, require **First load may take a few minutes.** in the reserved one-line secondary slot while the headline and phase-in animation continue independently, and record that loading-stack geometry does not move at the tested normal layout. The phase-in visual and decorative headline must not be live regions; the factual lifecycle announcement remains separate. This real-browser evidence is required in addition to fake/unit promise-ordering tests.
 2. **Warm activation** — unload immediately, verify conversation/knowledge/engine cleanup plus SDK-singleton reset, then Load again in the same browser profile and record the same timings. Prove route re-entry initializes a fresh singleton without asserting immediate WASM/GPU-memory reclamation. This is the sole warm-load measurement; do not clear browser HTTP cache between phases.
