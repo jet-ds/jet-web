@@ -611,13 +611,13 @@ export default function JetsGhostExperience({
           </span>
           <div className="min-w-0">
             <p className="truncate font-serif text-lg font-bold">Jet&apos;s Ghost</p>
-            <p className="flex min-w-0 items-center gap-3xs overflow-hidden whitespace-nowrap text-xs text-text-tertiary">
-              <span className="truncate">jet-web {appVersion}</span>
+            <p className="flex min-w-0 items-center gap-3xs whitespace-nowrap text-xs text-text-tertiary">
+              <span className="min-w-0 truncate">jet-web {appVersion}</span>
               <span aria-hidden="true" className="shrink-0">·</span>
               <a
                 href={JETS_GHOST_PATHS.licenses}
                 aria-label="Open Jet&apos;s Ghost model and open-source licenses"
-                className="shrink-0 font-medium text-brand-text transition-colors hover:text-brand-hover focus:outline-none focus:ring-2 focus:ring-brand-base"
+                className="shrink-0 text-link"
               >
                 Licenses
               </a>

@@ -19,11 +19,11 @@ const {
 // Auto-detect external links if not explicitly set
 const isExternal = external || href.startsWith('http') || href.startsWith('//');
 
-const baseClasses = 'transition-colors';
+const baseClasses = variant === 'primary' ? '' : 'transition-colors';
 
 const variantClasses = {
   default: 'text-text-primary hover:text-brand-text',
-  primary: 'text-brand-text hover:text-brand-hover',
+  primary: 'text-link',
   muted: 'text-text-tertiary hover:text-text-secondary',
 };
 
@@ -33,7 +33,8 @@ const underlineClasses = {
   always: 'underline',
 };
 
-const classes = `${baseClasses} ${variantClasses[variant]} ${underlineClasses[underline]} ${className}`;
+const underlineClass = variant === 'primary' ? '' : underlineClasses[underline];
+const classes = `${baseClasses} ${variantClasses[variant]} ${underlineClass} ${className}`;
 
 const externalProps = isExternal
   ? { target: '_blank', rel: 'noopener noreferrer' }

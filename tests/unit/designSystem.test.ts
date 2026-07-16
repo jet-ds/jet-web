@@ -6,6 +6,7 @@ const readSource = (path: string) => readFileSync(new URL(path, import.meta.url)
 const buttonSource = readSource('../../src/components/ui/Button.astro');
 const globalStyles = readSource('../../src/styles/global.css');
 const ghostSource = readSource('../../src/features/jets-ghost/JetsGhostExperience.tsx');
+const linkSource = readSource('../../src/components/ui/Link.astro');
 const tagSource = readSource('../../src/components/ui/Tag.astro');
 
 describe('design-system role contracts', () => {
@@ -27,6 +28,32 @@ describe('design-system role contracts', () => {
     expect(buttonSource).toContain("'filter'");
     expect(globalStyles).toMatch(/\.action--filter\s*\{/u);
     expect(globalStyles).toMatch(/\.action--filter\[aria-pressed=['"]true['"]\]/u);
+  });
+
+  test('primary inline links share one framework-neutral interaction recipe', () => {
+    const restRule = globalStyles.match(/\.text-link\s*\{([^}]*)\}/u)?.[1] ?? '';
+    expect(restRule).toContain('color: var(--color-brand-text);');
+    expect(restRule).toContain('font-weight: 500;');
+    expect(restRule).toContain('text-decoration: none;');
+    expect(restRule).toContain('text-underline-offset: 4px;');
+    expect(restRule).toContain('transition-property: color, text-decoration-color;');
+
+    const interactionRule = globalStyles.match(
+      /\.text-link:hover,\s*\.text-link:focus-visible\s*\{([^}]*)\}/u,
+    )?.[1] ?? '';
+    expect(interactionRule).toContain('color: var(--color-brand-hover);');
+    expect(interactionRule).toContain('text-decoration: underline;');
+
+    const focusVisibleRule = [...globalStyles.matchAll(
+      /\.text-link:focus-visible\s*\{([^}]*)\}/gu,
+    )].map((match) => match[1]).find((rule) => rule.includes('outline:')) ?? '';
+    expect(focusVisibleRule).toContain('outline: 2px solid var(--color-brand-base);');
+    expect(focusVisibleRule).toContain('outline-offset: 2px;');
+    expect(globalStyles).not.toMatch(/\.text-link:focus(?!-visible)/u);
+    expect(globalStyles).toMatch(
+      /@media \(prefers-reduced-motion: reduce\)\s*\{\s*\.text-link,\s*\.action\s*\{\s*transition: none;/u,
+    );
+    expect(linkSource).toContain("primary: 'text-link'");
   });
 
   test('action densities guarantee square minimum touch targets', () => {

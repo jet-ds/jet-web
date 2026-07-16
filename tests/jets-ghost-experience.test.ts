@@ -323,7 +323,7 @@ test('focus follows interaction modality and response scrolling stays inside the
 
 test('header exposes the package-synced version and license destination', () => {
   const headerSublineSource = experienceSource.match(
-    /<p className="[^"]*min-w-0[^"]*overflow-hidden[^"]*whitespace-nowrap[^"]*">[\s\S]*?<\/p>/,
+    /<p className="[^"]*min-w-0[^"]*whitespace-nowrap[^"]*">[\s\S]*?<\/p>/,
   )?.[0] ?? '';
 
   assert.equal(packageManifest.version, '2.1.0');
@@ -353,12 +353,16 @@ test('header exposes the package-synced version and license destination', () => 
     headerSublineSource,
     /aria-label="Open Jet&apos;s Ghost model and open-source licenses"/,
   );
+  assert.doesNotMatch(headerSublineSource, /overflow-hidden/);
   assert.match(
     headerSublineSource,
-    /className="[^"]*min-w-0[^"]*overflow-hidden[^"]*whitespace-nowrap[^"]*"/,
+    /className="[^"]*min-w-0[^"]*truncate[^"]*"[^>]*>\s*jet-web/,
   );
-  assert.match(headerSublineSource, /className="[^"]*truncate[^"]*"[^>]*>\s*jet-web/);
-  assert.match(headerSublineSource, /className="[^"]*shrink-0[^"]*"[\s\S]*?>\s*Licenses/);
+  assert.match(
+    headerSublineSource,
+    /className="[^"]*shrink-0[^"]*text-link[^"]*"[\s\S]*?>\s*Licenses/,
+  );
+  assert.doesNotMatch(headerSublineSource, /focus:(?:outline|ring)/);
   assert.doesNotMatch(experienceSource, />2\.1\.0 · local and private</);
 });
 
