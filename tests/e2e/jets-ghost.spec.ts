@@ -258,6 +258,7 @@ async function waitForCompletedResponse(page: Page): Promise<void> {
   await expect.poll(async () => (
     await runtimeMethods(page)
   ).filter((method) => method === 'generate').length).toBeGreaterThan(0);
+  await expect(page.getByRole('textbox', { name: "Ask Jet's Ghost" })).toBeEnabled();
   await expect(currentStatusLabel(page)).toHaveText('Ready');
 }
 
@@ -1631,8 +1632,12 @@ test.describe("Jet's Ghost responses, citations, and scrolling", () => {
       await waitForCompletedResponse(page);
     }
     await page.clock.install();
+    const pageNow = await page.evaluate(() => Date.now());
+    await page.clock.pauseAt(pageNow + 1_000);
     await composer.fill('Summarize the recursive convergence hypothesis.');
     await composer.press('Enter');
+    // Runner wall time must not be able to complete this clock-controlled stream.
+    await new Promise<void>((resolve) => setTimeout(resolve, 900));
     const scroller = page.getByTestId('conversation-scroller');
     await expect(currentStatusLabel(page)).toHaveText('Responding');
     const currentAssistant = scroller.locator('article').last();
@@ -1655,6 +1660,8 @@ test.describe("Jet's Ghost responses, citations, and scrolling", () => {
     const jump = page.getByRole('button', { name: 'Jump to latest' });
     await jump.focus();
     await jump.press('Enter');
+    // Commit the jump action before fast-forwarding the remaining stream timers.
+    await expect(jump).toHaveCount(0);
     await page.clock.runFor(500);
     await expect(jump).toHaveCount(0);
     await expect(composer).not.toBeFocused();
