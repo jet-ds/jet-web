@@ -9,11 +9,11 @@ This record is separate from feature qualification. It documents the local conso
 | Implementation commit integrated | `bba3045a801df686dbdef1c19b4fa40edf6a2dbb` |
 | Implementation tree | `bd7bb49528f539346e0e902c91463e4d388c4e35` |
 | Canonical checkout | `/Users/jet/jet-web` |
-| Canonical integration branch | `codex/jets-ghost-2.1-canonical` during verification; final local branch name pending cleanup |
+| Canonical integration branch | `codex/jets-ghost-2.1` |
 | Required runtime | Node `24.x`; final local gates use the bundled Node `24.14.0` runtime |
 | Canonical bootstrap | Complete. The canonical checkout points to the exact implementation commit and tree. |
 | Full canonical gate | Passed on the residue tree under bundled Node `24.14.0`: clean `npm ci`; 44 Vitest files and 577 tests; 208 Playwright checks with 20 intentional project skips; documentation and content verification; static build; production-artifact isolation; an additional production build; and `git diff --check`. |
-| Temporary-worktree cleanup | Pending successful canonical verification and preservation checks. |
+| Temporary-worktree cleanup | Complete. `/Users/jet/jet-web` is the sole registered worktree and sole `/Users/jet/jet-web*` directory. |
 
 The original canonical checkout had no staged or unstaged tracked changes. Its pre-existing nonignored user-authored content was inventoried by path and filesystem metadata in a private mode-`0700` Git-state directory without opening or hashing its contents. A separate pre-existing QA scratch file in the temporary implementation worktree is likewise inventoried without opening or hashing it and will remain uncommitted under canonical `Untracked/` before the temporary worktree is removed.
 
@@ -45,6 +45,7 @@ The original canonical checkout had no staged or unstaged tracked changes. Its p
 | Active modernization and Jet's Ghost specs/plans | Retain | They remain the architecture record and active release runbook through the 2.1.0 gate. Historical superseded material is already under `docs/archive/`. |
 | Core baseline and containment evidence | Retain | Immutable historical evidence for the completed 2.0.0 containment and modernization release. |
 | Dependency advisory refresh | Retain updated lockfile | `npm audit fix` updated packages only within declared compatible ranges, removing the critical and all moderate advisories; the remaining Astro-major advisories are assessed below. |
+| Obsolete local topic branches | Remove after canonical preservation checks | Integrated topic branches are ancestors of the canonical residue commit. `codex/hero-grainient-background-test` is not an ancestor but has the exact tree `2df22f0de751af36d8405664490b26e596ee2f34`, matching both `c423ffa` and the integrated `codex/grainient-24fps-pause` commit, so it is a patch/tree-equivalent duplicate rather than unique work. |
 
 ## Direct dependency ownership
 
@@ -111,4 +112,8 @@ The fake runtime remains reachable only when all of the following are true: the 
 
 ## Final cleanup result
 
-Pending. This section will be updated only after the residue commit passes the full canonical gate, the user-owned metadata inventories are rechecked, the temporary worktree and integrated local branches are removed, and `/Users/jet/jet-web` is the sole durable Jet Web folder and registered worktree.
+The residue commit passed the complete canonical gate before cleanup. The canonical draft inventory still matched its original private path and filesystem metadata manifest exactly. The temporary worktree's separately inventoried QA scratch file also matched its original type, inode, byte size, permissions, modification time, and change time before relocation; a same-filesystem rename preserved every required stable field under canonical `Untracked/` while leaving it uncommitted.
+
+The temporary worktree had no tracked or nonignored residue after that relocation. Its ignored inventory contained only the pre-authorized dependency, build, test-output, Vercel-link, macOS, and Superpowers scratch classes. Git removed the worktree registration but reported that the physical directory remained nonempty. After rechecking the removal authorization, absent registration metadata, single canonical worktree, preserved-file evidence, and the already-audited residue allowlist, the leftover temporary directory was removed with an exact guarded path. No user-owned content was deleted.
+
+All fully integrated obsolete local topic branches were removed. The one non-ancestor Grainient branch was removed only after recording its exact tree equivalence above. The remaining local branches are `codex/jets-ghost-2.1` and the pre-existing `main`; `/Users/jet/jet-web` is the only registered worktree and the only `/Users/jet/jet-web*` folder.

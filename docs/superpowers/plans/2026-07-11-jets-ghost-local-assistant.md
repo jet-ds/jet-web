@@ -1918,7 +1918,7 @@ if test -e "$IMPLEMENTATION_ROOT"; then
   mkdir -p "$(dirname "$CANONICAL_ROOT/$target_relative_path")"
   /bin/mv "$IMPLEMENTATION_ROOT/$source_relative_path" "$CANONICAL_ROOT/$target_relative_path"
   stat -f '%HT\t%i\t%z\t%Lp\t%m' "$CANONICAL_ROOT/$target_relative_path" > "$STATE_DIR/implementation-preserved-target.meta"
-  cut -f 1-5 "$STATE_DIR/implementation-preserved-before.meta" > "$STATE_DIR/implementation-preserved-before-stable.meta"
+  node -e "const fs=require('fs'); const fields=fs.readFileSync(process.argv[1],'utf8').trimEnd().split('\\\\t'); if(fields.length!==6) process.exit(1); fs.writeFileSync(process.argv[2], fields.slice(0,5).join('\\\\t')+'\\n')" "$STATE_DIR/implementation-preserved-before.meta" "$STATE_DIR/implementation-preserved-before-stable.meta"
   cmp "$STATE_DIR/implementation-preserved-before-stable.meta" "$STATE_DIR/implementation-preserved-target.meta"
   test -z "$(git -C "$IMPLEMENTATION_ROOT" status --porcelain=v1 --untracked-files=all)"
   git -C "$IMPLEMENTATION_ROOT" status --porcelain=v1 --ignored=matching -z > "$STATE_DIR/implementation-ignored.z"
