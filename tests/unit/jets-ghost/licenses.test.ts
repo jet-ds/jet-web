@@ -226,33 +226,57 @@ describe("Jet's Ghost exact license bundle", () => {
     expect(readme).toContain('directly from Hugging Face');
 
     expect(experience).toContain(
-      'Jet&apos;s Ghost runs frontier local AI in this browser.',
+      'Jet&apos;s Ghost runs frontier local AI in this browser, grounded in Jet&apos;s published works. Starting it downloads about 2 GB and may use substantial GPU memory.',
     );
-    expect(experience).toContain('Gemma 4 E2B');
     expect(experience).toContain('href={JETS_GHOST_PATHS.licenses}');
-    expect(experience).toContain('Model and open-source licenses');
-    expect(experience).toContain('Model:');
+    expect(experience).toContain('jet-web {appVersion}');
     expect(experience).toContain(
-      'aria-label="View model and open-source licenses for Gemma 4 E2B"',
+      'aria-label="Open Jet&apos;s Ghost model and open-source licenses"',
     );
+    expect(experience).not.toContain('Model:');
+    expect(experience).not.toContain('Gemma 4 E2B');
     expect(experience).not.toContain(
       'The load action downloads the pinned',
     );
 
-    expect(licensePage).toContain('Model and open-source licenses');
-    expect(licensePage).toContain('title="Model and open-source licenses"');
-    expect(licensePage).not.toContain(
-      'title="Model and open-source licenses | Jet Sanchez"',
+    expect(licensePage).toContain(
+      'title="Jet\'s Ghost model and open-source licenses"',
     );
+    expect(licensePage).toContain(
+      "Jet's Ghost model and open-source licenses",
+    );
+    expect(licensePage).toMatch(
+      /<h1[^>]*>\s*Jet's Ghost model and open-source licenses\s*<\/h1>/,
+    );
+    expect(licensePage).not.toContain('title="Model and open-source licenses"');
+    expect(licensePage).toContain('href="/chatbot/"');
+    expect(licensePage).toContain("Back to Jet's Ghost");
+    expect(licensePage).toContain('<span class="text-accent-base">←</span>');
+    expect(licensePage).not.toContain('uppercase tracking-wide');
+    expect(licensePage).toContain('Read third-party notices');
+    expect(licensePage).not.toContain('Read THIRD_PARTY_NOTICES.md');
     expect(licensePage).toContain('Gemma 4 E2B');
+    expect(licensePage).toContain(
+      "import Link from '../../components/ui/Link.astro';",
+    );
     for (const href of [
-      '/licenses/THIRD_PARTY_NOTICES.md',
       '/licenses/apache-2.0.txt',
       '/licenses/minisearch-7.2.0-MIT.txt',
       '/licenses/stemmer-2.0.1-MIT.txt',
       '/assistant/runtime/litert-lm/0.14.0/LICENSE.txt',
     ]) {
-      expect(licensePage).toContain(`href=\"${href}\"`);
+      expect(licensePage).toMatch(
+        new RegExp(`<Link[^>]*href="${href.replaceAll('.', '\\.')}"`),
+      );
     }
+    expect(licensePage).toContain('href="/licenses/THIRD_PARTY_NOTICES.md"');
+    expect(licensePage).not.toContain('underline underline-offset-4');
+    expect(
+      licensePage.match(/rounded-xl border border-border-default bg-bg-subtle p-card/g),
+    ).toHaveLength(4);
+    expect(licensePage).toContain('space-y-xl');
+    expect(licensePage).toContain('space-y-s');
+    expect(licensePage).toContain('mb-l');
+    expect(licensePage).not.toMatch(/\b(?:sm|md|lg|xl):(?:p|m|gap|space-|inset)/);
   });
 });

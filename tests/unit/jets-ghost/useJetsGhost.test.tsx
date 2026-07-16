@@ -1149,6 +1149,31 @@ describe('useJetsGhost activation boundary', () => {
 });
 
 describe('JetsGhostExperience production composition', () => {
+  it('updates rendered header metadata when the package version prop changes', () => {
+    const harness = createHarness();
+    const view = render(
+      <JetsGhostExperience
+        appVersion="9.8.7-test"
+        dependencies={harness.dependencies}
+      />,
+    );
+
+    expect(screen.getByText('jet-web 9.8.7-test')).toBeInTheDocument();
+    const licenses = screen.getByRole('link', {
+      name: "Open Jet's Ghost model and open-source licenses",
+    });
+    expect(licenses).toHaveAttribute('href', '/licenses/jets-ghost/');
+
+    view.rerender(
+      <JetsGhostExperience
+        appVersion="9.8.8-test"
+        dependencies={harness.dependencies}
+      />,
+    );
+    expect(screen.getByText('jet-web 9.8.8-test')).toBeInTheDocument();
+    expect(screen.queryByText('jet-web 9.8.7-test')).not.toBeInTheDocument();
+  });
+
   it('renders only the content-sized chrome-free status and separate full announcement', () => {
     const harness = createHarness();
     render(<JetsGhostExperience dependencies={harness.dependencies} />);

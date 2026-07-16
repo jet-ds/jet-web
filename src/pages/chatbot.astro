@@ -2,6 +2,7 @@
 import BaseLayout from '../components/layout/BaseLayout.astro';
 import StructuredData from '../components/seo/StructuredData.astro';
 import JetsGhostExperience from '../features/jets-ghost/JetsGhostExperience';
+import packageJson from '../../package.json';
 
 const title = "Jet's Ghost: Local-First AI Assistant";
 const description = "Chat with Jet's published writing, research, and projects using a local-first AI assistant in compatible WebGPU browsers.";
@@ -25,7 +26,7 @@ const description = "Chat with Jet's published writing, research, and projects u
     operatingSystem="Web browser with WebGPU"
   />
 
-  <JetsGhostExperience client:load />
+  <JetsGhostExperience client:load appVersion={packageJson.version} />
 
   <noscript>
     <section

@@ -25,6 +25,7 @@ import {
   type UIEvent,
 } from 'react';
 
+import packageJson from '../../../package.json';
 import { JETS_GHOST_CONTEXT, JETS_GHOST_PATHS } from './config';
 import { StaticKnowledgeRepository } from './corpus/repository';
 import type { JetsGhostErrorCode } from './errors';
@@ -283,6 +284,7 @@ function createDependencies(): JetsGhostDependencies {
 }
 
 interface JetsGhostExperienceProps {
+  appVersion?: string;
   dependencies?: JetsGhostDependencies;
   reloadPage?: () => void;
 }
@@ -292,6 +294,7 @@ function reloadCurrentDocument(): void {
 }
 
 export default function JetsGhostExperience({
+  appVersion = packageJson.version,
   dependencies: injectedDependencies,
   reloadPage = reloadCurrentDocument,
 }: JetsGhostExperienceProps = {}) {
@@ -608,7 +611,17 @@ export default function JetsGhostExperience({
           </span>
           <div className="min-w-0">
             <p className="truncate font-serif text-lg font-bold">Jet&apos;s Ghost</p>
-            <p className="truncate text-xs text-text-tertiary">2.1.0 · local and private</p>
+            <p className="flex min-w-0 items-center gap-3xs overflow-hidden whitespace-nowrap text-xs text-text-tertiary">
+              <span className="truncate">jet-web {appVersion}</span>
+              <span aria-hidden="true" className="shrink-0">·</span>
+              <a
+                href={JETS_GHOST_PATHS.licenses}
+                aria-label="Open Jet&apos;s Ghost model and open-source licenses"
+                className="shrink-0 font-medium text-brand-text transition-colors hover:text-brand-hover focus:outline-none focus:ring-2 focus:ring-brand-base"
+              >
+                Licenses
+              </a>
+            </p>
           </div>
         </div>
 
@@ -671,20 +684,7 @@ export default function JetsGhostExperience({
                 Ask the part of the site that reads everything.
               </h1>
               <p className="mx-auto mt-s max-w-2xl text-base leading-relaxed text-text-secondary">
-                Jet&apos;s Ghost runs frontier local AI in this browser. Starting it downloads about 2 GB and may use substantial GPU memory. Your prompts and responses stay on this device.
-              </p>
-              <p className="mx-auto mt-xs inline-flex flex-wrap items-center justify-center gap-x-3xs text-sm leading-relaxed text-text-tertiary">
-                <span>Model:</span>
-                <span className="font-medium text-text-secondary">Gemma 4 E2B</span>
-                <span aria-hidden="true">·</span>
-                <a
-                  href={JETS_GHOST_PATHS.licenses}
-                  aria-label="View model and open-source licenses for Gemma 4 E2B"
-                  title="Model and open-source licenses"
-                  className="font-medium text-brand-text underline underline-offset-4 transition-colors hover:text-brand-hover focus:outline-none focus:ring-2 focus:ring-brand-base"
-                >
-                  Licenses
-                </a>
+                Jet&apos;s Ghost runs frontier local AI in this browser, grounded in Jet&apos;s published works. Starting it downloads about 2 GB and may use substantial GPU memory.
               </p>
 
               <div

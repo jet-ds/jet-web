@@ -4,7 +4,7 @@
 
 **Date:** 2026-07-11
 
-**Last revised:** 2026-07-13
+**Last revised:** 2026-07-16
 
 **Parent design:** [Jet Web v1 Modernization](./2026-07-11-v1-modernization-design.md)
 
@@ -628,9 +628,11 @@ LiteRT-LM `0.14.0` currently implements the global `LiteRtLm.delete()` invoked b
 
 ### Loading communication
 
-Before activation, show this meaning in the site's voice:
+Before activation, show exactly:
 
-> Jet's Ghost runs frontier local AI in this browser. Starting it downloads about 2 GB and may use substantial GPU memory. Your prompts and responses stay on this device.
+> Jet's Ghost runs frontier local AI in this browser, grounded in Jet's published works. Starting it downloads about 2 GB and may use substantial GPU memory.
+
+Do not render a separate model/license metadata row in the activation body. The compact header subline is **jet-web 2.1.0 · Licenses**; its displayed version comes from `package.json`, and **Licenses** links to `/licenses/jets-ghost/` with an accessible name that identifies Jet's Ghost model and open-source licenses. The subline stays on one responsive, truncation-safe line.
 
 LiteRT-LM 0.14.0 does not expose an abort signal or trustworthy byte progress for WASM or model loading. The loading visual is therefore an indeterminate, loading-only phase-in ghost—not the existing horizontal travel/outward particle animation and not a progress-shaped track or ring. Keep the ghost centered. Animate two slate-blue ghost afterimages from `scale: 0.88` through `1.45` while opacity rises from `0` to at most `0.28` and returns to `0`, staggered by half of a `2.4s` loop. Animate four mustard `0`/`1` particles from distinct outer coordinates through curved intermediate coordinates into the center, with opacity `[0, 0.75, 0]` and scale `[0.75, 1, 0.45]` over the same loop with even staggering. The main ghost uses only a restrained opacity/scale resolve; it does not translate horizontally or vertically. No progress bar, track, or ring spinner remains.
 
@@ -920,6 +922,8 @@ Jet's Ghost is ready for indexed release when:
 - the exact noindexed Preview and promoted Production deployment pass their two-case real-model smokes before the normal `v2.1.0` tag is pushed.
 
 The license gate inventories the exact Gemma model revision, its model card and Gemma terms, `@litert-lm/core`, `minisearch@7.2.0`, `stemmer@2.0.1`, and transitive notices, redistribution/caching implications, and any attribution or acceptable-use disclosure required in the repository or public UI. Evidence records the reviewed URLs, versions, hashes, review date, and where each required notice is rendered. `noindex` is not removed while any required notice or permission remains unresolved.
+
+The public license page uses the same slashful back-link treatment as Blog and Works, linking to `/chatbot/` as **Back to Jet's Ghost**. Its H1 and page SEO title are exactly **Jet's Ghost model and open-source licenses**, its notice action is exactly **Read third-party notices**, and every inline license destination consumes the shared `Link.astro` treatment rather than a page-local always-underlined class. Preserve the blue subtle `rounded-xl` semantic-border cards with `bg-bg-subtle` and Utopia `p-card`, plus the existing Utopia page rhythm; responsive breakpoints may change layout only.
 
 Google Search Console follows deployment truth rather than controlling release. Never request indexing while Jet's Ghost is a prototype or Preview, and do not request indexing for RSS. This release makes no `/chatbot/` URL Inspection or indexing request. Only after the exact `2.1.0` Production deployment passes its Production readback and smoke gates may the operator re-submit `https://jetsanchez.com/sitemap-index.xml` in the `sc-domain:jetsanchez.com` property; the property, sitemap URL, action time, and returned status must be recorded in operator notes. Sitemap submission is not URL Inspection/request indexing and is not Page indexing Validate Fix. After recrawl and the Page indexing report refresh, monitor `/chatbot/` without turning URL Inspection into a release action. Do not start Validate Fix for intentional retired-route `404`s, expected slashless alternate-canonical exclusions, or expected HTTP/www redirect exclusions. A stale report is not evidence that the Task 13 release switch or redirect matrix failed.
 

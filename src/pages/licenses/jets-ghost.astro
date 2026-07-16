@@ -2,28 +2,33 @@
 import BaseLayout from '../../components/layout/BaseLayout.astro';
 import PageWrapper from '../../components/layout/PageWrapper.astro';
 import Container from '../../components/ui/Container.astro';
+import Link from '../../components/ui/Link.astro';
 ---
 
 <BaseLayout
-  title="Model and open-source licenses"
+  title="Jet's Ghost model and open-source licenses"
   description="License, provenance, and third-party notice details for the exact model and browser runtime used by Jet's Ghost."
 >
   <PageWrapper spacing="default">
     <Container size="md">
       <article class="space-y-xl">
-        <header class="max-w-3xl space-y-s">
-          <p class="font-mono text-sm font-medium uppercase tracking-wide text-brand-text">
-            Jet's Ghost
-          </p>
-          <h1 class="text-5xl font-bold leading-tight text-text-primary">
-            Model and open-source licenses
-          </h1>
-          <p class="text-base leading-relaxed text-text-secondary">
-            Jet's Ghost uses a pinned Gemma 4 E2B model and a small set of
-            browser runtime and retrieval libraries. This page keeps their
-            exact identities, licenses, and notices available in one stable
-            place.
-          </p>
+        <header class="max-w-3xl">
+          <div class="mb-l">
+            <Link href="/chatbot/" variant="muted" class="inline-flex items-center gap-1">
+              <span class="text-accent-base">←</span> Back to Jet's Ghost
+            </Link>
+          </div>
+          <div class="space-y-s">
+            <h1 class="text-5xl font-bold leading-tight text-text-primary">
+              Jet's Ghost model and open-source licenses
+            </h1>
+            <p class="text-base leading-relaxed text-text-secondary">
+              Jet's Ghost uses a pinned Gemma 4 E2B model and a small set of
+              browser runtime and retrieval libraries. This page keeps their
+              exact identities, licenses, and notices available in one stable
+              place.
+            </p>
+          </div>
         </header>
 
         <section aria-labelledby="model-license" class="space-y-s">
@@ -40,7 +45,7 @@ import Container from '../../components/ui/Container.astro';
               <dt class="font-medium text-text-primary">Filename</dt>
               <dd class="break-words font-mono text-text-secondary">gemma-4-E2B-it-web.litertlm</dd>
               <dt class="font-medium text-text-primary">License</dt>
-              <dd><a class="text-brand-text underline underline-offset-4 hover:text-brand-hover" href="/licenses/apache-2.0.txt">Apache License 2.0</a></dd>
+              <dd><Link href="/licenses/apache-2.0.txt" variant="primary">Apache License 2.0</Link></dd>
             </dl>
             <p class="mt-s text-sm leading-relaxed text-text-secondary">
               The browser downloads this pinned model directly from Hugging Face only after an explicit visitor action. The site does not mirror or rename the model file.
@@ -55,15 +60,15 @@ import Container from '../../components/ui/Container.astro';
           <ul class="grid gap-xs">
             <li class="rounded-xl border border-border-default bg-bg-subtle p-card">
               <p class="font-semibold text-text-primary">LiteRT-LM 0.14.0 and LiteRT wasm-utils 2.5.0</p>
-              <p class="mt-2xs text-sm text-text-secondary"><a class="text-brand-text underline underline-offset-4 hover:text-brand-hover" href="/assistant/runtime/litert-lm/0.14.0/LICENSE.txt">Versioned Apache License 2.0 sibling</a></p>
+              <p class="mt-2xs text-sm text-text-secondary"><Link href="/assistant/runtime/litert-lm/0.14.0/LICENSE.txt" variant="primary">Versioned Apache License 2.0 sibling</Link></p>
             </li>
             <li class="rounded-xl border border-border-default bg-bg-subtle p-card">
               <p class="font-semibold text-text-primary">MiniSearch 7.2.0</p>
-              <p class="mt-2xs text-sm text-text-secondary"><a class="text-brand-text underline underline-offset-4 hover:text-brand-hover" href="/licenses/minisearch-7.2.0-MIT.txt">MIT license</a></p>
+              <p class="mt-2xs text-sm text-text-secondary"><Link href="/licenses/minisearch-7.2.0-MIT.txt" variant="primary">MIT license</Link></p>
             </li>
             <li class="rounded-xl border border-border-default bg-bg-subtle p-card">
               <p class="font-semibold text-text-primary">stemmer 2.0.1</p>
-              <p class="mt-2xs text-sm text-text-secondary"><a class="text-brand-text underline underline-offset-4 hover:text-brand-hover" href="/licenses/stemmer-2.0.1-MIT.txt">MIT license</a></p>
+              <p class="mt-2xs text-sm text-text-secondary"><Link href="/licenses/stemmer-2.0.1-MIT.txt" variant="primary">MIT license</Link></p>
             </li>
           </ul>
         </section>
@@ -79,7 +84,7 @@ import Container from '../../components/ui/Container.astro';
             data-action-density="compact"
             class="action action--outline action--compact px-s text-brand-text"
           >
-            Read THIRD_PARTY_NOTICES.md
+            Read third-party notices
           </a>
         </section>
 

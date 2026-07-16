@@ -1180,11 +1180,13 @@ Unload/route cleanup cancels generation, calls `runtime.reset()` to delete the a
 
 Treat `docs/jets-ghost-chat-experience.md`, commit `d406ed46`, and the existing nine prototype tests as the presentation contract. Keep `JetsGhostExperience.tsx` as the composition root. Replace timer-driven compatibility/progress, canned conversation content, and simulated citations with `useJetsGhost()` state and actions. Reduce `experience.ts` to pure presentation mappings from production lifecycle state to ghost animation, loading phase, composer tone, one of the six exact compact labels, and a fuller lifecycle announcement; do not retain a second lifecycle state machine.
 
-Retain the approved disclosure before the load button:
+Retain the approved activation copy before the load button:
 
 ```text
-Jet's Ghost runs frontier local AI in this browser. Starting it downloads about 2 GB and may use substantial GPU memory. Your prompts and responses stay on this device.
+Jet's Ghost runs frontier local AI in this browser, grounded in Jet's published works. Starting it downloads about 2 GB and may use substantial GPU memory.
 ```
+
+Remove the separate model/license metadata row from the activation body. Keep one responsive, truncation-safe header subline, **jet-web 2.1.0 · Licenses**, with its version read from `package.json` and **Licenses** linking to `/licenses/jets-ghost/` under an accessible name that identifies Jet's Ghost model and open-source licenses.
 
 Use “Check compatibility” then “Load Jet's Ghost” as separate explicit actions. Preserve the final reviewed copy from the prototype where it is more specific than the generic sentence above. Unsupported state offers links to Blog and Works and no broken text input.
 
@@ -1615,7 +1617,7 @@ Document whether browser download from Hugging Face, browser caching, bundling L
 
 - [ ] **Step 3: Implement and verify required notices**
 
-Implement the complete known bundle for Gemma 4, LiteRT-LM core and its eight served assets, wasm-utils, MiniSearch, and stemmer. Include the full applicable license texts, exact artifact/version/hash mapping, and only copyright or NOTICE material established by the reviewed evidence. Document the LiteRT-LM v0.14.0 source-tag/package mismatch and absent upstream inventory as residual supply-chain risk. Verify public and repository license surfaces, README/UI links, package/license versions, artifact identities, and displayed model identity. Declare release blocked only for a specific unmet applicable provision or identified bundled-component obligation; after the known bundle is implemented, no presently identified license blocks distribution.
+Implement the complete known bundle for Gemma 4, LiteRT-LM core and its eight served assets, wasm-utils, MiniSearch, and stemmer. Include the full applicable license texts, exact artifact/version/hash mapping, and only copyright or NOTICE material established by the reviewed evidence. Document the LiteRT-LM v0.14.0 source-tag/package mismatch and absent upstream inventory as residual supply-chain risk. Verify public and repository license surfaces, README/UI links, package/license versions, artifact identities, and displayed model identity. The public page uses the Blog/Works slashful back-link treatment to `/chatbot/` with **Back to Jet's Ghost**, the exact H1 and SEO title **Jet's Ghost model and open-source licenses**, the exact action **Read third-party notices**, shared `Link.astro` treatment for every inline license destination, and the approved blue subtle Utopia card/page rhythm. Declare release blocked only for a specific unmet applicable provision or identified bundled-component obligation; after the known bundle is implemented, no presently identified license blocks distribution.
 
 - [ ] **Step 4: Commit the license evidence**
 
@@ -2010,15 +2012,17 @@ Pass that value to `BaseLayout`. Use the same target guard in the sitemap filter
 
 The deployment suite retains the core assertions and adds the complete route/SEO matrix: terminal `/chatbot/ === 200` with no `Location`; `/chatbot === 308` with `Location: /chatbot/`; `/tools/chatbot === 308` with `Location: /tools/chatbot/`; `/tools/chatbot/ === 308` with `Location: /chatbot/`; `/tools === 308` with `Location: /tools/`; `/tools/` is `noindex` and absent from sitemap/navigation; `/toolshed/` is not captured by a Tools rule. It also requires exact canonical/`og:url`/WebPage/SoftwareApplication trailing-slash agreement, Ghost href `/chatbot/` in primary/structured/no-script navigation, `/about` and `/about/` correctness, both retired canonical `404`s and their sitemap/RSS absence, and extension-correct `/robots.txt`, `/rss.xml`, and sitemap XML endpoints. Preview requires chatbot `noindex` plus zero sitemap membership; Production requires index-follow plus exactly one membership.
 
-- [ ] **Step 5: Bump the minor version**
+- [ ] **Step 5: Verify the declared minor version**
 
-Run:
+The annotation refinement declares `2.1.0` in both package manifests before the release gate. Verify that declaration without running a second version mutation:
 
 ```bash
 set -euo pipefail
 cd /Users/jet/jet-web
 test "$(pwd -P)" = /Users/jet/jet-web
-npm version 2.1.0 --no-git-tag-version
+test "$(node -p "require('./package.json').version")" = 2.1.0
+test "$(node -p "require('./package-lock.json').version")" = 2.1.0
+test "$(node -p "require('./package-lock.json').packages[''].version")" = 2.1.0
 ```
 
 - [ ] **Step 6: Finalize and review the verification evidence**

@@ -67,6 +67,18 @@ const toolsRouteSource = readFileSync(
   new URL('../src/pages/tools/index.astro', import.meta.url),
   'utf8',
 );
+const packageManifest = JSON.parse(readFileSync(
+  new URL('../package.json', import.meta.url),
+  'utf8',
+)) as { version: string; scripts: Record<string, string> };
+const packageLock = JSON.parse(readFileSync(
+  new URL('../package-lock.json', import.meta.url),
+  'utf8',
+)) as {
+  version: string;
+  packages: Record<string, { version?: string }>;
+};
+const implementationPlan = canonicalStatusDocs[2][1];
 
 const lifecyclePresentation = [
   ['idle', 'Not running', "Jet's Ghost is not running."],
@@ -309,12 +321,80 @@ test('focus follows interaction modality and response scrolling stays inside the
   assert.doesNotMatch(turnFollowEffect, /^\s*scroller\.scrollTop = scroller\.scrollHeight;\s*$/m);
 });
 
-test('approved disclosure and production actions replace prototype simulation', () => {
+test('header exposes the package-synced version and license destination', () => {
+  const headerSublineSource = experienceSource.match(
+    /<p className="[^"]*min-w-0[^"]*overflow-hidden[^"]*whitespace-nowrap[^"]*">[\s\S]*?<\/p>/,
+  )?.[0] ?? '';
+
+  assert.equal(packageManifest.version, '2.1.0');
+  assert.equal(packageLock.version, packageManifest.version);
+  assert.equal(packageLock.packages['']?.version, packageManifest.version);
   assert.match(
     experienceSource,
-    /Jet&apos;s Ghost runs frontier local AI in this browser\. Starting it downloads about 2 GB and may use substantial GPU memory\. Your prompts and responses stay on this device\./,
+    /import packageJson from '\.\.\/\.\.\/\.\.\/package\.json';/,
   );
-  assert.doesNotMatch(experienceSource, /runs Gemma 4 E2B/);
+  assert.match(
+    canonicalRouteSource,
+    /import packageJson from '\.\.\/\.\.\/package\.json';/,
+  );
+  assert.match(
+    canonicalRouteSource,
+    /<JetsGhostExperience client:load appVersion={packageJson\.version} \/>/,
+  );
+  assert.match(
+    headerSublineSource,
+    /jet-web {appVersion}/,
+  );
+  assert.match(experienceSource, /appVersion = packageJson\.version/);
+  assert.match(headerSublineSource, /aria-hidden="true"[^>]*>·<\/[a-z]+>/);
+  assert.match(headerSublineSource, /href={JETS_GHOST_PATHS\.licenses}/);
+  assert.match(headerSublineSource, />\s*Licenses\s*<\/a>/);
+  assert.match(
+    headerSublineSource,
+    /aria-label="Open Jet&apos;s Ghost model and open-source licenses"/,
+  );
+  assert.match(
+    headerSublineSource,
+    /className="[^"]*min-w-0[^"]*overflow-hidden[^"]*whitespace-nowrap[^"]*"/,
+  );
+  assert.match(headerSublineSource, /className="[^"]*truncate[^"]*"[^>]*>\s*jet-web/);
+  assert.match(headerSublineSource, /className="[^"]*shrink-0[^"]*"[\s\S]*?>\s*Licenses/);
+  assert.doesNotMatch(experienceSource, />2\.1\.0 · local and private</);
+});
+
+test('activation uses the approved grounded copy without a model metadata row', () => {
+  const activationIntroSource = experienceSource.match(
+    /<h1[\s\S]*?data-testid="activation-privacy-facts"/,
+  )?.[0] ?? '';
+
+  assert.match(
+    activationIntroSource,
+    /Jet&apos;s Ghost runs frontier local AI in this browser, grounded in Jet&apos;s published works\. Starting it downloads about 2 GB and may use substantial GPU memory\./,
+  );
+  assert.doesNotMatch(activationIntroSource, /Model:|Gemma 4 E2B|Licenses/);
+});
+
+test('active experience docs preserve the exact visible activation and header contracts', () => {
+  for (const [name, source] of canonicalStatusDocs) {
+    assert.match(
+      source,
+      /Jet's Ghost runs frontier local AI in this browser, grounded in Jet's published works\. Starting it downloads about 2 GB and may use substantial GPU memory\./,
+      `${name} must record the exact activation copy`,
+    );
+    assert.match(source, /jet-web 2\.1\.0 · Licenses/);
+    assert.doesNotMatch(source, /Your prompts and responses stay on this device\./);
+  }
+});
+
+test('Task 13 verifies the already-declared release version without rebumping it', () => {
+  assert.match(implementationPlan, /Step 5: Verify the declared minor version/);
+  assert.doesNotMatch(implementationPlan, /npm version 2\.1\.0/);
+  assert.match(implementationPlan, /package\.json[^\n]*2\.1\.0/);
+  assert.match(implementationPlan, /package-lock\.json[^\n]*2\.1\.0/);
+  assert.match(implementationPlan, /packages\[''\][^\n]*2\.1\.0/);
+});
+
+test('production actions replace prototype simulation', () => {
   assert.match(experienceSource, /ghost\.checkCompatibility/);
   assert.match(experienceSource, /ghost\.load/);
   assert.match(experienceSource, /ghost\.sendMessage/);
@@ -578,18 +658,14 @@ test('test-build fake runtime requires the flag, local host, and explicit query'
 });
 
 test('ordinary production verification scans emitted artifacts for the fake runtime seam', () => {
-  const packageJson = JSON.parse(readFileSync(
-    new URL('../package.json', import.meta.url),
-    'utf8',
-  )) as { scripts: Record<string, string> };
   const productionPlaywrightSource = readFileSync(
     new URL('../playwright.production.config.ts', import.meta.url),
     'utf8',
   );
 
-  assert.doesNotMatch(packageJson.scripts.build, /PUBLIC_JETS_GHOST_E2E/);
+  assert.doesNotMatch(packageManifest.scripts.build, /PUBLIC_JETS_GHOST_E2E/);
   assert.doesNotMatch(productionPlaywrightSource, /PUBLIC_JETS_GHOST_E2E|runtime=fake|__JETS_GHOST_E2E__/);
-  assert.match(packageJson.scripts.verify, /verify:production-artifacts/);
+  assert.match(packageManifest.scripts.verify, /verify:production-artifacts/);
   assert.match(buildPurityVerifierSource, /delete environment\.PUBLIC_JETS_GHOST_E2E/);
   assert.match(buildPurityVerifierSource, /assertProductionArtifactsContainNoFakeRuntime/);
   for (const marker of [
