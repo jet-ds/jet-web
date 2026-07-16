@@ -4,193 +4,159 @@ import BaseLayout from '../../components/layout/BaseLayout.astro';
 import PageWrapper from '../../components/layout/PageWrapper.astro';
 import Container from '../../components/ui/Container.astro';
 import WorkCard from '../../components/works/WorkCard.astro';
+import CollectionFilterEnhancement from '../../components/filters/CollectionFilterEnhancement.astro';
 import { isPublished } from '../../content/policy';
 import { sortWorks } from '../../utils/sortByDate';
 
-// Fetch all works
 const allWorks = await getCollection('works', ({ data }) => isPublished(data));
-
-// Sort works by date (newest first)
 const sortedWorks = sortWorks(allWorks);
-
-// Get the selected type from URL query params (optional filtering)
-const url = Astro.url;
-const selectedType = url.searchParams.get('type') as 'research' | 'project' | 'other' | null;
-
-// Filter works by type if a type is selected
-const displayedWorks = selectedType
-  ? sortedWorks.filter(work => work.data.type === selectedType)
-  : sortedWorks;
-
-// Separate featured and non-featured works
-const featuredWorks = displayedWorks.filter(work => work.data.featured);
-const regularWorks = displayedWorks.filter(work => !work.data.featured);
-
-// Count works by type
+const featuredWorks = sortedWorks.filter((work) => work.data.featured);
+const regularWorks = sortedWorks.filter((work) => !work.data.featured);
 const workCounts = {
-  all: allWorks.length,
-  research: allWorks.filter(w => w.data.type === 'research').length,
-  project: allWorks.filter(w => w.data.type === 'project').length,
-  other: allWorks.filter(w => w.data.type === 'other').length,
+  all: sortedWorks.length,
+  research: sortedWorks.filter((work) => work.data.type === 'research').length,
+  project: sortedWorks.filter((work) => work.data.type === 'project').length,
+  other: sortedWorks.filter((work) => work.data.type === 'other').length,
 };
-
-const pageTitle = selectedType
-  ? `Works - ${selectedType.charAt(0).toUpperCase() + selectedType.slice(1)}`
-  : 'Works';
-const pageDescription = selectedType
-  ? `${selectedType === 'research' ? 'Research papers and publications' : selectedType === 'project' ? 'Projects and applications' : 'Other works'}`
-  : 'Research papers, projects, and other professional work.';
+const workTypes = [
+  { value: 'research', label: 'Research', count: workCounts.research },
+  { value: 'project', label: 'Projects', count: workCounts.project },
+  ...(workCounts.other > 0
+    ? [{ value: 'other', label: 'Other', count: workCounts.other }]
+    : []),
+];
+const pageDescription = "Explore Jet Sanchez's research papers, software projects, and applied AI experiments spanning agentic systems, AI governance, and emerging technology.";
 ---
 
-<BaseLayout title={pageTitle} description={pageDescription}>
+<BaseLayout title="Works" description={pageDescription}>
   <PageWrapper spacing="compact">
     <Container size="lg">
-      {/* Header */}
-      <div class="mb-xl">
-        <h1 class="text-5xl font-bold leading-tight mb-s">
-          {selectedType
-            ? `${selectedType.charAt(0).toUpperCase() + selectedType.slice(1)} Works`
-            : 'Works'}
-        </h1>
-        <p class="text-xl text-text-tertiary max-w-2xl">
-          {pageDescription}
-        </p>
-      </div>
-
-      {/* Type filter tabs */}
-      <div class="mb-l flex flex-wrap gap-2xs">
-        <a
-          href="/works"
-          class={`px-s py-2xs rounded-lg transition-colors ${
-          !selectedType
-            ? 'bg-brand-base text-brand-contrast'
-            : 'bg-surface-base hover:bg-bg-hover text-text-primary'
-        }`}
+      <div
+        data-collection-filter
+        data-filter-param="type"
+        data-filter-singular="work"
+        data-filter-plural="works"
+        data-filter-context-template=" in the {value} category"
       >
-        All ({workCounts.all})
-      </a>
-      <a
-        href="/works?type=research"
-        class={`px-s py-2xs rounded-lg transition-colors ${
-          selectedType === 'research'
-            ? 'bg-brand-base text-brand-contrast'
-            : 'bg-surface-base hover:bg-bg-hover text-text-primary'
-        }`}
-      >
-        Research ({workCounts.research})
-      </a>
-      <a
-        href="/works?type=project"
-        class={`px-s py-2xs rounded-lg transition-colors ${
-          selectedType === 'project'
-            ? 'bg-brand-base text-brand-contrast'
-            : 'bg-surface-base hover:bg-bg-hover text-text-primary'
-        }`}
-      >
-        Projects ({workCounts.project})
-      </a>
-      {workCounts.other > 0 && (
-        <a
-          href="/works?type=other"
-          class={`px-s py-2xs rounded-lg transition-colors ${
-            selectedType === 'other'
-              ? 'bg-brand-base text-brand-contrast'
-              : 'bg-surface-base hover:bg-bg-hover text-text-primary'
-          }`}
-        >
-          Other ({workCounts.other})
-        </a>
-      )}
-    </div>
-
-    {/* Works count */}
-    <div class="mb-m text-sm text-text-tertiary">
-      {displayedWorks.length === 0 && (
-        <p>No works found{selectedType ? ` in the ${selectedType} category` : ''}.</p>
-      )}
-      {displayedWorks.length === 1 && (
-        <p>1 work{selectedType ? ` in the ${selectedType} category` : ''}</p>
-      )}
-      {displayedWorks.length > 1 && (
-        <p>{displayedWorks.length} works{selectedType ? ` in the ${selectedType} category` : ''}</p>
-      )}
-    </div>
-
-    {/* Featured works section */}
-    {featuredWorks.length > 0 && (
-      <div class="mb-xl">
-        <h2 class="text-2xl font-bold mb-m flex items-center gap-2xs">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-accent-base" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-          </svg>
-          Featured
-        </h2>
-        <div class="grid gap-m md:grid-cols-2 lg:grid-cols-3">
-          {featuredWorks.map((work) => (
-            <WorkCard
-              slug={work.id}
-              title={work.data.title}
-              description={work.data.description}
-              type={work.data.type}
-              date={work.data.date}
-              tags={work.data.tags}
-              featured={work.data.featured}
-              image={work.data.image}
-              venue={work.data.venue}
-              technologies={work.data.technologies}
-              links={work.data.links}
-            />
-          ))}
+        <div class="mb-xl">
+          <h1 class="text-5xl font-bold leading-tight mb-s">Works</h1>
+          <p class="text-xl text-text-tertiary max-w-2xl">
+            {pageDescription}
+          </p>
         </div>
-      </div>
-    )}
 
-    {/* Regular works grid */}
-    {regularWorks.length > 0 && (
-      <div>
-        {featuredWorks.length > 0 && (
-          <h2 class="text-2xl font-bold leading-tight mb-m">
-            {selectedType ? 'More Works' : 'All Works'}
-          </h2>
-        )}
-        <div class="grid gap-m md:grid-cols-2 lg:grid-cols-3">
-          {regularWorks.map((work) => (
-            <WorkCard
-              slug={work.id}
-              title={work.data.title}
-              description={work.data.description}
-              type={work.data.type}
-              date={work.data.date}
-              tags={work.data.tags}
-              featured={work.data.featured}
-              image={work.data.image}
-              venue={work.data.venue}
-              technologies={work.data.technologies}
-              links={work.data.links}
-            />
-          ))}
-        </div>
-      </div>
-    )}
-
-    {/* Empty state */}
-    {displayedWorks.length === 0 && (
-      <div class="text-center py-xl">
-        <p class="text-text-tertiary text-lg mb-s">
-          {selectedType
-            ? `No ${selectedType} works found.`
-            : 'No works yet. Check back soon!'}
-        </p>
-        {selectedType && (
-          <a
-            href="/works"
-            class="inline-block px-m py-xs bg-brand-base text-brand-contrast rounded-lg hover:bg-brand-hover transition-colors"
+        {sortedWorks.length > 0 && (
+          <section
+            data-filter-enhancement
+            hidden
+            aria-label="Works filters and result count"
+            class="mb-l"
           >
-            View all works
-          </a>
+            <div
+              role="group"
+              aria-label="Filter works by type"
+              class="flex flex-wrap gap-2xs"
+            >
+              <button
+                type="button"
+                data-filter-value=""
+                data-action-variant="filter"
+                data-action-density="compact"
+                aria-pressed="true"
+                class="action action--filter action--compact px-s"
+              >
+                All ({workCounts.all})
+              </button>
+              {workTypes.map(({ value, label, count }) => (
+                <button
+                  type="button"
+                  data-filter-value={value}
+                  data-action-variant="filter"
+                  data-action-density="compact"
+                  aria-pressed="false"
+                  class="action action--filter action--compact px-s"
+                >
+                  {label} ({count})
+                </button>
+              ))}
+            </div>
+            <p
+              data-filter-status
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+              class="mt-s text-sm text-text-tertiary"
+            >
+              {workCounts.all} {workCounts.all === 1 ? 'work' : 'works'}
+            </p>
+          </section>
         )}
+
+        {featuredWorks.length > 0 && (
+          <section data-filter-section class="mb-xl">
+            <h2 class="text-2xl font-bold mb-m flex items-center gap-2xs">
+              <svg xmlns="http://www.w3.org/2000/svg" class="h-6 w-6 text-accent-base" viewBox="0 0 20 20" fill="currentColor">
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+              </svg>
+              Featured
+            </h2>
+            <div class="grid gap-m md:grid-cols-2 lg:grid-cols-3">
+              {featuredWorks.map((work) => (
+                <WorkCard
+                  slug={work.id}
+                  title={work.data.title}
+                  description={work.data.description}
+                  type={work.data.type}
+                  date={work.data.date}
+                  tags={work.data.tags}
+                  featured={work.data.featured}
+                  image={work.data.image}
+                  venue={work.data.venue}
+                  technologies={work.data.technologies}
+                  links={work.data.links}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {regularWorks.length > 0 && (
+          <section data-filter-section>
+            {featuredWorks.length > 0 && (
+              <h2 class="text-2xl font-bold leading-tight mb-m">All Works</h2>
+            )}
+            <div class="grid gap-m md:grid-cols-2 lg:grid-cols-3">
+              {regularWorks.map((work) => (
+                <WorkCard
+                  slug={work.id}
+                  title={work.data.title}
+                  description={work.data.description}
+                  type={work.data.type}
+                  date={work.data.date}
+                  tags={work.data.tags}
+                  featured={work.data.featured}
+                  image={work.data.image}
+                  venue={work.data.venue}
+                  technologies={work.data.technologies}
+                  links={work.data.links}
+                />
+              ))}
+            </div>
+          </section>
+        )}
+
+        {sortedWorks.length === 0 && (
+          <div class="text-center py-xl">
+            <p class="text-text-tertiary text-lg">No works yet. Check back soon!</p>
+          </div>
+        )}
+
+        <div data-filter-empty hidden class="text-center py-xl">
+          <p data-filter-empty-message class="text-text-tertiary text-lg"></p>
+        </div>
+
+        <CollectionFilterEnhancement />
       </div>
-    )}
     </Container>
   </PageWrapper>
 </BaseLayout>

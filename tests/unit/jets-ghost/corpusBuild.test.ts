@@ -12,6 +12,7 @@ import { serializeSourcePayload } from '../../../src/features/jets-ghost/sourceP
 
 const blogData: BlogFrontmatter = {
   title: 'Included guide',
+  seoTitle: 'Included local retrieval guide',
   description: 'A guide about durable local retrieval.',
   pubDate: new Date('2026-01-02T00:00:00.000Z'),
   updatedDate: new Date('2026-01-03T00:00:00.000Z'),
@@ -22,11 +23,14 @@ const blogData: BlogFrontmatter = {
   image: {
     url: 'https://example.com/blog.png',
     alt: 'A local retrieval diagram',
+    width: 1920,
+    height: 1080,
   },
 };
 
 const worksData: WorksFrontmatter = {
   title: 'Research project',
+  seoTitle: 'Research Project',
   description: 'A complete work fixture.',
   type: 'research',
   date: new Date('2025-08-27T00:00:00.000Z'),
@@ -224,6 +228,7 @@ describe('source hash contract', () => {
     BlogFrontmatter | WorksFrontmatter,
   ]> = [
     ['title', blogData, changedBlog((value) => { value.title = 'Changed'; })],
+    ['SEO title', blogData, changedBlog((value) => { value.seoTitle = 'Changed'; })],
     ['description', blogData, changedBlog((value) => { value.description = 'Changed'; })],
     ['status', blogData, changedBlog((value) => { value.status = 'draft'; })],
     ['assistant', blogData, changedBlog((value) => { value.assistant = false; })],
@@ -235,6 +240,8 @@ describe('source hash contract', () => {
       value.image!.url = 'https://example.com/changed.png';
     })],
     ['blog image alt', blogData, changedBlog((value) => { value.image!.alt = 'Changed'; })],
+    ['blog image width', blogData, changedBlog((value) => { value.image!.width = 1280; })],
+    ['blog image height', blogData, changedBlog((value) => { value.image!.height = 720; })],
     ['type', worksData, changedWorks((value) => { value.type = 'project'; })],
     ['date', worksData, changedWorks((value) => { value.date = new Date('2025-09-01'); })],
     ['featured', worksData, changedWorks((value) => { value.featured = false; })],
@@ -271,7 +278,12 @@ describe('source hash contract', () => {
 
   it('ignores object-key insertion order and normalizes dates and newlines', () => {
     const reordered = {
-      image: { alt: blogData.image!.alt, url: blogData.image!.url },
+      image: {
+        height: blogData.image!.height,
+        alt: blogData.image!.alt,
+        width: blogData.image!.width,
+        url: blogData.image!.url,
+      },
       assistant: blogData.assistant,
       status: blogData.status,
       tags: blogData.tags,
@@ -279,6 +291,7 @@ describe('source hash contract', () => {
       updatedDate: new Date(blogData.updatedDate!.toISOString()),
       pubDate: new Date(blogData.pubDate.toISOString()),
       description: blogData.description,
+      seoTitle: blogData.seoTitle,
       title: blogData.title,
     } satisfies BlogFrontmatter;
 

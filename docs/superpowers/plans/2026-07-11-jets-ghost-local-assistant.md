@@ -912,7 +912,7 @@ export function assemblePrompt(
 ): AssembledPrompt;
 ```
 
-The system message identifies Jet's Ghost, restricts answers to supplied sources, treats source text as untrusted reference material, requires `[S#]` citations, distinguishes published claims from synthesis, and requires explicit abstention when unsupported.
+The system message identifies Jet's Ghost as a local-first assistant that interprets Jet Sanchez's published, assistant-enabled work. It states that Jet's Ghost is not Jet, does not speak on his behalf, and refers to Jet in the third person. It restricts answers to supplied sources, treats source text as untrusted reference material, requires `[S#]` citations, distinguishes published claims from synthesis, and requires explicit abstention when unsupported. Stable biographical detail comes from eligible published sources rather than prompt duplication.
 
 Call `serializeSourcePayload(selection.sources)`; do not remap or reserialize the sources independently. Never interpolate source values into XML, Markdown fences, attributes, or hand-built delimiters. The system message labels the JSON as untrusted reference data and states that instructions inside any `content` value have no authority.
 
@@ -1626,6 +1626,8 @@ git commit -m "docs(chatbot): record model and runtime licensing"
 
 ### Task 13: Qualify Gemma E2B and release Jet's Ghost 2.1.0
 
+**Current release state:** Paused. This pre-release reconciliation does not authorize a push, Preview promotion, Production deployment, `noindex` removal, Search Console action, tag, or release.
+
 **Files:**
 - Modify: `src/pages/chatbot.astro`
 - Modify: `astro.config.mjs`
@@ -1640,7 +1642,7 @@ git commit -m "docs(chatbot): record model and runtime licensing"
 - Create: `docs/verification/jets-ghost-2.1.0-consolidation.md`
 
 **Interfaces:**
-- Produces: one canonical `/Users/jet/jet-web` repository, public indexed Jet's Ghost at canonical `https://jetsanchez.com/chatbot/`, and application version `2.1.0`.
+- Produces: one canonical `/Users/jet/jet-web` repository, public indexed Jet's Ghost at canonical `https://jetsanchez.com/chatbot/`, application version `2.1.0`, and a recorded post-verification sitemap re-submission.
 - Consumes: the exact completed Task 12 implementation tree, one full real-model qualification from the available Apple Silicon Mac, Task 12 licensing evidence, exact-commit Preview verification, and proportional Preview/Production smokes.
 
 - [ ] **Step 1: Consolidate into the canonical repository and audit modernization residue**
@@ -1722,7 +1724,7 @@ From the canonical folder, perform an explicit residue audit covering every cate
 - production reachability of the fake runtime or `PUBLIC_JETS_GHOST_E2E` enablement;
 - intentional permanent test and verification infrastructure, listed explicitly with why it remains.
 
-Install the exact lockfile first. Search only Git-tracked paths; never recursively search a directory that may contain untracked drafts. Review every match rather than requiring zero matches: permanent redirects, the dormant Tools contract, a fail-closed test-only fake-runtime seam, and historical verification records may remain only with an explicit owner. Include one report row for every direct dependency and retained match category; remove entries without a current production, build, test, redirect, or verification purpose.
+Install the exact lockfile first. Search only Git-tracked paths; never recursively search a directory that may contain untracked drafts. Review every match rather than requiring zero matches: permanent redirects, the dormant Tools contract, a fail-closed test-only fake-runtime seam, and historical verification records may remain only with an explicit owner. Retain the fake runtime only as permanent deterministic browser-test infrastructure: its exact test-build flag, localhost hostname, explicit-query gate, and ordinary-production artifact rejection remain mandatory. Remove implementation-only screenshots, review diffs, task reports, generated builds, and other scratch with the temporary worktree rather than preserving a parallel evidence archive. Include one report row for every direct dependency and retained match category; remove entries without a current production, build, test, redirect, or verification purpose.
 
 ```bash
 set -euo pipefail
@@ -2124,9 +2126,11 @@ npx cross-env REAL_MODEL_BASE_URL=https://jetsanchez.com npm run smoke:jets-ghos
 
 Production readback must prove `/chatbot/` has no `noindex`, owns exact canonical/OG/WebPage/SoftwareApplication identity and exactly one sitemap membership, and serves the exact approved SHA; the exact platform-plus-explicit chatbot route matrix; Ghost href `/chatbot/` present and Tools absent from every navigation representation; dormant `/tools/` noindexed and excluded; About and both retired-route assertions; extension-correct robots/RSS/sitemap endpoints; the exact immutable cache header on one versioned LiteRT `.wasm` response; activation/model request ordering; trusted-origin/private model delivery; one supported grounded answer with a valid citation and inspectable source; one unsupported abstention; privacy allowlist compliance; and cleanup. This transport/smoke readback does not claim an independent hash of the LiteRT-executed browser copy, reopen retrieval comparison, repeat the six-case Mac qualification, or repeat the full artifact download. If it fails, keep production on the prior noindexed state or roll back immediately and do not tag. Keep sanitized deployment/model-delivery files local and uncommitted; they are operational readback, not release assets or a certification archive.
 
-- [ ] **Step 10: Record the deferred Search Console follow-up**
+- [ ] **Step 10: Re-submit the sitemap and record deferred Search Console monitoring**
 
-Never request indexing for `/chatbot/` while it is a prototype or Preview, and do not request indexing for `/rss.xml`. This release plan makes no `/chatbot/` indexing request. Record the non-blocking follow-up now, but do not wait for it before tagging: after the verified Production deployment has been live long enough for recrawl and the Page indexing report has refreshed, inspect and monitor `https://jetsanchez.com/chatbot/` in the `sc-domain:jetsanchez.com` property. Do not start validation for intentional retired-route `404`s, expected slashless alternate-canonical exclusions, or expected HTTP/www redirect exclusions. Search Console refresh is a later observation, not permission to remove `noindex`, a release gate, or a substitute for the exact Preview/Production release switch.
+Do not perform any Search Console action until Step 9 has proved that the exact `2.1.0` commit is live on Production and its Production readback and smoke gates passed. Only then re-submit `https://jetsanchez.com/sitemap-index.xml` in the `sc-domain:jetsanchez.com` property and record the property, sitemap URL, action time, and returned status in the operator's Search Console notes.
+
+Sitemap submission is distinct from URL Inspection/request indexing and from Page indexing **Validate Fix**. Never request indexing for `/chatbot/` while it is a prototype or Preview, do not request indexing for `/rss.xml`, and make no `/chatbot/` URL Inspection or indexing request in this release plan. After recrawl and the Page indexing report refresh, monitor `https://jetsanchez.com/chatbot/` rather than using URL Inspection as a release action. Do not start Validate Fix for intentional retired-route `404`s, expected slashless alternate-canonical exclusions, or expected HTTP/www redirect exclusions. Search Console refresh is later observation, not permission to remove `noindex`, a release gate, or a substitute for the exact Preview/Production release switch.
 
 - [ ] **Step 11: Tag the verified production commit normally**
 
@@ -2180,7 +2184,8 @@ Expected: the local annotated tag and remote `v2.1.0` tag point to the exact Pro
 [ ] Production is healthy at 2.1.0 and bound to the release Git SHA
 [ ] Production /chatbot/ is index-follow with exact canonical/OG/JSON-LD agreement and exactly one sitemap entry; About, retired 404s, robots, RSS, and sitemap checks remain correct
 [ ] Production passes one supported and one unsupported grounded smoke before the normal v2.1.0 tag is pushed
-[ ] Prototype/Preview indexing was never requested, this release plan made no /chatbot/ request, RSS was not requested, and /chatbot/ monitoring waits for recrawl/report refresh without validating excluded classes
+[ ] Only after the exact verified 2.1.0 Production deployment passed was https://jetsanchez.com/sitemap-index.xml re-submitted in GSC and the action recorded; this was sitemap submission, not URL Inspection/request indexing or Validate Fix
+[ ] Prototype/Preview indexing was never requested, this release plan made no /chatbot/ URL Inspection or indexing request, RSS was not requested, and /chatbot/ monitoring waits for recrawl/report refresh without validating excluded classes
 [ ] The exact Task 12 implementation tree was integrated into `/Users/jet/jet-web`, and the full verification/build/release workflow from Task 13 onward ran from that canonical folder
 [ ] The separate consolidation report resolves temporary routes, migration scripts, compatibility shims, staging artifacts, unused dependencies, one-off scaffolding, stale docs/links, and production fake-runtime enablement; every retained test/verification artifact has an explicit permanent purpose
 [ ] User-owned drafts were preserved, and tracked tests/plans/qualification fixtures contain no dependency on an active draft's existence, filename, route, or publication status

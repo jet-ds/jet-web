@@ -1,44 +1,56 @@
 ---
 export interface Props {
-  variant?: 'primary' | 'accent' | 'brand' | 'secondary' | 'outline' | 'ghost';
-  size?: 'sm' | 'md' | 'lg';
+  variant?: 'primary' | 'accent' | 'brand' | 'secondary' | 'outline' | 'ghost' | 'filter';
+  density?: 'compact' | 'default' | 'immersive';
   href?: string;
   class?: string;
   type?: 'button' | 'submit' | 'reset';
+  external?: boolean;
 }
 
 const {
   variant = 'primary',
-  size = 'md',
+  density = 'default',
   href,
   class: className = '',
   type = 'button',
+  external = false,
   ...rest
 } = Astro.props;
 
-const baseClasses = 'inline-flex items-center justify-center font-medium rounded-lg transition-colors focus:outline-none focus:ring-2 focus:ring-brand-base focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed';
+const actionVariant = {
+  primary: 'brand',
+  accent: 'accent',
+  brand: 'soft',
+  secondary: 'neutral',
+  outline: 'outline',
+  ghost: 'ghost',
+  filter: 'filter',
+} as const;
 
-const variantClasses = {
-  primary: 'bg-brand-base text-brand-contrast hover:bg-brand-hover',
-  accent: 'bg-accent-base text-accent-contrast hover:bg-accent-hover focus:ring-accent-base',
-  brand: 'bg-brand-subtle text-brand-text hover:bg-brand-base hover:text-brand-contrast',
-  secondary: 'bg-bg-subtle text-text-primary hover:bg-bg-hover',
-  outline: 'border border-border-default text-text-primary hover:bg-bg-hover',
-  ghost: 'text-text-primary hover:bg-bg-hover',
+const densityTextClasses = {
+  compact: 'text-sm',
+  default: 'text-base',
+  immersive: 'text-lg',
 };
 
-const sizeClasses = {
-  sm: 'px-xs py-3xs text-sm',
-  md: 'px-s py-2xs text-base',
-  lg: 'px-m py-xs text-lg',
-};
-
-const classes = `${baseClasses} ${variantClasses[variant]} ${sizeClasses[size]} ${className}`;
+const resolvedVariant = actionVariant[variant];
+const classes = `action action--${resolvedVariant} action--${density} ${densityTextClasses[density]} ${className}`;
 
 const Element = href ? 'a' : 'button';
 const elementProps = href ? { href } : { type };
+const externalProps = href && external
+  ? { target: '_blank', rel: 'noopener noreferrer' }
+  : {};
 ---
 
-<Element class={classes} {...elementProps} {...rest}>
+<Element
+  {...elementProps}
+  {...externalProps}
+  {...rest}
+  class={classes}
+  data-action-variant={resolvedVariant}
+  data-action-density={density}
+>
   <slot />
 </Element>

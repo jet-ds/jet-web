@@ -98,5 +98,18 @@ export function truncateDescription(description: string, maxLength: number = 160
     return description;
   }
 
-  return description.slice(0, maxLength - 3) + '...';
+  if (maxLength <= 0) return '';
+  if (maxLength === 1) return '…';
+
+  const rawCandidate = description.slice(0, maxLength - 1);
+  const endsAtWordBoundary = /\s$/u.test(rawCandidate)
+    || /^\s/u.test(description.slice(maxLength - 1));
+  let candidate = rawCandidate.trimEnd();
+
+  if (!endsAtWordBoundary) {
+    const finalWhitespace = candidate.search(/\s+\S*$/u);
+    if (finalWhitespace > 0) candidate = candidate.slice(0, finalWhitespace);
+  }
+
+  return `${candidate}…`;
 }

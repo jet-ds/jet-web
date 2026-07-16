@@ -86,3 +86,21 @@ test('production machine endpoints retain extension-bearing paths', async ({ req
     expect(response.headers().location).toBeUndefined();
   }
 });
+
+test('production HTTP-noindexes assistant corpus JSON only', async ({ request }) => {
+  const corpusPaths = [
+    '/assistant/corpus/manifest.json',
+    '/assistant/corpus/content.json',
+    '/assistant/corpus/index.json',
+  ] as const;
+
+  for (const path of corpusPaths) {
+    const response = await request.get(path, { maxRedirects: 0 });
+    expect(response.status()).toBe(200);
+    expect(response.headers()['x-robots-tag']).toBe('noindex, nofollow');
+  }
+
+  const sitemap = await (await request.get('/sitemap-0.xml', { maxRedirects: 0 })).text();
+  for (const path of corpusPaths) expect(sitemap).not.toContain(path);
+  expect(sitemap).toContain('https://jetsanchez.com/licenses/jets-ghost/');
+});

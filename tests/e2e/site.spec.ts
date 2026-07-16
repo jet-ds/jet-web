@@ -1,4 +1,4 @@
-import { expect, test, type Page } from '@playwright/test';
+import { expect, test, type Locator, type Page } from '@playwright/test';
 
 const routes = [
   '/',
@@ -9,6 +9,7 @@ const routes = [
   '/works/recursive-convergence-hypothesis/',
   '/chatbot/',
   '/tools/',
+  '/licenses/jets-ghost/',
   '/contact/',
 ];
 
@@ -18,15 +19,31 @@ type JsonLdSchema = {
   url?: string;
   mainEntity?: { '@id'?: string };
   mainEntityOfPage?: { '@id'?: string };
+  isPartOf?: { '@id'?: string; url?: string };
   hasPart?: Array<{ '@type'?: string; name?: string; url?: string }>;
   applicationCategory?: string;
   operatingSystem?: string;
   offers?: { '@type'?: string; price?: string; priceCurrency?: string };
+  identifier?: string;
+  sameAs?: string[];
 };
 
 async function readSchemas(page: Page): Promise<JsonLdSchema[]> {
   const schemas = await page.locator('script[type="application/ld+json"]').allTextContents();
   return schemas.map((schema) => JSON.parse(schema) as JsonLdSchema);
+}
+
+async function expectSharedAction(
+  action: Locator,
+  variant: string,
+  density: string,
+  minimumHeight: number,
+) {
+  await expect(action).toHaveClass(/(^|\s)action(\s|$)/u);
+  await expect(action).toHaveAttribute('data-action-variant', variant);
+  await expect(action).toHaveAttribute('data-action-density', density);
+  const bounds = await action.boundingBox();
+  expect(bounds?.height ?? 0).toBeGreaterThanOrEqual(minimumHeight);
 }
 
 const defaultOpenGraphImage = {
@@ -35,6 +52,18 @@ const defaultOpenGraphImage = {
   height: '1080',
   alt: "Jet Sanchez's homepage hero with a blue and mustard Grainient background",
 } as const;
+
+function isCanonicalInternalHref(rawHref: string): boolean {
+  const href = rawHref.trim();
+  if (href === '' || href.startsWith('#')) return true;
+  if (/^[a-z][a-z\d+.-]*:/iu.test(href) || href.startsWith('//')) return true;
+
+  const pathname = href.split(/[?#]/u, 1)[0];
+  const finalSegment = pathname.replace(/\/+$/u, '').split('/').at(-1) ?? '';
+  return pathname === '/' || finalSegment.includes('.') || (
+    pathname.startsWith('/') && pathname.endsWith('/')
+  );
+}
 
 for (const route of routes) {
   test(`${route} renders one main heading`, async ({ page }) => {
@@ -61,8 +90,21 @@ for (const route of routes) {
       expect(schemas.find((schema) => schema['@type'] === 'WebPage')).toMatchObject({
         '@id': `${expected}#webpage`,
         url: expected,
+        isPartOf: {
+          '@id': 'https://jetsanchez.com/#website',
+          url: 'https://jetsanchez.com/',
+        },
       });
     }
+  });
+
+  test(`${route} uses the sole site-name suffix separator`, async ({ page }) => {
+    await page.goto(route);
+    const title = await page.title();
+
+    expect(title).toMatch(/ \| Jet Sanchez$/u);
+    expect(title.match(/ \| Jet Sanchez/gu)).toHaveLength(1);
+    expect(title).not.toMatch(/(?: — | - )Jet Sanchez$/u);
   });
 }
 
@@ -71,7 +113,7 @@ test("Jet's Ghost exposes canonical qualification metadata", async ({ page }) =>
   const softwareId = `${canonical}#softwareapplication`;
 
   await page.goto('/chatbot/');
-  await expect(page).toHaveTitle("Jet's Ghost — Local-First AI Assistant | Jet Sanchez");
+  await expect(page).toHaveTitle("Jet's Ghost: Local-First AI Assistant | Jet Sanchez");
   await expect(page.locator('meta[name="description"]')).toHaveAttribute(
     'content',
     "Chat with Jet's published writing, research, and projects using a local-first AI assistant in compatible WebGPU browsers.",
@@ -109,7 +151,19 @@ test('research exposes one DOI-backed action', async ({ page }) => {
   await page.goto('/works/recursive-convergence-hypothesis/');
   const action = page.getByRole('link', { name: 'View on SSRN' });
   await expect(action).toHaveAttribute('href', 'https://doi.org/10.2139/ssrn.5395309');
+  await expectSharedAction(action, 'accent', 'compact', 44);
   await expect(page.getByRole('link', { name: 'Download PDF' })).toHaveCount(0);
+});
+
+test('Astro and React actions share one variant and density taxonomy', async ({ page }) => {
+  await page.goto('/about/');
+  const socialAction = page.getByRole('main').locator('a[href="https://github.com/jet-ds"]');
+  await expectSharedAction(socialAction, 'soft', 'compact', 44);
+
+  await page.goto('/chatbot/');
+  const ghostAction = page.getByRole('button', { name: 'Check compatibility' });
+  await expectSharedAction(ghostAction, 'brand', 'immersive', 48);
+  await expect(ghostAction).toHaveCSS('border-radius', '12px');
 });
 
 test('homepage serves the default social image and exact metadata', async ({ page, request }) => {
@@ -190,6 +244,7 @@ test('about metadata and sitemap use one canonical URL', async ({ page, request 
     url: canonical,
   });
   expect(schemas.find((schema) => schema['@type'] === 'Person')).toMatchObject({
+    url: 'https://jetsanchez.com/',
     mainEntityOfPage: { '@id': `${canonical}#webpage` },
   });
   const sitemap = await request.get('/sitemap-0.xml');
@@ -210,9 +265,97 @@ test('retired routes stay retired and out of feeds', async ({ request }) => {
 });
 
 test('content pages expose parseable typed JSON-LD', async ({ page }) => {
+  const researchCanonical = 'https://jetsanchez.com/works/recursive-convergence-hypothesis/';
+  const doi = 'https://doi.org/10.2139/ssrn.5395309';
   await page.goto('/works/recursive-convergence-hypothesis/');
-  const schemas = await readSchemas(page);
-  expect(schemas.some((schema) => schema['@type'] === 'ScholarlyArticle')).toBe(true);
+  await expect(page.locator('meta[property="og:type"]')).toHaveAttribute('content', 'article');
+  let schemas = await readSchemas(page);
+  expect(schemas.find((schema) => schema['@type'] === 'ScholarlyArticle')).toMatchObject({
+    url: researchCanonical,
+    identifier: doi,
+    sameAs: [doi],
+    mainEntityOfPage: { '@id': `${researchCanonical}#webpage` },
+  });
+
+  const blogCanonical = 'https://jetsanchez.com/blog/how-to-install-claude-code-cli-2026/';
+  await page.goto('/blog/how-to-install-claude-code-cli-2026/');
+  schemas = await readSchemas(page);
+  expect(schemas.find((schema) => schema['@type'] === 'BlogPosting')).toMatchObject({
+    url: blogCanonical,
+    mainEntityOfPage: { '@id': `${blogCanonical}#webpage` },
+  });
+});
+
+test('content pages use deliberate SEO titles without replacing their headings', async ({ page }) => {
+  const cases = [
+    {
+      route: '/blog/how-to-install-claude-code-cli-2026/',
+      seoTitle: 'How to Install Claude Code CLI in 2026 | Jet Sanchez',
+      heading: 'How to Install and Get Started With Claude Code CLI in 2026',
+    },
+    {
+      route: '/blog/vibe-coding-vs-agentic-coding-why-the-distinction-matters/',
+      seoTitle: 'Vibe Coding vs Agentic Coding: Key Differences | Jet Sanchez',
+      heading: 'Vibe Coding vs Agentic Coding: Why the Distinction Matters',
+    },
+    {
+      route: '/works/recursive-convergence-hypothesis/',
+      seoTitle: 'Recursive Convergence Hypothesis: AI Sentience | Jet Sanchez',
+      heading: 'The Recursive Convergence Hypothesis: Emergent Sentience as a Structural Attractor of Recursive ASI',
+    },
+  ] as const;
+
+  for (const { route, seoTitle, heading } of cases) {
+    await page.goto(route);
+    await expect(page).toHaveTitle(seoTitle);
+    await expect(page.locator('main h1')).toHaveText(heading);
+    expect(seoTitle.length).toBeLessThanOrEqual(60);
+  }
+});
+
+test('custom blog images expose their verified intrinsic OpenGraph dimensions', async ({ page }) => {
+  for (const route of [
+    '/blog/how-to-install-claude-code-cli-2026/',
+    '/blog/vibe-coding-vs-agentic-coding-why-the-distinction-matters/',
+  ]) {
+    await page.goto(route);
+    await expect(page.locator('meta[property="og:image:width"]'))
+      .toHaveAttribute('content', '1920');
+    await expect(page.locator('meta[property="og:image:height"]'))
+      .toHaveAttribute('content', '1080');
+  }
+});
+
+test('listing and contact pages expose useful page-specific descriptions', async ({ page }) => {
+  const cases = [
+    [
+      '/blog/',
+      "Explore Jet Sanchez's articles on AI, agentic software development, local-first tools, technical workflows, and the systems shaping modern work.",
+    ],
+    [
+      '/works/',
+      "Explore Jet Sanchez's research papers, software projects, and applied AI experiments spanning agentic systems, AI governance, and emerging technology.",
+    ],
+    [
+      '/contact/',
+      'Contact Jet Sanchez for AI research, marketing engineering, SEO and GEO strategy, systems design, speaking, or collaboration opportunities.',
+    ],
+  ] as const;
+
+  for (const [route, description] of cases) {
+    await page.goto(route);
+    await expect(page.locator('meta[name="description"]')).toHaveAttribute('content', description);
+  }
+});
+
+test('rendered internal human-page links use trailing-slash identities', async ({ page }) => {
+  for (const route of routes) {
+    await page.goto(route);
+    const hrefs = await page.locator('a[href]').evaluateAll((links) => links.map(
+      (link) => link.getAttribute('href') ?? '',
+    ));
+    expect(hrefs.filter((href) => !isCanonicalInternalHref(href)), route).toEqual([]);
+  }
 });
 
 test('draft routes are absent', async ({ request }) => {
@@ -275,6 +418,18 @@ test('qualification and dormant routes stay out of the sitemap', async ({ reques
     const pathname = new URL(url).pathname;
     return pathname !== '/tools/' && !pathname.startsWith('/tools/');
   })).toBe(true);
+});
+
+test('assistant corpus JSON stays out of the sitemap while the HTML license page remains', async ({ request }) => {
+  const paths = [
+    '/assistant/corpus/manifest.json',
+    '/assistant/corpus/content.json',
+    '/assistant/corpus/index.json',
+  ] as const;
+
+  const sitemap = await (await request.get('/sitemap-0.xml')).text();
+  for (const path of paths) expect(sitemap).not.toContain(path);
+  expect(sitemap).toContain('https://jetsanchez.com/licenses/jets-ghost/');
 });
 
 test('RSS emits only slashful public blog item URLs', async ({ request }) => {

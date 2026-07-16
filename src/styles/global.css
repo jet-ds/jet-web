@@ -19,8 +19,8 @@
 
     /* Text hierarchy */
     --color-text-primary: oklch(0.3151 0.0143 256.78);   /* neutral.11 - Headings */
-    --color-text-secondary: oklch(0.5122 0.03 253.72);   /* neutral.9 - Body */
-    --color-text-tertiary: oklch(0.55 0.0375 252.38);    /* Accessible muted text */
+    --color-text-secondary: oklch(0.4521 0.022 250.82);  /* neutral.10 - Body */
+    --color-text-tertiary: oklch(0.5122 0.03 253.72);    /* neutral.9 - Muted readable text */
     --color-text-disabled: oklch(0.7975 0.0252 234.52);  /* neutral.5 - Disabled */
 
     /* Border hierarchy */
@@ -29,12 +29,13 @@
     --color-border-strong: oklch(0.7342 0.0322 242.16);  /* neutral.6 */
 
     /* Brand/Interactive */
-    --color-brand-base: oklch(0.562 0.0587 245.59);      /* Accessible brand base */
-    --color-brand-hover: oklch(0.4956 0.0566 248.16);    /* brand.7 */
-    --color-brand-active: oklch(0.4296 0.0477 248.99);   /* brand.8 */
+    --color-brand-base: oklch(0.4956 0.0566 248.16);     /* brand.7 - Solid interactive fill */
+    --color-brand-hover: oklch(0.4296 0.0477 248.99);    /* brand.8 */
+    --color-brand-active: oklch(0.384 0.0392 251.63);    /* brand.9 */
     --color-brand-subtle: oklch(0.8895 0.0164 245.1);    /* brand.3 */
     --color-brand-text: oklch(0.384 0.0392 251.63);      /* brand.9 */
     --color-brand-contrast: oklch(1 0 0);                /* White */
+    --color-code-block-text: oklch(0.9502 0.0069 247.9); /* brand.2 on the dark code surface */
     --color-brand-200: oklch(0.9502 0.0069 247.9);       /* brand.2 */
     --color-brand-500: oklch(0.6728 0.0512 244.82);      /* brand.5 */
     --color-brand-700: oklch(0.4956 0.0566 248.16);      /* brand.7 */
@@ -54,6 +55,16 @@
     --color-accent-contrast: oklch(0.2852 0.0664 52.21);  /* accent.11 — deep brown */
     --color-accent-400: oklch(0.9068 0.1681 97.52);      /* accent.4 */
     --color-accent-400-hex: #ffe043;                     /* accent.4 */
+
+    /* Control and status roles reuse the existing palette without role inversion. */
+    --color-control-disabled-fill: var(--color-bg-ui);
+    --color-control-disabled-foreground: var(--color-text-disabled);
+    --color-control-stop-fill: var(--color-text-primary);
+    --color-control-stop-hover: var(--color-text-secondary);
+    --color-control-stop-foreground: var(--color-bg-base);
+    --color-status-idle: var(--color-border-strong);
+    --color-status-ready: var(--color-brand-base);
+    --color-status-active: var(--color-accent-base);
 
     /* === UTOPIA FLUID TYPOGRAPHY === */
     /* @link https://utopia.fyi/type/calculator?c=320,16,1.125,1440,17,1.2,7,2,&s=0.75|0.5|0.25|0.25|0.25,1.5|2|3|4|6|6|6,s-l&g=s,l,xl,12 */
@@ -149,6 +160,7 @@
     --color-brand-subtle: oklch(0.4296 0.0477 248.99);  /* brand.8 */
     --color-brand-text: oklch(0.8895 0.0164 245.1);     /* brand.3 */
     --color-brand-contrast: oklch(0 0 0);               /* Black */
+    --color-code-block-text: oklch(0.9502 0.0069 247.9); /* brand.2 on the dark code surface */
 
     /* Accent */
     --color-accent-base: oklch(0.8695 0.1736 90.79);    /* accent.5 */
@@ -170,13 +182,182 @@
 }
 
 @layer components {
+  /* Framework-neutral action taxonomy for Astro, React, and plain HTML. */
+  .action {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2xs);
+    border: 0;
+    font-family: inherit;
+    font-weight: 500;
+    line-height: 1.25;
+    text-align: center;
+    text-decoration: none;
+    cursor: pointer;
+    transition-property: color, background-color, border-color, box-shadow, opacity;
+    transition-duration: 150ms;
+    transition-timing-function: ease;
+  }
+
+  .action:focus-visible {
+    outline: 2px solid var(--color-brand-base);
+    outline-offset: 2px;
+  }
+
+  .action:disabled,
+  .action[aria-disabled='true'] {
+    cursor: not-allowed;
+    opacity: 0.5;
+  }
+
+  .action--brand {
+    color: var(--color-brand-contrast);
+    background-color: var(--color-brand-base);
+  }
+
+  .action--brand:not(:disabled):not([aria-disabled='true']):hover {
+    background-color: var(--color-brand-hover);
+  }
+
+  .action--accent {
+    color: var(--color-accent-contrast);
+    background-color: var(--color-accent-base);
+  }
+
+  .action--accent:not(:disabled):not([aria-disabled='true']):hover {
+    background-color: var(--color-accent-hover);
+  }
+
+  .action--accent:focus-visible {
+    outline-color: var(--color-accent-base);
+  }
+
+  .action--soft {
+    color: var(--color-brand-text);
+    background-color: var(--color-brand-subtle);
+  }
+
+  .action--soft:not(:disabled):not([aria-disabled='true']):hover {
+    color: var(--color-brand-contrast);
+    background-color: var(--color-brand-base);
+  }
+
+  .action--neutral {
+    color: var(--color-text-primary);
+    background-color: var(--color-bg-subtle);
+  }
+
+  .action--neutral:not(:disabled):not([aria-disabled='true']):hover {
+    background-color: var(--color-bg-hover);
+  }
+
+  .action--outline {
+    color: var(--color-text-primary);
+    background-color: transparent;
+    border: 1px solid var(--color-border-default);
+  }
+
+  .action--outline:not(:disabled):not([aria-disabled='true']):hover {
+    background-color: var(--color-bg-hover);
+  }
+
+  .action--ghost {
+    color: var(--color-text-primary);
+    background-color: transparent;
+  }
+
+  .action--ghost:not(:disabled):not([aria-disabled='true']):hover {
+    background-color: var(--color-bg-hover);
+  }
+
+  .action--filter {
+    color: var(--color-text-primary);
+    background-color: var(--color-surface-base);
+    border: 1px solid var(--color-border-default);
+  }
+
+  .action--filter:not(:disabled):not([aria-disabled='true']):hover {
+    background-color: var(--color-bg-hover);
+    border-color: var(--color-brand-base);
+  }
+
+  .action--filter[aria-pressed='true'] {
+    color: var(--color-brand-contrast);
+    background-color: var(--color-brand-base);
+    border-color: var(--color-brand-base);
+  }
+
+  .action--filter[aria-pressed='true']:hover {
+    background-color: var(--color-brand-hover);
+  }
+
+  .action--stop {
+    color: var(--color-control-stop-foreground);
+    background-color: var(--color-control-stop-fill);
+  }
+
+  .action--stop:not(:disabled):not([aria-disabled='true']):hover {
+    background-color: var(--color-control-stop-hover);
+  }
+
+  .action--disabled {
+    color: var(--color-control-disabled-foreground);
+    background-color: var(--color-control-disabled-fill);
+  }
+
+  .action--compact {
+    min-height: 2.75rem;
+    padding-inline: var(--space-xs);
+    border-radius: 0.5rem;
+  }
+
+  .action--default {
+    min-height: 2.75rem;
+    padding-inline: var(--space-s);
+    border-radius: 0.5rem;
+  }
+
+  .action--immersive {
+    min-height: 3rem;
+    padding-inline: var(--space-m);
+    border-radius: 0.75rem;
+  }
+
+  .action--icon {
+    width: 2.75rem;
+    padding-inline: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .action {
+      transition: none;
+    }
+  }
+
+  @media (forced-colors: active) {
+    .action {
+      border: 1px solid ButtonText;
+    }
+
+    .action:focus-visible {
+      outline-color: Highlight;
+    }
+
+    .action:disabled,
+    .action[aria-disabled='true'] {
+      color: GrayText;
+      border-color: GrayText;
+    }
+  }
+
   /* Prose/Typography customization for MDX content */
   .prose {
     @apply text-text-primary;
   }
 
   .prose :where(a):not(:where([class~="not-prose"] *)) {
-    @apply text-brand-base no-underline hover:underline;
+    @apply text-brand-text no-underline hover:underline;
   }
 
   .prose :where(code):not(:where([class~="not-prose"] *)) {
@@ -189,6 +370,7 @@
 
   .prose :where(pre code):not(:where([class~="not-prose"] *)) {
     @apply bg-transparent text-sm p-0;
+    color: var(--color-code-block-text);
   }
 
   .prose :where(blockquote):not(:where([class~="not-prose"] *)) {

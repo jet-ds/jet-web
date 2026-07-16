@@ -629,7 +629,9 @@ export default function JetsGhostExperience({
                 type="button"
                 onClick={handleNewSession}
                 disabled={!canStartNewSession}
-                className="flex min-h-10 items-center gap-2xs rounded-lg px-xs text-sm text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-base disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-text-secondary"
+                data-action-variant="ghost"
+                data-action-density="compact"
+                className="action action--ghost action--compact text-sm text-text-secondary hover:text-text-primary disabled:hover:text-text-secondary"
               >
                 <RotateCcw aria-hidden="true" size={16} />
                 <span className="hidden sm:inline">New session</span>
@@ -639,7 +641,9 @@ export default function JetsGhostExperience({
                 type="button"
                 onClick={handleUnload}
                 disabled={!canUnload}
-                className="flex min-h-10 items-center gap-2xs rounded-lg px-xs text-sm text-text-secondary transition-colors hover:bg-bg-hover hover:text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-base disabled:cursor-not-allowed disabled:opacity-50 disabled:hover:bg-transparent disabled:hover:text-text-secondary"
+                data-action-variant="ghost"
+                data-action-density="compact"
+                className="action action--ghost action--compact text-sm text-text-secondary hover:text-text-primary disabled:hover:text-text-secondary"
               >
                 <Unplug aria-hidden="true" size={16} />
                 <span className="hidden sm:inline">Unload</span>
@@ -724,7 +728,9 @@ export default function JetsGhostExperience({
                     ref={checkCompatibilityActionRef}
                     type="button"
                     onClick={() => void ghost.checkCompatibility()}
-                    className="inline-flex min-h-12 items-center justify-center gap-xs rounded-xl bg-brand-base px-m font-semibold text-brand-contrast transition-colors hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-brand-base focus:ring-offset-2 focus:ring-offset-bg-base"
+                    data-action-variant="brand"
+                    data-action-density="immersive"
+                    className="action action--brand action--immersive gap-xs font-semibold"
                   >
                     Check compatibility
                     <ArrowRight aria-hidden="true" size={18} />
@@ -735,7 +741,9 @@ export default function JetsGhostExperience({
                   <button
                     type="button"
                     disabled
-                    className="inline-flex min-h-12 cursor-wait items-center justify-center gap-xs rounded-xl bg-bg-ui px-m font-semibold text-text-secondary"
+                    data-action-variant="disabled"
+                    data-action-density="immersive"
+                    className="action action--disabled action--immersive cursor-wait gap-xs font-semibold opacity-100"
                   >
                     <span className="h-4 w-4 animate-spin rounded-full border-2 border-border-strong border-t-brand-base motion-reduce:animate-none" />
                     Checking WebGPU and memory
@@ -747,7 +755,9 @@ export default function JetsGhostExperience({
                     ref={loadActionRef}
                     type="button"
                     onClick={handleLoad}
-                    className="inline-flex min-h-12 items-center justify-center gap-xs rounded-xl bg-accent-base px-m font-semibold text-accent-contrast transition-colors hover:bg-accent-hover focus:outline-none focus:ring-2 focus:ring-accent-base focus:ring-offset-2 focus:ring-offset-bg-base max-[369px]:px-s max-[369px]:text-sm max-[369px]:whitespace-nowrap"
+                    data-action-variant="accent"
+                    data-action-density="immersive"
+                    className="action action--accent action--immersive gap-xs font-semibold max-[369px]:px-s max-[369px]:text-sm max-[369px]:whitespace-nowrap"
                   >
                     Load Jet&apos;s Ghost · about 2 GB
                     <ArrowRight aria-hidden="true" size={18} />
@@ -762,7 +772,9 @@ export default function JetsGhostExperience({
                     onClick={ghost.state.error.code === 'engine-cleanup-failed'
                       ? handleUnload
                       : ghost.recoverFromError}
-                    className="inline-flex min-h-12 items-center justify-center gap-xs rounded-xl border border-border-strong bg-surface-base px-m font-semibold text-text-primary transition-colors hover:border-brand-base hover:bg-bg-subtle focus:outline-none focus:ring-2 focus:ring-brand-base"
+                    data-action-variant="outline"
+                    data-action-density="immersive"
+                    className="action action--outline action--immersive gap-xs border-border-strong bg-surface-base font-semibold hover:border-brand-base hover:bg-bg-subtle"
                   >
                     {ghost.state.error.code === 'engine-cleanup-failed'
                       ? <><span>Unload Jet&apos;s Ghost</span><Unplug aria-hidden="true" size={18} /></>
@@ -792,13 +804,15 @@ export default function JetsGhostExperience({
                 {ghost.state.error?.message ?? 'The required local AI capabilities are not available here.'}
               </p>
               <div className="mt-m flex flex-wrap items-center justify-center gap-xs">
-                <a href="/blog/" className="rounded-xl border border-border-strong bg-surface-base px-m py-xs font-semibold text-text-primary hover:border-brand-base hover:bg-bg-subtle">Visit Blog</a>
-                <a href="/works/" className="rounded-xl border border-border-strong bg-surface-base px-m py-xs font-semibold text-text-primary hover:border-brand-base hover:bg-bg-subtle">Visit Works</a>
+                <a href="/blog/" data-action-variant="outline" data-action-density="immersive" className="action action--outline action--immersive border-border-strong bg-surface-base font-semibold hover:border-brand-base hover:bg-bg-subtle">Visit Blog</a>
+                <a href="/works/" data-action-variant="outline" data-action-density="immersive" className="action action--outline action--immersive border-border-strong bg-surface-base font-semibold hover:border-brand-base hover:bg-bg-subtle">Visit Works</a>
                 <button
                   ref={errorActionRef}
                   type="button"
                   onClick={() => void ghost.checkCompatibility()}
-                  className="rounded-xl bg-brand-base px-m py-xs font-semibold text-brand-contrast hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-brand-base"
+                  data-action-variant="brand"
+                  data-action-density="immersive"
+                  className="action action--brand action--immersive font-semibold"
                 >
                   Check again
                 </button>
@@ -832,7 +846,9 @@ export default function JetsGhostExperience({
                 <button
                   type="button"
                   onClick={reloadPage}
-                  className="mt-s inline-flex min-h-12 items-center justify-center gap-2xs rounded-xl border border-border-strong bg-surface-base px-m text-sm font-semibold text-text-primary transition-colors hover:border-brand-base hover:bg-bg-subtle focus:outline-none focus:ring-2 focus:ring-brand-base focus:ring-offset-2 focus:ring-offset-bg-base"
+                  data-action-variant="outline"
+                  data-action-density="immersive"
+                  className="action action--outline action--immersive mt-s border-border-strong bg-surface-base text-sm font-semibold hover:border-brand-base hover:bg-bg-subtle"
                 >
                   Cancel and reload
                   <RotateCcw aria-hidden="true" size={17} />
@@ -942,7 +958,9 @@ export default function JetsGhostExperience({
                     <button
                       type="button"
                       onClick={handleJumpToLatest}
-                      className="pointer-events-auto inline-flex min-h-11 items-center gap-2xs rounded-full border border-border-strong bg-surface-base px-s text-sm font-medium text-text-primary shadow-sm transition-colors hover:bg-bg-hover focus:outline-none focus:ring-2 focus:ring-brand-base focus:ring-offset-2 focus:ring-offset-bg-base"
+                      data-action-variant="outline"
+                      data-action-density="compact"
+                      className="action action--outline action--compact pointer-events-auto rounded-full border-border-strong bg-surface-base px-s text-sm shadow-sm"
                     >
                       <ArrowDown aria-hidden="true" size={15} />
                       Jump to latest
@@ -990,10 +1008,10 @@ function LifecycleStatus({ status }: { status: JetsGhostLifecycleStatus }) {
   const prefersReducedMotion = useReducedMotion();
   const compactLabel = getLifecycleLabel(status);
   const dotColor = status === 'ready'
-    ? 'bg-brand-base'
+    ? 'bg-status-ready'
     : status === 'generating' || status === 'loading'
-      ? 'bg-accent-base'
-      : 'bg-text-disabled';
+      ? 'bg-status-active'
+      : 'bg-status-idle';
 
   return (
     <div
@@ -1085,7 +1103,9 @@ function ResponseDetails({ turn }: { turn: ConversationTurn }) {
             aria-expanded={isExpanded}
             aria-controls={disclosureId}
             onClick={() => setIsExpanded((expanded) => !expanded)}
-            className="inline-flex min-h-11 max-w-full items-center gap-3xs text-left font-medium text-text-tertiary transition-colors hover:text-text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-accent-base focus-visible:ring-offset-2 focus-visible:ring-offset-bg-base"
+            data-action-variant="ghost"
+            data-action-density="compact"
+            className="action action--ghost action--compact max-w-full gap-3xs px-0 text-left text-text-tertiary hover:text-text-primary"
           >
             <span>{sourceLabel}</span>
             <ChevronDown
@@ -1174,7 +1194,9 @@ function ErrorRecovery({
         ref={actionRef}
         type="button"
         onClick={action}
-        className="mt-xs inline-flex min-h-10 items-center justify-center rounded-lg bg-brand-base px-s font-semibold text-brand-contrast hover:bg-brand-hover focus:outline-none focus:ring-2 focus:ring-brand-base"
+        data-action-variant="brand"
+        data-action-density="compact"
+        className="action action--brand action--compact mt-xs px-s font-semibold"
       >{label}</button>
     </div>
   );
@@ -1206,10 +1228,11 @@ function Composer({
   const canSend = Boolean(draft.trim() && canCompose);
   const actionTone = getComposerActionTone(isGenerating, canSend);
   const actionToneClasses = {
-    accent: 'bg-accent-base text-accent-contrast hover:bg-accent-hover',
-    neutral: 'bg-bg-ui text-text-disabled',
-    stop: 'bg-text-primary text-bg-base hover:bg-text-secondary',
+    accent: 'action--accent',
+    neutral: 'action--disabled',
+    stop: 'action--stop',
   }[actionTone];
+  const actionVariant = actionTone === 'neutral' ? 'disabled' : actionTone;
 
   return (
     <div className="jets-ghost-composer shrink-0 px-gutter">
@@ -1240,7 +1263,9 @@ function Composer({
         <button
           type="submit"
           disabled={!isGenerating && !canSend}
-          className={`flex h-11 w-11 shrink-0 items-center justify-center rounded-xl transition-colors focus:outline-none focus:ring-2 focus:ring-brand-base disabled:cursor-not-allowed ${actionToneClasses}`}
+          data-action-variant={actionVariant}
+          data-action-density="compact"
+          className={`action action--compact action--icon shrink-0 rounded-xl ${actionToneClasses}`}
           aria-label={isGenerating ? 'Stop response' : 'Send message'}
         >
           {isGenerating

@@ -104,8 +104,8 @@ const typeLabel: Record<string, string> = {
           Research, systems & tools for thinking clearly in an AI-driven world
         </p>
         <div class="flex flex-wrap gap-s justify-center">
-          <Button href="/about" variant="primary" size="lg">About Me</Button>
-          <Button href="/contact" variant="accent" size="lg">Get in Touch</Button>
+          <Button href="/about/" variant="primary" density="immersive">About Me</Button>
+          <Button href="/contact/" variant="accent" density="immersive">Get in Touch</Button>
         </div>
       </div>
     </Container>
@@ -118,7 +118,7 @@ const typeLabel: Record<string, string> = {
         <h2 class="text-3xl font-bold leading-tight text-text-primary">
           Latest Articles
         </h2>
-        <Button href="/blog" variant="ghost"><span>View All <span class="text-accent-base">→</span></span></Button>
+        <Button href="/blog/" variant="ghost"><span>View All <span class="text-accent-base">→</span></span></Button>
       </div>
 
       {latestPosts.length > 0 ? (
@@ -127,7 +127,7 @@ const typeLabel: Record<string, string> = {
             <Card hover class="flex flex-col h-full">
               <div class="flex-1">
                 <h3 class="text-lg font-semibold leading-snug mb-2xs text-text-primary">
-                  <a href={`/blog/${post.id}`} class="hover:text-brand-base transition-colors">
+                  <a href={`/blog/${post.id}/`} class="hover:text-brand-text transition-colors">
                     {post.data.title}
                   </a>
                 </h3>
@@ -176,7 +176,7 @@ const typeLabel: Record<string, string> = {
         <h2 class="text-3xl font-bold leading-tight text-text-primary">
           Featured Works
         </h2>
-        <Button href="/works" variant="ghost"><span>View All <span class="text-accent-base">→</span></span></Button>
+        <Button href="/works/" variant="ghost"><span>View All <span class="text-accent-base">→</span></span></Button>
       </div>
 
       {featuredWorks.length > 0 ? (
@@ -193,7 +193,7 @@ const typeLabel: Record<string, string> = {
                   </Tag>
                 </div>
                 <h3 class="text-lg font-semibold leading-snug mb-2xs text-text-primary">
-                  <a href={`/works/${work.id}`} class="hover:text-brand-base transition-colors">
+                  <a href={`/works/${work.id}/`} class="hover:text-brand-text transition-colors">
                     {work.data.title}
                   </a>
                 </h3>
@@ -246,8 +246,8 @@ const typeLabel: Record<string, string> = {
           Interested in collaborating or have questions? Feel free to reach out!
         </p>
         <div class="flex flex-wrap justify-center gap-s">
-          <Button href="/contact" variant="accent" size="lg">Contact Me</Button>
-          <Button href="/about" variant="brand" size="lg">Learn More</Button>
+          <Button href="/contact/" variant="accent" density="immersive">Contact Me</Button>
+          <Button href="/about/" variant="brand" density="immersive">Learn More</Button>
         </div>
       </div>
     </Container>

@@ -4,134 +4,114 @@ import BaseLayout from '../../components/layout/BaseLayout.astro';
 import PageWrapper from '../../components/layout/PageWrapper.astro';
 import Container from '../../components/ui/Container.astro';
 import BlogCard from '../../components/blog/BlogCard.astro';
+import CollectionFilterEnhancement from '../../components/filters/CollectionFilterEnhancement.astro';
 import { isPublished } from '../../content/policy';
 import { sortBlogPosts } from '../../utils/sortByDate';
-import { getAllTags } from '../../utils/filterByTag';
+import { getAllTags, getTagCounts } from '../../utils/filterByTag';
 
-// Fetch all published blog posts
 const allPosts = await getCollection('blog', ({ data }) => isPublished(data));
-
-// Sort posts by date (newest first)
 const sortedPosts = sortBlogPosts(allPosts);
-
-// Get all unique tags for potential filtering UI
-const allTags = getAllTags(allPosts);
-
-// Get the selected tag from URL query params (optional filtering)
-const url = Astro.url;
-const selectedTag = url.searchParams.get('tag');
-
-// Filter posts by tag if a tag is selected
-const displayedPosts = selectedTag
-  ? sortedPosts.filter(post =>
-      post.data.tags.some(tag => tag.toLowerCase() === selectedTag.toLowerCase())
-    )
-  : sortedPosts;
-
-const pageTitle = selectedTag ? `Blog - ${selectedTag}` : 'Blog';
-const pageDescription = selectedTag
-  ? `Blog posts tagged with "${selectedTag}"`
-  : 'Articles, tutorials, and thoughts on software development, AI, and technology.';
+const allTags = getAllTags(sortedPosts);
+const tagCounts = getTagCounts(sortedPosts);
+const pageDescription = "Explore Jet Sanchez's articles on AI, agentic software development, local-first tools, technical workflows, and the systems shaping modern work.";
 ---
 
-<BaseLayout title={pageTitle} description={pageDescription}>
+<BaseLayout title="Blog" description={pageDescription}>
   <PageWrapper spacing="compact">
     <Container size="lg">
-      {/* Header */}
-      <div class="mb-xl">
-        <h1 class="text-5xl font-bold leading-tight mb-s">
-          {selectedTag ? `Posts tagged with "${selectedTag}"` : 'Blog'}
-        </h1>
-        <p class="text-xl text-text-tertiary max-w-2xl">
-          {pageDescription}
-        </p>
-
-        {/* Tag filter indicator and clear button */}
-        {selectedTag && (
-          <div class="mt-s">
-            <a
-              href="/blog"
-              class="inline-flex items-center gap-2xs text-sm text-brand-base hover:underline"
-            >
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12" />
-            </svg>
-            Clear filter
-          </a>
+      <div
+        data-collection-filter
+        data-filter-param="tag"
+        data-filter-singular="post"
+        data-filter-plural="posts"
+        data-filter-context-template={' tagged with "{value}"'}
+      >
+        <div class="mb-xl">
+          <h1 class="text-5xl font-bold leading-tight mb-s">Blog</h1>
+          <p class="text-xl text-text-tertiary max-w-2xl">
+            {pageDescription}
+          </p>
         </div>
-      )}
-    </div>
 
-    {/* Posts count */}
-    <div class="mb-m text-sm text-text-tertiary">
-      {displayedPosts.length === 0 && (
-        <p>No posts found{selectedTag ? ` for tag "${selectedTag}"` : ''}.</p>
-      )}
-      {displayedPosts.length === 1 && (
-        <p>1 post{selectedTag ? ` tagged with "${selectedTag}"` : ''}</p>
-      )}
-      {displayedPosts.length > 1 && (
-        <p>{displayedPosts.length} posts{selectedTag ? ` tagged with "${selectedTag}"` : ''}</p>
-      )}
-    </div>
-
-    {/* Blog posts grid */}
-    {displayedPosts.length > 0 ? (
-      <div class="grid gap-l md:grid-cols-2 lg:grid-cols-2">
-        {displayedPosts.map((post) => (
-          <BlogCard
-            slug={post.id}
-            title={post.data.title}
-            description={post.data.description}
-            pubDate={post.data.pubDate}
-            author={post.data.author}
-            tags={post.data.tags}
-            image={post.data.image}
-            content={post.body}
-          />
-        ))}
-      </div>
-    ) : (
-      <div class="text-center py-xl">
-        <p class="text-text-tertiary text-lg mb-s">
-          {selectedTag
-            ? `No posts found with the tag "${selectedTag}".`
-            : 'No blog posts yet. Check back soon!'}
-        </p>
-        {selectedTag && (
-          <a
-            href="/blog"
-            class="inline-block px-m py-xs bg-brand-base text-brand-contrast rounded-lg hover:bg-brand-hover transition-colors"
+        {sortedPosts.length > 0 && (
+          <section
+            data-filter-enhancement
+            hidden
+            aria-labelledby="blog-filter-heading"
+            class="mb-l"
           >
-            View all posts
-          </a>
-        )}
-      </div>
-    )}
-
-    {/* Optional: Show all available tags at the bottom */}
-    {!selectedTag && allTags.length > 0 && displayedPosts.length > 0 && (
-      <div class="mt-2xl pt-l border-t border-border-default">
-        <h2 class="text-2xl font-bold leading-tight mb-s">Browse by tag</h2>
-        <div class="flex flex-wrap gap-2xs">
-          {allTags.map((tag) => {
-            const count = allPosts.filter(post =>
-              post.data.tags.some(t => t.toLowerCase() === tag.toLowerCase())
-            ).length;
-
-            return (
-              <a
-                href={`/blog?tag=${encodeURIComponent(tag)}`}
-                class="inline-flex items-center gap-2xs px-s py-2xs rounded-full bg-surface-base border border-border-default text-text-primary hover:bg-bg-hover hover:border-brand-base transition-colors text-sm"
+            <h2 id="blog-filter-heading" class="text-2xl font-bold leading-tight mb-s">
+              Browse by tag
+            </h2>
+            <div
+              role="group"
+              aria-label="Filter posts by tag"
+              class="flex flex-wrap gap-2xs"
+            >
+              <button
+                type="button"
+                data-filter-value=""
+                data-action-variant="filter"
+                data-action-density="compact"
+                aria-pressed="true"
+                class="action action--filter action--compact rounded-full px-s text-sm"
               >
-                {tag}
-                <span class="text-xs text-text-tertiary">({count})</span>
-              </a>
-            );
-          })}
+                All
+                <span class="text-xs">({sortedPosts.length})</span>
+              </button>
+              {allTags.map((tag) => (
+                <button
+                  type="button"
+                  data-filter-value={tag}
+                  data-action-variant="filter"
+                  data-action-density="compact"
+                  aria-pressed="false"
+                  class="action action--filter action--compact rounded-full px-s text-sm"
+                >
+                  {tag}
+                  <span class="text-xs">({tagCounts[tag]})</span>
+                </button>
+              ))}
+            </div>
+            <p
+              data-filter-status
+              role="status"
+              aria-live="polite"
+              aria-atomic="true"
+              class="mt-s text-sm text-text-tertiary"
+            >
+              {sortedPosts.length} posts
+            </p>
+          </section>
+        )}
+
+        {sortedPosts.length > 0 ? (
+          <div class="grid gap-l md:grid-cols-2 lg:grid-cols-2">
+            {sortedPosts.map((post) => (
+              <BlogCard
+                slug={post.id}
+                title={post.data.title}
+                description={post.data.description}
+                pubDate={post.data.pubDate}
+                author={post.data.author}
+                tags={post.data.tags}
+                image={post.data.image}
+                content={post.body}
+              />
+            ))}
+          </div>
+        ) : (
+          <div class="text-center py-xl">
+            <p class="text-text-tertiary text-lg">No blog posts yet. Check back soon!</p>
+          </div>
+        )}
+
+        <div data-filter-empty hidden class="text-center py-xl">
+          <p data-filter-empty-message class="text-text-tertiary text-lg"></p>
         </div>
+
+        <CollectionFilterEnhancement />
       </div>
-    )}
     </Container>
   </PageWrapper>
 </BaseLayout>

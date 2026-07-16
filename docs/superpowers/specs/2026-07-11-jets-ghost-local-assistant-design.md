@@ -18,6 +18,8 @@
 
 Jet's Ghost is a local-first technical showcase and experimental personal assistant grounded in Jet Sanchez's published work. Its semantic route is `/chatbot`, and every emitted canonical identity uses `https://jetsanchez.com/chatbot/`. It is not a general-purpose support widget or a child of Tools.
 
+The assistant has one explicit identity relationship to Jet: it interprets Jet Sanchez's published, assistant-enabled work, but it is not Jet and does not speak on his behalf. It refers to Jet in the third person and keeps Jet's stated claims distinct from its own synthesis. Stable biographical facts belong in an eligible published profile source rather than being duplicated as prompt lore; the system prompt supplies only this durable relationship, grounding, citation, abstention, privacy, and prompt-injection boundaries.
+
 Ordinary visitors should still encounter a coherent, honest experience: the model does not load automatically, the approximately 2 GB browser model download is disclosed before activation, browser capabilities are checked, failures are explained, and unsupported visitors can continue using the rest of the site normally.
 
 The distinguishing product claim is that generation occurs locally in the visitor's browser. Public source content and model assets are fetched from the network, but prompts, selected context, conversation history, and generated responses are not sent to Jet's server or a third-party inference API.
@@ -64,6 +66,8 @@ The completed retrieval research is sufficient to choose this architecture:
 - Absolute runtime and memory observations from the pressured development machine remain advisory, but they do not change the relative dependency and lifecycle costs above.
 
 No further retrieval-candidate harnesses or benchmark iterations are part of this design. Qualification now evaluates the actual product pipeline and visitor experience.
+
+The fail-closed fake runtime is permanent deterministic test infrastructure, not a production capability or a migration shim. It may exist only behind the exact test-build flag, localhost hostname, and explicit query gate, and ordinary production artifacts must continue failing verification if any fake-runtime marker is emitted. Task 13 removes implementation-only screenshots, diffs, reports, build output, temporary worktree state, and other scratch while recording this narrow test seam as intentionally retained. The large experience component and state hook may be decomposed later behind their current contracts, but pre-release refactoring is not allowed to reopen the approved interface, lifecycle, prompt, retrieval, or privacy behavior.
 
 ## Goals
 
@@ -726,6 +730,8 @@ The approved full-viewport `/chatbot` experience moves through these visitor-fac
 
 The composer remains the visual anchor. The exact pre-message disclosure **Jet’s Ghost can make mistakes. Check cited sources.** sits directly above its form until the first actual submit; suggested-question selection does not remove it. Suggested questions and disclosure disappear after that submission independently of completed turns, so a first-ever generation rollback cannot restore them. This current-session submission state resets only after `resetting -> ready` completes successfully or a visitor-requested Unload reaches `idle`; generation, reset, and unload failures preserve it. User turns use the compact approved surface; assistant answers remain unboxed for long-form reading; validated citations and deduplicated cited-document sources appear with the answer rather than in a permanent pre-conversation panel. Presentation helpers may evolve to reflect production lifecycle states, but integration must preserve the reviewed copy, ghost animation language, slate-blue/mustard color roles, responsive dock clearance, and Utopia typography/spacing from the approved prototype.
 
+All button-like Ghost controls consume the same framework-neutral action taxonomy as the Astro site. Compact controls preserve a minimum 44px target; the prototype's primary lifecycle and consent controls define the documented immersive density at 48px minimum height and 12px radius. The shared recipe owns hover, focus-visible, disabled, reduced-motion, and forced-colors behavior. Lifecycle dots use explicit idle/ready/active status roles, while the composer Stop control uses explicit stop fill and foreground roles rather than assigning text tokens as backgrounds.
+
 Accessibility requirements:
 
 - status changes use an appropriate live region without announcing every streamed token;
@@ -862,6 +868,8 @@ Support copy names only the branded Chrome, macOS, and Apple Silicon combination
 
 ## Release gates
 
+The release remains paused. This pre-release reconciliation updates the candidate contract only; it does not authorize deployment, `noindex` removal, Search Console work, tagging, or release.
+
 Jet's Ghost is a backward-compatible feature on the `2.0.0` modernized core and targets application release `2.1.0`. The production MiniSearch rank-and-pack pipeline is releasable only when every hard invariant passes and each product-acceptance case has a reviewed disposition:
 
 | Signal | Release requirement |
@@ -913,7 +921,7 @@ Jet's Ghost is ready for indexed release when:
 
 The license gate inventories the exact Gemma model revision, its model card and Gemma terms, `@litert-lm/core`, `minisearch@7.2.0`, `stemmer@2.0.1`, and transitive notices, redistribution/caching implications, and any attribution or acceptable-use disclosure required in the repository or public UI. Evidence records the reviewed URLs, versions, hashes, review date, and where each required notice is rendered. `noindex` is not removed while any required notice or permission remains unresolved.
 
-Google Search Console follows deployment truth rather than controlling release. Never request indexing while Jet's Ghost is a prototype or Preview, and do not request indexing for RSS. This release plan makes no `/chatbot/` indexing request. Only after the verified Production deployment and a subsequent recrawl/Page indexing report refresh may the operator inspect and monitor `/chatbot/`. Do not validate the intentional retired-route `404`s, expected slashless alternate-canonical exclusions, or expected HTTP/www redirect exclusions. A stale report is not evidence that the Task 13 release switch or redirect matrix failed.
+Google Search Console follows deployment truth rather than controlling release. Never request indexing while Jet's Ghost is a prototype or Preview, and do not request indexing for RSS. This release makes no `/chatbot/` URL Inspection or indexing request. Only after the exact `2.1.0` Production deployment passes its Production readback and smoke gates may the operator re-submit `https://jetsanchez.com/sitemap-index.xml` in the `sc-domain:jetsanchez.com` property; the property, sitemap URL, action time, and returned status must be recorded in operator notes. Sitemap submission is not URL Inspection/request indexing and is not Page indexing Validate Fix. After recrawl and the Page indexing report refresh, monitor `/chatbot/` without turning URL Inspection into a release action. Do not start Validate Fix for intentional retired-route `404`s, expected slashless alternate-canonical exclusions, or expected HTTP/www redirect exclusions. A stale report is not evidence that the Task 13 release switch or redirect matrix failed.
 
 ## Future evolution without rewrite
 

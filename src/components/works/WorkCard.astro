@@ -38,7 +38,7 @@ const {
   links,
 } = Astro.props;
 
-const workUrl = `/works/${slug}`;
+const workUrl = `/works/${slug}/`;
 const formattedDate = formatDate(date);
 
 // Map work type to Tag variant
@@ -55,7 +55,12 @@ const typeLabel = {
 };
 ---
 
-<Card hover padding="none">
+<Card
+  hover
+  padding="none"
+  data-filter-item
+  data-filter-values={JSON.stringify([type])}
+>
   <a href={workUrl} class="block group">
     {image && (
       <div class="aspect-video overflow-hidden">
@@ -88,7 +93,7 @@ const typeLabel = {
     </div>
 
     {/* Title */}
-    <h3 class="text-lg font-bold leading-tight mb-2xs text-text-primary group-hover:text-brand-base transition-colors">
+    <h3 class="text-lg font-bold leading-tight mb-2xs text-text-primary group-hover:text-brand-text transition-colors">
       {title}
     </h3>
 
@@ -150,7 +155,7 @@ const typeLabel = {
           href={link.url}
           target="_blank"
           rel="noopener noreferrer"
-          class="inline-flex items-center gap-3xs text-sm text-brand-base hover:underline"
+          class="inline-flex items-center gap-3xs text-sm text-brand-text hover:underline"
         >
           {link.label}
           <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-accent-base" fill="none" viewBox="0 0 24 24" stroke="currentColor">

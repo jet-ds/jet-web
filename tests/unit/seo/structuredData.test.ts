@@ -7,6 +7,7 @@ import {
 } from '../../../src/utils/structuredData';
 
 const homepageSource = readFileSync('src/pages/index.astro', 'utf8');
+const aboutSource = readFileSync('src/pages/about.astro', 'utf8');
 
 interface StructuredDataFixture {
   name: string;
@@ -60,6 +61,7 @@ const fixtures = [
       '@context': 'https://schema.org',
       '@type': 'BlogPosting',
       '@id': 'https://example.com/blog/typed-metadata#blogposting',
+      url: 'https://example.com/blog/typed-metadata',
       headline: 'Typed metadata',
       description: 'A complete blog-post fixture',
       image: 'https://example.com/blog/typed-metadata.jpg',
@@ -168,7 +170,7 @@ const fixtures = [
       isPartOf: {
         '@type': 'WebSite',
         '@id': 'https://jetsanchez.com/#website',
-        url: 'https://jetsanchez.com',
+        url: 'https://jetsanchez.com/',
         name: 'Jet Sanchez',
       },
       mainEntity: {
@@ -227,6 +229,8 @@ const fixtures = [
       dateModified: '2026-06-02T00:00:00.000Z',
       author: 'Example Researcher',
       venue: 'Example Journal',
+      identifier: 'https://doi.org/10.1234/example',
+      sameAs: ['https://doi.org/10.1234/example'],
       tags: ['AI', 'Systems'],
     } satisfies Extract<StructuredDataProps, { type: 'scholarlyarticle' }>,
     expectedType: 'ScholarlyArticle',
@@ -234,6 +238,7 @@ const fixtures = [
       '@context': 'https://schema.org',
       '@type': 'ScholarlyArticle',
       '@id': 'https://example.com/works/research#scholarlyarticle',
+      url: 'https://example.com/works/research',
       headline: 'Example Research',
       description: 'A complete scholarly-article fixture',
       abstract: 'An example abstract.',
@@ -258,6 +263,8 @@ const fixtures = [
         '@type': 'WebPage',
         '@id': 'https://example.com/works/research#webpage',
       },
+      identifier: 'https://doi.org/10.1234/example',
+      sameAs: ['https://doi.org/10.1234/example'],
       keywords: 'AI, Systems',
     },
   },
@@ -306,6 +313,18 @@ describe('structured data', () => {
     expect(homepageSource).not.toContain('id={`${homepageUrl}#person`}');
   });
 
+  it('uses the slashful root identity for default schemas and the About Person', () => {
+    expect(buildStructuredData({ type: 'person' }).url).toBe('https://jetsanchez.com/');
+    expect(buildStructuredData({
+      type: 'webpage',
+      url: 'https://jetsanchez.com/about/',
+    }).isPartOf).toMatchObject({
+      '@id': 'https://jetsanchez.com/#website',
+      url: 'https://jetsanchez.com/',
+    });
+    expect(aboutSource).toContain('url={`${SITE.siteUrl}/`}');
+  });
+
   it.each(fixtures)('preserves the complete $name JSON shape', ({
     props,
     expectedType,
@@ -330,6 +349,8 @@ describe('structured data', () => {
       headline: 'RCH',
       description: 'Research description',
       datePublished: '2025-08-27T00:00:00.000Z',
+      identifier: 'https://doi.org/10.2139/ssrn.5395309',
+      sameAs: ['https://doi.org/10.2139/ssrn.5395309'],
       tags: ['AI'],
     });
 
@@ -337,6 +358,11 @@ describe('structured data', () => {
     expect(schema.mainEntityOfPage).toEqual({
       '@type': 'WebPage',
       '@id': 'https://jetsanchez.com/works/rch#webpage',
+    });
+    expect(schema).toMatchObject({
+      url: 'https://jetsanchez.com/works/rch',
+      identifier: 'https://doi.org/10.2139/ssrn.5395309',
+      sameAs: ['https://doi.org/10.2139/ssrn.5395309'],
     });
   });
 });

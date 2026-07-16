@@ -2,6 +2,7 @@ import AxeBuilder from '@axe-core/playwright';
 import {
   expect,
   test,
+  type APIRequestContext,
   type Locator,
   type Page,
 } from '@playwright/test';
@@ -12,7 +13,7 @@ const suggestedQuestions = [
   'Which projects connect AI and systems thinking?',
 ];
 
-async function expectNoSeriousAxeViolations(page: Page, state: string) {
+async function seriousAxeViolations(page: Page) {
   const lifecycleLabels = page.getByTestId('lifecycle-visual-label');
   if (await lifecycleLabels.count() > 0) {
     await expect(lifecycleLabels).toHaveCount(1);
@@ -21,9 +22,33 @@ async function expectNoSeriousAxeViolations(page: Page, state: string) {
 
   const results = await new AxeBuilder({ page })
     .analyze();
-  const serious = results.violations.filter((violation) =>
+  return results.violations.filter((violation) =>
     violation.impact === 'serious' || violation.impact === 'critical');
+}
+
+async function expectNoSeriousAxeViolations(page: Page, state: string) {
+  const serious = await seriousAxeViolations(page);
   expect(serious, `${state} has serious or critical axe violations`).toEqual([]);
+}
+
+function locPaths(xml: string) {
+  return [...xml.matchAll(/<loc>([^<]+)<\/loc>/gu)]
+    .map(([, location]) => new URL(location).pathname);
+}
+
+async function sitemapHtmlRoutes(request: APIRequestContext) {
+  const indexResponse = await request.get('/sitemap-index.xml');
+  expect(indexResponse.ok()).toBe(true);
+
+  const sitemapPaths = locPaths(await indexResponse.text());
+  const routes = new Set<string>();
+  for (const sitemapPath of sitemapPaths) {
+    const sitemapResponse = await request.get(sitemapPath);
+    expect(sitemapResponse.ok()).toBe(true);
+    for (const route of locPaths(await sitemapResponse.text())) routes.add(route);
+  }
+
+  return [...routes].sort();
 }
 
 async function focusWithKeyboard(page: Page, target: Locator) {
@@ -85,10 +110,39 @@ async function expectLifecycleAccessibility(page: Page, announcement: string) {
   expect(chrome.width).toBeLessThan(160);
 }
 
-for (const route of ['/', '/blog/', '/works/', '/chatbot/']) {
-  test(`${route} has no serious axe violations`, async ({ page }) => {
-    await page.goto(route);
-    await expectNoSeriousAxeViolations(page, route);
+for (const theme of ['light', 'dark'] as const) {
+  test(`every sitemap HTML page plus qualification routes is axe-clean in ${theme} theme`, async ({
+    page,
+    request,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium');
+
+    await page.addInitScript((selectedTheme) => {
+      localStorage.setItem('theme', selectedTheme);
+    }, theme);
+
+    const sitemapRoutes = await sitemapHtmlRoutes(request);
+    expect(sitemapRoutes).not.toContain('/chatbot/');
+    expect(sitemapRoutes).not.toContain('/tools/');
+
+    const failures = [];
+    for (const route of [...sitemapRoutes, '/chatbot/', '/tools/']) {
+      await page.goto(route);
+      await expect(page.locator('html')).toHaveClass(
+        theme === 'dark' ? /\bdark\b/u : /^(?!.*\bdark\b)/u,
+      );
+      for (const violation of await seriousAxeViolations(page)) {
+        for (const node of violation.nodes) {
+          failures.push({
+            route,
+            rule: violation.id,
+            target: node.target,
+            summary: node.failureSummary,
+          });
+        }
+      }
+    }
+    expect(failures, `axe violations in ${theme} theme`).toEqual([]);
   });
 }
 

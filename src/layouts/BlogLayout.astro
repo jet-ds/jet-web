@@ -4,12 +4,12 @@ import StructuredData from '../components/seo/StructuredData.astro';
 import PageWrapper from '../components/layout/PageWrapper.astro';
 import Container from '../components/ui/Container.astro';
 import Tag from '../components/ui/Tag.astro';
-import Link from '../components/ui/Link.astro';
 import OptimizedImage from '../components/ui/OptimizedImage.astro';
 import { getCanonicalURL } from '../utils/seo';
 
 export interface Props {
   title: string;
+  seoTitle?: string;
   description: string;
   pubDate: Date;
   updatedDate?: Date;
@@ -18,12 +18,15 @@ export interface Props {
   image?: {
     url: string;
     alt: string;
+    width: number;
+    height: number;
   };
   readingTime?: number;
 }
 
 const {
   title,
+  seoTitle,
   description,
   pubDate,
   updatedDate,
@@ -51,10 +54,12 @@ const canonicalURL = getCanonicalURL(Astro.url.pathname);
 ---
 
 <BaseLayout
-  title={title}
+  title={seoTitle ?? title}
   description={description}
   image={image?.url}
   imageAlt={image?.alt}
+  imageWidth={image?.width}
+  imageHeight={image?.height}
   type="article"
   publishedTime={pubDate.toISOString()}
   modifiedTime={updatedDate?.toISOString()}
@@ -80,7 +85,7 @@ const canonicalURL = getCanonicalURL(Astro.url.pathname);
       <article>
         <!-- Back to Blog Link -->
         <div class="mb-l">
-          <a href="/blog" class="inline-flex items-center gap-1 transition-colors text-text-tertiary hover:text-text-secondary no-underline hover:underline">
+          <a href="/blog/" class="inline-flex items-center gap-1 transition-colors text-text-tertiary hover:text-text-secondary no-underline hover:underline">
             <span class="text-accent-base">←</span> Back to Blog
           </a>
         </div>
@@ -134,8 +139,8 @@ const canonicalURL = getCanonicalURL(Astro.url.pathname);
             <OptimizedImage
               src={image.url}
               alt={image.alt}
-              width={1920}
-              height={1080}
+              width={image.width}
+              height={image.height}
               class="w-full h-full object-cover"
               loading="eager"
               sizes="(max-width: 768px) 100vw, 800px"

@@ -1634,7 +1634,8 @@ describe('JetsGhostExperience production composition', () => {
     await screen.findByText(/Second unseen chunk/);
     expect(assignedScrollTop).toBe(200);
     const jumpToLatest = await screen.findByRole('button', { name: 'Jump to latest' });
-    expect(jumpToLatest).toHaveClass('min-h-11');
+    expect(jumpToLatest).toHaveClass('action', 'action--compact');
+    expect(jumpToLatest).toHaveAttribute('data-action-density', 'compact');
     expect(jumpToLatest).not.toHaveFocus();
     expect(composer).toHaveFocus();
 

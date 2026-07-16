@@ -52,7 +52,11 @@ The production build is pure. `npm run build` may validate repository inputs and
 ## Design system
 
 - Use semantic color tokens from `src/styles/global.css` and `tailwind.config.mjs`; do not hard-code the underlying OKLCH scale in components.
+- Keep semantic colors mapped to the established numbered OKLCH steps. `brand-base` is a solid interactive fill, while `brand-text` is the readable branded foreground for links and normal text; neither role is interchangeable. Dark code surfaces use the dedicated palette-derived `code-block-text` role.
 - Slate blue is the primary interactive family. Mustard is an accent for deliberate calls to action, progress, particles, and citation emphasis.
+- Use the framework-neutral `.action` recipes for button-like controls in Astro, React, or plain HTML. Variants are `brand`, `accent`, `soft`, `neutral`, `outline`, `ghost`, `filter`, `stop`, and `disabled`; `filter` state is expressed with `aria-pressed`, never color alone.
+- Action densities are `compact` (44px minimum target, 8px radius), `default` (44px minimum target, 8px radius), and `immersive` (48px minimum target, 12px radius). Jet's Ghost primary lifecycle actions use `immersive`; small labels do not justify targets below 44px. `Button.astro` exposes the same taxonomy through `variant` and `density`.
+- Preserve the shared action focus, disabled, reduced-motion, and forced-colors behavior. Add only role-specific layout or typography utilities; do not recreate a second React-only visual taxonomy.
 - Use Utopia fluid type and spacing tokens. Prefer `px-gutter`, `py-section`, `py-section-lg`, `p-card`, and fluid gap/type tokens over breakpoint-based spacing.
 - Use `svh` for viewport-height layouts. Responsive utilities are acceptable when behavior, rather than spacing, genuinely changes.
 - Preserve the Liquid Glass dock's specialized compatibility behavior.
@@ -72,7 +76,7 @@ assistant: false
 - Draft, untracked, malformed, or implicitly configured content must never enter the production site or assistant corpus.
 - Blog fields include title, description, publication date, author, tags, publication state, assistant eligibility, and optional image metadata.
 - Work fields include title, description, type, date, tags, publication state, assistant eligibility, optional featured/image/link fields, and type-specific research or project fields.
-- Every content image requires a stable URL and descriptive `alt` text.
+- Every content image requires a stable URL and descriptive `alt` text. Blog images also record their verified intrinsic pixel `width` and `height` so custom OpenGraph metadata never borrows false default dimensions.
 - Run `npm run verify:content` after changing frontmatter or content-policy code.
 
 ## Image workflow
@@ -102,13 +106,17 @@ The command reads only from `public/images-staging/<type>/`, hashes the bytes, u
 
 ### Reference
 
-For blog and work records, copy the returned URL into the matching file under `src/data/blog/` or `src/data/works/`:
+For blog records, copy the returned URL and verified intrinsic dimensions into the matching file under `src/data/blog/`:
 
 ```yaml
 image:
   url: "https://example.public.blob.vercel-storage.com/images/blog/example-12345678.jpg"
   alt: "A descriptive account of the visible image"
+  width: 1920
+  height: 1080
 ```
+
+Work records continue to use the current works-schema image fields (`url` and `alt`) under `src/data/works/`.
 
 The About portrait is not content frontmatter. Update the direct `OptimizedImage` source in `src/pages/about.astro`, retaining the actual dimensions and descriptive alternative text.
 

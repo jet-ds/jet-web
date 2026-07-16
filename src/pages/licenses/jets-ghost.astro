@@ -73,7 +73,12 @@ import Container from '../../components/ui/Container.astro';
           <p class="max-w-3xl text-base leading-relaxed text-text-secondary">
             The complete notice index records the exact package pins, model and runtime asset hashes, observed copyright statements, and modification status.
           </p>
-          <a class="inline-flex min-h-11 items-center rounded-lg border border-border-default px-s font-medium text-brand-text transition-colors hover:bg-bg-hover focus:outline-none focus:ring-2 focus:ring-brand-base" href="/licenses/THIRD_PARTY_NOTICES.md">
+          <a
+            href="/licenses/THIRD_PARTY_NOTICES.md"
+            data-action-variant="outline"
+            data-action-density="compact"
+            class="action action--outline action--compact px-s text-brand-text"
+          >
             Read THIRD_PARTY_NOTICES.md
           </a>
         </section>

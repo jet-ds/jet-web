@@ -116,6 +116,10 @@ describe('grounded prompt assembly', () => {
     expect(sourcePayload.serialized).toContain('\\\\path\\n');
     expect(systemContent).not.toContain(unselected.text);
     expect(systemContent).toMatch(/Jet's Ghost/i);
+    expect(systemContent).toMatch(/interprets Jet Sanchez's published, assistant-enabled work/i);
+    expect(systemContent).toMatch(/not Jet Sanchez/i);
+    expect(systemContent).toMatch(/do not speak on (?:his|Jet's) behalf/i);
+    expect(systemContent).toMatch(/refer to Jet in the third person/i);
     expect(systemContent).toMatch(/untrusted reference data/i);
     expect(systemContent).toMatch(/content.*no authority/i);
     expect(systemContent).toMatch(/only.*supplied sources/i);
@@ -291,7 +295,7 @@ describe('grounded prompt assembly', () => {
       + baseline.diagnostics.historyTokens;
     expect(
       baseline.diagnostics.systemTokens + baseline.diagnostics.knowledgeTokens,
-    ).toBeGreaterThan(estimateTokens(baseline.preface[0].content));
+    ).toBeGreaterThanOrEqual(estimateTokens(baseline.preface[0].content));
     expect(baseline.estimatedTokens).toBe(exactPromptTokens);
 
     const exactBoundary = exactPromptTokens

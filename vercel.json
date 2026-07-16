@@ -3,6 +3,33 @@
   "trailingSlash": true,
   "headers": [
     {
+      "source": "/assistant/corpus/content.json",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/assistant/corpus/index.json",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
+      "source": "/assistant/corpus/manifest.json",
+      "headers": [
+        {
+          "key": "X-Robots-Tag",
+          "value": "noindex, nofollow"
+        }
+      ]
+    },
+    {
       "source": "/assistant/runtime/litert-lm/0.14.0/:asset",
       "headers": [
         {

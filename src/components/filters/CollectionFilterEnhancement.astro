@@ -1,0 +1,6 @@
+<script>
+  import { initializeCollectionFilters } from '../../features/collection-filters/enhanceCollectionFilters';
+
+  initializeCollectionFilters();
+  document.addEventListener('astro:page-load', () => initializeCollectionFilters());
+</script>

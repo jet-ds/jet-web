@@ -52,6 +52,15 @@ describe('static production boundary', () => {
       $schema: 'https://openapi.vercel.sh/vercel.json',
       trailingSlash: true,
       headers: [
+        ...['content', 'index', 'manifest'].map((file) => ({
+          source: `/assistant/corpus/${file}.json`,
+          headers: [
+            {
+              key: 'X-Robots-Tag',
+              value: 'noindex, nofollow',
+            },
+          ],
+        })),
         {
           source: '/assistant/runtime/litert-lm/0.14.0/:asset',
           headers: [

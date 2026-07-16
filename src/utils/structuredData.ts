@@ -1,5 +1,7 @@
 import { SITE } from '../config/site';
 
+const SITE_ROOT_URL = new URL('/', SITE.siteUrl).toString();
+
 export type JsonPrimitive = string | number | boolean | null;
 export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
 export type JsonLd = {
@@ -88,6 +90,8 @@ type ScholarlyArticleProps = {
   dateModified?: string;
   author?: string;
   venue?: string;
+  identifier?: string;
+  sameAs?: readonly string[];
   tags?: readonly string[];
 };
 
@@ -117,7 +121,7 @@ export type StructuredDataProps =
 function buildWebsiteSchema(
   props: Extract<StructuredDataProps, { type: 'website' }>,
 ): JsonLd {
-  const url = props.url ?? SITE.siteUrl;
+  const url = props.url ?? SITE_ROOT_URL;
 
   return {
     '@context': 'https://schema.org',
@@ -138,7 +142,7 @@ function buildWebsiteSchema(
 function buildBlogPostingSchema(
   props: Extract<StructuredDataProps, { type: 'blogposting' }>,
 ): JsonLd {
-  const url = props.url ?? SITE.siteUrl;
+  const url = props.url ?? SITE_ROOT_URL;
   const headline = props.headline || props.name;
   const dateModified = props.dateModified || props.datePublished;
 
@@ -146,6 +150,7 @@ function buildBlogPostingSchema(
     '@context': 'https://schema.org',
     '@type': 'BlogPosting',
     ...(props.id && { '@id': props.id }),
+    url,
     ...(headline !== undefined && { headline }),
     ...(props.description !== undefined && { description: props.description }),
     ...(props.image && { image: props.image }),
@@ -172,7 +177,7 @@ function buildBlogPostingSchema(
 function buildPersonSchema(
   props: Extract<StructuredDataProps, { type: 'person' }>,
 ): JsonLd {
-  const url = props.url ?? SITE.siteUrl;
+  const url = props.url ?? SITE_ROOT_URL;
   const alternateName = props.alternateName ?? [];
   const sameAs = props.sameAs ?? [];
 
@@ -215,7 +220,7 @@ function buildNavigationSchema(
 function buildWebPageSchema(
   props: Extract<StructuredDataProps, { type: 'webpage' }>,
 ): JsonLd {
-  const url = props.url ?? SITE.siteUrl;
+  const url = props.url ?? SITE_ROOT_URL;
 
   return {
     '@context': 'https://schema.org',
@@ -228,7 +233,7 @@ function buildWebPageSchema(
     isPartOf: {
       '@type': 'WebSite',
       '@id': `${SITE.siteUrl}/#website`,
-      url: SITE.siteUrl,
+      url: SITE_ROOT_URL,
       name: SITE.title,
     },
     ...(props.mainEntityId && { mainEntity: { '@id': props.mainEntityId } }),
@@ -239,7 +244,7 @@ function buildWebPageSchema(
 function buildSoftwareSchema(
   props: Extract<StructuredDataProps, { type: 'software' }>,
 ): JsonLd {
-  const url = props.url ?? SITE.siteUrl;
+  const url = props.url ?? SITE_ROOT_URL;
 
   return {
     '@context': 'https://schema.org',
@@ -267,14 +272,16 @@ function buildSoftwareSchema(
 function buildScholarlyArticleSchema(
   props: Extract<StructuredDataProps, { type: 'scholarlyarticle' }>,
 ): JsonLd {
-  const url = props.url ?? SITE.siteUrl;
+  const url = props.url ?? SITE_ROOT_URL;
   const headline = props.headline || props.name;
   const dateModified = props.dateModified || props.datePublished;
+  const sameAs = props.sameAs ?? [];
 
   return {
     '@context': 'https://schema.org',
     '@type': 'ScholarlyArticle',
     ...(props.id && { '@id': props.id }),
+    url,
     ...(headline !== undefined && { headline }),
     ...(props.description !== undefined && { description: props.description }),
     ...(props.abstract && { abstract: props.abstract }),
@@ -301,6 +308,8 @@ function buildScholarlyArticleSchema(
       '@type': 'WebPage',
       '@id': `${url}#webpage`,
     },
+    ...(props.identifier && { identifier: props.identifier }),
+    ...(sameAs.length > 0 && { sameAs: [...sameAs] }),
     keywords: (props.tags ?? []).join(', '),
   };
 }
@@ -308,7 +317,7 @@ function buildScholarlyArticleSchema(
 function buildCreativeWorkSchema(
   props: Extract<StructuredDataProps, { type: 'creativework' }>,
 ): JsonLd {
-  const url = props.url ?? SITE.siteUrl;
+  const url = props.url ?? SITE_ROOT_URL;
   const datePublished = props.datePublished || props.dateCreated;
 
   return {

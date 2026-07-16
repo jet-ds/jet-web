@@ -1,6 +1,6 @@
 ---
 export interface Props {
-  variant?: 'default' | 'primary' | 'success' | 'warning' | 'error';
+  variant?: 'default' | 'primary';
   size?: 'sm' | 'md';
   class?: string;
   href?: string;
@@ -19,9 +19,6 @@ const baseClasses = 'inline-flex items-center font-medium rounded-full transitio
 const variantClasses = {
   default: 'bg-surface-base border border-border-default text-text-secondary',
   primary: 'bg-brand-subtle text-brand-text border border-brand-base/20',
-  success: 'bg-brand-subtle text-brand-text border border-brand-base/20',
-  warning: 'bg-accent-subtle text-accent-text border border-accent-base/20',
-  error: 'bg-brand-subtle text-brand-text border border-brand-base/20',
 };
 
 const sizeClasses = {

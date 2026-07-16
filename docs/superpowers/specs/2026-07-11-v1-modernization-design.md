@@ -348,6 +348,14 @@ The `Download PDF` action is removed. Citation text also uses the HTTPS DOI URL.
 - The no-script navigation is generated from the same route data.
 - When the mobile dock is closed, the controlled region is inert, hidden from the accessibility tree, and excluded from sequential focus. Opening removes those constraints; closing restores focus to the disclosure control.
 
+#### Shared color and action contracts
+
+- Preserve the existing numbered OKLCH brand, accent, and neutral scales. Semantic roles map to those steps rather than introducing one-off in-between colors: solid slate-blue interaction fill is `brand-base`; readable branded links and foreground text use `brand-text`; dark code blocks use the palette-derived `code-block-text` role.
+- One framework-neutral `.action` taxonomy serves Astro, React, and plain HTML. Its variants are `brand`, `accent`, `soft`, `neutral`, `outline`, `ghost`, `filter`, `stop`, and `disabled`. Filter toggles use `aria-pressed` with the `filter` recipe; status dots and Stop controls use explicit status/control roles instead of background utilities named for text.
+- Densities are `compact` and `default` at a 44px minimum target with an 8px radius, plus `immersive` at a 48px minimum target with a 12px radius. The existing Jet's Ghost primary controls define the immersive geometry and are not flattened to the smaller site recipe.
+- The shared recipe owns focus-visible, hover, disabled, reduced-motion, and forced-colors behavior. React consumers use the same classes and may add only layout or typography modifiers.
+- Browser accessibility coverage discovers every sitemap HTML route and adds `/chatbot/` and `/tools/`, then runs full axe including `color-contrast` in explicit light and dark themes. Existing canonical, sitemap-membership, and index-state assertions remain separate and unchanged.
+
 ### 6. SEO and web correctness
 
 - Preserve the single WebPage structured-data owner in `BaseLayout` and content-specific entities in page layouts.

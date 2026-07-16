@@ -549,7 +549,8 @@ test('source disclosure is collapsed, semantic, responsive, and untruncated', ()
   assert.match(disclosureSource, /role="region"/);
   assert.match(disclosureSource, /aria-label="Sources for this response"/);
   assert.match(disclosureSource, /<ul[^>]*>[\s\S]*?citedDocumentSources\.map/);
-  assert.match(disclosureSource, /className="[^"]*min-h-11[^"]*focus-visible:ring-2[^"]*"/);
+  assert.match(disclosureSource, /data-action-density="compact"/);
+  assert.match(disclosureSource, /className="[^"]*action[^"]*action--compact[^"]*"/);
   assert.match(disclosureSource, /max-w-\[38rem\]/);
   assert.match(disclosureSource, /aria-label={[\s\S]*?source\.title/);
   assert.match(

@@ -4,6 +4,7 @@ import PageWrapper from '../components/layout/PageWrapper.astro';
 import Container from '../components/ui/Container.astro';
 import Card from '../components/ui/Card.astro';
 import Link from '../components/ui/Link.astro';
+import Button from '../components/ui/Button.astro';
 import OptimizedImage from '../components/ui/OptimizedImage.astro';
 import StructuredData from '../components/seo/StructuredData.astro';
 import { SITE, SOCIAL_LINKS } from '../config/site';
@@ -40,7 +41,7 @@ const activeSocialLinks = Object.entries(SOCIAL_LINKS)
     alternateName={SITE.alternateNames}
     jobTitle={SITE.jobTitle}
     email={SITE.email}
-    url={SITE.siteUrl}
+    url={`${SITE.siteUrl}/`}
     pageUrl={`${SITE.siteUrl}/about/`}
     sameAs={Object.values(SOCIAL_LINKS).filter(url => url)}
   />
@@ -141,14 +142,17 @@ const activeSocialLinks = Object.entries(SOCIAL_LINKS)
       {activeSocialLinks.length > 0 ? (
         <div class="flex flex-wrap gap-s">
           {activeSocialLinks.map((social) => (
-            <Link
+            <Button
               href={social.url}
               external
-              variant="primary"
-              class="inline-flex items-center px-4 py-2 rounded-lg bg-brand-subtle hover:bg-brand-subtle/80 transition-colors"
+              variant="brand"
+              density="compact"
+              class="hover:bg-brand-subtle/80 hover:text-brand-hover"
             >
               {social.platform}
-            </Link>
+              <span class="text-xs text-accent-base" aria-hidden="true">↗</span>
+              <span class="sr-only">(opens in a new tab)</span>
+            </Button>
           ))}
         </div>
       ) : (

@@ -152,6 +152,7 @@ describe('static corpus endpoint handlers', () => {
     for (const response of [manifestResponse, contentResponse, indexResponse]) {
       expect(response.headers.get('Content-Type')).toBe('application/json; charset=utf-8');
       expect(response.headers.get('Cache-Control')).toBe('public, max-age=0, must-revalidate');
+      expect(response.headers.get('X-Robots-Tag')).toBe('noindex, nofollow');
     }
     expect(manifestText).toBe(canonicalSerialize(JSON.parse(manifestText)));
     expect(contentText).toBe(canonicalSerialize(JSON.parse(contentText)));

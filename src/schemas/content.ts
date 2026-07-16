@@ -21,6 +21,7 @@ const publicationFields = {
  */
 export const blogSchema = z.object({
   title: z.string(),
+  seoTitle: z.string().trim().min(1).optional(),
   description: z.string(),
   pubDate: z.coerce.date(),
   updatedDate: z.coerce.date().optional(),
@@ -30,6 +31,8 @@ export const blogSchema = z.object({
   image: z.object({
     url: z.string(),
     alt: z.string(),
+    width: z.number().int().positive(),
+    height: z.number().int().positive(),
   }).optional(),
 });
 
@@ -38,6 +41,7 @@ export const blogSchema = z.object({
  */
 export const worksSchema = z.object({
   title: z.string(),
+  seoTitle: z.string().trim().min(1).optional(),
   description: z.string(),
   type: z.enum(['research', 'project', 'other']),
   date: z.coerce.date(),
