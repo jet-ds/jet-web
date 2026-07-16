@@ -606,8 +606,8 @@ export default function JetsGhostExperience({
     >
       <header className="jets-ghost-header relative z-10 flex items-center justify-between gap-s px-gutter">
         <div className="flex min-w-0 items-center gap-xs">
-          <span className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl border border-border-default bg-surface-base text-brand-base shadow-sm">
-            <Ghost aria-hidden="true" size={20} strokeWidth={1.8} />
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-border-default bg-surface-base text-brand-base shadow-sm">
+            <Ghost aria-hidden="true" size={24} strokeWidth={1.8} />
           </span>
           <div data-testid="jets-ghost-identity" className="min-w-0">
             <p className="truncate font-serif text-lg font-bold">Jet&apos;s Ghost</p>

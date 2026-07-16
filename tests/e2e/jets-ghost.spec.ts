@@ -830,6 +830,39 @@ test.describe("Jet's Ghost supported lifecycle", () => {
       ))).toBe(0);
     }
   });
+
+  test('keeps the Ghost mark proportional to the three-line identity stack', async ({ page }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium');
+    const viewports = [
+      { width: 320, height: 800 },
+      { width: 430, height: 932 },
+      { width: 768, height: 1024 },
+      { width: 1280, height: 800 },
+    ];
+
+    for (const viewport of viewports) {
+      await page.setViewportSize(viewport);
+      await page.goto(fakePath());
+
+      const identityGroup = page.locator('.jets-ghost-header > div').first();
+      const icon = identityGroup.locator(':scope > span').first();
+      const glyph = icon.locator('svg');
+      const identity = page.getByTestId('jets-ghost-identity');
+      const [iconBox, glyphBox, identityBox] = await Promise.all([
+        boxOf(icon),
+        boxOf(glyph),
+        boxOf(identity),
+      ]);
+
+      expect(iconBox.width).toBeCloseTo(iconBox.height, 1);
+      expect(iconBox.width).toBeCloseTo(48, 1);
+      expect(glyphBox.width).toBeCloseTo(glyphBox.height, 1);
+      expect(glyphBox.width).toBeCloseTo(24, 1);
+      expect(glyphBox.width / iconBox.width).toBeCloseTo(0.5, 2);
+      expect(iconBox.height / identityBox.height).toBeGreaterThanOrEqual(0.7);
+      expect(iconBox.height / identityBox.height).toBeLessThan(0.8);
+    }
+  });
 });
 
 test.describe("Jet's Ghost loading hierarchy and activation recovery", () => {
