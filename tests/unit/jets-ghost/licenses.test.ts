@@ -154,6 +154,7 @@ describe("Jet's Ghost exact license bundle", () => {
     const review = readRequired('docs/verification/jets-ghost-licenses.md');
     for (const heading of [
       '## Confirmed license obligations',
+      '## Distribution determinations',
       '## Verified upstream packaging and provenance defects',
       '## Hypothetical undisclosed transitive-license risk',
       '## Actual release blockers',
@@ -171,6 +172,24 @@ describe("Jet's Ghost exact license bundle", () => {
     );
     expect(review).toContain(
       'advice-worthy residual ambiguity, not an identified prohibition',
+    );
+    for (const determination of [
+      'Direct Hugging Face download',
+      'Ordinary browser caching',
+      'Bundling the eight runtime assets',
+      'Descriptive public model naming',
+      'Future model mirroring',
+    ]) {
+      expect(review).toContain(determination);
+    }
+    expect(review).toContain('Apache License 2.0 section 2');
+    expect(review).toContain('section 4 conditions');
+    expect(review).toContain('section 6');
+    expect(review).toContain(
+      'does not require separate permission beyond the Apache grant',
+    );
+    expect(review).toContain(
+      'A future mirror triggers a fresh audit, not a current prohibition',
     );
     for (const source of [
       'https://ai.google.dev/gemma/terms',

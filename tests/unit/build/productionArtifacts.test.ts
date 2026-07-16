@@ -15,6 +15,10 @@ import {
   assertProductionArtifactsContainNoFakeRuntime,
   findForbiddenProductionArtifacts,
 } from '../../../scripts/verify-production-artifacts';
+import {
+  LITERT_LM_WASM_ASSETS,
+  resolveLiteRtAssetPath,
+} from '../../../src/features/jets-ghost/runtime/liteRtAssets.server';
 
 const temporaryDirectories: string[] = [];
 
@@ -41,7 +45,7 @@ function runProductionArtifactVerifier(directory: string) {
   );
 }
 
-function writeExactLicenseSurface(directory: string): void {
+function writeExactProductionSurface(directory: string): void {
   const licensePageDirectory = join(directory, 'licenses', 'jets-ghost');
   const liteRtDirectory = join(
     directory,
@@ -63,6 +67,9 @@ function writeExactLicenseSurface(directory: string): void {
     join(directory, 'licenses', 'stemmer-2.0.1-MIT.txt'),
   );
   cpSync('LICENSES/Apache-2.0.txt', join(liteRtDirectory, 'LICENSE.txt'));
+  for (const asset of LITERT_LM_WASM_ASSETS) {
+    cpSync(resolveLiteRtAssetPath(asset), join(liteRtDirectory, asset));
+  }
   writeFileSync(
     join(licensePageDirectory, 'index.html'),
     [
@@ -122,7 +129,7 @@ describe('ordinary production artifact containment', () => {
 
   it('rejects a public license endpoint whose bytes changed', () => {
     const directory = temporaryBuildDirectory();
-    writeExactLicenseSurface(directory);
+    writeExactProductionSurface(directory);
     writeFileSync(join(directory, 'licenses', 'apache-2.0.txt'), 'altered');
 
     const result = runProductionArtifactVerifier(directory);
@@ -131,9 +138,54 @@ describe('ordinary production artifact containment', () => {
     expect(result.stderr).toContain('PRODUCTION_LICENSE_ARTIFACT_MISMATCH');
   });
 
-  it('accepts the exact complete emitted license surface', () => {
+  it('rejects a build that omits an emitted LiteRT runtime asset', () => {
     const directory = temporaryBuildDirectory();
-    writeExactLicenseSurface(directory);
+    writeExactProductionSurface(directory);
+    const asset = LITERT_LM_WASM_ASSETS[0];
+    rmSync(join(
+      directory,
+      'assistant',
+      'runtime',
+      'litert-lm',
+      '0.14.0',
+      asset,
+    ));
+
+    const result = runProductionArtifactVerifier(directory);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      `PRODUCTION_RUNTIME_ARTIFACT_MISSING:assistant/runtime/litert-lm/0.14.0/${asset}`,
+    );
+  });
+
+  it('rejects an emitted LiteRT runtime asset whose bytes changed', () => {
+    const directory = temporaryBuildDirectory();
+    writeExactProductionSurface(directory);
+    const asset = LITERT_LM_WASM_ASSETS[1];
+    writeFileSync(
+      join(
+        directory,
+        'assistant',
+        'runtime',
+        'litert-lm',
+        '0.14.0',
+        asset,
+      ),
+      'altered',
+    );
+
+    const result = runProductionArtifactVerifier(directory);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      `PRODUCTION_RUNTIME_ARTIFACT_MISMATCH:assistant/runtime/litert-lm/0.14.0/${asset}`,
+    );
+  });
+
+  it('accepts the exact complete emitted runtime and license surfaces', () => {
+    const directory = temporaryBuildDirectory();
+    writeExactProductionSurface(directory);
 
     const result = runProductionArtifactVerifier(directory);
 

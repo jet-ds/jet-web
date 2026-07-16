@@ -7,6 +7,11 @@ import {
 import { relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import {
+  LITERT_LM_WASM_ASSETS,
+  resolveLiteRtAssetPath,
+} from '../src/features/jets-ghost/runtime/liteRtAssets.server';
+
 export const FORBIDDEN_PRODUCTION_ARTIFACT_MARKERS = [
   'FakeRuntime',
   'runtime=fake',
@@ -130,13 +135,33 @@ export function assertProductionLicenseArtifacts(
   }
 }
 
+export function assertProductionRuntimeArtifacts(
+  directory = resolve('dist'),
+): void {
+  const root = resolve(directory);
+  for (const asset of LITERT_LM_WASM_ASSETS) {
+    const emittedRelativePath = `assistant/runtime/litert-lm/0.14.0/${asset}`;
+    const emittedPath = resolve(root, emittedRelativePath);
+    if (!existsSync(emittedPath)) {
+      throw new Error(`PRODUCTION_RUNTIME_ARTIFACT_MISSING:${emittedRelativePath}`);
+    }
+
+    const emitted = readFileSync(emittedPath);
+    const expected = readFileSync(resolveLiteRtAssetPath(asset));
+    if (!emitted.equals(expected)) {
+      throw new Error(`PRODUCTION_RUNTIME_ARTIFACT_MISMATCH:${emittedRelativePath}`);
+    }
+  }
+}
+
 if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
   try {
     const directory = process.argv[2] ?? resolve('dist');
     assertProductionArtifactsContainNoFakeRuntime(directory);
     assertProductionLicenseArtifacts(directory);
+    assertProductionRuntimeArtifacts(directory);
     process.stdout.write(
-      'Production artifacts contain no Jet\'s Ghost fake-runtime seam; the license surface is complete and byte-exact.\n',
+      'Production artifacts contain no Jet\'s Ghost fake-runtime seam; the runtime and license surfaces are complete and byte-exact.\n',
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : 'UNEXPECTED_ERROR';

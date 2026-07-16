@@ -24,6 +24,16 @@ Google's current Gemma Terms explicitly route Gemma 4 to the separate Apache Lic
 
 The repository-level `THIRD_PARTY_NOTICES.md`, exact license files, pre-load disclosure, README provenance, public license page, plain-text endpoints, and build verifier implement these obligations for the known bundle.
 
+## Distribution determinations
+
+| Scenario | Determination |
+|---|---|
+| Direct Hugging Face download | The visitor's browser fetches the immutable pinned model from Hugging Face; the site supplies the URL but does not mirror the bytes. Apache License 2.0 section 2 grants reproduction and distribution rights, subject to the license conditions when a party distributes copies. The public bundle keeps the governing license available without mischaracterizing the current host. |
+| Ordinary browser caching | Local HTTP caching is ordinary reproduction covered by the section 2 grant and does not require separate permission beyond the Apache grant. It does not add a cache-specific notice duty; the section 4 conditions remain applicable when a party distributes covered copies. |
+| Bundling the eight runtime assets | The site distributes the eight exact, unmodified LiteRT-LM JavaScript and WebAssembly files under the section 2 grant. The bundled Apache text and versioned license sibling satisfy section 4(a) for the known bundle; no section 4(b) modification notice is needed for unchanged files, and no upstream `NOTICE` exists to reproduce under section 4(d). |
+| Descriptive public model naming | Calling the artifact “Gemma 4 E2B” identifies its origin and contents. Apache section 6 permits reasonable and customary origin description while withholding broader trademark rights, so accurate naming does not require a separate trademark license and must not imply endorsement. |
+| Future model mirroring | Apache section 2 permits reproduction and distribution, but a site-hosted mirror would make this project the direct transmitter of the model copy. A future mirror triggers a fresh audit, not a current prohibition: verify the exact mirrored bytes, provenance, and all section 4 conditions before release. |
+
 ## Verified upstream packaging and provenance defects
 
 The published `@litert-lm/core@0.14.0` package does not map cleanly to the reviewed upstream tag/source layout, and neither the package nor repository supplied a complete authoritative SBOM or transitive inventory. The pinned model repository also omits a repository-local license file and `NOTICE`, even though its metadata declares Apache-2.0 and the linked Gemma license source supplies the applicable text.
