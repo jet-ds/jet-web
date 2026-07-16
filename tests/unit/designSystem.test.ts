@@ -10,6 +10,8 @@ const linkSource = readSource('../../src/components/ui/Link.astro');
 const licensePageSource = readSource('../../src/pages/licenses/jets-ghost.astro');
 const blogLayoutSource = readSource('../../src/layouts/BlogLayout.astro');
 const workLayoutSource = readSource('../../src/layouts/WorkLayout.astro');
+const blogEntrySource = readSource('../../src/pages/blog/[slug].astro');
+const workEntrySource = readSource('../../src/pages/works/[slug].astro');
 const chatbotPageSource = readSource('../../src/pages/chatbot.astro');
 const homePageSource = readSource('../../src/pages/index.astro');
 const sectionSource = readSource('../../src/components/layout/Section.astro');
@@ -93,6 +95,21 @@ describe('design-system role contracts', () => {
       .toHaveLength(2);
     expect(licensePageSource.match(/<Link href="[^"]+" variant="primary">/gu))
       .toHaveLength(4);
+  });
+
+  test('prose ownership stops at the rendered MDX content boundary', () => {
+    for (const layoutSource of [blogLayoutSource, workLayoutSource]) {
+      expect(layoutSource).toContain('<slot />');
+      expect(layoutSource).not.toMatch(
+        /<div class="prose prose-lg dark:prose-invert max-w-none">\s*<slot \/>\s*<\/div>/u,
+      );
+    }
+
+    for (const entrySource of [blogEntrySource, workEntrySource]) {
+      expect(entrySource).toMatch(
+        /<article class="prose prose-lg dark:prose-invert max-w-none">\s*<Content \/>\s*<\/article>/u,
+      );
+    }
   });
 
   test('broad blue sections have a semantic surface distinct from soft actions', () => {

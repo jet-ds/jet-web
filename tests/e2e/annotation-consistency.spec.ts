@@ -138,6 +138,22 @@ test('shared inline links retain focus and reduced-motion behavior', async ({ pa
   await expect(proseLink).toHaveCSS('outline-style', 'solid');
   await expect(proseLink).toHaveCSS('outline-offset', '2px');
 
+  const tocLink = page.locator('.toc a:not(.active)').first();
+  await expect(tocLink).toBeVisible();
+  await expect(tocLink).toHaveCSS('font-weight', '400');
+  await tocLink.hover();
+  await expect(tocLink).toHaveCSS('text-decoration-line', 'none');
+  await tocLink.focus();
+  await expect(tocLink).not.toHaveCSS('outline-offset', '2px');
+
+  const postNavigationLink = page.locator('nav[aria-label="Post navigation"] a').first();
+  await expect(postNavigationLink).toBeVisible();
+  await expect(postNavigationLink).toHaveCSS('font-weight', '400');
+  await postNavigationLink.hover();
+  await expect(postNavigationLink).toHaveCSS('text-decoration-line', 'none');
+  await postNavigationLink.focus();
+  await expect(postNavigationLink).not.toHaveCSS('outline-offset', '2px');
+
   await page.goto('/licenses/jets-ghost/');
   await expect(page.locator('a[href="/licenses/apache-2.0.txt"]'))
     .toHaveClass(/\btext-link\b/u);
