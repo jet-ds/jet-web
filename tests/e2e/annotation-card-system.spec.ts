@@ -90,8 +90,9 @@ async function expectClippedImageCard(page: Page, route: '/blog/' | '/works/') {
 
   const card = page.locator('[data-filter-item]:has(.aspect-video img)').first();
   const anchor = card.locator('a.group');
-  const image = card.locator('.aspect-video img');
+  const image = card.locator('.aspect-video img:visible');
   await expect(card).toBeVisible();
+  await expect(image).toHaveCount(1);
   await expect(image).toBeVisible();
 
   const readBoundary = () => card.evaluate((element) => {

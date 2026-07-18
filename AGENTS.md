@@ -77,8 +77,8 @@ assistant: false
 - Public content requires `status: published`.
 - Jet's Ghost inclusion requires both `status: published` and `assistant: true`.
 - Draft, untracked, malformed, or implicitly configured content must never enter the production site or assistant corpus.
-- Blog fields include title, description, publication date, author, tags, publication state, assistant eligibility, and optional image metadata.
-- Work fields include title, description, type, date, tags, publication state, assistant eligibility, optional featured/image/link fields, and type-specific research or project fields.
+- Blog fields include title, description, optional search title and description overrides, publication date, author, tags, publication state, assistant eligibility, and optional image metadata.
+- Work fields include title, description, optional search title and description overrides, type, date, tags, publication state, assistant eligibility, optional featured/image/link fields, and type-specific research or project fields.
 - Every content image requires a stable URL and descriptive `alt` text. Blog images also record their verified intrinsic pixel `width` and `height` so custom OpenGraph metadata never borrows false default dimensions.
 - Run `npm run verify:content` after changing frontmatter or content-policy code.
 

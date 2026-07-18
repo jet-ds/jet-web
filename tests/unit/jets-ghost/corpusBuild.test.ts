@@ -13,6 +13,7 @@ import { serializeSourcePayload } from '../../../src/features/jets-ghost/sourceP
 const blogData: BlogFrontmatter = {
   title: 'Included guide',
   seoTitle: 'Included local retrieval guide',
+  seoDescription: 'A compact local retrieval guide.',
   description: 'A guide about durable local retrieval.',
   pubDate: new Date('2026-01-02T00:00:00.000Z'),
   updatedDate: new Date('2026-01-03T00:00:00.000Z'),
@@ -31,6 +32,7 @@ const blogData: BlogFrontmatter = {
 const worksData: WorksFrontmatter = {
   title: 'Research project',
   seoTitle: 'Research Project',
+  seoDescription: 'A compact research project summary.',
   description: 'A complete work fixture.',
   type: 'research',
   date: new Date('2025-08-27T00:00:00.000Z'),
@@ -229,6 +231,7 @@ describe('source hash contract', () => {
   ]> = [
     ['title', blogData, changedBlog((value) => { value.title = 'Changed'; })],
     ['SEO title', blogData, changedBlog((value) => { value.seoTitle = 'Changed'; })],
+    ['SEO description', blogData, changedBlog((value) => { value.seoDescription = 'Changed'; })],
     ['description', blogData, changedBlog((value) => { value.description = 'Changed'; })],
     ['status', blogData, changedBlog((value) => { value.status = 'draft'; })],
     ['assistant', blogData, changedBlog((value) => { value.assistant = false; })],
@@ -291,6 +294,7 @@ describe('source hash contract', () => {
       updatedDate: new Date(blogData.updatedDate!.toISOString()),
       pubDate: new Date(blogData.pubDate.toISOString()),
       description: blogData.description,
+      seoDescription: blogData.seoDescription,
       seoTitle: blogData.seoTitle,
       title: blogData.title,
     } satisfies BlogFrontmatter;

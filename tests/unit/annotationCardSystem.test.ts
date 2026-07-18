@@ -11,6 +11,7 @@ const licenseSource = readSource('../../src/pages/licenses/jets-ghost.astro');
 const aboutSource = readSource('../../src/pages/about.astro');
 const contactSource = readSource('../../src/pages/contact.astro');
 const workCardSource = readSource('../../src/components/works/WorkCard.astro');
+const contentTeaserSource = readSource('../../src/components/content/ContentTeaserCard.astro');
 
 const countMatches = (source: string, pattern: RegExp) => source.match(pattern)?.length ?? 0;
 
@@ -53,13 +54,15 @@ describe('annotation 2 shared card system', () => {
       /<Card clip padding="none" radius="xl">[\s\S]*?<OptimizedImage/u,
     );
     for (const source of [blogCardSource, workCardSource]) {
-      expect(source).toMatch(/<Card\s+hover\s+clip\s+padding="none"/u);
+      expect(source).toMatch(
+        /<Card\s+href=\{(?:post|work)Url\}\s+clip\s+padding="none"/u,
+      );
       expect(source).toContain('group-hover:scale-105');
     }
   });
 
   test('clipped hover Cards mirror descendant keyboard focus outside their boundary', () => {
-    expect(cardSource).toContain('clip && hover');
+    expect(cardSource).toContain('clip && interactive');
     for (const className of [
       'has-[:focus-visible]:outline',
       'has-[:focus-visible]:outline-2',
@@ -70,6 +73,21 @@ describe('annotation 2 shared card system', () => {
     }
     expect(cardSource).toContain('${clippedFocusClass}');
     expect(cardSource).not.toContain('focus-within:outline');
+  });
+
+  test('Card owns the dominant link surface for every content-card abstraction', () => {
+    expect(cardSource).toContain('href?: string;');
+    expect(cardSource).toContain('<a href={href}');
+    expect(cardSource).toContain('const interactive = hover || Boolean(href);');
+    expect(cardSource).toContain('const hoverClasses = interactive');
+
+    expect(blogCardSource).toContain('href={postUrl}');
+    expect(workCardSource).toContain('href={workUrl}');
+    expect(contentTeaserSource).toContain('<Card href={href}');
+
+    for (const source of [blogCardSource, workCardSource, contentTeaserSource]) {
+      expect(source).not.toContain('class="block group"');
+    }
   });
 
   test('Licenses consumes four subtle Cards while preserving valid section and list structure', () => {

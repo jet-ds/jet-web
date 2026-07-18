@@ -2,7 +2,7 @@
 import { formatDate } from '../../utils/formatDate';
 import Tag from '../ui/Tag.astro';
 import Card from '../ui/Card.astro';
-import OptimizedImage from '../ui/OptimizedImage.astro';
+import ThemeAwareImage from '../ui/ThemeAwareImage.astro';
 
 interface Props {
   slug: string;
@@ -14,7 +14,10 @@ interface Props {
   featured?: boolean;
   image?: {
     url: string;
+    darkUrl?: string;
     alt: string;
+    width?: number;
+    height?: number;
   };
   // For research papers
   venue?: string;
@@ -40,6 +43,11 @@ const {
 
 const workUrl = `/works/${slug}/`;
 const formattedDate = formatDate(date);
+const technologyPreview = technologies?.slice(0, 3) ?? [];
+const additionalTechnologyCount = Math.max(
+  (technologies?.length ?? 0) - technologyPreview.length,
+  0,
+);
 
 // Map work type to Tag variant
 const typeVariant = {
@@ -56,28 +64,28 @@ const typeLabel = {
 ---
 
 <Card
-  hover
+  href={workUrl}
   clip
   padding="none"
   data-filter-item
   data-filter-values={JSON.stringify([type])}
 >
-  <a href={workUrl} class="block group">
-    {image && (
-      <div class="aspect-video overflow-hidden">
-        <OptimizedImage
-          src={image.url}
-          alt={image.alt}
-          width={800}
-          height={450}
-          class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-          loading="lazy"
-          sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-        />
-      </div>
-    )}
+  {image && (
+    <div class="aspect-video overflow-hidden">
+      <ThemeAwareImage
+        src={image.url}
+        darkSrc={image.darkUrl}
+        alt={image.alt}
+        width={800}
+        height={450}
+        class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+        loading="lazy"
+        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+      />
+    </div>
+  )}
 
-    <div class="p-card flex-1 flex flex-col">
+  <div class="p-card flex-1 flex flex-col">
     {/* Header with type badge and featured indicator */}
     <div class="flex items-center justify-between mb-xs">
       <Tag variant={typeVariant[type]} size="sm">
@@ -99,12 +107,12 @@ const typeLabel = {
     </h3>
 
     {/* Description */}
-    <p class="text-text-secondary mb-s line-clamp-3 flex-1">
+    <p class="text-text-secondary mb-s line-clamp-3">
       {description}
     </p>
 
     {/* Type-specific metadata */}
-    <div class="mb-s space-y-2xs">
+    <div class="mt-auto mb-s space-y-2xs">
       {/* Research: Venue */}
       {type === 'research' && venue && (
         <div class="flex items-center gap-2 text-sm text-text-tertiary">
@@ -121,7 +129,18 @@ const typeLabel = {
           <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
             <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
           </svg>
-          <span>{technologies.slice(0, 3).join(', ')}{technologies.length > 3 ? '...' : ''}</span>
+          {additionalTechnologyCount > 0 ? (
+            <span>
+              <span aria-hidden="true">
+                {technologyPreview.join(', ')} +{additionalTechnologyCount}
+              </span>
+              <span class="sr-only">
+                {technologyPreview.join(', ')}, plus {additionalTechnologyCount} more technologies
+              </span>
+            </span>
+          ) : (
+            <span>{technologyPreview.join(', ')}</span>
+          )}
         </div>
       )}
 
@@ -145,12 +164,11 @@ const typeLabel = {
         )}
       </div>
     )}
-    </div>
-  </a>
+  </div>
 
   {/* Links (outside of main link to prevent nested links) */}
   {links && links.length > 0 && (
-    <div class="flex flex-wrap gap-2xs px-card py-s border-t border-border-default">
+    <div slot="actions" class="flex flex-wrap gap-2xs px-card py-s border-t border-border-default">
       {links.map((link) => (
         <a
           href={link.url}

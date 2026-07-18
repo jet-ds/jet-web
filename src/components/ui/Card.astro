@@ -2,6 +2,7 @@
 export interface Props {
   class?: string;
   clip?: boolean;
+  href?: string;
   padding?: 'none' | 'sm' | 'md' | 'lg';
   radius?: 'lg' | 'xl';
   surface?: 'base' | 'subtle';
@@ -11,6 +12,7 @@ export interface Props {
 const {
   class: className = '',
   clip = false,
+  href,
   padding,
   radius,
   surface = 'base',
@@ -39,18 +41,32 @@ const paddingClasses = {
   md: 'p-m',
   lg: 'p-card',
 };
+const rootPaddingClass = href ? '' : paddingClasses[resolvedPadding];
+const linkedPaddingClass = href ? paddingClasses[resolvedPadding] : '';
 
-const hoverClasses = hover
+const interactive = hover || Boolean(href);
+const hoverClasses = interactive
   ? 'hover:border-brand-base hover:shadow-md cursor-pointer'
   : '';
 const clipClass = clip ? 'overflow-hidden' : '';
-const clippedFocusClass = clip && hover
+const clippedFocusClass = clip && interactive
   ? 'has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-brand-base'
   : '';
+const linkedFocusClass = href && !clip
+  ? 'has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-brand-base'
+  : '';
+const linkedLayoutClass = href ? '[&:not([hidden])]:flex flex-col' : '';
 
-const classes = `${surfaceClasses[surface]} ${radiusClasses[resolvedRadius]} ${baseClasses} ${paddingClasses[resolvedPadding]} ${hoverClasses} ${clipClass} ${clippedFocusClass} ${className}`;
+const classes = `${surfaceClasses[surface]} ${radiusClasses[resolvedRadius]} ${baseClasses} ${rootPaddingClass} ${hoverClasses} ${clipClass} ${clippedFocusClass} ${linkedFocusClass} ${linkedLayoutClass} ${className}`;
 ---
 
 <div class={classes} {...rest}>
-  <slot />
+  {href ? (
+    <a href={href} class={`${linkedPaddingClass} flex flex-1 flex-col group focus-visible:outline-none`}>
+      <slot />
+    </a>
+  ) : (
+    <slot />
+  )}
+  <slot name="actions" />
 </div>

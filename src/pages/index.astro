@@ -6,8 +6,7 @@ import Section from '../components/layout/Section.astro';
 import Container from '../components/ui/Container.astro';
 import Card from '../components/ui/Card.astro';
 import Button from '../components/ui/Button.astro';
-import Tag from '../components/ui/Tag.astro';
-import OptimizedImage from '../components/ui/OptimizedImage.astro';
+import ContentTeaserCard from '../components/content/ContentTeaserCard.astro';
 import Grainient from '../components/ui/Grainient';
 import { SITE, SOCIAL_LINKS } from '../config/site';
 import { isPublished } from '../content/policy';
@@ -124,39 +123,14 @@ const typeLabel: Record<string, string> = {
       {latestPosts.length > 0 ? (
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-m">
           {latestPosts.map((post) => (
-            <Card hover class="flex flex-col h-full">
-              <div class="flex-1">
-                <h3 class="text-lg font-semibold leading-snug mb-2xs text-text-primary">
-                  <a href={`/blog/${post.id}/`} class="hover:text-brand-text transition-colors">
-                    {post.data.title}
-                  </a>
-                </h3>
-                {post.data.image && (
-                  <div class="aspect-video overflow-hidden rounded-lg mb-2xs">
-                    <OptimizedImage
-                      src={post.data.image.url}
-                      alt={post.data.image.alt}
-                      width={800}
-                      height={450}
-                      class="w-full h-full object-cover"
-                      loading="lazy"
-                      sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                    />
-                  </div>
-                )}
-                <p class="text-text-secondary mb-s">
-                  {post.data.description}
-                </p>
-                <div class="flex flex-wrap gap-2xs mb-s">
-                  {post.data.tags.slice(0, 3).map((tag) => (
-                    <Tag size="sm">{tag}</Tag>
-                  ))}
-                </div>
-              </div>
-              <div class="text-sm text-text-tertiary">
-                {post.data.pubDate.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-              </div>
-            </Card>
+            <ContentTeaserCard
+              href={`/blog/${post.id}/`}
+              title={post.data.title}
+              description={post.data.description}
+              date={post.data.pubDate}
+              tags={post.data.tags}
+              image={post.data.image}
+            />
           ))}
         </div>
       ) : (
@@ -182,47 +156,16 @@ const typeLabel: Record<string, string> = {
       {featuredWorks.length > 0 ? (
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-m">
           {featuredWorks.map((work) => (
-            <Card hover class="flex flex-col h-full">
-              <div class="flex-1">
-                <div class="flex items-center gap-2xs mb-xs">
-                  <Tag
-                    variant={work.data.type === 'research' ? 'primary' : work.data.type === 'project' ? 'primary' : 'default'}
-                    size="sm"
-                  >
-                    {typeLabel[work.data.type]}
-                  </Tag>
-                </div>
-                <h3 class="text-lg font-semibold leading-snug mb-2xs text-text-primary">
-                  <a href={`/works/${work.id}/`} class="hover:text-brand-text transition-colors">
-                    {work.data.title}
-                  </a>
-                </h3>
-                {work.data.image && (
-                  <div class="aspect-video overflow-hidden rounded-lg mb-2xs">
-                    <OptimizedImage
-                      src={work.data.image.url}
-                      alt={work.data.image.alt}
-                      width={800}
-                      height={450}
-                      class="w-full h-full object-cover"
-                      loading="lazy"
-                      sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-                    />
-                  </div>
-                )}
-                <p class="text-text-secondary mb-s">
-                  {work.data.description}
-                </p>
-                <div class="flex flex-wrap gap-2xs mb-s">
-                  {work.data.tags.slice(0, 3).map((tag) => (
-                    <Tag size="sm">{tag}</Tag>
-                  ))}
-                </div>
-              </div>
-              <div class="text-sm text-text-tertiary">
-                {work.data.date.toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}
-              </div>
-            </Card>
+            <ContentTeaserCard
+              href={`/works/${work.id}/`}
+              title={work.data.title}
+              description={work.data.description}
+              date={work.data.date}
+              tags={work.data.tags}
+              badge={typeLabel[work.data.type]}
+              badgeVariant={work.data.type === 'research' || work.data.type === 'project' ? 'primary' : 'default'}
+              image={work.data.image}
+            />
           ))}
         </div>
       ) : (

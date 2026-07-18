@@ -158,7 +158,7 @@ test('Blog interaction filters cards, synchronizes the URL, and All clears it', 
   expect(new URL(page.url()).searchParams.has('tag')).toBe(false);
 });
 
-test('Works buttons support the keyboard and expose a coherent zero-result state', async ({ page }) => {
+test('Works buttons support the keyboard and expose the project category', async ({ page }) => {
   await page.goto('/works/');
   const root = filterRoot(page, 'type');
   const projects = filterButton(root, 'project');
@@ -167,10 +167,9 @@ test('Works buttons support the keyboard and expose a coherent zero-result state
   await page.keyboard.press('Enter');
 
   await expect(projects).toHaveAttribute('aria-pressed', 'true');
-  await expect(visibleFilterItems(root)).toHaveCount(0);
-  await expect(root.getByRole('status')).toHaveText('0 works in the project category');
-  await expect(root.locator('[data-filter-empty]')).toBeVisible();
-  await expect(root.locator('[data-filter-empty]')).toContainText('No works found in the project category.');
+  await expect(visibleFilterItems(root)).toHaveCount(1);
+  await expect(root.getByRole('status')).toHaveText('1 work in the project category');
+  await expect(root.locator('[data-filter-empty]')).toBeHidden();
   expect(new URL(page.url()).searchParams.get('type')).toBe('project');
 
   const all = filterButton(root, '');

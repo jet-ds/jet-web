@@ -6,6 +6,7 @@ const routes = [
   '/blog/',
   '/blog/how-to-install-claude-code-cli-2026/',
   '/works/',
+  '/works/digital-squad-timesheet/',
   '/works/recursive-convergence-hypothesis/',
   '/chatbot/',
   '/tools/',
@@ -26,6 +27,7 @@ type JsonLdSchema = {
   offers?: { '@type'?: string; price?: string; priceCurrency?: string };
   identifier?: string;
   sameAs?: string[];
+  description?: string;
 };
 
 async function readSchemas(page: Page): Promise<JsonLdSchema[]> {
@@ -140,6 +142,181 @@ test("Jet's Ghost exposes canonical qualification metadata", async ({ page }) =>
   });
 });
 
+test('content card covers navigate through their dominant action everywhere', async ({ page }) => {
+  const cases = [
+    {
+      route: '/',
+      imageName: 'Retro computer with a human arm and a floating brain against a split purple and orange background',
+      destination: '/blog/vibe-coding-vs-agentic-coding-why-the-distinction-matters/',
+    },
+    {
+      route: '/',
+      imageName: 'Digital Squad Timesheet weekly dashboard for Jet Sanchez showing a populated July work week',
+      destination: '/works/digital-squad-timesheet/',
+    },
+    {
+      route: '/blog/',
+      imageName: 'Retro computer with a human arm and a floating brain against a split purple and orange background',
+      destination: '/blog/vibe-coding-vs-agentic-coding-why-the-distinction-matters/',
+    },
+    {
+      route: '/works/',
+      imageName: 'Digital Squad Timesheet weekly dashboard for Jet Sanchez showing a populated July work week',
+      destination: '/works/digital-squad-timesheet/',
+    },
+  ] as const;
+
+  for (const { route, imageName, destination } of cases) {
+    await page.goto(route);
+    const cover = page.getByRole('img', { name: imageName });
+    await expect(cover).toBeVisible();
+    await cover.click();
+    await expect(page).toHaveURL(destination);
+  }
+});
+
+test('homepage content cards include their padded perimeter in the dominant action', async ({ page }) => {
+  await page.goto('/');
+
+  const primaryAction = page.locator('main a[href="/works/digital-squad-timesheet/"]');
+  await primaryAction.scrollIntoViewIfNeeded();
+  const card = primaryAction.locator('..');
+  const cardBounds = await card.boundingBox();
+  if (!cardBounds) throw new Error('Missing Digital Squad Timesheet homepage card');
+
+  await page.mouse.click(cardBounds.x + 4, cardBounds.y + 4);
+  await expect(page).toHaveURL('/works/digital-squad-timesheet/');
+});
+
+test('homepage content teasers use canonical copy and one description preview rule', async ({ page }) => {
+  const cases = [
+    {
+      href: '/blog/how-to-install-claude-code-cli-2026/',
+      title: 'How to Install and Get Started With Claude Code CLI in 2026',
+      description: "Complete guide to installing Claude Code CLI, setting up plugins, leveraging skills, and getting productive with Anthropic's agentic coding tool.",
+    },
+    {
+      href: '/works/recursive-convergence-hypothesis/',
+      title: 'The Recursive Convergence Hypothesis: Emergent Sentience as a Structural Attractor of Recursive ASI',
+      description: 'A theoretical framework proposing that recursive artificial superintelligence systems may develop emergent sentience as a structural outcome of epistemic optimization and world modeling, even without explicit design intentions.',
+    },
+  ] as const;
+
+  await page.goto('/');
+
+  for (const { href, title, description } of cases) {
+    const teaser = page.locator(`main a[href="${href}"]`);
+    await expect(teaser.getByRole('heading', { name: title, exact: true })).toBeVisible();
+
+    const summary = teaser.locator('p');
+    await expect(summary).toHaveText(description);
+    const metrics = await summary.evaluate((element) => {
+      const styles = getComputedStyle(element);
+      return {
+        height: element.getBoundingClientRect().height,
+        lineHeight: Number.parseFloat(styles.lineHeight),
+        lineClamp: styles.webkitLineClamp,
+      };
+    });
+
+    expect(metrics.lineClamp).toBe('3');
+    expect(metrics.height).toBeLessThanOrEqual(metrics.lineHeight * 3 + 1);
+  }
+});
+
+test('work collection cards keep secondary actions visible inside the card boundary', async ({ page }) => {
+  await page.goto('/works/');
+
+  const researchCard = page.locator('[data-filter-item]').filter({
+    hasText: 'The Recursive Convergence Hypothesis',
+  });
+  const action = researchCard.getByRole('link', { name: 'View on SSRN' });
+
+  await expect(action).toBeVisible();
+
+  const bounds = await researchCard.evaluate((card) => {
+    const cardRect = card.getBoundingClientRect();
+    const actionElement = Array.from(card.querySelectorAll('a')).find((link) =>
+      link.textContent?.includes('View on SSRN'),
+    );
+    if (!actionElement) throw new Error('Missing View on SSRN action');
+    const actionRect = actionElement.getBoundingClientRect();
+
+    return {
+      actionBottom: actionRect.bottom,
+      cardBottom: cardRect.bottom,
+    };
+  });
+
+  expect(bounds.actionBottom).toBeLessThanOrEqual(bounds.cardBottom);
+});
+
+test('work collection descriptions clamp to three complete visible lines', async ({ page }) => {
+  await page.goto('/works/');
+
+  const researchCard = page.locator('[data-filter-item]').filter({
+    hasText: 'The Recursive Convergence Hypothesis',
+  });
+  const description = researchCard.locator('p');
+
+  await expect(description).toContainText('systems may develop');
+
+  const metrics = await description.evaluate((element) => {
+    const styles = getComputedStyle(element);
+    return {
+      height: element.getBoundingClientRect().height,
+      lineHeight: Number.parseFloat(styles.lineHeight),
+      lineClamp: styles.webkitLineClamp,
+    };
+  });
+
+  expect(metrics.lineClamp).toBe('3');
+  expect(metrics.height).toBeLessThanOrEqual(metrics.lineHeight * 3 + 1);
+});
+
+test('project cards summarize additional technologies with an explicit accessible count', async ({ page }) => {
+  await page.goto('/works/');
+
+  const timesheetCard = page.locator('[data-filter-item]').filter({
+    hasText: 'Digital Squad Timesheet',
+  });
+  await expect(
+    timesheetCard.getByText('Next.js, React, TypeScript +11', { exact: true }),
+  ).toBeVisible();
+  await expect(
+    timesheetCard.getByText(
+      'Next.js, React, TypeScript, plus 11 more technologies',
+      { exact: true },
+    ),
+  ).toHaveCount(1);
+  await expect(timesheetCard).not.toContainText('TypeScript...');
+});
+
+test('Timesheet presents its complete technology stack as a semantic section after Overview', async ({ page }) => {
+  await page.goto('/works/digital-squad-timesheet/');
+
+  const content = page.locator('main article.prose');
+  const headings = await content.locator('h2').allTextContents();
+  const overviewIndex = headings.indexOf('Overview');
+  const technologyIndex = headings.indexOf('Technology stack');
+  const productDesignIndex = headings.indexOf('Product design');
+
+  expect(overviewIndex).toBeGreaterThanOrEqual(0);
+  expect(technologyIndex).toBe(overviewIndex + 1);
+  expect(productDesignIndex).toBe(technologyIndex + 1);
+
+  const technologyList = content
+    .getByRole('heading', { level: 2, name: 'Technology stack' })
+    .locator('xpath=following-sibling::ul[1]');
+  await expect(technologyList).toBeVisible();
+  await expect(technologyList.getByRole('listitem')).toHaveText([
+    'Application and interface: Next.js, React, TypeScript, Tailwind CSS, Base UI',
+    'Data and authentication: PostgreSQL, Supabase, Drizzle ORM',
+    'Analytics and reporting: PostHog, Recharts',
+    'Quality and delivery: Zod, Vitest, Playwright, Vercel',
+  ]);
+});
+
 test('Tools remains a dormant noindexed route', async ({ page }) => {
   await page.goto('/tools/');
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'noindex, nofollow');
@@ -194,6 +371,39 @@ test('theme choice persists across navigation', async ({ page }) => {
   await page.getByRole('button', { name: /switch to dark mode/i }).click();
   await page.goto('/about/');
   await expect(page.locator('html')).toHaveClass(/dark/);
+});
+
+test('theme-aware Works covers are ready before the first switch on every presentation surface', async ({ page }) => {
+  await page.emulateMedia({ colorScheme: 'light' });
+  await page.addInitScript(() => localStorage.setItem('theme', 'light'));
+
+  const alt = 'Digital Squad Timesheet weekly dashboard for Jet Sanchez showing a populated July work week';
+  for (const route of ['/', '/works/', '/works/digital-squad-timesheet/']) {
+    await page.goto(route);
+
+    const themeImages = page.locator(`img[alt="${alt}"]`);
+    await expect(themeImages).toHaveCount(2);
+    const accessibleImage = page.getByRole('img', { name: alt, exact: true });
+    await expect(accessibleImage).toHaveCount(1);
+    await expect(accessibleImage).toHaveAttribute('src', /digital-squad-timesheet-dashboard-light/u);
+
+    await expect.poll(async () => themeImages.evaluateAll((images) => images.map((image) => {
+      const element = image as HTMLImageElement;
+      return element.complete && element.naturalWidth > 0;
+    }))).toEqual([true, true]);
+
+    const resources = await page.evaluate(() => performance
+      .getEntriesByType('resource')
+      .map((entry) => entry.name)
+      .filter((url) => url.includes('digital-squad-timesheet-dashboard')));
+    expect(resources.some((url) => url.includes('-light-')), route).toBe(true);
+    expect(resources.some((url) => url.includes('-dark-')), route).toBe(true);
+
+    await page.getByRole('button', { name: /switch to dark mode/i }).click();
+    await expect(page.locator('html')).toHaveClass(/dark/);
+    await expect(accessibleImage).toHaveCount(1);
+    await expect(accessibleImage).toHaveAttribute('src', /digital-squad-timesheet-dashboard-dark/u);
+  }
 });
 
 test('RSS is served as XML without a redirect', async ({ request }) => {
@@ -304,6 +514,11 @@ test('content pages use deliberate SEO titles without replacing their headings',
       seoTitle: 'Recursive Convergence Hypothesis: AI Sentience | Jet Sanchez',
       heading: 'The Recursive Convergence Hypothesis: Emergent Sentience as a Structural Attractor of Recursive ASI',
     },
+    {
+      route: '/works/digital-squad-timesheet/',
+      seoTitle: 'Digital Squad Timesheet: Operations Platform | Jet Sanchez',
+      heading: 'Digital Squad Timesheet',
+    },
   ] as const;
 
   for (const { route, seoTitle, heading } of cases) {
@@ -311,6 +526,64 @@ test('content pages use deliberate SEO titles without replacing their headings',
     await expect(page).toHaveTitle(seoTitle);
     await expect(page.locator('main h1')).toHaveText(heading);
     expect(seoTitle.length).toBeLessThanOrEqual(60);
+  }
+});
+
+test('content pages expose deliberate search descriptions and faithful entity summaries', async ({ page }) => {
+  const cases = [
+    {
+      route: '/blog/how-to-install-claude-code-cli-2026/',
+      seoDescription: "Complete guide to installing Claude Code CLI, setting up plugins, leveraging skills, and getting productive with Anthropic's agentic coding tool.",
+      entityType: 'BlogPosting',
+      entityDescription: "Complete guide to installing Claude Code CLI, setting up plugins, leveraging skills, and getting productive with Anthropic's agentic coding tool.",
+    },
+    {
+      route: '/blog/vibe-coding-vs-agentic-coding-why-the-distinction-matters/',
+      seoDescription: 'Vibe coding is exploratory. Agentic coding is survivable. Learn why intent, cognition, and workflow maturity now define modern software.',
+      entityType: 'BlogPosting',
+      entityDescription: 'Vibe coding is exploratory. Agentic coding is survivable. Learn why intent, cognition, and workflow maturity now define modern software.',
+    },
+    {
+      route: '/works/recursive-convergence-hypothesis/',
+      seoDescription: 'A theoretical framework proposing that recursive ASI may develop emergent sentience through self-improvement, agent modeling, and epistemic optimization.',
+      entityType: 'ScholarlyArticle',
+      entityDescription: 'A theoretical framework proposing that recursive artificial superintelligence systems may develop emergent sentience as a structural outcome of epistemic optimization and world modeling, even without explicit design intentions.',
+    },
+    {
+      route: '/works/digital-squad-timesheet/',
+      seoDescription: 'A task-based weekly operations platform for Digital Squad, combining time logging, project context, team visibility, and reporting in one focused workflow.',
+      entityType: 'CreativeWork',
+      entityDescription: 'A task-based weekly operations platform for Digital Squad, combining time logging, project context, team visibility, and reporting in one focused workflow.',
+    },
+  ] as const;
+
+  for (const {
+    route,
+    seoDescription,
+    entityType,
+    entityDescription,
+  } of cases) {
+    await page.goto(route);
+    await expect(page.locator('meta[name="description"]')).toHaveAttribute(
+      'content',
+      seoDescription,
+    );
+    await expect(page.locator('meta[property="og:description"]')).toHaveAttribute(
+      'content',
+      seoDescription,
+    );
+    await expect(page.locator('meta[name="twitter:description"]')).toHaveAttribute(
+      'content',
+      seoDescription,
+    );
+
+    const schemas = await readSchemas(page);
+    expect(schemas.find((schema) => schema['@type'] === 'WebPage')?.description).toBe(
+      seoDescription,
+    );
+    expect(schemas.find((schema) => schema['@type'] === entityType)?.description).toBe(
+      entityDescription,
+    );
   }
 });
 

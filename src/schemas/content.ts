@@ -22,6 +22,7 @@ const publicationFields = {
 export const blogSchema = z.object({
   title: z.string(),
   seoTitle: z.string().trim().min(1).optional(),
+  seoDescription: z.string().trim().min(1).max(160).optional(),
   description: z.string(),
   pubDate: z.coerce.date(),
   updatedDate: z.coerce.date().optional(),
@@ -42,6 +43,7 @@ export const blogSchema = z.object({
 export const worksSchema = z.object({
   title: z.string(),
   seoTitle: z.string().trim().min(1).optional(),
+  seoDescription: z.string().trim().min(1).max(160).optional(),
   description: z.string(),
   type: z.enum(['research', 'project', 'other']),
   date: z.coerce.date(),
@@ -50,7 +52,10 @@ export const worksSchema = z.object({
   featured: z.boolean().default(false),
   image: z.object({
     url: z.string(),
+    darkUrl: z.string().optional(),
     alt: z.string(),
+    width: z.number().int().positive().optional(),
+    height: z.number().int().positive().optional(),
   }).optional(),
   links: z.array(z.object({
     label: z.string(),

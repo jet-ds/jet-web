@@ -1,0 +1,65 @@
+---
+import OptimizedImage from './OptimizedImage.astro';
+
+interface Props {
+  src: string;
+  darkSrc?: string;
+  alt: string;
+  width: number;
+  height: number;
+  class?: string;
+  loading?: 'lazy' | 'eager';
+  sizes?: string;
+  quality?: number;
+}
+
+const {
+  src,
+  darkSrc,
+  alt,
+  width,
+  height,
+  class: className = '',
+  loading = 'lazy',
+  sizes,
+  quality = 80,
+} = Astro.props;
+
+const resolvedLoading = darkSrc ? 'eager' : loading;
+---
+
+{darkSrc ? (
+  <>
+    <OptimizedImage
+      src={src}
+      alt={alt}
+      width={width}
+      height={height}
+      class={`${className} dark:hidden`}
+      loading={resolvedLoading}
+      sizes={sizes}
+      quality={quality}
+    />
+    <OptimizedImage
+      src={darkSrc}
+      alt={alt}
+      width={width}
+      height={height}
+      class={`hidden ${className} dark:block`}
+      loading={resolvedLoading}
+      sizes={sizes}
+      quality={quality}
+    />
+  </>
+) : (
+  <OptimizedImage
+    src={src}
+    alt={alt}
+    width={width}
+    height={height}
+    class={className}
+    loading={resolvedLoading}
+    sizes={sizes}
+    quality={quality}
+  />
+)}
