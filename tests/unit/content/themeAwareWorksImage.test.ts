@@ -34,11 +34,10 @@ describe('theme-aware Works images', () => {
   });
 
   it('keeps every Works cover surface on the shared theme-aware abstraction', () => {
-    const workCard = readSource('../../../src/components/works/WorkCard.astro');
+    const contentCard = readSource('../../../src/components/content/ContentCard.astro');
     const workLayout = readSource('../../../src/layouts/WorkLayout.astro');
-    const contentTeaser = readSource('../../../src/components/content/ContentTeaserCard.astro');
 
-    for (const source of [workCard, workLayout, contentTeaser]) {
+    for (const source of [contentCard, workLayout]) {
       expect(source).toContain('ThemeAwareImage');
       expect(source).toContain('darkSrc=');
     }

@@ -57,6 +57,18 @@ describe('content SEO metadata', () => {
     expect(formatTitle(parsed.seoTitle ?? parsed.title).length).toBeLessThanOrEqual(60);
   });
 
+  it('gives Broad Reach, Uneven Depth compact search metadata without replacing its paper title', () => {
+    const parsed = worksSchema.parse(frontmatter(
+      'src/data/works/broad-reach-uneven-depth.mdx',
+    )) as ParsedContentMetadata;
+
+    expect(parsed.title).toBe(
+      'Broad Reach, Uneven Depth? Reconciling Philippine Generative-AI Diffusion Across Three Telemetry Systems',
+    );
+    expect(parsed.seoTitle).toBe('Philippine AI Diffusion Across Three Systems');
+    expect(formatTitle(parsed.seoTitle ?? parsed.title).length).toBeLessThanOrEqual(60);
+  });
+
   it('gives the Timesheet work concise, complete search metadata', () => {
     const parsed = worksSchema.parse(frontmatter(
       'src/data/works/digital-squad-timesheet.mdx',
@@ -94,6 +106,11 @@ describe('content SEO metadata', () => {
       path: 'src/data/works/digital-squad-timesheet.mdx',
       kind: 'work',
       seoDescription: 'A task-based weekly operations platform for Digital Squad, combining time logging, project context, team visibility, and reporting in one focused workflow.',
+    },
+    {
+      path: 'src/data/works/broad-reach-uneven-depth.mdx',
+      kind: 'work',
+      seoDescription: 'A cross-platform measurement audit finding that Philippine generative-AI standing changes materially across Microsoft, OpenAI, and Anthropic telemetry.',
     },
   ])('records an explicit compact SEO description for $path', ({
     path,

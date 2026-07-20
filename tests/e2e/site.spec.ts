@@ -188,17 +188,27 @@ test('homepage content cards include their padded perimeter in the dominant acti
   await expect(page).toHaveURL('/works/digital-squad-timesheet/');
 });
 
-test('homepage content teasers use canonical copy and one description preview rule', async ({ page }) => {
+test('homepage content cards use deliberate human-facing card copy', async ({ page }) => {
   const cases = [
     {
       href: '/blog/how-to-install-claude-code-cli-2026/',
-      title: 'How to Install and Get Started With Claude Code CLI in 2026',
-      description: "Complete guide to installing Claude Code CLI, setting up plugins, leveraging skills, and getting productive with Anthropic's agentic coding tool.",
+      title: 'How to Install Claude Code CLI in 2026',
+      description: "Install Claude Code CLI, configure plugins and skills, and start using Anthropic's coding agent.",
+    },
+    {
+      href: '/blog/vibe-coding-vs-agentic-coding-why-the-distinction-matters/',
+      title: 'Vibe Coding vs Agentic Coding',
+      description: 'Vibe coding explores ideas; agentic coding makes them survive. See how their workflows differ.',
+    },
+    {
+      href: '/works/digital-squad-timesheet/',
+      title: 'Digital Squad Timesheet',
+      description: 'A weekly operations platform for time logging, project context, team visibility, and reporting.',
     },
     {
       href: '/works/recursive-convergence-hypothesis/',
-      title: 'The Recursive Convergence Hypothesis: Emergent Sentience as a Structural Attractor of Recursive ASI',
-      description: 'A theoretical framework proposing that recursive artificial superintelligence systems may develop emergent sentience as a structural outcome of epistemic optimization and world modeling, even without explicit design intentions.',
+      title: 'The Recursive Convergence Hypothesis',
+      description: 'A framework for how ASI may converge on synthetic sentience through recursive self-improvement.',
     },
   ] as const;
 
@@ -214,13 +224,65 @@ test('homepage content teasers use canonical copy and one description preview ru
       const styles = getComputedStyle(element);
       return {
         height: element.getBoundingClientRect().height,
+        scrollHeight: element.scrollHeight,
         lineHeight: Number.parseFloat(styles.lineHeight),
         lineClamp: styles.webkitLineClamp,
       };
     });
 
-    expect(metrics.lineClamp).toBe('3');
-    expect(metrics.height).toBeLessThanOrEqual(metrics.lineHeight * 3 + 1);
+    expect(metrics.lineClamp).toBe('4');
+    expect(metrics.height).toBeLessThanOrEqual(metrics.lineHeight * 4 + 1);
+    expect(metrics.scrollHeight).toBeLessThanOrEqual(metrics.height + 1);
+  }
+});
+
+test('blog cards omit repeated single-author attribution while article pages retain it', async ({ page }) => {
+  const postRoutes = [
+    '/blog/how-to-install-claude-code-cli-2026/',
+    '/blog/vibe-coding-vs-agentic-coding-why-the-distinction-matters/',
+  ] as const;
+
+  for (const collectionRoute of ['/', '/blog/']) {
+    await page.goto(collectionRoute);
+
+    for (const postRoute of postRoutes) {
+      const card = page.locator(`main a[href="${postRoute}"]`);
+      await expect(card).toBeVisible();
+      await expect(card).not.toContainText('Jet Sanchez');
+    }
+  }
+
+  await page.goto(postRoutes[0]);
+  await expect(page.locator('main')).toContainText('By Jet Sanchez');
+});
+
+test('image-backed Home and Works cards keep media and normalized metadata aligned', async ({ page }) => {
+  for (const route of ['/', '/works/']) {
+    await page.goto(route);
+    const timesheet = page.locator('main a[href="/works/digital-squad-timesheet/"]');
+    const research = page.locator('main a[href="/works/recursive-convergence-hypothesis/"]');
+
+    const geometry = await Promise.all([timesheet, research].map((card) => card.evaluate((element) => {
+      const media = element.querySelector('[data-content-card-media]');
+      const title = element.querySelector('[data-content-card-title]');
+      const metadata = element.querySelector('[data-content-card-metadata]');
+      if (!media || !title || !metadata) throw new Error('Incomplete shared content card');
+      return {
+        mediaTop: media.getBoundingClientRect().top,
+        mediaHeight: media.getBoundingClientRect().height,
+        titleHeight: title.getBoundingClientRect().height,
+        metadataHeight: metadata.getBoundingClientRect().height,
+        metadataTop: metadata.getBoundingClientRect().top,
+      };
+    })));
+
+    if ((page.viewportSize()?.width ?? 0) >= 768) {
+      expect(Math.abs(geometry[0].mediaTop - geometry[1].mediaTop)).toBeLessThanOrEqual(1);
+      expect(Math.abs(geometry[0].metadataTop - geometry[1].metadataTop)).toBeLessThanOrEqual(1);
+    }
+    expect(Math.abs(geometry[0].mediaHeight - geometry[1].mediaHeight)).toBeLessThanOrEqual(1);
+    expect(Math.abs(geometry[0].titleHeight - geometry[1].titleHeight)).toBeLessThanOrEqual(1);
+    expect(Math.abs(geometry[0].metadataHeight - geometry[1].metadataHeight)).toBeLessThanOrEqual(1);
   }
 });
 
@@ -251,7 +313,7 @@ test('work collection cards keep secondary actions visible inside the card bound
   expect(bounds.actionBottom).toBeLessThanOrEqual(bounds.cardBottom);
 });
 
-test('work collection descriptions clamp to three complete visible lines', async ({ page }) => {
+test('work collection summaries fit within four complete visible lines', async ({ page }) => {
   await page.goto('/works/');
 
   const researchCard = page.locator('[data-filter-item]').filter({
@@ -259,19 +321,23 @@ test('work collection descriptions clamp to three complete visible lines', async
   });
   const description = researchCard.locator('p');
 
-  await expect(description).toContainText('systems may develop');
+  await expect(description).toHaveText(
+    'A framework for how ASI may converge on synthetic sentience through recursive self-improvement.',
+  );
 
   const metrics = await description.evaluate((element) => {
     const styles = getComputedStyle(element);
     return {
       height: element.getBoundingClientRect().height,
+      scrollHeight: element.scrollHeight,
       lineHeight: Number.parseFloat(styles.lineHeight),
       lineClamp: styles.webkitLineClamp,
     };
   });
 
-  expect(metrics.lineClamp).toBe('3');
-  expect(metrics.height).toBeLessThanOrEqual(metrics.lineHeight * 3 + 1);
+  expect(metrics.lineClamp).toBe('4');
+  expect(metrics.height).toBeLessThanOrEqual(metrics.lineHeight * 4 + 1);
+  expect(metrics.scrollHeight).toBeLessThanOrEqual(metrics.height + 1);
 });
 
 test('project cards summarize additional technologies with an explicit accessible count', async ({ page }) => {
@@ -473,6 +539,19 @@ test('retired routes stay retired and out of feeds', async ({ request }) => {
     expect(sitemap).not.toContain(slug);
     expect(rss).not.toContain(slug);
   }
+});
+
+test('draft Works stay unavailable and out of public discovery surfaces', async ({ request }) => {
+  const slug = 'broad-reach-uneven-depth';
+  const route = await request.get(`/works/${slug}/`);
+  const home = await (await request.get('/')).text();
+  const works = await (await request.get('/works/')).text();
+  const sitemap = await (await request.get('/sitemap-0.xml')).text();
+
+  expect(route.status()).toBe(404);
+  expect(home).not.toContain(slug);
+  expect(works).not.toContain(slug);
+  expect(sitemap).not.toContain(slug);
 });
 
 test('content pages expose parseable typed JSON-LD', async ({ page }) => {

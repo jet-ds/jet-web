@@ -6,7 +6,8 @@ import Section from '../components/layout/Section.astro';
 import Container from '../components/ui/Container.astro';
 import Card from '../components/ui/Card.astro';
 import Button from '../components/ui/Button.astro';
-import ContentTeaserCard from '../components/content/ContentTeaserCard.astro';
+import BlogCard from '../components/blog/BlogCard.astro';
+import WorkCard from '../components/works/WorkCard.astro';
 import Grainient from '../components/ui/Grainient';
 import { SITE, SOCIAL_LINKS } from '../config/site';
 import { isPublished } from '../content/policy';
@@ -26,12 +27,6 @@ const featuredWorks = allWorks
   .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
   .slice(0, 3);
 
-// Type labels
-const typeLabel: Record<string, string> = {
-  research: 'Research',
-  project: 'Project',
-  other: 'Other',
-};
 ---
 
 <BaseLayout
@@ -123,13 +118,17 @@ const typeLabel: Record<string, string> = {
       {latestPosts.length > 0 ? (
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-m">
           {latestPosts.map((post) => (
-            <ContentTeaserCard
-              href={`/blog/${post.id}/`}
+            <BlogCard
+              variant="compact"
+              slug={post.id}
               title={post.data.title}
+              shortTitle={post.data.shortTitle}
               description={post.data.description}
-              date={post.data.pubDate}
+              summary={post.data.summary}
+              pubDate={post.data.pubDate}
               tags={post.data.tags}
               image={post.data.image}
+              content={post.body}
             />
           ))}
         </div>
@@ -156,15 +155,21 @@ const typeLabel: Record<string, string> = {
       {featuredWorks.length > 0 ? (
         <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-m">
           {featuredWorks.map((work) => (
-            <ContentTeaserCard
-              href={`/works/${work.id}/`}
+            <WorkCard
+              variant="compact"
+              slug={work.id}
               title={work.data.title}
+              shortTitle={work.data.shortTitle}
               description={work.data.description}
+              summary={work.data.summary}
+              type={work.data.type}
               date={work.data.date}
               tags={work.data.tags}
-              badge={typeLabel[work.data.type]}
-              badgeVariant={work.data.type === 'research' || work.data.type === 'project' ? 'primary' : 'default'}
+              featured={work.data.featured}
               image={work.data.image}
+              venue={work.data.venue}
+              technologies={work.data.technologies}
+              links={work.data.links}
             />
           ))}
         </div>

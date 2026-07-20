@@ -92,9 +92,10 @@ const pageSubheading = 'Explore my articles on AI, agentic software development,
               <BlogCard
                 slug={post.id}
                 title={post.data.title}
+                shortTitle={post.data.shortTitle}
                 description={post.data.description}
+                summary={post.data.summary}
                 pubDate={post.data.pubDate}
-                author={post.data.author}
                 tags={post.data.tags}
                 image={post.data.image}
                 content={post.body}

@@ -1,13 +1,13 @@
 ---
 import { formatDate } from '../../utils/formatDate';
-import Tag from '../ui/Tag.astro';
-import Card from '../ui/Card.astro';
-import ThemeAwareImage from '../ui/ThemeAwareImage.astro';
+import ContentCard from '../content/ContentCard.astro';
 
 interface Props {
   slug: string;
   title: string;
+  shortTitle?: string;
   description: string;
+  summary?: string;
   type: 'research' | 'project' | 'other';
   date: Date;
   tags: string[];
@@ -19,37 +19,39 @@ interface Props {
     width?: number;
     height?: number;
   };
-  // For research papers
   venue?: string;
-  // For projects
   technologies?: string[];
-  // Links
   links?: { label: string; url: string }[];
+  variant?: 'collection' | 'compact';
 }
 
 const {
   slug,
   title,
+  shortTitle,
   description,
+  summary,
   type,
   date,
   tags,
-  featured,
+  featured = false,
   image,
   venue,
   technologies,
-  links,
+  links = [],
+  variant = 'collection',
 } = Astro.props;
 
 const workUrl = `/works/${slug}/`;
 const formattedDate = formatDate(date);
+const displayTitle = shortTitle ?? title;
+const displaySummary = summary ?? description;
 const technologyPreview = technologies?.slice(0, 3) ?? [];
 const additionalTechnologyCount = Math.max(
   (technologies?.length ?? 0) - technologyPreview.length,
   0,
 );
 
-// Map work type to Tag variant
 const typeVariant = {
   research: 'primary' as const,
   project: 'primary' as const,
@@ -63,125 +65,56 @@ const typeLabel = {
 };
 ---
 
-<Card
+<ContentCard
   href={workUrl}
-  clip
-  padding="none"
+  title={displayTitle}
+  description={displaySummary}
+  tags={tags}
+  variant={variant}
+  headingLevel={3}
+  badge={typeLabel[type]}
+  badgeVariant={typeVariant[type]}
+  featured={variant === 'collection' && featured}
+  image={image}
+  externalLinks={links}
   data-filter-item
   data-filter-values={JSON.stringify([type])}
 >
-  {image && (
-    <div class="aspect-video overflow-hidden">
-      <ThemeAwareImage
-        src={image.url}
-        darkSrc={image.darkUrl}
-        alt={image.alt}
-        width={800}
-        height={450}
-        class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-        loading="lazy"
-        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-      />
-    </div>
-  )}
-
-  <div class="p-card flex-1 flex flex-col">
-    {/* Header with type badge and featured indicator */}
-    <div class="flex items-center justify-between mb-xs">
-      <Tag variant={typeVariant[type]} size="sm">
-        {typeLabel[type]}
-      </Tag>
-      {featured && (
-        <span class="text-accent-text text-xs font-medium flex items-center gap-3xs">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-accent-base" viewBox="0 0 20 20" fill="currentColor">
-            <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-          </svg>
-          Featured
-        </span>
-      )}
-    </div>
-
-    {/* Title */}
-    <h3 class="text-lg font-bold leading-tight mb-2xs text-text-primary group-hover:text-brand-text transition-colors">
-      {title}
-    </h3>
-
-    {/* Description */}
-    <p class="text-text-secondary mb-s line-clamp-3">
-      {description}
-    </p>
-
-    {/* Type-specific metadata */}
-    <div class="mt-auto mb-s space-y-2xs">
-      {/* Research: Venue */}
-      {type === 'research' && venue && (
-        <div class="flex items-center gap-2 text-sm text-text-tertiary">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-          </svg>
-          <span>{venue}</span>
-        </div>
-      )}
-
-      {/* Project: Technologies */}
-      {type === 'project' && technologies && technologies.length > 0 && (
-        <div class="flex items-start gap-2 text-sm text-text-tertiary">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
-          </svg>
-          {additionalTechnologyCount > 0 ? (
-            <span>
-              <span aria-hidden="true">
-                {technologyPreview.join(', ')} +{additionalTechnologyCount}
-              </span>
-              <span class="sr-only">
-                {technologyPreview.join(', ')}, plus {additionalTechnologyCount} more technologies
-              </span>
-            </span>
-          ) : (
-            <span>{technologyPreview.join(', ')}</span>
-          )}
-        </div>
-      )}
-
-      {/* Date */}
-      <div class="flex items-center gap-2 text-sm text-text-tertiary">
-        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+  <div slot="metadata" class="space-y-2xs">
+    {type === 'research' && venue && (
+      <div class="flex items-center gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
         </svg>
-        <time datetime={date.toISOString()}>{formattedDate}</time>
+        <span>{venue}</span>
       </div>
-    </div>
+    )}
 
-    {/* Tags */}
-    {tags.length > 0 && (
-      <div class="flex flex-wrap gap-2xs mb-s">
-        {tags.slice(0, 4).map((tag) => (
-          <Tag size="sm">{tag}</Tag>
-        ))}
-        {tags.length > 4 && (
-          <span class="text-xs text-text-tertiary">+{tags.length - 4}</span>
+    {type === 'project' && technologyPreview.length > 0 && (
+      <div class="flex items-start gap-2">
+        <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 mt-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 20l4-16m4 4l4 4-4 4M6 16l-4-4 4-4" />
+        </svg>
+        {additionalTechnologyCount > 0 ? (
+          <span>
+            <span aria-hidden="true">
+              {technologyPreview.join(', ')} +{additionalTechnologyCount}
+            </span>
+            <span class="sr-only">
+              {technologyPreview.join(', ')}, plus {additionalTechnologyCount} more technologies
+            </span>
+          </span>
+        ) : (
+          <span>{technologyPreview.join(', ')}</span>
         )}
       </div>
     )}
-  </div>
 
-  {/* Links (outside of main link to prevent nested links) */}
-  {links && links.length > 0 && (
-    <div slot="actions" class="flex flex-wrap gap-2xs px-card py-s border-t border-border-default">
-      {links.map((link) => (
-        <a
-          href={link.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          class="inline-flex items-center gap-3xs text-sm text-brand-text hover:underline"
-        >
-          {link.label}
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-accent-base" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-          </svg>
-        </a>
-      ))}
+    <div class="flex items-center gap-2">
+      <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+      </svg>
+      <time datetime={date.toISOString()}>{formattedDate}</time>
     </div>
-  )}
-</Card>
+  </div>
+</ContentCard>

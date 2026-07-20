@@ -11,7 +11,7 @@ const licenseSource = readSource('../../src/pages/licenses/jets-ghost.astro');
 const aboutSource = readSource('../../src/pages/about.astro');
 const contactSource = readSource('../../src/pages/contact.astro');
 const workCardSource = readSource('../../src/components/works/WorkCard.astro');
-const contentTeaserSource = readSource('../../src/components/content/ContentTeaserCard.astro');
+const contentCardSource = readSource('../../src/components/content/ContentCard.astro');
 
 const countMatches = (source: string, pattern: RegExp) => source.match(pattern)?.length ?? 0;
 
@@ -53,11 +53,12 @@ describe('annotation 2 shared card system', () => {
     expect(aboutSource).toMatch(
       /<Card clip padding="none" radius="xl">[\s\S]*?<OptimizedImage/u,
     );
+    expect(contentCardSource).toMatch(
+      /<Card[\s\S]*?href=\{href\}[\s\S]*?clip[\s\S]*?padding="none"/u,
+    );
+    expect(contentCardSource).toContain('group-hover:scale-105');
     for (const source of [blogCardSource, workCardSource]) {
-      expect(source).toMatch(
-        /<Card\s+href=\{(?:post|work)Url\}\s+clip\s+padding="none"/u,
-      );
-      expect(source).toContain('group-hover:scale-105');
+      expect(source).toContain('<ContentCard');
     }
   });
 
@@ -83,9 +84,9 @@ describe('annotation 2 shared card system', () => {
 
     expect(blogCardSource).toContain('href={postUrl}');
     expect(workCardSource).toContain('href={workUrl}');
-    expect(contentTeaserSource).toContain('<Card href={href}');
+    expect(contentCardSource).toContain('href={href}');
 
-    for (const source of [blogCardSource, workCardSource, contentTeaserSource]) {
+    for (const source of [blogCardSource, workCardSource, contentCardSource]) {
       expect(source).not.toContain('class="block group"');
     }
   });
