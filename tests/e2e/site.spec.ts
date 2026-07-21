@@ -1464,12 +1464,18 @@ test('navigation representations use canonical route identities', async ({
   const html = await (await request.get('/')).text();
   const noscript = /<noscript>([\s\S]*?)<\/noscript>/u.exec(html)?.[1];
   expect(noscript).toBeDefined();
+  const normalizedNoscript = (noscript ?? '')
+    .replace(/\s+/gu, ' ')
+    .replace(/>\s+/gu, '>')
+    .replace(/\s+</gu, '<');
   for (const [name, href] of navigation) {
-    expect(noscript).toContain(`href="${href}"`);
-    expect(noscript).toContain(`>${name.replaceAll("'", '&#39;')}</a>`);
+    expect(normalizedNoscript).toContain(`href="${href}"`);
+    expect(normalizedNoscript).toContain(
+      `>${name.replaceAll("'", '&#39;')}</a>`,
+    );
   }
-  expect(noscript).not.toContain('href="/tools/"');
-  expect(noscript).not.toContain('>Tools</a>');
+  expect(normalizedNoscript).not.toContain('href="/tools/"');
+  expect(normalizedNoscript).not.toContain('>Tools</a>');
 });
 
 test('qualification and dormant routes stay out of the sitemap', async ({
