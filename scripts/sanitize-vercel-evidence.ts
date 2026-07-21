@@ -54,6 +54,7 @@ function requireString(value: unknown, rule: string, maxLength = 512): string {
     typeof value !== 'string' ||
     value.length === 0 ||
     value.length > maxLength ||
+    // eslint-disable-next-line no-control-regex -- This security boundary intentionally rejects ASCII control bytes.
     /[\u0000-\u001f\u007f]/u.test(value)
   ) {
     fail(rule);
@@ -122,6 +123,7 @@ function repeatedlyDecode(value: string): string[] {
 function assertSafeUrlText(value: string): void {
   for (const decoded of repeatedlyDecode(value)) {
     if (
+      // eslint-disable-next-line no-control-regex -- URL evidence must reject encoded ASCII control bytes after decoding.
       /[\u0000-\u001f\u007f]/u.test(decoded) ||
       CREDENTIAL_PATTERN.test(decoded) ||
       SENSITIVE_COMPONENT_PATTERN.test(decoded) ||

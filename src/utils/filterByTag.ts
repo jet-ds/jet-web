@@ -4,7 +4,6 @@
 export interface TaggedItem {
   data: {
     tags: string[];
-    [key: string]: any;
   };
 }
 

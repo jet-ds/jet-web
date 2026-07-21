@@ -268,6 +268,7 @@ function escapeDiagnosticText(value: string): string {
   };
 
   return value.replace(
+    // eslint-disable-next-line no-control-regex -- Diagnostics escape every ASCII control byte instead of emitting it.
     /[\\\u0000-\u001f\u007f\u2028\u2029]/gu,
     (character) =>
       commonEscapes[character] ??

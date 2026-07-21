@@ -13,11 +13,11 @@ const playwrightConfigSource = readFileSync(
 
 describe('durable verification workflow', () => {
   it('runs on pull requests, main pushes, manual dispatch, and the Manila nightly schedule', () => {
-    expect(workflowSource).toMatch(/\n  pull_request:\s*\n/);
-    expect(workflowSource).toMatch(/\n  push:\s*\n\s+branches: \[main\]/);
-    expect(workflowSource).toMatch(/\n  workflow_dispatch:\s*\n/);
+    expect(workflowSource).toMatch(/\n {2}pull_request:\s*\n/);
+    expect(workflowSource).toMatch(/\n {2}push:\s*\n\s+branches: \[main\]/);
+    expect(workflowSource).toMatch(/\n {2}workflow_dispatch:\s*\n/);
     expect(workflowSource).toMatch(
-      /\n  schedule:\s*\n(?:\s+#.*\n)*\s+- cron: '17 18 \* \* \*'/,
+      /\n {2}schedule:\s*\n(?:\s+#.*\n)*\s+- cron: '17 18 \* \* \*'/,
     );
   });
 
@@ -31,8 +31,8 @@ describe('durable verification workflow', () => {
   });
 
   it('keeps both required Node 24 jobs and the browser dependency ordering', () => {
-    expect(workflowSource).toMatch(/\n  verify:\s*\n/);
-    expect(workflowSource).toMatch(/\n  browser:\s*\n\s+needs: verify/);
+    expect(workflowSource).toMatch(/\n {2}verify:\s*\n/);
+    expect(workflowSource).toMatch(/\n {2}browser:\s*\n\s+needs: verify/);
     expect(workflowSource.match(/node-version: 24/g)).toHaveLength(2);
     expect(workflowSource.match(/- run: npm ci/g)).toHaveLength(2);
     expect(workflowSource).toContain('- run: npm run verify');

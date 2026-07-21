@@ -331,6 +331,7 @@ export default function EgregoreExperience({
   const submissionFollowCleanupRef = useRef<(() => void) | null>(null);
 
   const status = egregore.state.lifecycle.status;
+  const loadingStartedAt = egregore.loading?.startedAt;
   const hasConversation = egregore.state.turns.length > 0;
   const showPreConversation = !hasSubmittedInSession && !hasConversation;
   const isGenerating = status === 'generating';
@@ -473,8 +474,8 @@ export default function EgregoreExperience({
       return;
     }
     const startedAt =
-      status === 'loading' && egregore.loading !== null
-        ? egregore.loading.startedAt
+      status === 'loading' && loadingStartedAt !== undefined
+        ? loadingStartedAt
         : performance.now();
     const updateElapsed = () =>
       setElapsedSeconds(
@@ -483,7 +484,7 @@ export default function EgregoreExperience({
     updateElapsed();
     const interval = window.setInterval(updateElapsed, 1_000);
     return () => window.clearInterval(interval);
-  }, [egregore.loading?.startedAt, status]);
+  }, [loadingStartedAt, status]);
 
   useEffect(() => {
     if (egregore.state.error === null) return;

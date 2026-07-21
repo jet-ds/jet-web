@@ -5,7 +5,6 @@ export interface DateItem {
   data: {
     date?: Date;
     pubDate?: Date;
-    [key: string]: any;
   };
 }
 
