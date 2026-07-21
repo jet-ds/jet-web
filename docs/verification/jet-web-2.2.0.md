@@ -51,6 +51,27 @@ The identity contracts were written before the namespace move. The focused pre-m
 | Frozen `docs/archive/releases/2.1.0/` checksum | All 6 tracked files matched the pre-task SHA-1 checksum manifest. |
 | Standard `npm run verify` gate | Passed end to end after making the reload-escape unit owner independent of the intentionally rotating loading headline. |
 
+## Pending Task 6 platform modernization
+
+The platform migration is approved and planned but has not run. The values below are targets, not installed-version or passing-test claims:
+
+| Concern | Approved exact target | Evidence status |
+| --- | --- | --- |
+| Runtime | Node.js `24.x` | Pending phase readback |
+| Astro | `astro@7.1.3` | Pending phase 2 |
+| Astro integrations | `@astrojs/mdx@7.0.3`, `@astrojs/react@6.0.1`, `@astrojs/partytown@2.1.7`, `@astrojs/check@0.9.9`, `@astrojs/rss@4.0.19`, `@astrojs/sitemap@3.7.3` | Pending phase 2 |
+| Tailwind | `tailwindcss@4.3.3`, `@tailwindcss/vite@4.3.3`, `@tailwindcss/typography@0.5.20`; remove `@astrojs/tailwind` | Pending phase 1 |
+| TypeScript | `typescript@6.0.3`; TypeScript 7 excluded | Pending phase 2 |
+| React | `react@19.2.7`, `react-dom@19.2.7`, `@types/react@19.2.17`, `@types/react-dom@19.2.3`; both type packages move to `devDependencies` | Pending phase 2 |
+| UI/runtime dependencies | `framer-motion@12.42.2`, `lucide-react@1.25.0` | Pending phases 2 and 3 |
+| Build/test dependencies | `esbuild@0.28.1`, `tsx@4.23.1`, `@testing-library/jest-dom@7.0.0` | Pending phases 2 and 4 |
+| Other reviewed updates | `@vercel/blob@2.6.1`, `dotenv@17.4.2`, `unist-util-visit@5.1.0` | Pending phase 2 |
+| Local model runtime | retain exact `@litert-lm/core@0.14.0` | Pin must remain unchanged; real-model qualification stays in Task 12 |
+
+Task 6 first adopts Tailwind 4 through the supported JavaScript `@config` compatibility bridge. The later CSS-first `@theme` and semantic-token-owner rewrite is deliberately deferred because current semantic custom-property names collide with that model. It is a separately evaluated design-system migration, is not required for `2.2.0`, and must not be reported as silently completed by the Tailwind upgrade.
+
+Populate this section during Task 6 with the four phase commit SHAs, Node/npm readback, exact `npm ls` graph, clean-`npm ci` command results, compiler/type/test/docs/build/build-purity/production-artifact/browser results, representative light/dark and `320–369px`/desktop rendered disposition, and the reviewed production-only and full audit dispositions. Comparison artifacts remain ignored under `test-results/`; no screenshot or `Untracked/` evidence is committed. The Tailwind 4 support floor becomes Chrome 111+, Safari 16.4+, and Firefox 128+ only after the phase passes. Astro uses `compressHTML: true` and its Sätteri default unless rendered evidence requires a compatibility change. Enforcing CSP remains outside the matrix because of the current `ClientRouter` and Shiki constraint; no CSP setting is added in Task 6.
+
 ## Physical-device baseline
 
 | Field | Observed fact |
@@ -70,7 +91,7 @@ Memory pressure remains plausible but unproven. The probe observed approximately
 - The `v2.1.0` tag and deployed commit are historical release bytes and must not move.
 - No deployment was initiated for this baseline work.
 - Future real-device evidence must record the available CSS and visual viewport for each state rather than infer a fixed viewport height from display pixels.
-- Keep the phone disconnected until deterministic Tasks 8 and 9 code, tests, and bounded instrumentation are ready. Its first connected session is a cool-device, no-model layout/state and dock trace; retain the connection for bounded ADB/Chrome runtime evidence afterward, or cool and reconnect once if the final candidate requires it.
+- Keep the phone disconnected until deterministic Tasks 9 and 10 code, tests, and bounded instrumentation are ready. Its first connected session is a cool-device, no-model layout/state and dock trace; retain the connection for bounded ADB/Chrome runtime evidence afterward, or cool and reconnect once if the final candidate requires it.
 - The future cold path records separately: network transfer; cache commit/reread; LiteRT import/WASM initialization; engine/model readiness; retrieval/prompt assembly; send-to-first-nonempty chunk; total generation; response size and token rate only where a trustworthy token count exists; process/GPU/system-memory snapshots; thermal state; and renderer/GPU/Chrome/LiteRT termination classification. These are bounded diagnostic evidence, not permanent telemetry or preset latency thresholds, and logs contain no conversation content or root-only assumptions.
 - Cache reuse must prove zero model-network requests on the warm path and separately capture its bounded non-transfer spans: cache reread; LiteRT import/WASM initialization; engine/model readiness; retrieval/prompt assembly; send-to-first-nonempty chunk; total generation; response size and token rate only where a trustworthy token count exists; process/GPU/system-memory snapshots; thermal state; and renderer/GPU/Chrome/LiteRT termination classification. The cold run uses a closed dock to isolate model behavior; one warm cache-reuse pass uses the visible dock to couple the separately owned dock and runtime evidence. That warm result is integrated and descriptive, not an isolated cold-versus-warm inference benchmark, and it must not imply a warm network-transfer span beyond the zero-request proof.
 - One successful cold/warm run is the minimum real-model qualification, not a cap on diagnosis. A site-controlled bottleneck may receive one narrow evidence-led optimization and matching confirmation, avoiding another approximately `2 GB` transfer unless the changed boundary genuinely requires a cold run. If evidence identifies no safe site owner or a platform limit, stop for a supported-device or explicit trade-off decision; do not weaken model, context, or answer quality, or repeat crashes/downloads for benchmarking.
