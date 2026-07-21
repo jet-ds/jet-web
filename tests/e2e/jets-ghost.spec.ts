@@ -90,6 +90,11 @@ function largeGhostLayers(page: Page): Locator {
   return page.getByTestId('animated-ghost-mode-layer');
 }
 
+async function expectOutsideTextLinkRecipe(element: Locator) {
+  await expect(element).toBeVisible();
+  await expect(element).not.toHaveClass(/(^|\s)text-link(\s|$)/u);
+}
+
 function fakePath(scenario: FakeScenario = 'default'): string {
   const legacySlowStream = [
     'long-stream',
@@ -1580,6 +1585,32 @@ test.describe("Jet's Ghost responses, citations, and scrolling", () => {
         });
       }
     }
+  });
+
+  test('keeps citations and source disclosure controls outside the inline link recipe', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 430, height: 932 });
+    await startFakeAssistant(page);
+    await submitQuestion(page, LONG_SOURCE_TITLE);
+    await waitForCompletedResponse(page);
+
+    const response = page.locator('[aria-label="Conversation"] article').last();
+    const citation = response.getByRole('link', { name: /^\[S1\] /u });
+    await expectOutsideTextLinkRecipe(citation);
+    await expect(citation).toHaveCSS('text-decoration-line', 'underline');
+
+    const disclosure = response.getByRole('button', { name: '1 source' });
+    await expectOutsideTextLinkRecipe(disclosure);
+    await expect(disclosure).toHaveAttribute('data-action-variant', 'ghost');
+    await disclosure.click();
+
+    const source = response
+      .getByRole('region', { name: 'Sources for this response' })
+      .getByRole('link', { name: /^\[S1\] /u });
+    await expectOutsideTextLinkRecipe(source);
+    await expect(source).toHaveAttribute('target', '_blank');
+    await expect(source).toHaveAttribute('rel', 'noopener noreferrer');
   });
 
   test('deduplicates cited documents in first-citation order and keeps responses independent', async ({ page }) => {

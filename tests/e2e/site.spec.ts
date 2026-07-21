@@ -56,6 +56,39 @@ async function expectSharedAction(
   expect(bounds?.height ?? 0).toBeGreaterThanOrEqual(minimumHeight);
 }
 
+async function expectRenderedActionInteraction(page: Page, action: Locator) {
+  await page.mouse.move(0, 0);
+  const restBackground = await action.evaluate(
+    (element) => getComputedStyle(element).backgroundColor,
+  );
+
+  await action.hover();
+  await expect.poll(() => action.evaluate(
+    (element) => getComputedStyle(element).backgroundColor,
+  )).not.toBe(restBackground);
+
+  await action.focus();
+  await expect(action).toBeFocused();
+  const focus = await action.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      outlineOffset: Number.parseFloat(style.outlineOffset),
+      outlineStyle: style.outlineStyle,
+      outlineWidth: Number.parseFloat(style.outlineWidth),
+    };
+  });
+  expect(focus).toEqual({
+    outlineOffset: 2,
+    outlineStyle: 'solid',
+    outlineWidth: 2,
+  });
+}
+
+async function expectOutsideTextLinkRecipe(element: Locator) {
+  await expect(element).toBeVisible();
+  await expect(element).not.toHaveClass(/(^|\s)text-link(\s|$)/u);
+}
+
 async function applyTheme(page: Page, theme: 'light' | 'dark') {
   await page.evaluate((nextTheme) => {
     if (!document.querySelector('#browser-contract-no-transitions')) {
@@ -523,15 +556,27 @@ test('research exposes one DOI-backed action', async ({ page }) => {
   await expect(page.getByRole('link', { name: 'Download PDF' })).toHaveCount(0);
 });
 
-test('Astro and React actions share one variant and density taxonomy', async ({ page }) => {
+test('Astro and React actions share rendered roles, hover, focus, and density', async ({ page }) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+
+  await page.goto('/');
+  const contactAction = page.getByRole('link', { name: 'Contact me', exact: true });
+  const learnAction = page.getByRole('link', { name: 'Learn more', exact: true });
+  await expectSharedAction(contactAction, 'accent', 'immersive', 48);
+  await expectSharedAction(learnAction, 'soft', 'immersive', 48);
+  await expectRenderedActionInteraction(page, contactAction);
+  await expectRenderedActionInteraction(page, learnAction);
+
   await page.goto('/about/');
   const socialAction = page.getByRole('main').locator('a[href="https://github.com/jet-ds"]');
   await expectSharedAction(socialAction, 'soft', 'compact', 44);
+  await expectRenderedActionInteraction(page, socialAction);
 
   await page.goto('/chatbot/');
   const ghostAction = page.getByRole('button', { name: 'Check compatibility' });
   await expectSharedAction(ghostAction, 'brand', 'immersive', 48);
   await expect(ghostAction).toHaveCSS('border-radius', '12px');
+  await expectRenderedActionInteraction(page, ghostAction);
 });
 
 test('About and Contact expose the current social destinations through shared actions', async ({ page }) => {
@@ -726,6 +771,32 @@ test('inline prose and article back links share one rendered interaction model',
   const footerLink = page.getByRole('contentinfo').getByRole('link', { name: 'Home', exact: true });
   await expect(footerLink).toHaveCSS('font-weight', '400');
   await expect(footerLink).toHaveCSS('text-decoration-line', 'none');
+});
+
+test('specialized navigation and actions stay outside the inline prose link recipe', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await page.goto('/blog/how-to-install-claude-code-cli-2026/');
+
+  const tableOfContentsLink = page
+    .getByRole('navigation', { name: 'Table of Contents' })
+    .getByRole('link')
+    .first();
+  const postNavigationLink = page
+    .getByRole('navigation', { name: 'Post navigation' })
+    .getByRole('link')
+    .first();
+
+  await expectOutsideTextLinkRecipe(tableOfContentsLink);
+  await expect(tableOfContentsLink).toHaveAttribute('href', /^#/u);
+  await expectOutsideTextLinkRecipe(postNavigationLink);
+  await expect(postNavigationLink).toHaveCSS('border-top-width', '1px');
+
+  await page.goto('/');
+  const action = page.getByRole('link', { name: 'Contact me', exact: true });
+  await expectOutsideTextLinkRecipe(action);
+  await expect(action).toHaveAttribute('data-action-variant', 'accent');
 });
 
 test('homepage serves the default social image and exact metadata', async ({ page, request }) => {
