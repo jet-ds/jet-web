@@ -63,9 +63,12 @@ function appendFailure(
   validation: ModelDeliveryValidation,
   failure: ModelDeliveryFailure,
 ): ModelDeliveryValidation {
-  if (validation.failures.some(({ hopIndex, ruleCode }) => (
-    hopIndex === failure.hopIndex && ruleCode === failure.ruleCode
-  ))) {
+  if (
+    validation.failures.some(
+      ({ hopIndex, ruleCode }) =>
+        hopIndex === failure.hopIndex && ruleCode === failure.ruleCode,
+    )
+  ) {
     return validation;
   }
 
@@ -89,7 +92,9 @@ function resultFor(
   };
 }
 
-async function runDelivery(mode: VerificationMode): Promise<ModelDeliveryResult> {
+async function runDelivery(
+  mode: VerificationMode,
+): Promise<ModelDeliveryResult> {
   const chain: ModelDeliveryHop[] = [];
   const visitedUrls = new Set<string>([EGREGORE_MODEL.url]);
   let currentUrl: string = EGREGORE_MODEL.url;
@@ -114,9 +119,10 @@ async function runDelivery(mode: VerificationMode): Promise<ModelDeliveryResult>
       return resultFor(mode, validation);
     }
 
-    const location = typeof response.headers.location === 'string'
-      ? response.headers.location
-      : undefined;
+    const location =
+      typeof response.headers.location === 'string'
+        ? response.headers.location
+        : undefined;
     const status = response.statusCode ?? 0;
 
     chain.push({
@@ -146,8 +152,8 @@ async function runDelivery(mode: VerificationMode): Promise<ModelDeliveryResult>
       }
 
       if (
-        !isTrustedModelOrigin(targetUrl, EGREGORE_MODEL.trustedOrigins)
-        || visitedUrls.has(targetUrl)
+        !isTrustedModelOrigin(targetUrl, EGREGORE_MODEL.trustedOrigins) ||
+        visitedUrls.has(targetUrl)
       ) {
         return resultFor(mode, validation);
       }
@@ -177,10 +183,13 @@ async function runDelivery(mode: VerificationMode): Promise<ModelDeliveryResult>
       return resultFor(mode, validation, artifact);
     } catch {
       response.destroy();
-      return resultFor(mode, appendFailure(validation, {
-        hopIndex,
-        ruleCode: 'NETWORK_ERROR',
-      }));
+      return resultFor(
+        mode,
+        appendFailure(validation, {
+          hopIndex,
+          ruleCode: 'NETWORK_ERROR',
+        }),
+      );
     }
   }
 }

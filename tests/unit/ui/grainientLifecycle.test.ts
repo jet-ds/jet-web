@@ -45,7 +45,11 @@ describe('Grainient lifecycle', () => {
   });
 
   it.each([
-    ['the initial reduced-motion state', null, { ...eligible, reducedMotion: true }],
+    [
+      'the initial reduced-motion state',
+      null,
+      { ...eligible, reducedMotion: true },
+    ],
     ['the initial hidden state', null, { ...eligible, documentHidden: true }],
     ['the initial offscreen state', null, { ...eligible, inViewport: false }],
     [
@@ -61,15 +65,28 @@ describe('Grainient lifecycle', () => {
     [
       'a reduced, hidden, offscreen combination',
       absent,
-      { ...eligible, documentHidden: true, inViewport: false, reducedMotion: true },
+      {
+        ...eligible,
+        documentHidden: true,
+        inViewport: false,
+        reducedMotion: true,
+      },
     ],
   ] as const)('does nothing for %s', (_label, previous, next) => {
     expect(getGrainientRendererAction(previous, next)).toBe('none');
   });
 
   it.each([
-    ['no-preference to reduce while running', running, { ...eligible, reducedMotion: true }],
-    ['no-preference to reduce while stopped', stopped, { ...eligible, reducedMotion: true }],
+    [
+      'no-preference to reduce while running',
+      running,
+      { ...eligible, reducedMotion: true },
+    ],
+    [
+      'no-preference to reduce while stopped',
+      stopped,
+      { ...eligible, reducedMotion: true },
+    ],
     ['unmount while running', running, { ...eligible, mounted: false }],
     ['unmount while stopped', stopped, { ...eligible, mounted: false }],
   ] as const)('disposes for %s', (_label, previous, next) => {

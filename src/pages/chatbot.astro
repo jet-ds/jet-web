@@ -7,8 +7,12 @@ import EgregoreExperience from '../features/egregore/EgregoreExperience';
 import packageJson from '../../package.json';
 
 const title = 'Egregore: Local-First AI Assistant';
-const description = "Chat with Jet's published writing, research, and projects using a local-first AI assistant in compatible WebGPU browsers.";
-const canonicalUrl = new URL(EGREGORE_IDENTITY.canonicalPath, SITE.siteUrl).toString();
+const description =
+  "Chat with Jet's published writing, research, and projects using a local-first AI assistant in compatible WebGPU browsers.";
+const canonicalUrl = new URL(
+  EGREGORE_IDENTITY.canonicalPath,
+  SITE.siteUrl,
+).toString();
 const softwareApplicationId = `${canonicalUrl}#softwareapplication`;
 const noindex = process.env.VERCEL_ENV !== 'production';
 ---
@@ -39,15 +43,25 @@ const noindex = process.env.VERCEL_ENV !== 'production';
       aria-labelledby="egregore-noscript-title"
     >
       <div class="max-w-2xl text-center">
-        <p class="mb-xs font-mono text-sm uppercase tracking-wider text-brand-text">
+        <p
+          class="mb-xs font-mono text-sm uppercase tracking-wider text-brand-text"
+        >
           Local-first AI
         </p>
-        <h1 id="egregore-noscript-title" class="mb-s font-serif text-3xl font-bold">
+        <h1
+          id="egregore-noscript-title"
+          class="mb-s font-serif text-3xl font-bold"
+        >
           Egregore needs JavaScript and WebGPU
         </h1>
-        <p class="mx-auto max-w-xl text-base leading-relaxed text-text-secondary">
-          This assistant runs its model in a compatible browser. You can still explore Jet's published
-          thinking in the <a class="text-link" href="/blog/">Blog</a>
+        <p
+          class="mx-auto max-w-xl text-base leading-relaxed text-text-secondary"
+        >
+          This assistant runs its model in a compatible browser. You can still
+          explore Jet's published thinking in the <a
+            class="text-link"
+            href="/blog/">Blog</a
+          >
           and <a class="text-link" href="/works/">Works</a>.
         </p>
       </div>
@@ -61,7 +75,9 @@ const noindex = process.env.VERCEL_ENV !== 'production';
   }
 
   .egregore-composer {
-    padding-bottom: calc(var(--space-2xl) + var(--space-xl) + env(safe-area-inset-bottom));
+    padding-bottom: calc(
+      var(--space-2xl) + var(--space-xl) + env(safe-area-inset-bottom)
+    );
   }
 
   @media (min-width: 769px) {

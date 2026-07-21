@@ -13,9 +13,37 @@ export const MINISEARCH_VERSION = '7.2.0' as const;
 export const STEMMER_VERSION = '2.0.1' as const;
 
 export const STOP_WORDS = new Set([
-  'a', 'an', 'and', 'are', 'as', 'at', 'be', 'by', 'does', 'for', 'from',
-  'how', 'in', 'into', 'is', 'it', 'its', 'of', 'on', 'or', 'that', 'the',
-  'their', 'this', 'to', 'what', 'when', 'where', 'which', 'why', 'with',
+  'a',
+  'an',
+  'and',
+  'are',
+  'as',
+  'at',
+  'be',
+  'by',
+  'does',
+  'for',
+  'from',
+  'how',
+  'in',
+  'into',
+  'is',
+  'it',
+  'its',
+  'of',
+  'on',
+  'or',
+  'that',
+  'the',
+  'their',
+  'this',
+  'to',
+  'what',
+  'when',
+  'where',
+  'which',
+  'why',
+  'with',
 ]);
 
 export const MINISEARCH_OPTIONS = {
@@ -24,7 +52,9 @@ export const MINISEARCH_OPTIONS = {
   storeFields: ['id'],
   processTerm: (term: string) => {
     const normalized = normalizeCanonicalString(term).toLowerCase();
-    return normalized.length < 2 || STOP_WORDS.has(normalized) ? null : stemmer(normalized);
+    return normalized.length < 2 || STOP_WORDS.has(normalized)
+      ? null
+      : stemmer(normalized);
   },
   searchOptions: {
     boost: {
@@ -40,8 +70,12 @@ export const MINISEARCH_OPTIONS = {
 } satisfies Options<SearchDocument>;
 
 function searchDocuments(content: KnowledgePackage): SearchDocument[] {
-  const documentsById = new Map(content.documents.map((document) => [document.id, document]));
-  const sectionsById = new Map(content.sections.map((section) => [section.id, section]));
+  const documentsById = new Map(
+    content.documents.map((document) => [document.id, document]),
+  );
+  const sectionsById = new Map(
+    content.sections.map((section) => [section.id, section]),
+  );
 
   return content.chunks.map((chunk) => {
     const document = documentsById.get(chunk.documentId);
@@ -50,7 +84,9 @@ function searchDocuments(content: KnowledgePackage): SearchDocument[] {
       throw new Error(`Cannot index chunk with missing parent: ${chunk.id}`);
     }
     if (section.documentId !== document.id) {
-      throw new Error(`Cannot index chunk with inconsistent parents: ${chunk.id}`);
+      throw new Error(
+        `Cannot index chunk with inconsistent parents: ${chunk.id}`,
+      );
     }
 
     return {
@@ -64,7 +100,9 @@ function searchDocuments(content: KnowledgePackage): SearchDocument[] {
   });
 }
 
-export function buildSearchIndexArtifact(content: KnowledgePackage): SearchIndexArtifact {
+export function buildSearchIndexArtifact(
+  content: KnowledgePackage,
+): SearchIndexArtifact {
   const miniSearch = new MiniSearch<SearchDocument>(MINISEARCH_OPTIONS);
   const documents = searchDocuments(content);
   miniSearch.addAll(documents);

@@ -1,9 +1,4 @@
-import {
-  useCallback,
-  useEffect,
-  useRef,
-  useState,
-} from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { EGREGORE_CONTEXT } from '../config';
 import type { LoadedKnowledgeBase } from '../corpus/repository';
@@ -63,44 +58,43 @@ export interface UseEgregoreResult {
 }
 
 const ERROR_MESSAGES: Record<EgregoreErrorCode, string> = {
-  'insecure-context': "Egregore needs a secure browser context.",
-  'webgpu-unavailable': "Egregore needs WebGPU in this browser.",
-  'adapter-unavailable': "Egregore could not access a compatible GPU adapter.",
-  'storage-warning': 'This browser may not have enough available storage for the local model.',
-  'corpus-load-failed': "Egregore could not load its published knowledge base.",
-  'corpus-version-mismatch': "Egregore found an incompatible knowledge-base version.",
-  'corpus-index-mismatch': "Egregore found an incompatible search index.",
-  'model-load-failed': "Egregore could not load the local model.",
-  'generation-failed': "Egregore could not complete the local response.",
+  'insecure-context': 'Egregore needs a secure browser context.',
+  'webgpu-unavailable': 'Egregore needs WebGPU in this browser.',
+  'adapter-unavailable': 'Egregore could not access a compatible GPU adapter.',
+  'storage-warning':
+    'This browser may not have enough available storage for the local model.',
+  'corpus-load-failed': 'Egregore could not load its published knowledge base.',
+  'corpus-version-mismatch':
+    'Egregore found an incompatible knowledge-base version.',
+  'corpus-index-mismatch': 'Egregore found an incompatible search index.',
+  'model-load-failed': 'Egregore could not load the local model.',
+  'generation-failed': 'Egregore could not complete the local response.',
   'generation-cancelled': 'The local response was stopped.',
   'question-too-long': 'That question is too long for the local context.',
-  'conversation-limit-reached': 'The current session is full. Start a new session to continue.',
-  'context-budget-exceeded': "Egregore could not fit that question into the local context.",
-  'engine-cleanup-failed': "Egregore could not fully release the local model runtime.",
+  'conversation-limit-reached':
+    'The current session is full. Start a new session to continue.',
+  'context-budget-exceeded':
+    'Egregore could not fit that question into the local context.',
+  'engine-cleanup-failed':
+    'Egregore could not fully release the local model runtime.',
 };
 
 const ERROR_CODES = new Set<EgregoreErrorCode>(
   Object.keys(ERROR_MESSAGES) as EgregoreErrorCode[],
 );
 
-function safeError(
-  cause: unknown,
-  code: EgregoreErrorCode,
-): EgregoreError {
-  const candidateCode = cause instanceof Error
-    && 'code' in cause
-    && typeof cause.code === 'string'
-    && ERROR_CODES.has(cause.code as EgregoreErrorCode)
-    ? cause.code as EgregoreErrorCode
-    : code;
+function safeError(cause: unknown, code: EgregoreErrorCode): EgregoreError {
+  const candidateCode =
+    cause instanceof Error &&
+    'code' in cause &&
+    typeof cause.code === 'string' &&
+    ERROR_CODES.has(cause.code as EgregoreErrorCode)
+      ? (cause.code as EgregoreErrorCode)
+      : code;
 
   if (
-    candidateCode !== code
-    || (
-      cause instanceof Error
-      && 'code' in cause
-      && cause.code === code
-    )
+    candidateCode !== code ||
+    (cause instanceof Error && 'code' in cause && cause.code === code)
   ) {
     return {
       code: candidateCode,
@@ -118,11 +112,12 @@ function safeError(
     code,
     message: ERROR_MESSAGES[code],
     recoverable: true,
-    diagnosticCause: cause instanceof DOMException
-      ? 'DOMException'
-      : cause instanceof Error
-        ? 'Error'
-        : `type:${typeof cause}`,
+    diagnosticCause:
+      cause instanceof DOMException
+        ? 'DOMException'
+        : cause instanceof Error
+          ? 'Error'
+          : `type:${typeof cause}`,
   };
 }
 
@@ -131,8 +126,8 @@ function classifyCorpusError(cause: unknown): EgregoreErrorCode {
     return 'corpus-index-mismatch';
   }
   if (
-    cause instanceof Error
-    && /corpus version|artifact version|provenance mismatch/i.test(cause.message)
+    cause instanceof Error &&
+    /corpus version|artifact version|provenance mismatch/i.test(cause.message)
   ) {
     return 'corpus-version-mismatch';
   }
@@ -159,12 +154,12 @@ function sanitizeReportedError(
 function sanitizeCapabilityReport(report: CapabilityReport): CapabilityReport {
   return {
     ...report,
-    warnings: report.warnings.map((warning) => (
-      sanitizeReportedError(warning, 'storage-warning')
-    )),
-    failures: report.failures.map((failure) => (
-      sanitizeReportedError(failure, 'adapter-unavailable')
-    )),
+    warnings: report.warnings.map((warning) =>
+      sanitizeReportedError(warning, 'storage-warning'),
+    ),
+    failures: report.failures.map((failure) =>
+      sanitizeReportedError(failure, 'adapter-unavailable'),
+    ),
   };
 }
 
@@ -180,7 +175,7 @@ function initialState(): EgregoreState {
 function cleanupError(failures: readonly string[]): EgregoreError {
   return {
     code: 'engine-cleanup-failed',
-    message: "Egregore could not fully release the local model runtime.",
+    message: 'Egregore could not fully release the local model runtime.',
     recoverable: true,
     diagnosticCause: failures.join(','),
   };
@@ -216,16 +211,21 @@ export function useEgregore(
     if (mountedRef.current) setState(next);
   }, []);
 
-  const emit = useCallback((event: EgregoreLifecycleEvent) => {
-    commit({
-      ...stateRef.current,
-      lifecycle: reduceEgregoreLifecycle(stateRef.current.lifecycle, event),
-    });
-  }, [commit]);
+  const emit = useCallback(
+    (event: EgregoreLifecycleEvent) => {
+      commit({
+        ...stateRef.current,
+        lifecycle: reduceEgregoreLifecycle(stateRef.current.lifecycle, event),
+      });
+    },
+    [commit],
+  );
 
-  const isCurrent = useCallback((operationId: number) => (
-    mountedRef.current && operationRef.current === operationId
-  ), []);
+  const isCurrent = useCallback(
+    (operationId: number) =>
+      mountedRef.current && operationRef.current === operationId,
+    [],
+  );
 
   const checkCompatibility = useCallback(async () => {
     const status = stateRef.current.lifecycle.status;
@@ -238,7 +238,7 @@ export function useEgregore(
         await runtimeRef.current!.checkCapabilities(),
       );
       if (!isCurrent(operationId)) return;
-      const error = report.supported ? null : report.failures[0] ?? null;
+      const error = report.supported ? null : (report.failures[0] ?? null);
       commit({
         ...stateRef.current,
         capability: report,
@@ -250,10 +250,7 @@ export function useEgregore(
       });
     } catch (cause) {
       if (!isCurrent(operationId)) return;
-      const error = safeError(
-        cause,
-        'webgpu-unavailable',
-      );
+      const error = safeError(cause, 'webgpu-unavailable');
       commit({
         ...stateRef.current,
         error,
@@ -274,7 +271,9 @@ export function useEgregore(
     setLoading({ phase: 'corpus', startedAt: dependenciesRef.current.now() });
     const abortController = new AbortController();
     activationAbortRef.current = abortController;
-    const corpusActivation = repositoryRef.current!.load(abortController.signal);
+    const corpusActivation = repositoryRef.current!.load(
+      abortController.signal,
+    );
     corpusActivationRef.current = corpusActivation;
     try {
       const knowledgeBase = await corpusActivation;
@@ -319,182 +318,187 @@ export function useEgregore(
     }
   }, [commit, emit, isCurrent]);
 
-  const sendMessage = useCallback(async (question: string) => {
-    const cleanQuestion = question.trim();
-    const knowledgeBase = knowledgeBaseRef.current;
-    if (
-      cleanQuestion === ''
-      || stateRef.current.lifecycle.status !== 'ready'
-      || knowledgeBase === null
-    ) return;
+  const sendMessage = useCallback(
+    async (question: string) => {
+      const cleanQuestion = question.trim();
+      const knowledgeBase = knowledgeBaseRef.current;
+      if (
+        cleanQuestion === '' ||
+        stateRef.current.lifecycle.status !== 'ready' ||
+        knowledgeBase === null
+      )
+        return;
 
-    const operationId = ++operationRef.current;
-    stoppedOperationRef.current = null;
-    const completeTurns = stateRef.current.turns;
-    const history = completeTurns.map(({ role, content }) => ({
-      role,
-      content,
-    }));
-    let assembled: AssembledPrompt;
-    try {
-      const selection = dependenciesRef.current.rankAndPackContext({
-        query: cleanQuestion,
-        knowledgeBase,
-        budget: dependenciesRef.current.contextBudget ?? EGREGORE_CONTEXT,
-      });
-      assembled = dependenciesRef.current.assemblePrompt(
-        cleanQuestion,
-        history,
-        selection,
-        dependenciesRef.current.contextBudget ?? EGREGORE_CONTEXT,
-      );
-    } catch (cause) {
-      if (!isCurrent(operationId)) return;
-      const error = safeError(
-        cause,
-        'context-budget-exceeded',
-      );
-      const generating = reduceEgregoreLifecycle(stateRef.current.lifecycle, {
-        type: 'generation-requested',
-      });
-      commit({
-        ...stateRef.current,
-        error,
-        lifecycle: reduceEgregoreLifecycle(generating, {
-          type: 'generation-failed',
-          error,
-        }),
-      });
-      return;
-    }
-
-    const userTurnId = dependenciesRef.current.createTurnId();
-    const assistantTurnId = dependenciesRef.current.createTurnId();
-    commit({
-      ...stateRef.current,
-      error: null,
-      lifecycle: reduceEgregoreLifecycle(stateRef.current.lifecycle, {
-        type: 'generation-requested',
-      }),
-      turns: [
-        ...stateRef.current.turns,
-        {
-          id: userTurnId,
-          role: 'user',
-          content: cleanQuestion,
-          citations: [],
-        },
-        {
-          id: assistantTurnId,
-          role: 'assistant',
-          content: '',
-          citations: [],
-        },
-      ],
-    });
-
-    let response = '';
-    const completeStoppedResponse = (error: EgregoreError | null = null) => {
-      if (!isCurrent(operationId)) return;
-      const citations = dependenciesRef.current.extractValidCitations(
-        response,
-        assembled.selectedSources,
-      );
+      const operationId = ++operationRef.current;
       stoppedOperationRef.current = null;
-      commit({
-        ...stateRef.current,
-        error,
-        lifecycle: reduceEgregoreLifecycle(
-          stateRef.current.lifecycle,
-          error === null
-            ? { type: 'generation-cancelled' }
-            : { type: 'cleanup-failed', error },
-        ),
-        turns: stateRef.current.turns.map((turn) => (
-          turn.id === assistantTurnId
-            ? {
-                ...turn,
-                content: response,
-                citations,
-                stopped: true,
-              }
-            : turn
-        )),
-      });
-    };
-    try {
-      await runtimeRef.current!.createSession(assembled.preface);
-      if (!isCurrent(operationId)) return;
-      if (stoppedOperationRef.current === operationId) {
-        completeStoppedResponse();
+      const completeTurns = stateRef.current.turns;
+      const history = completeTurns.map(({ role, content }) => ({
+        role,
+        content,
+      }));
+      let assembled: AssembledPrompt;
+      try {
+        const selection = dependenciesRef.current.rankAndPackContext({
+          query: cleanQuestion,
+          knowledgeBase,
+          budget: dependenciesRef.current.contextBudget ?? EGREGORE_CONTEXT,
+        });
+        assembled = dependenciesRef.current.assemblePrompt(
+          cleanQuestion,
+          history,
+          selection,
+          dependenciesRef.current.contextBudget ?? EGREGORE_CONTEXT,
+        );
+      } catch (cause) {
+        if (!isCurrent(operationId)) return;
+        const error = safeError(cause, 'context-budget-exceeded');
+        const generating = reduceEgregoreLifecycle(stateRef.current.lifecycle, {
+          type: 'generation-requested',
+        });
+        commit({
+          ...stateRef.current,
+          error,
+          lifecycle: reduceEgregoreLifecycle(generating, {
+            type: 'generation-failed',
+            error,
+          }),
+        });
         return;
       }
-      const result = await runtimeRef.current!.generate(assembled.userMessage, {
-        onText: (chunk) => {
-          if (!isCurrent(operationId)) return;
-          response += chunk;
-          commit({
-            ...stateRef.current,
-            turns: stateRef.current.turns.map((turn) => (
-              turn.id === assistantTurnId
-                ? { ...turn, content: response }
-                : turn
-            )),
-          });
-        },
-      });
-      if (!isCurrent(operationId)) return;
 
-      const stopped = result.finishReason === 'cancelled'
-        || stoppedOperationRef.current === operationId;
-      if (stopped) {
-        completeStoppedResponse();
-        return;
-      }
-      const citations = dependenciesRef.current.extractValidCitations(
-        response,
-        assembled.selectedSources,
-      );
+      const userTurnId = dependenciesRef.current.createTurnId();
+      const assistantTurnId = dependenciesRef.current.createTurnId();
       commit({
         ...stateRef.current,
         error: null,
-        lifecycle: reduceEgregoreLifecycle(stateRef.current.lifecycle, stopped
-          ? { type: 'generation-cancelled' }
-          : { type: 'generation-succeeded' }),
-        turns: stateRef.current.turns.map((turn) => (
-          turn.id === assistantTurnId
-            ? {
-                ...turn,
-                content: response,
-                citations,
-                ...(stopped ? { stopped: true } : {}),
-              }
-            : turn
-        )),
-      });
-    } catch (cause) {
-      if (!isCurrent(operationId)) return;
-      const error = safeError(
-        cause,
-        'generation-failed',
-      );
-      if (stoppedOperationRef.current === operationId) {
-        completeStoppedResponse(
-          error.code === 'engine-cleanup-failed' ? error : null,
-        );
-        return;
-      }
-      commit({
-        ...stateRef.current,
-        error,
-        turns: completeTurns,
         lifecycle: reduceEgregoreLifecycle(stateRef.current.lifecycle, {
-          type: 'generation-failed',
-          error,
+          type: 'generation-requested',
         }),
+        turns: [
+          ...stateRef.current.turns,
+          {
+            id: userTurnId,
+            role: 'user',
+            content: cleanQuestion,
+            citations: [],
+          },
+          {
+            id: assistantTurnId,
+            role: 'assistant',
+            content: '',
+            citations: [],
+          },
+        ],
       });
-    }
-  }, [commit, isCurrent]);
+
+      let response = '';
+      const completeStoppedResponse = (error: EgregoreError | null = null) => {
+        if (!isCurrent(operationId)) return;
+        const citations = dependenciesRef.current.extractValidCitations(
+          response,
+          assembled.selectedSources,
+        );
+        stoppedOperationRef.current = null;
+        commit({
+          ...stateRef.current,
+          error,
+          lifecycle: reduceEgregoreLifecycle(
+            stateRef.current.lifecycle,
+            error === null
+              ? { type: 'generation-cancelled' }
+              : { type: 'cleanup-failed', error },
+          ),
+          turns: stateRef.current.turns.map((turn) =>
+            turn.id === assistantTurnId
+              ? {
+                  ...turn,
+                  content: response,
+                  citations,
+                  stopped: true,
+                }
+              : turn,
+          ),
+        });
+      };
+      try {
+        await runtimeRef.current!.createSession(assembled.preface);
+        if (!isCurrent(operationId)) return;
+        if (stoppedOperationRef.current === operationId) {
+          completeStoppedResponse();
+          return;
+        }
+        const result = await runtimeRef.current!.generate(
+          assembled.userMessage,
+          {
+            onText: (chunk) => {
+              if (!isCurrent(operationId)) return;
+              response += chunk;
+              commit({
+                ...stateRef.current,
+                turns: stateRef.current.turns.map((turn) =>
+                  turn.id === assistantTurnId
+                    ? { ...turn, content: response }
+                    : turn,
+                ),
+              });
+            },
+          },
+        );
+        if (!isCurrent(operationId)) return;
+
+        const stopped =
+          result.finishReason === 'cancelled' ||
+          stoppedOperationRef.current === operationId;
+        if (stopped) {
+          completeStoppedResponse();
+          return;
+        }
+        const citations = dependenciesRef.current.extractValidCitations(
+          response,
+          assembled.selectedSources,
+        );
+        commit({
+          ...stateRef.current,
+          error: null,
+          lifecycle: reduceEgregoreLifecycle(
+            stateRef.current.lifecycle,
+            stopped
+              ? { type: 'generation-cancelled' }
+              : { type: 'generation-succeeded' },
+          ),
+          turns: stateRef.current.turns.map((turn) =>
+            turn.id === assistantTurnId
+              ? {
+                  ...turn,
+                  content: response,
+                  citations,
+                  ...(stopped ? { stopped: true } : {}),
+                }
+              : turn,
+          ),
+        });
+      } catch (cause) {
+        if (!isCurrent(operationId)) return;
+        const error = safeError(cause, 'generation-failed');
+        if (stoppedOperationRef.current === operationId) {
+          completeStoppedResponse(
+            error.code === 'engine-cleanup-failed' ? error : null,
+          );
+          return;
+        }
+        commit({
+          ...stateRef.current,
+          error,
+          turns: completeTurns,
+          lifecycle: reduceEgregoreLifecycle(stateRef.current.lifecycle, {
+            type: 'generation-failed',
+            error,
+          }),
+        });
+      }
+    },
+    [commit, isCurrent],
+  );
 
   const stop = useCallback(() => {
     if (stateRef.current.lifecycle.status !== 'generating') return;
@@ -506,14 +510,15 @@ export function useEgregore(
   const startNewSession = useCallback(async () => {
     let lifecycle = stateRef.current.lifecycle;
     if (
-      lifecycle.status === 'generation-error'
-      && stateRef.current.error?.code === 'conversation-limit-reached'
+      lifecycle.status === 'generation-error' &&
+      stateRef.current.error?.code === 'conversation-limit-reached'
     ) {
       lifecycle = reduceEgregoreLifecycle(lifecycle, {
         type: 'error-acknowledged',
       });
     }
-    if (lifecycle.status !== 'ready' && lifecycle.status !== 'reset-error') return;
+    if (lifecycle.status !== 'ready' && lifecycle.status !== 'reset-error')
+      return;
 
     const operationId = ++operationRef.current;
     commit({
@@ -561,72 +566,75 @@ export function useEgregore(
     });
   }, [commit]);
 
-  const cleanupResources = useCallback(async (unmounted = false) => {
-    if (!activationStartedRef.current) return;
-    if (cleanupRef.current !== null) return cleanupRef.current;
+  const cleanupResources = useCallback(
+    async (unmounted = false) => {
+      if (!activationStartedRef.current) return;
+      if (cleanupRef.current !== null) return cleanupRef.current;
 
-    operationRef.current += 1;
-    if (!unmounted) emit({ type: 'unload-requested' });
-    const corpusActivation = corpusActivationRef.current;
-    activationAbortRef.current?.abort();
-    const cleanup = (async () => {
-      const failures: string[] = [];
-      try {
-        runtimeRef.current!.cancel();
-      } catch {
-        failures.push('cancel');
-      }
-      try {
-        await runtimeRef.current!.reset();
-      } catch {
-        failures.push('reset');
-      }
-      if (corpusActivation !== null) {
+      operationRef.current += 1;
+      if (!unmounted) emit({ type: 'unload-requested' });
+      const corpusActivation = corpusActivationRef.current;
+      activationAbortRef.current?.abort();
+      const cleanup = (async () => {
+        const failures: string[] = [];
         try {
-          await corpusActivation;
+          runtimeRef.current!.cancel();
         } catch {
-          // Activation errors are handled by load(); cleanup only joins the work.
+          failures.push('cancel');
         }
-      }
-      try {
-        await repositoryRef.current!.unload();
-      } catch {
-        failures.push('repository');
-      } finally {
         try {
-          await runtimeRef.current!.unload();
+          await runtimeRef.current!.reset();
         } catch {
-          failures.push('runtime');
+          failures.push('reset');
         }
-      }
+        if (corpusActivation !== null) {
+          try {
+            await corpusActivation;
+          } catch {
+            // Activation errors are handled by load(); cleanup only joins the work.
+          }
+        }
+        try {
+          await repositoryRef.current!.unload();
+        } catch {
+          failures.push('repository');
+        } finally {
+          try {
+            await runtimeRef.current!.unload();
+          } catch {
+            failures.push('runtime');
+          }
+        }
 
-      knowledgeBaseRef.current = null;
-      if (mountedRef.current) setLoading(null);
-      if (failures.length === 0) {
-        activationStartedRef.current = false;
-        if (!unmounted) commit(initialState());
-        return;
-      }
+        knowledgeBaseRef.current = null;
+        if (mountedRef.current) setLoading(null);
+        if (failures.length === 0) {
+          activationStartedRef.current = false;
+          if (!unmounted) commit(initialState());
+          return;
+        }
 
-      if (!unmounted) {
-        const error = cleanupError(failures);
-        commit({
-          ...stateRef.current,
-          error,
-          lifecycle: reduceEgregoreLifecycle(stateRef.current.lifecycle, {
-            type: 'unload-failed',
+        if (!unmounted) {
+          const error = cleanupError(failures);
+          commit({
+            ...stateRef.current,
             error,
-          }),
-        });
+            lifecycle: reduceEgregoreLifecycle(stateRef.current.lifecycle, {
+              type: 'unload-failed',
+              error,
+            }),
+          });
+        }
+      })();
+      cleanupRef.current = cleanup;
+      try {
+        await cleanup;
+      } finally {
+        if (cleanupRef.current === cleanup) cleanupRef.current = null;
       }
-    })();
-    cleanupRef.current = cleanup;
-    try {
-      await cleanup;
-    } finally {
-      if (cleanupRef.current === cleanup) cleanupRef.current = null;
-    }
-  }, [commit, emit]);
+    },
+    [commit, emit],
+  );
 
   const unload = useCallback(() => cleanupResources(false), [cleanupResources]);
 

@@ -56,9 +56,10 @@ export function toCitationNeutralModelHistory(
 ): ConversationHistoryTurn[] {
   return history.map((turn) => ({
     role: turn.role,
-    content: turn.role === 'assistant'
-      ? turn.content.replace(/\[S\d+\]/g, '')
-      : turn.content,
+    content:
+      turn.role === 'assistant'
+        ? turn.content.replace(/\[S\d+\]/g, '')
+        : turn.content,
   }));
 }
 
@@ -101,11 +102,13 @@ export function assemblePrompt(
     );
   }
 
-  const estimatedTokens = estimateTokens(systemContent) + questionTokens + historyTokens;
+  const estimatedTokens =
+    estimateTokens(systemContent) + questionTokens + historyTokens;
   const reservedTokens = budget.responseReserve + budget.estimatorHeadroom;
   if (estimatedTokens + reservedTokens > budget.maxContextTokens) {
-    const withoutHistoryFits = estimatedTokens - historyTokens + reservedTokens
-      <= budget.maxContextTokens;
+    const withoutHistoryFits =
+      estimatedTokens - historyTokens + reservedTokens <=
+      budget.maxContextTokens;
     if (historyTokens > 0 && withoutHistoryFits) {
       throw promptError(
         'conversation-limit-reached',
@@ -119,10 +122,7 @@ export function assemblePrompt(
   }
 
   return {
-    preface: [
-      { role: 'system', content: systemContent },
-      ...modelHistory,
-    ],
+    preface: [{ role: 'system', content: systemContent }, ...modelHistory],
     userMessage: query,
     selectedSources: [...selection.sources],
     estimatedTokens,

@@ -2,7 +2,8 @@ interface CanonicalObject {
   [key: string]: CanonicalValue;
 }
 
-type CanonicalValue = null | boolean | number | string | CanonicalValue[] | CanonicalObject;
+type CanonicalValue =
+  null | boolean | number | string | CanonicalValue[] | CanonicalObject;
 
 export function normalizeCanonicalString(value: string): string {
   return value.replace(/\r\n?/g, '\n').normalize('NFC');
@@ -47,7 +48,10 @@ function canonicalValue(value: unknown, seen: Set<object>): CanonicalValue {
     return Object.fromEntries(
       Object.keys(value)
         .sort()
-        .map((key) => [key, canonicalValue((value as Record<string, unknown>)[key], seen)]),
+        .map((key) => [
+          key,
+          canonicalValue((value as Record<string, unknown>)[key], seen),
+        ]),
     );
   } finally {
     seen.delete(value);

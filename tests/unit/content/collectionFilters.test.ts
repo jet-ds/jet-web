@@ -46,12 +46,18 @@ describe('initializeCollectionFilters', () => {
     const items = root.querySelectorAll<HTMLElement>('[data-filter-item]');
     expect(items[0].hidden).toBe(true);
     expect(items[1].hidden).toBe(false);
-    expect(root.querySelector('[data-filter-value="tutorial"]'))
-      .toHaveAttribute('aria-pressed', 'true');
-    expect(root.querySelector('[data-filter-status]'))
-      .toHaveTextContent('1 post tagged with "tutorial"');
-    expect(root.querySelector<HTMLElement>('[data-filter-enhancement]')?.hidden).toBe(false);
-    expect(new URL(window.location.href).searchParams.get('tag')).toBe('tutorial');
+    expect(
+      root.querySelector('[data-filter-value="tutorial"]'),
+    ).toHaveAttribute('aria-pressed', 'true');
+    expect(root.querySelector('[data-filter-status]')).toHaveTextContent(
+      '1 post tagged with "tutorial"',
+    );
+    expect(
+      root.querySelector<HTMLElement>('[data-filter-enhancement]')?.hidden,
+    ).toBe(false);
+    expect(new URL(window.location.href).searchParams.get('tag')).toBe(
+      'tutorial',
+    );
   });
 
   it('normalizes an invalid query to All without hiding static content', () => {
@@ -60,9 +66,13 @@ describe('initializeCollectionFilters', () => {
 
     initializeCollectionFilters();
 
-    expect(root.querySelector('[data-filter-value=""]'))
-      .toHaveAttribute('aria-pressed', 'true');
-    for (const item of root.querySelectorAll<HTMLElement>('[data-filter-item]')) {
+    expect(root.querySelector('[data-filter-value=""]')).toHaveAttribute(
+      'aria-pressed',
+      'true',
+    );
+    for (const item of root.querySelectorAll<HTMLElement>(
+      '[data-filter-item]',
+    )) {
       expect(item.hidden).toBe(false);
     }
     expect(new URL(window.location.href).searchParams.has('tag')).toBe(false);
@@ -73,18 +83,31 @@ describe('initializeCollectionFilters', () => {
     const root = renderFilterFixture();
     initializeCollectionFilters();
 
-    root.querySelector<HTMLButtonElement>('[data-filter-value="missing"]')?.click();
+    root
+      .querySelector<HTMLButtonElement>('[data-filter-value="missing"]')
+      ?.click();
 
-    expect(root.querySelector<HTMLElement>('[data-filter-section]')?.hidden).toBe(true);
-    expect(root.querySelector<HTMLElement>('[data-filter-empty]')?.hidden).toBe(false);
-    expect(root.querySelector('[data-filter-empty-message]'))
-      .toHaveTextContent('No posts found tagged with "missing".');
-    expect(new URL(window.location.href).searchParams.get('tag')).toBe('missing');
+    expect(
+      root.querySelector<HTMLElement>('[data-filter-section]')?.hidden,
+    ).toBe(true);
+    expect(root.querySelector<HTMLElement>('[data-filter-empty]')?.hidden).toBe(
+      false,
+    );
+    expect(root.querySelector('[data-filter-empty-message]')).toHaveTextContent(
+      'No posts found tagged with "missing".',
+    );
+    expect(new URL(window.location.href).searchParams.get('tag')).toBe(
+      'missing',
+    );
 
     root.querySelector<HTMLButtonElement>('[data-filter-value=""]')?.click();
 
-    expect(root.querySelector<HTMLElement>('[data-filter-section]')?.hidden).toBe(false);
-    expect(root.querySelector<HTMLElement>('[data-filter-empty]')?.hidden).toBe(true);
+    expect(
+      root.querySelector<HTMLElement>('[data-filter-section]')?.hidden,
+    ).toBe(false);
+    expect(root.querySelector<HTMLElement>('[data-filter-empty]')?.hidden).toBe(
+      true,
+    );
     expect(new URL(window.location.href).searchParams.has('tag')).toBe(false);
   });
 });

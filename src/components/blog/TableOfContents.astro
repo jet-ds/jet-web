@@ -12,34 +12,36 @@ interface Props {
 const { headings } = Astro.props;
 
 // Filter to only show h2 and h3 headings for cleaner TOC
-const tocHeadings = headings.filter(h => h.depth >= 2 && h.depth <= 3);
+const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
 ---
 
-{tocHeadings.length > 0 && (
-  <nav class="toc" aria-label="Table of Contents">
-    <div class="sticky top-24">
-      <h2 class="text-lg font-bold mb-4 text-text-primary">On this page</h2>
-      <ul class="space-y-2 text-sm border-l-2 border-border-default pl-4">
-        {tocHeadings.map((heading) => (
-          <li
-            class:list={[
-              'toc-item',
-              heading.depth === 2 && 'toc-h2',
-              heading.depth === 3 && 'toc-h3 ml-4',
-            ]}
-          >
-            <a
-              href={`#${heading.slug}`}
-              class="block py-1 text-text-tertiary hover:text-brand-text transition-colors line-clamp-2"
+{
+  tocHeadings.length > 0 && (
+    <nav class="toc" aria-label="Table of Contents">
+      <div class="sticky top-24">
+        <h2 class="text-lg font-bold mb-4 text-text-primary">On this page</h2>
+        <ul class="space-y-2 text-sm border-l-2 border-border-default pl-4">
+          {tocHeadings.map((heading) => (
+            <li
+              class:list={[
+                'toc-item',
+                heading.depth === 2 && 'toc-h2',
+                heading.depth === 3 && 'toc-h3 ml-4',
+              ]}
             >
-              {heading.text}
-            </a>
-          </li>
-        ))}
-      </ul>
-    </div>
-  </nav>
-)}
+              <a
+                href={`#${heading.slug}`}
+                class="block py-1 text-text-tertiary hover:text-brand-text transition-colors line-clamp-2"
+              >
+                {heading.text}
+              </a>
+            </li>
+          ))}
+        </ul>
+      </div>
+    </nav>
+  )
+}
 
 <style>
   .toc {
@@ -82,7 +84,7 @@ const tocHeadings = headings.filter(h => h.depth >= 2 && h.depth <= 3);
       {
         rootMargin: '-100px 0px -66%',
         threshold: 1.0,
-      }
+      },
     );
 
     // Observe all headings that are in the TOC

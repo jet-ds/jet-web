@@ -60,15 +60,10 @@ import {
 } from './runtime/fakeScenario';
 import { LiteRtGemmaRuntime } from './runtime/liteRtGemma';
 import type { EgregoreLifecycleStatus } from './runtime/lifecycle';
-import {
-  createRuntimeError,
-} from './runtime/types';
+import { createRuntimeError } from './runtime/types';
 import { rankAndPackContext } from './selection/rankAndPack';
 import type { ConversationTurn } from './state/types';
-import {
-  useEgregore,
-  type EgregoreDependencies,
-} from './state/useEgregore';
+import { useEgregore, type EgregoreDependencies } from './state/useEgregore';
 
 const suggestedQuestions = [
   'What does Jet write about agentic work?',
@@ -88,8 +83,10 @@ type InteractionModality = 'keyboard' | 'mouse' | 'touch' | 'pen';
 const STICKY_FOLLOW_THRESHOLD_PX = 48;
 
 function isNearConversationBottom(scroller: HTMLElement): boolean {
-  return scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight
-    <= STICKY_FOLLOW_THRESHOLD_PX;
+  return (
+    scroller.scrollHeight - scroller.scrollTop - scroller.clientHeight <=
+    STICKY_FOLLOW_THRESHOLD_PX
+  );
 }
 
 function scrollConversationToLatest(scroller: HTMLElement): void {
@@ -98,7 +95,8 @@ function scrollConversationToLatest(scroller: HTMLElement): void {
 
 function useLiveReducedMotion(): boolean {
   const initialPreference = Boolean(useReducedMotion());
-  const [prefersReducedMotion, setPrefersReducedMotion] = useState(initialPreference);
+  const [prefersReducedMotion, setPrefersReducedMotion] =
+    useState(initialPreference);
 
   useEffect(() => {
     if (typeof window.matchMedia !== 'function') return undefined;
@@ -122,10 +120,12 @@ function waitForFakeDelay(delayMs: number): Promise<void> {
 
 function allocateE2ERuntimeId(): number {
   const storageKey = 'egregore-e2e-runtime-id';
-  const previous = Number.parseInt(window.sessionStorage.getItem(storageKey) ?? '0', 10);
-  const runtimeId = Number.isSafeInteger(previous) && previous >= 0
-    ? previous + 1
-    : 1;
+  const previous = Number.parseInt(
+    window.sessionStorage.getItem(storageKey) ?? '0',
+    10,
+  );
+  const runtimeId =
+    Number.isSafeInteger(previous) && previous >= 0 ? previous + 1 : 1;
   window.sessionStorage.setItem(storageKey, String(runtimeId));
   return runtimeId;
 }
@@ -162,21 +162,31 @@ function createTestBuildDependencies(): EgregoreDependencies {
     const configuration = getFakeScenarioConfiguration(scenario);
     const runtimeId = allocateE2ERuntimeId();
     const recorder = new FakeRuntimeRecorder(runtimeId);
-    const chunkDelayMs = configuration.chunkDelayMs
-      ?? (slowFakeStream || resolvedFakeScenario.slowStream ? 120 : 0);
+    const chunkDelayMs =
+      configuration.chunkDelayMs ??
+      (slowFakeStream || resolvedFakeScenario.slowStream ? 120 : 0);
     const scheduler = {
       waitForChunk: async () => {
         if (chunkDelayMs > 0) await waitForFakeDelay(chunkDelayMs);
       },
-      ...(configuration.capabilityDelayMs === undefined ? {} : {
-        waitForCapability: async () => waitForFakeDelay(configuration.capabilityDelayMs!),
-      }),
-      ...(configuration.loadDelayMs === undefined ? {} : {
-        waitForLoad: async () => waitForFakeDelay(configuration.loadDelayMs!),
-      }),
-      ...(configuration.unloadDelayMs === undefined ? {} : {
-        waitForUnload: async () => waitForFakeDelay(configuration.unloadDelayMs!),
-      }),
+      ...(configuration.capabilityDelayMs === undefined
+        ? {}
+        : {
+            waitForCapability: async () =>
+              waitForFakeDelay(configuration.capabilityDelayMs!),
+          }),
+      ...(configuration.loadDelayMs === undefined
+        ? {}
+        : {
+            waitForLoad: async () =>
+              waitForFakeDelay(configuration.loadDelayMs!),
+          }),
+      ...(configuration.unloadDelayMs === undefined
+        ? {}
+        : {
+            waitForUnload: async () =>
+              waitForFakeDelay(configuration.unloadDelayMs!),
+          }),
     };
     const runtime = new FakeRuntime({
       testOnly: true,
@@ -185,7 +195,8 @@ function createTestBuildDependencies(): EgregoreDependencies {
       responseChunks: configuration.responseChunks,
       failures: configuration.failures,
       scheduler: scheduler,
-      emitLateChunkAfterCancellation: configuration.emitLateChunkAfterCancellation,
+      emitLateChunkAfterCancellation:
+        configuration.emitLateChunkAfterCancellation,
     });
     const repository = new StaticKnowledgeRepository();
     let completedAssemblies = 0;
@@ -206,15 +217,16 @@ function createTestBuildDependencies(): EgregoreDependencies {
       createRuntime: () => runtime,
       rankAndPackContext: (input) => {
         const selection = rankAndPackContext(input);
-        const scenarioSelection = scenario === 'citations'
-          ? configureFakeCitationSelection(selection)
-          : selection;
+        const scenarioSelection =
+          scenario === 'citations'
+            ? configureFakeCitationSelection(selection)
+            : selection;
         return configureFakeSourceSentinel(scenarioSelection);
       },
       assemblePrompt: (...args) => {
         if (
-          configuration.exhaustAfterCompletedGenerations !== undefined
-          && completedAssemblies >= configuration.exhaustAfterCompletedGenerations
+          configuration.exhaustAfterCompletedGenerations !== undefined &&
+          completedAssemblies >= configuration.exhaustAfterCompletedGenerations
         ) {
           throw createRuntimeError(
             'conversation-limit-reached',
@@ -266,15 +278,12 @@ function createProductionDependencies(): EgregoreDependencies {
 }
 
 function createDependencies(): EgregoreDependencies {
-  const localHost = typeof window !== 'undefined'
-    && (
-      window.location.hostname === '127.0.0.1'
-      || window.location.hostname === 'localhost'
-    );
-  if (
-    import.meta.env.PUBLIC_EGREGORE_E2E === '1'
-    && localHost
-  ) return createTestBuildDependencies();
+  const localHost =
+    typeof window !== 'undefined' &&
+    (window.location.hostname === '127.0.0.1' ||
+      window.location.hostname === 'localhost');
+  if (import.meta.env.PUBLIC_EGREGORE_E2E === '1' && localHost)
+    return createTestBuildDependencies();
   return createProductionDependencies();
 }
 
@@ -336,15 +345,14 @@ export default function EgregoreExperience({
     'unloading',
     'unload-error',
   ].includes(status);
-  const canStartNewSession = status === 'ready'
-    || status === 'reset-error'
-    || (
-      status === 'generation-error'
-      && egregore.state.error?.code === 'conversation-limit-reached'
-    );
+  const canStartNewSession =
+    status === 'ready' ||
+    status === 'reset-error' ||
+    (status === 'generation-error' &&
+      egregore.state.error?.code === 'conversation-limit-reached');
   const canUnload = showHeaderActions && status !== 'unloading';
   const ghostAnimationMode = getGhostAnimationMode(status);
-  const visibleLargeGhostMode = (
+  const visibleLargeGhostMode =
     [
       'idle',
       'checking-capabilities',
@@ -353,10 +361,9 @@ export default function EgregoreExperience({
       'unsupported',
       'loading',
       'unloading',
-    ].includes(status)
-    || (
-      showPreConversation
-      && [
+    ].includes(status) ||
+    (showPreConversation &&
+      [
         'ready',
         'generating',
         'cancelling',
@@ -364,17 +371,17 @@ export default function EgregoreExperience({
         'resetting',
         'reset-error',
         'unload-error',
-      ].includes(status)
-    )
-  ) ? ghostAnimationMode : null;
+      ].includes(status))
+      ? ghostAnimationMode
+      : null;
   const previousVisibleLargeGhostModeRef = useRef<GhostAnimationMode | null>(
     visibleLargeGhostMode,
   );
-  const previousVisibleLargeGhostMode = previousVisibleLargeGhostModeRef.current;
+  const previousVisibleLargeGhostMode =
+    previousVisibleLargeGhostModeRef.current;
   const loadingHeadline = getLoadingHeadline(elapsedSeconds);
-  const loadingReassurance = status === 'loading'
-    ? getLoadingReassurance(elapsedSeconds)
-    : null;
+  const loadingReassurance =
+    status === 'loading' ? getLoadingReassurance(elapsedSeconds) : null;
 
   const scrollToLatest = useCallback(() => {
     const scroller = conversationScrollerRef.current;
@@ -388,15 +395,16 @@ export default function EgregoreExperience({
 
   useEffect(() => {
     const previousStatus = previousStatusRef.current;
-    const readyTransitionModality = previousStatus === 'loading'
-      || previousStatus === 'resetting'
-      || previousStatus === 'generation-error'
-      ? readyFocusModalityRef.current
-      : messageSubmissionModalityRef.current;
+    const readyTransitionModality =
+      previousStatus === 'loading' ||
+      previousStatus === 'resetting' ||
+      previousStatus === 'generation-error'
+        ? readyFocusModalityRef.current
+        : messageSubmissionModalityRef.current;
     if (
-      shouldFocusComposer(previousStatus, status)
-      && readyTransitionModality === 'keyboard'
-      && !suppressComposerRestoreRef.current
+      shouldFocusComposer(previousStatus, status) &&
+      readyTransitionModality === 'keyboard' &&
+      !suppressComposerRestoreRef.current
     ) {
       inputRef.current?.focus();
     }
@@ -407,8 +415,8 @@ export default function EgregoreExperience({
       setDraft(lastSubmittedRef.current);
     }
     if (
-      status === 'ready'
-      && (previousStatus === 'generating' || previousStatus === 'cancelling')
+      status === 'ready' &&
+      (previousStatus === 'generating' || previousStatus === 'cancelling')
     ) {
       lastSubmittedRef.current = null;
       suppressComposerRestoreRef.current = false;
@@ -440,10 +448,11 @@ export default function EgregoreExperience({
     }
     const scroller = conversationScrollerRef.current;
     if (
-      scroller === null
-      || conversationEndRef.current === null
-      || pendingSubmissionFollowRef.current
-    ) return;
+      scroller === null ||
+      conversationEndRef.current === null ||
+      pendingSubmissionFollowRef.current
+    )
+      return;
     if (stickyFollowRef.current) {
       scrollToLatest();
     } else {
@@ -451,22 +460,26 @@ export default function EgregoreExperience({
     }
   }, [egregore.state.turns, scrollToLatest]);
 
-  useEffect(() => () => {
-    submissionFollowCleanupRef.current?.();
-  }, []);
+  useEffect(
+    () => () => {
+      submissionFollowCleanupRef.current?.();
+    },
+    [],
+  );
 
   useEffect(() => {
     if (status !== 'loading' && status !== 'unloading') {
       setElapsedSeconds(0);
       return;
     }
-    const startedAt = status === 'loading' && egregore.loading !== null
-      ? egregore.loading.startedAt
-      : performance.now();
-    const updateElapsed = () => setElapsedSeconds(Math.max(
-      0,
-      Math.floor((performance.now() - startedAt) / 1_000),
-    ));
+    const startedAt =
+      status === 'loading' && egregore.loading !== null
+        ? egregore.loading.startedAt
+        : performance.now();
+    const updateElapsed = () =>
+      setElapsedSeconds(
+        Math.max(0, Math.floor((performance.now() - startedAt) / 1_000)),
+      );
     updateElapsed();
     const interval = window.setInterval(updateElapsed, 1_000);
     return () => window.clearInterval(interval);
@@ -512,9 +525,10 @@ export default function EgregoreExperience({
     let firstFrame = 0;
     let secondFrame = 0;
     let settleTimer = 0;
-    const viewport = modality === 'touch' || modality === 'pen'
-      ? window.visualViewport ?? null
-      : null;
+    const viewport =
+      modality === 'touch' || modality === 'pen'
+        ? (window.visualViewport ?? null)
+        : null;
 
     const removeViewportWait = () => {
       if (settleTimer !== 0) window.clearTimeout(settleTimer);
@@ -589,22 +603,23 @@ export default function EgregoreExperience({
   };
 
   const handlePointerDownCapture = (event: ReactPointerEvent<HTMLElement>) => {
-    const pointerType: InteractionModality = event.pointerType === 'touch'
-      || event.pointerType === 'pen'
-      ? event.pointerType
-      : 'mouse';
+    const pointerType: InteractionModality =
+      event.pointerType === 'touch' || event.pointerType === 'pen'
+        ? event.pointerType
+        : 'mouse';
     lastInteractionModalityRef.current = pointerType;
     if (event.target === inputRef.current) {
       composerFocusModalityRef.current = pointerType;
     }
   };
 
-  const handleInteractionKeyDownCapture = (event: KeyboardEvent<HTMLElement>) => {
-    const isTouchOriginComposerKeyDown = event.target === inputRef.current
-      && (
-        composerFocusModalityRef.current === 'touch'
-        || composerFocusModalityRef.current === 'pen'
-      );
+  const handleInteractionKeyDownCapture = (
+    event: KeyboardEvent<HTMLElement>,
+  ) => {
+    const isTouchOriginComposerKeyDown =
+      event.target === inputRef.current &&
+      (composerFocusModalityRef.current === 'touch' ||
+        composerFocusModalityRef.current === 'pen');
     if (!isTouchOriginComposerKeyDown) {
       lastInteractionModalityRef.current = 'keyboard';
     }
@@ -614,8 +629,8 @@ export default function EgregoreExperience({
     const scroller = event.currentTarget;
     const programmaticScrollTop = programmaticScrollTopRef.current;
     if (
-      programmaticScrollTop !== null
-      && Math.abs(scroller.scrollTop - programmaticScrollTop) <= 1
+      programmaticScrollTop !== null &&
+      Math.abs(scroller.scrollTop - programmaticScrollTop) <= 1
     ) {
       programmaticScrollTopRef.current = null;
       stickyFollowRef.current = true;
@@ -653,10 +668,14 @@ export default function EgregoreExperience({
             <Ghost aria-hidden="true" size={24} strokeWidth={1.8} />
           </span>
           <div data-testid="egregore-identity" className="min-w-0">
-            <p className="truncate font-serif text-lg font-bold">{EGREGORE_IDENTITY.name}</p>
+            <p className="truncate font-serif text-lg font-bold">
+              {EGREGORE_IDENTITY.name}
+            </p>
             <p className="flex min-w-0 items-center gap-3xs whitespace-nowrap text-xs text-text-tertiary">
               <span className="min-w-0 truncate">jet-web {appVersion}</span>
-              <span aria-hidden="true" className="shrink-0">·</span>
+              <span aria-hidden="true" className="shrink-0">
+                ·
+              </span>
               <a
                 href={EGREGORE_IDENTITY.licensePath}
                 aria-label="Open Egregore model and open-source licenses"
@@ -680,7 +699,10 @@ export default function EgregoreExperience({
           </div>
         </div>
 
-        <div data-testid="egregore-header-actions" className="flex items-center gap-3xs sm:gap-2xs">
+        <div
+          data-testid="egregore-header-actions"
+          className="flex items-center gap-3xs sm:gap-2xs"
+        >
           {showHeaderActions && (
             <>
               <button
@@ -732,7 +754,9 @@ export default function EgregoreExperience({
                 Ask the part of the site that reads everything.
               </h1>
               <p className="mx-auto mt-s max-w-2xl text-base leading-relaxed text-text-secondary">
-                Egregore runs frontier local AI in this browser, grounded in Jet&apos;s published works. Starting it downloads about 2 GB and may use substantial GPU memory.
+                Egregore runs frontier local AI in this browser, grounded in
+                Jet&apos;s published works. Starting it downloads about 2 GB and
+                may use substantial GPU memory.
               </p>
 
               <div
@@ -758,11 +782,17 @@ export default function EgregoreExperience({
                   id="egregore-activation-status"
                   data-testid="activation-status-message"
                   className={`inline-flex min-h-[2.75em] max-w-xl items-center justify-center gap-2xs text-xs font-medium leading-[1.375] min-[430px]:min-h-[1.375em] ${status === 'awaiting-consent' ? 'visible text-brand-text' : status === 'load-error' ? 'visible text-text-secondary' : 'invisible text-text-secondary'}`}
-                  aria-hidden={status !== 'awaiting-consent' && status !== 'load-error'}
+                  aria-hidden={
+                    status !== 'awaiting-consent' && status !== 'load-error'
+                  }
                 >
                   {status === 'awaiting-consent' && (
                     <>
-                      <MonitorCheck aria-hidden="true" className="shrink-0" size={16} />
+                      <MonitorCheck
+                        aria-hidden="true"
+                        className="shrink-0"
+                        size={16}
+                      />
                       This browser is ready for the local runtime
                     </>
                   )}
@@ -817,28 +847,45 @@ export default function EgregoreExperience({
                     ref={errorActionRef}
                     type="button"
                     aria-describedby="egregore-activation-status"
-                    onClick={egregore.state.error.code === 'engine-cleanup-failed'
-                      ? handleUnload
-                      : egregore.recoverFromError}
+                    onClick={
+                      egregore.state.error.code === 'engine-cleanup-failed'
+                        ? handleUnload
+                        : egregore.recoverFromError
+                    }
                     data-action-variant="outline"
                     data-action-density="immersive"
                     className="action action--outline action--immersive gap-xs border-border-strong bg-surface-base font-semibold hover:border-brand-base hover:bg-bg-subtle"
                   >
-                    {egregore.state.error.code === 'engine-cleanup-failed'
-                      ? <><span>Unload Egregore</span><Unplug aria-hidden="true" size={18} /></>
-                      : <><span>Return to load</span><RotateCcw aria-hidden="true" size={18} /></>}
+                    {egregore.state.error.code === 'engine-cleanup-failed' ? (
+                      <>
+                        <span>Unload Egregore</span>
+                        <Unplug aria-hidden="true" size={18} />
+                      </>
+                    ) : (
+                      <>
+                        <span>Return to load</span>
+                        <RotateCcw aria-hidden="true" size={18} />
+                      </>
+                    )}
                   </button>
                 )}
               </div>
-              {status === 'awaiting-consent'
-                && egregore.state.capability !== null
-                && egregore.state.capability.warnings.length > 0 && (
-                <div className="mx-auto mt-xs max-w-xl text-sm text-text-secondary" role="status">
-                  {egregore.state.capability.warnings.map((warning, index) => (
-                    <p key={`${warning.code}-${index}`}>{warning.message}</p>
-                  ))}
-                </div>
-              )}
+              {status === 'awaiting-consent' &&
+                egregore.state.capability !== null &&
+                egregore.state.capability.warnings.length > 0 && (
+                  <div
+                    className="mx-auto mt-xs max-w-xl text-sm text-text-secondary"
+                    role="status"
+                  >
+                    {egregore.state.capability.warnings.map(
+                      (warning, index) => (
+                        <p key={`${warning.code}-${index}`}>
+                          {warning.message}
+                        </p>
+                      ),
+                    )}
+                  </div>
+                )}
             </div>
           </main>
         )}
@@ -850,13 +897,30 @@ export default function EgregoreExperience({
                 mode={ghostAnimationMode}
                 previousMode={previousVisibleLargeGhostMode}
               />
-              <h1 className="text-3xl font-bold text-text-primary">This browser cannot run Egregore</h1>
+              <h1 className="text-3xl font-bold text-text-primary">
+                This browser cannot run Egregore
+              </h1>
               <p className="mx-auto mt-s max-w-xl text-base text-text-secondary">
-                {egregore.state.error?.message ?? 'The required local AI capabilities are not available here.'}
+                {egregore.state.error?.message ??
+                  'The required local AI capabilities are not available here.'}
               </p>
               <div className="mt-m flex flex-wrap items-center justify-center gap-xs">
-                <a href="/blog/" data-action-variant="outline" data-action-density="immersive" className="action action--outline action--immersive border-border-strong bg-surface-base font-semibold hover:border-brand-base hover:bg-bg-subtle">Visit blog</a>
-                <a href="/works/" data-action-variant="outline" data-action-density="immersive" className="action action--outline action--immersive border-border-strong bg-surface-base font-semibold hover:border-brand-base hover:bg-bg-subtle">Visit works</a>
+                <a
+                  href="/blog/"
+                  data-action-variant="outline"
+                  data-action-density="immersive"
+                  className="action action--outline action--immersive border-border-strong bg-surface-base font-semibold hover:border-brand-base hover:bg-bg-subtle"
+                >
+                  Visit blog
+                </a>
+                <a
+                  href="/works/"
+                  data-action-variant="outline"
+                  data-action-density="immersive"
+                  className="action action--outline action--immersive border-border-strong bg-surface-base font-semibold hover:border-brand-base hover:bg-bg-subtle"
+                >
+                  Visit works
+                </a>
                 <button
                   ref={errorActionRef}
                   type="button"
@@ -874,20 +938,30 @@ export default function EgregoreExperience({
 
         {(status === 'loading' || status === 'unloading') && (
           <main className="flex flex-1 items-center justify-center px-gutter py-m">
-            <div data-testid="loading-stack" className="w-full max-w-xl text-center">
+            <div
+              data-testid="loading-stack"
+              className="w-full max-w-xl text-center"
+            >
               <AnimatedGhost
                 mode={ghostAnimationMode}
                 previousMode={previousVisibleLargeGhostMode}
               />
               <div>
                 <p className="mb-2xs font-mono text-xs uppercase tracking-[0.16em] text-brand-text">
-                  {status === 'loading' ? 'Loading on this device' : 'Releasing this device'}
+                  {status === 'loading'
+                    ? 'Loading on this device'
+                    : 'Releasing this device'}
                 </p>
                 <h1 className="text-3xl font-bold text-text-primary">
-                  {status === 'loading' ? loadingHeadline : 'Letting the ghost rest'}
+                  {status === 'loading'
+                    ? loadingHeadline
+                    : 'Letting the ghost rest'}
                 </h1>
               </div>
-              <p data-testid="loading-elapsed" className="mt-xs text-xs text-text-tertiary">
+              <p
+                data-testid="loading-elapsed"
+                className="mt-xs text-xs text-text-tertiary"
+              >
                 Elapsed {elapsedSeconds}s
               </p>
               <p
@@ -929,7 +1003,9 @@ export default function EgregoreExperience({
                     mode={ghostAnimationMode}
                     previousMode={previousVisibleLargeGhostMode}
                   />
-                  <h1 className="text-2xl font-bold leading-tight tracking-tight min-[370px]:whitespace-nowrap">What are you curious about?</h1>
+                  <h1 className="text-2xl font-bold leading-tight tracking-tight min-[370px]:whitespace-nowrap">
+                    What are you curious about?
+                  </h1>
                   <p className="mx-auto mt-xs max-w-xl text-xs text-text-tertiary min-[370px]:whitespace-nowrap">
                     Ask about Jet&apos;s writing, research, projects, or ideas.
                   </p>
@@ -960,48 +1036,64 @@ export default function EgregoreExperience({
                   onScroll={handleConversationScroll}
                 >
                   <div className="mx-auto flex w-full max-w-3xl flex-col gap-l pb-l">
-                  {egregore.state.turns.map((turn) => (
-                    <article
-                      key={turn.id}
-                      className={turn.role === 'user' ? 'flex justify-end' : 'flex gap-xs'}
-                    >
-                      {turn.role === 'assistant' && (
-                        <AnimatedGhost
-                          compact
-                          mode={!turn.content && isGenerating ? 'thinking' : 'ready'}
-                        />
-                      )}
-                      <div className={turn.role === 'user'
-                        ? 'max-w-[85%] rounded-2xl rounded-br-md bg-bg-ui px-s py-xs text-text-primary'
-                        : 'min-w-0 max-w-[42rem] pt-1 text-text-primary'}
+                    {egregore.state.turns.map((turn) => (
+                      <article
+                        key={turn.id}
+                        className={
+                          turn.role === 'user'
+                            ? 'flex justify-end'
+                            : 'flex gap-xs'
+                        }
                       >
-                        {turn.content ? (
-                          turn.role === 'assistant'
-                            ? <CitedResponse turn={turn} />
-                            : <p className="whitespace-pre-wrap leading-relaxed">{turn.content}</p>
-                        ) : isGenerating ? (
-                          <div className="flex items-center gap-2xs py-2xs text-sm text-text-tertiary">
-                            <span className="h-2 w-2 animate-pulse rounded-full bg-accent-base motion-reduce:animate-none" />
-                            Reading the site locally…
-                          </div>
-                        ) : null}
-                        {turn.role === 'assistant' && (turn.content || turn.stopped) && (
-                          <ResponseDetails turn={turn} />
+                        {turn.role === 'assistant' && (
+                          <AnimatedGhost
+                            compact
+                            mode={
+                              !turn.content && isGenerating
+                                ? 'thinking'
+                                : 'ready'
+                            }
+                          />
                         )}
-                      </div>
-                    </article>
-                  ))}
-                  {egregore.state.error !== null && (
-                    <ErrorRecovery
-                      actionRef={errorActionRef}
-                      errorCode={egregore.state.error.code}
-                      message={egregore.state.error.message}
-                      status={status}
-                      onRecover={handleRecoverFromError}
-                      onRetryReset={handleNewSession}
-                      onRetryUnload={handleUnload}
-                    />
-                  )}
+                        <div
+                          className={
+                            turn.role === 'user'
+                              ? 'max-w-[85%] rounded-2xl rounded-br-md bg-bg-ui px-s py-xs text-text-primary'
+                              : 'min-w-0 max-w-[42rem] pt-1 text-text-primary'
+                          }
+                        >
+                          {turn.content ? (
+                            turn.role === 'assistant' ? (
+                              <CitedResponse turn={turn} />
+                            ) : (
+                              <p className="whitespace-pre-wrap leading-relaxed">
+                                {turn.content}
+                              </p>
+                            )
+                          ) : isGenerating ? (
+                            <div className="flex items-center gap-2xs py-2xs text-sm text-text-tertiary">
+                              <span className="h-2 w-2 animate-pulse rounded-full bg-accent-base motion-reduce:animate-none" />
+                              Reading the site locally…
+                            </div>
+                          ) : null}
+                          {turn.role === 'assistant' &&
+                            (turn.content || turn.stopped) && (
+                              <ResponseDetails turn={turn} />
+                            )}
+                        </div>
+                      </article>
+                    ))}
+                    {egregore.state.error !== null && (
+                      <ErrorRecovery
+                        actionRef={errorActionRef}
+                        errorCode={egregore.state.error.code}
+                        message={egregore.state.error.message}
+                        status={status}
+                        onRecover={handleRecoverFromError}
+                        onRetryReset={handleNewSession}
+                        onRetryUnload={handleUnload}
+                      />
+                    )}
                     <div
                       ref={conversationEndRef}
                       data-testid="conversation-end-sentinel"
@@ -1047,7 +1139,8 @@ export default function EgregoreExperience({
               inputRef={inputRef}
               isGenerating={isGenerating}
               onFocus={() => {
-                composerFocusModalityRef.current = lastInteractionModalityRef.current;
+                composerFocusModalityRef.current =
+                  lastInteractionModalityRef.current;
               }}
               onDraftChange={setDraft}
               onKeyDown={handleKeyDown}
@@ -1064,11 +1157,12 @@ export default function EgregoreExperience({
 function LifecycleStatus({ status }: { status: EgregoreLifecycleStatus }) {
   const prefersReducedMotion = useReducedMotion();
   const compactLabel = getLifecycleLabel(status);
-  const dotColor = status === 'ready'
-    ? 'bg-status-ready'
-    : status === 'generating' || status === 'loading'
-      ? 'bg-status-active'
-      : 'bg-status-idle';
+  const dotColor =
+    status === 'ready'
+      ? 'bg-status-ready'
+      : status === 'generating' || status === 'loading'
+        ? 'bg-status-active'
+        : 'bg-status-idle';
 
   return (
     <div
@@ -1106,18 +1200,20 @@ function LifecycleStatus({ status }: { status: EgregoreLifecycleStatus }) {
 }
 
 function CitedResponse({ turn }: { turn: ConversationTurn }) {
-  const citations = new Map(turn.citations.map((citation) => [
-    citation.id,
-    citation.source,
-  ]));
+  const citations = new Map(
+    turn.citations.map((citation) => [citation.id, citation.source]),
+  );
   const parts = turn.content.split(/(\[S\d+\])/g);
 
   return (
     <p className="whitespace-pre-wrap leading-relaxed">
       {parts.map((part, index) => {
         const match = /^\[(S\d+)\]$/.exec(part);
-        const source = match === null ? undefined : citations.get(match[1] as `S${number}`);
-        return source === undefined ? part : (
+        const source =
+          match === null ? undefined : citations.get(match[1] as `S${number}`);
+        return source === undefined ? (
+          part
+        ) : (
           <a
             key={`${part}-${index}`}
             href={source.canonicalUrl}
@@ -1190,7 +1286,9 @@ function ResponseDetails({ turn }: { turn: ConversationTurn }) {
                       aria-label={`[${id}] ${source.title}`}
                       className="grid min-w-0 max-w-full grid-cols-[auto_minmax(0,1fr)] items-start gap-2xs py-xs text-left text-text-secondary transition-colors hover:text-text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-base"
                     >
-                      <span className="shrink-0 font-semibold text-accent-text">[{id}]</span>
+                      <span className="shrink-0 font-semibold text-accent-text">
+                        [{id}]
+                      </span>
                       <span className="min-w-0 break-words [overflow-wrap:anywhere]">
                         {source.title}
                       </span>
@@ -1229,11 +1327,12 @@ function ErrorRecovery({
   const isResetError = status === 'reset-error';
   const isUnloadError = status === 'unload-error';
   const requiresUnload = errorCode === 'engine-cleanup-failed' && !isResetError;
-  const action = isConversationFull || isResetError
-    ? onRetryReset
-    : isUnloadError || requiresUnload
-      ? onRetryUnload
-      : onRecover;
+  const action =
+    isConversationFull || isResetError
+      ? onRetryReset
+      : isUnloadError || requiresUnload
+        ? onRetryUnload
+        : onRecover;
   const label = isConversationFull
     ? 'Start new session'
     : isResetError
@@ -1241,7 +1340,7 @@ function ErrorRecovery({
       : isUnloadError
         ? 'Retry unload'
         : requiresUnload
-          ? "Unload Egregore"
+          ? 'Unload Egregore'
           : 'Try another question';
 
   return (
@@ -1254,7 +1353,9 @@ function ErrorRecovery({
         data-action-variant="brand"
         data-action-density="compact"
         className="action action--brand action--compact mt-xs px-s font-semibold"
-      >{label}</button>
+      >
+        {label}
+      </button>
     </div>
   );
 }
@@ -1297,13 +1398,17 @@ function Composer({
         <p
           data-testid="composer-reliability-disclosure"
           className="mx-auto mb-2xs max-w-3xl px-2xs text-center text-sm leading-relaxed text-text-tertiary"
-        >Egregore can make mistakes. Check cited sources.</p>
+        >
+          Egregore can make mistakes. Check cited sources.
+        </p>
       )}
       <form
         onSubmit={onSubmit}
         className="mx-auto flex w-full max-w-3xl items-end gap-xs rounded-2xl border border-border-default bg-surface-base p-2xs shadow-[0_16px_48px_rgba(31,39,50,0.12)] transition-colors focus-within:border-brand-base"
       >
-        <label htmlFor="egregore-prompt" className="sr-only">Ask Egregore</label>
+        <label htmlFor="egregore-prompt" className="sr-only">
+          Ask Egregore
+        </label>
         <textarea
           ref={inputRef}
           id="egregore-prompt"
@@ -1325,9 +1430,11 @@ function Composer({
           className={`action action--compact action--icon shrink-0 rounded-xl ${actionToneClasses}`}
           aria-label={isGenerating ? 'Stop response' : 'Send message'}
         >
-          {isGenerating
-            ? <CircleStop aria-hidden="true" size={19} />
-            : <ArrowUp aria-hidden="true" size={19} />}
+          {isGenerating ? (
+            <CircleStop aria-hidden="true" size={19} />
+          ) : (
+            <ArrowUp aria-hidden="true" size={19} />
+          )}
         </button>
       </form>
       <div
@@ -1337,7 +1444,9 @@ function Composer({
         <span
           data-testid="composer-keyboard-hint"
           className="hidden whitespace-nowrap min-[768px]:[@media(pointer:fine)]:inline"
-        >Enter sends · Shift+Enter newline</span>
+        >
+          Enter sends · Shift+Enter newline
+        </span>
         <span
           data-testid="composer-local-only"
           className="inline-flex items-center gap-3xs whitespace-nowrap"
@@ -1358,24 +1467,47 @@ interface AnimatedGhostProps {
 
 type NonLoadingGhostAnimationMode = Exclude<GhostAnimationMode, 'loading'>;
 
-const ghostMotion: Record<NonLoadingGhostAnimationMode, {
-  animate: { x: number[]; y: number[]; rotate: number[]; scale: number[] };
-  duration: number;
-}> = {
+const ghostMotion: Record<
+  NonLoadingGhostAnimationMode,
+  {
+    animate: { x: number[]; y: number[]; rotate: number[]; scale: number[] };
+    duration: number;
+  }
+> = {
   idle: {
-    animate: { x: [-10, 10, -10], y: [1, -4, 1], rotate: [-2, 2, -2], scale: [1, 1.02, 1] },
+    animate: {
+      x: [-10, 10, -10],
+      y: [1, -4, 1],
+      rotate: [-2, 2, -2],
+      scale: [1, 1.02, 1],
+    },
     duration: 3.8,
   },
   scanning: {
-    animate: { x: [-28, 28, -28], y: [0, -2, 0], rotate: [-4, 4, -4], scale: [1, 1.03, 1] },
+    animate: {
+      x: [-28, 28, -28],
+      y: [0, -2, 0],
+      rotate: [-4, 4, -4],
+      scale: [1, 1.03, 1],
+    },
     duration: 1.8,
   },
   ready: {
-    animate: { x: [-4, 4, -4], y: [1, -6, 1], rotate: [-1, 1, -1], scale: [1, 1.04, 1] },
+    animate: {
+      x: [-4, 4, -4],
+      y: [1, -6, 1],
+      rotate: [-1, 1, -1],
+      scale: [1, 1.04, 1],
+    },
     duration: 4.2,
   },
   thinking: {
-    animate: { x: [-8, 8, -8], y: [0, -7, 0], rotate: [-3, 3, -3], scale: [1, 1.08, 1] },
+    animate: {
+      x: [-8, 8, -8],
+      y: [0, -7, 0],
+      rotate: [-3, 3, -3],
+      scale: [1, 1.08, 1],
+    },
     duration: 1.35,
   },
 };
@@ -1426,17 +1558,26 @@ function LoadingPhaseGhost({ reduceMotion }: { reduceMotion: boolean }) {
           key={delay}
           data-testid="loading-ghost-afterimage"
           className="absolute inset-0 flex items-center justify-center text-brand-base"
-          style={{
-            '--egregore-reduced-opacity': index === 0 ? 0.14 : 0.08,
-            '--egregore-reduced-scale': index === 0 ? 1.14 : 1.3,
-          } as CSSProperties}
+          style={
+            {
+              '--egregore-reduced-opacity': index === 0 ? 0.14 : 0.08,
+              '--egregore-reduced-scale': index === 0 ? 1.14 : 1.3,
+            } as CSSProperties
+          }
           initial={reduceMotion ? false : { opacity: 0, scale: 0.88 }}
-          animate={reduceMotion
-            ? { opacity: index === 0 ? 0.14 : 0.08, scale: index === 0 ? 1.14 : 1.3 }
-            : { opacity: [0, 0.28, 0], scale: [0.88, 1.16, 1.45] }}
-          transition={reduceMotion
-            ? { duration: 0 }
-            : { delay, duration: 2.4, ease: 'easeInOut', repeat: Infinity }}
+          animate={
+            reduceMotion
+              ? {
+                  opacity: index === 0 ? 0.14 : 0.08,
+                  scale: index === 0 ? 1.14 : 1.3,
+                }
+              : { opacity: [0, 0.28, 0], scale: [0.88, 1.16, 1.45] }
+          }
+          transition={
+            reduceMotion
+              ? { duration: 0 }
+              : { delay, duration: 2.4, ease: 'easeInOut', repeat: Infinity }
+          }
         >
           <Ghost size={38} strokeWidth={1.35} />
         </motion.div>
@@ -1447,39 +1588,47 @@ function LoadingPhaseGhost({ reduceMotion }: { reduceMotion: boolean }) {
           key={`${particle.value}-${particle.delay}`}
           data-testid="loading-inward-particle"
           className="absolute left-1/2 top-1/2 z-10 -ml-1 -mt-2 font-mono text-xs font-semibold text-accent-base"
-          style={{
-            '--egregore-reduced-x': `${particle.x[1]}px`,
-            '--egregore-reduced-y': `${particle.y[1]}px`,
-          } as CSSProperties}
-          initial={reduceMotion
-            ? false
-            : {
-                x: particle.x[0],
-                y: particle.y[0],
-                opacity: 0,
-                scale: 0.75,
-              }}
-          animate={reduceMotion
-            ? {
-                x: particle.x[1],
-                y: particle.y[1],
-                opacity: 0.3,
-                scale: 0.85,
-              }
-            : {
-                x: particle.x,
-                y: particle.y,
-                opacity: [0, 0.75, 0],
-                scale: [0.75, 1, 0.45],
-              }}
-          transition={reduceMotion
-            ? { duration: 0 }
-            : {
-                delay: particle.delay,
-                duration: 2.4,
-                ease: 'easeInOut',
-                repeat: Infinity,
-              }}
+          style={
+            {
+              '--egregore-reduced-x': `${particle.x[1]}px`,
+              '--egregore-reduced-y': `${particle.y[1]}px`,
+            } as CSSProperties
+          }
+          initial={
+            reduceMotion
+              ? false
+              : {
+                  x: particle.x[0],
+                  y: particle.y[0],
+                  opacity: 0,
+                  scale: 0.75,
+                }
+          }
+          animate={
+            reduceMotion
+              ? {
+                  x: particle.x[1],
+                  y: particle.y[1],
+                  opacity: 0.3,
+                  scale: 0.85,
+                }
+              : {
+                  x: particle.x,
+                  y: particle.y,
+                  opacity: [0, 0.75, 0],
+                  scale: [0.75, 1, 0.45],
+                }
+          }
+          transition={
+            reduceMotion
+              ? { duration: 0 }
+              : {
+                  delay: particle.delay,
+                  duration: 2.4,
+                  ease: 'easeInOut',
+                  repeat: Infinity,
+                }
+          }
         >
           {particle.value}
         </motion.span>
@@ -1489,12 +1638,16 @@ function LoadingPhaseGhost({ reduceMotion }: { reduceMotion: boolean }) {
         <motion.div
           data-testid="loading-main-ghost"
           initial={reduceMotion ? false : { opacity: 0.72, scale: 0.97 }}
-          animate={reduceMotion
-            ? { opacity: 1, scale: 1 }
-            : { opacity: [0.72, 1, 0.72], scale: [0.97, 1.03, 0.97] }}
-          transition={reduceMotion
-            ? { duration: 0 }
-            : { duration: 2.4, ease: 'easeInOut', repeat: Infinity }}
+          animate={
+            reduceMotion
+              ? { opacity: 1, scale: 1 }
+              : { opacity: [0.72, 1, 0.72], scale: [0.97, 1.03, 0.97] }
+          }
+          transition={
+            reduceMotion
+              ? { duration: 0 }
+              : { duration: 2.4, ease: 'easeInOut', repeat: Infinity }
+          }
         >
           <Ghost size={38} strokeWidth={1.65} />
         </motion.div>
@@ -1517,26 +1670,35 @@ function StandardPhaseGhost({
 
   return (
     <div className="relative h-full w-full text-brand-base">
-      {!compact && binaryParticles.map((particle) => (
-        <motion.span
-          key={`${particle.value}-${particle.delay}`}
-          className="absolute right-1 font-mono text-xs font-semibold text-accent-base"
-          style={{ top: particle.top }}
-          animate={reduceMotion
-            ? { opacity: 0.35 }
-            : { x: [0, -38, -62], opacity: [0, 0.7, 0], scale: [0.9, 1, 0.55] }}
-          transition={reduceMotion
-            ? { duration: 0 }
-            : {
-                delay: particle.delay,
-                duration: particleDuration,
-                ease: 'easeInOut',
-                repeat: Infinity,
-              }}
-        >
-          {particle.value}
-        </motion.span>
-      ))}
+      {!compact &&
+        binaryParticles.map((particle) => (
+          <motion.span
+            key={`${particle.value}-${particle.delay}`}
+            className="absolute right-1 font-mono text-xs font-semibold text-accent-base"
+            style={{ top: particle.top }}
+            animate={
+              reduceMotion
+                ? { opacity: 0.35 }
+                : {
+                    x: [0, -38, -62],
+                    opacity: [0, 0.7, 0],
+                    scale: [0.9, 1, 0.55],
+                  }
+            }
+            transition={
+              reduceMotion
+                ? { duration: 0 }
+                : {
+                    delay: particle.delay,
+                    duration: particleDuration,
+                    ease: 'easeInOut',
+                    repeat: Infinity,
+                  }
+            }
+          >
+            {particle.value}
+          </motion.span>
+        ))}
 
       <div className="absolute inset-0 flex items-center justify-center">
         <motion.div
@@ -1563,7 +1725,8 @@ function GhostModeVisual({
   mode: GhostAnimationMode;
   reduceMotion: boolean;
 }) {
-  if (mode === 'loading') return <LoadingPhaseGhost reduceMotion={reduceMotion} />;
+  if (mode === 'loading')
+    return <LoadingPhaseGhost reduceMotion={reduceMotion} />;
   return (
     <StandardPhaseGhost
       compact={compact}
@@ -1579,9 +1742,9 @@ function AnimatedGhost({
   previousMode = mode,
 }: AnimatedGhostProps) {
   const reduceMotion = useLiveReducedMotion();
-  const [displayedMode, setDisplayedMode] = useState<GhostAnimationMode>(() => (
-    compact ? mode : previousMode ?? mode
-  ));
+  const [displayedMode, setDisplayedMode] = useState<GhostAnimationMode>(() =>
+    compact ? mode : (previousMode ?? mode),
+  );
 
   useEffect(() => {
     setDisplayedMode(mode);

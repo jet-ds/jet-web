@@ -5,10 +5,12 @@ const CONTENT_PATHS = ['src/data/blog', 'src/data/works'] as const;
 
 function isContained(root: string, target: string): boolean {
   const pathFromRoot = relative(root, target);
-  return pathFromRoot === ''
-    || (!isAbsolute(pathFromRoot)
-      && pathFromRoot !== '..'
-      && !pathFromRoot.startsWith(`..${sep}`));
+  return (
+    pathFromRoot === '' ||
+    (!isAbsolute(pathFromRoot) &&
+      pathFromRoot !== '..' &&
+      !pathFromRoot.startsWith(`..${sep}`))
+  );
 }
 
 function gitEnvironment(root: string): NodeJS.ProcessEnv {
@@ -27,21 +29,21 @@ function gitEnvironment(root: string): NodeJS.ProcessEnv {
   return environment;
 }
 
-export function loadTrackedContentPaths(root: string = process.cwd()): Set<string> {
+export function loadTrackedContentPaths(
+  root: string = process.cwd(),
+): Set<string> {
   const resolvedRoot = resolve(root);
-  const result = spawnSync(
-    'git',
-    ['ls-files', '-z', '--', ...CONTENT_PATHS],
-    {
-      cwd: resolvedRoot,
-      encoding: 'buffer',
-      env: gitEnvironment(resolvedRoot),
-      shell: false,
-    },
-  );
+  const result = spawnSync('git', ['ls-files', '-z', '--', ...CONTENT_PATHS], {
+    cwd: resolvedRoot,
+    encoding: 'buffer',
+    env: gitEnvironment(resolvedRoot),
+    shell: false,
+  });
 
   if (result.error !== undefined) {
-    throw new Error(`Unable to read Git tracked content: ${result.error.message}`);
+    throw new Error(
+      `Unable to read Git tracked content: ${result.error.message}`,
+    );
   }
   if (result.status !== 0) {
     const stderr = result.stderr.toString('utf8').trim();
@@ -61,11 +63,16 @@ export function loadTrackedContentPaths(root: string = process.cwd()): Set<strin
 
     const absolutePath = resolve(resolvedRoot, path);
     if (!isContained(resolvedRoot, absolutePath)) {
-      throw new Error(`Git returned a content path outside the repository root: ${path}`);
+      throw new Error(
+        `Git returned a content path outside the repository root: ${path}`,
+      );
     }
-    if (!CONTENT_PATHS.some((contentPath) => (
-      path === contentPath || path.startsWith(`${contentPath}/`)
-    ))) {
+    if (
+      !CONTENT_PATHS.some(
+        (contentPath) =>
+          path === contentPath || path.startsWith(`${contentPath}/`),
+      )
+    ) {
       throw new Error(`Git returned an unexpected content path: ${path}`);
     }
 

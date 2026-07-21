@@ -1,4 +1,10 @@
-import { mkdirSync, readFileSync, renameSync, rmSync, writeFileSync } from 'node:fs';
+import {
+  mkdirSync,
+  readFileSync,
+  renameSync,
+  rmSync,
+  writeFileSync,
+} from 'node:fs';
 import { dirname, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -19,8 +25,10 @@ const SANITIZING_MODES = new Set([
   'sanitize-openrouter-revocation',
 ]);
 const ALLOWED_SCOPES = new Set(['production', 'preview', 'development']);
-const CREDENTIAL_PATTERN = /(?:\bBearer\s+|\bBasic\s+|\bsk[-_](?:or[-_])?(?:v\d[-_])?|\b(?:ghp|gho|github_pat|vercel)[-_][A-Za-z0-9_-]{12,}|\beyJ[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{8,}\.)/i;
-const SENSITIVE_COMPONENT_PATTERN = /(?:access[-_]?token|api[-_]?key|authorization|password|secret|cookie|token\s*=|sk[-_](?:or[-_])?(?:v\d[-_])?)/i;
+const CREDENTIAL_PATTERN =
+  /(?:\bBearer\s+|\bBasic\s+|\bsk[-_](?:or[-_])?(?:v\d[-_])?|\b(?:ghp|gho|github_pat|vercel)[-_][A-Za-z0-9_-]{12,}|\beyJ[A-Za-z0-9_-]{12,}\.[A-Za-z0-9_-]{8,}\.)/i;
+const SENSITIVE_COMPONENT_PATTERN =
+  /(?:access[-_]?token|api[-_]?key|authorization|password|secret|cookie|token\s*=|sk[-_](?:or[-_])?(?:v\d[-_])?)/i;
 
 class EvidenceError extends Error {
   constructor(readonly rule: string) {
@@ -43,10 +51,10 @@ function requireObject(value: unknown, rule = 'INVALID_OBJECT'): JsonObject {
 
 function requireString(value: unknown, rule: string, maxLength = 512): string {
   if (
-    typeof value !== 'string'
-    || value.length === 0
-    || value.length > maxLength
-    || /[\u0000-\u001f\u007f]/u.test(value)
+    typeof value !== 'string' ||
+    value.length === 0 ||
+    value.length > maxLength ||
+    /[\u0000-\u001f\u007f]/u.test(value)
   ) {
     fail(rule);
   }
@@ -68,7 +76,10 @@ function requireReadyState(value: unknown): string {
 
 function requireIdentifier(value: unknown, rule: string): string {
   const identifier = requireString(value, rule, 256);
-  if (!/^[A-Za-z0-9][A-Za-z0-9_.:@/-]*$/u.test(identifier) || CREDENTIAL_PATTERN.test(identifier)) {
+  if (
+    !/^[A-Za-z0-9][A-Za-z0-9_.:@/-]*$/u.test(identifier) ||
+    CREDENTIAL_PATTERN.test(identifier)
+  ) {
     fail(rule);
   }
   return identifier;
@@ -89,7 +100,8 @@ function requireUtcTimestamp(value: unknown, rule: string): string {
 }
 
 function requireCreatedAt(value: unknown): number | string {
-  if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0) return value;
+  if (typeof value === 'number' && Number.isSafeInteger(value) && value >= 0)
+    return value;
   return requireUtcTimestamp(value, 'INVALID_CREATED_AT');
 }
 
@@ -110,10 +122,10 @@ function repeatedlyDecode(value: string): string[] {
 function assertSafeUrlText(value: string): void {
   for (const decoded of repeatedlyDecode(value)) {
     if (
-      /[\u0000-\u001f\u007f]/u.test(decoded)
-      || CREDENTIAL_PATTERN.test(decoded)
-      || SENSITIVE_COMPONENT_PATTERN.test(decoded)
-      || looksHighEntropy(decoded)
+      /[\u0000-\u001f\u007f]/u.test(decoded) ||
+      CREDENTIAL_PATTERN.test(decoded) ||
+      SENSITIVE_COMPONENT_PATTERN.test(decoded) ||
+      looksHighEntropy(decoded)
     ) {
       fail('UNSAFE_URL_COMPONENT');
     }
@@ -123,7 +135,8 @@ function assertSafeUrlText(value: string): void {
 function parseHttpsUrl(value: unknown, allowBareHost: boolean): URL {
   const raw = requireString(value, 'INVALID_URL', 2_048);
   assertSafeUrlText(raw);
-  const candidate = allowBareHost && !raw.includes('://') ? `https://${raw}` : raw;
+  const candidate =
+    allowBareHost && !raw.includes('://') ? `https://${raw}` : raw;
   let parsed: URL;
   try {
     parsed = new URL(candidate);
@@ -131,10 +144,10 @@ function parseHttpsUrl(value: unknown, allowBareHost: boolean): URL {
     fail('INVALID_URL');
   }
   if (
-    parsed.protocol !== 'https:'
-    || parsed.username !== ''
-    || parsed.password !== ''
-    || (parsed.port !== '' && parsed.port !== '443')
+    parsed.protocol !== 'https:' ||
+    parsed.username !== '' ||
+    parsed.password !== '' ||
+    (parsed.port !== '' && parsed.port !== '443')
   ) {
     fail('INVALID_URL_AUTHORITY');
   }
@@ -146,7 +159,11 @@ function parseHttpsUrl(value: unknown, allowBareHost: boolean): URL {
 }
 
 function requireRootOnly(parsed: URL): void {
-  if ((parsed.pathname !== '' && parsed.pathname !== '/') || parsed.search !== '' || parsed.hash !== '') {
+  if (
+    (parsed.pathname !== '' && parsed.pathname !== '/') ||
+    parsed.search !== '' ||
+    parsed.hash !== ''
+  ) {
     fail('INVALID_HOST_URL_SHAPE');
   }
 }
@@ -154,7 +171,10 @@ function requireRootOnly(parsed: URL): void {
 function requireVercelDeploymentHost(value: unknown): string {
   const parsed = parseHttpsUrl(value, true);
   requireRootOnly(parsed);
-  if (parsed.hostname === 'vercel.app' || !parsed.hostname.endsWith('.vercel.app')) {
+  if (
+    parsed.hostname === 'vercel.app' ||
+    !parsed.hostname.endsWith('.vercel.app')
+  ) {
     fail('INVALID_DEPLOYMENT_HOST');
   }
   return parsed.hostname;
@@ -165,9 +185,9 @@ function requireAliasHost(value: unknown): string {
   requireRootOnly(parsed);
   const hostname = parsed.hostname;
   if (
-    hostname !== 'jetsanchez.com'
-    && hostname !== 'www.jetsanchez.com'
-    && (hostname === 'vercel.app' || !hostname.endsWith('.vercel.app'))
+    hostname !== 'jetsanchez.com' &&
+    hostname !== 'www.jetsanchez.com' &&
+    (hostname === 'vercel.app' || !hostname.endsWith('.vercel.app'))
   ) {
     fail('INVALID_ALIAS_HOST');
   }
@@ -177,10 +197,10 @@ function requireAliasHost(value: unknown): string {
 function requireBlobUrl(value: unknown): string {
   const parsed = parseHttpsUrl(value, false);
   if (
-    parsed.hostname !== KNOWN_BLOB_HOST
-    || parsed.search !== ''
-    || parsed.hash !== ''
-    || parsed.pathname === '/'
+    parsed.hostname !== KNOWN_BLOB_HOST ||
+    parsed.search !== '' ||
+    parsed.hash !== '' ||
+    parsed.pathname === '/'
   ) {
     fail('INVALID_BLOB_URL');
   }
@@ -190,9 +210,9 @@ function requireBlobUrl(value: unknown): string {
 function requireSiteDestination(value: unknown): string {
   const parsed = parseHttpsUrl(value, false);
   if (
-    !['jetsanchez.com', 'www.jetsanchez.com'].includes(parsed.hostname)
-    || parsed.search !== ''
-    || parsed.hash !== ''
+    !['jetsanchez.com', 'www.jetsanchez.com'].includes(parsed.hostname) ||
+    parsed.search !== '' ||
+    parsed.hash !== ''
   ) {
     fail('INVALID_DESTINATION_URL');
   }
@@ -273,11 +293,13 @@ function requireEnvironmentTarget(value: unknown): string | string[] {
     return target;
   }
   if (!Array.isArray(value) || value.length === 0) fail('INVALID_ENV_TARGET');
-  const targets = value.map((target) => {
-    const normalized = requireString(target, 'INVALID_ENV_TARGET', 64);
-    if (!ALLOWED_SCOPES.has(normalized)) fail('INVALID_ENV_TARGET');
-    return normalized;
-  }).sort();
+  const targets = value
+    .map((target) => {
+      const normalized = requireString(target, 'INVALID_ENV_TARGET', 64);
+      if (!ALLOWED_SCOPES.has(normalized)) fail('INVALID_ENV_TARGET');
+      return normalized;
+    })
+    .sort();
   if (new Set(targets).size !== targets.length) fail('DUPLICATE_ENV_TARGET');
   return targets;
 }
@@ -300,27 +322,42 @@ function projectEnvironment(input: unknown, scopeValue: unknown): JsonObject {
       target: requireEnvironmentTarget(object.target),
     };
     if (object.gitBranch !== undefined && object.gitBranch !== null) {
-      projected.gitBranch = requireString(object.gitBranch, 'INVALID_GIT_BRANCH', 512);
+      projected.gitBranch = requireString(
+        object.gitBranch,
+        'INVALID_GIT_BRANCH',
+        512,
+      );
     }
     return projected;
   });
 
-  envs.sort((left, right) => compareText(canonicalJson(left), canonicalJson(right)));
+  envs.sort((left, right) =>
+    compareText(canonicalJson(left), canonicalJson(right)),
+  );
   return { scope, envs };
 }
 
 function requireKeyRecord(value: unknown): string {
   const keyRecord = requireString(value, 'INVALID_KEY_RECORD', 128);
   const isDecimalRecordId = /^[0-9]{1,128}$/u.test(keyRecord);
-  const isUuidRecordId = /^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/iu.test(keyRecord);
-  const isLabelledRecordId = /^record:[A-Za-z0-9][A-Za-z0-9._:-]{0,119}$/u.test(keyRecord);
+  const isUuidRecordId =
+    /^[a-f0-9]{8}-[a-f0-9]{4}-[1-5][a-f0-9]{3}-[89ab][a-f0-9]{3}-[a-f0-9]{12}$/iu.test(
+      keyRecord,
+    );
+  const isLabelledRecordId = /^record:[A-Za-z0-9][A-Za-z0-9._:-]{0,119}$/u.test(
+    keyRecord,
+  );
   const isBareRecordId = /^[A-Za-z][A-Za-z0-9._:-]{4,127}$/u.test(keyRecord);
   const isFinalFour = /^final-four:[ ]?[A-Za-z0-9]{4}$/u.test(keyRecord);
   if (
-    (!isDecimalRecordId && !isUuidRecordId && !isLabelledRecordId && !isBareRecordId && !isFinalFour)
-    || CREDENTIAL_PATTERN.test(keyRecord)
-    || SENSITIVE_COMPONENT_PATTERN.test(keyRecord)
-    || looksHighEntropy(keyRecord)
+    (!isDecimalRecordId &&
+      !isUuidRecordId &&
+      !isLabelledRecordId &&
+      !isBareRecordId &&
+      !isFinalFour) ||
+    CREDENTIAL_PATTERN.test(keyRecord) ||
+    SENSITIVE_COMPONENT_PATTERN.test(keyRecord) ||
+    looksHighEntropy(keyRecord)
   ) {
     fail('INVALID_KEY_RECORD');
   }
@@ -335,7 +372,8 @@ function projectOpenRouterRevocation(input: unknown): JsonObject {
     'UNKNOWN_REVOCATION_FIELD',
   );
   if (object.provider !== 'OpenRouter') fail('INVALID_REVOCATION_PROVIDER');
-  if (object.status !== 'revoked' && object.status !== 'disabled') fail('INVALID_REVOCATION_STATUS');
+  if (object.status !== 'revoked' && object.status !== 'disabled')
+    fail('INVALID_REVOCATION_STATUS');
   return {
     provider: 'OpenRouter',
     keyRecord: requireKeyRecord(object.keyRecord),
@@ -347,20 +385,25 @@ function projectOpenRouterRevocation(input: unknown): JsonObject {
 
 function isApprovedHighEntropyPath(path: string[]): boolean {
   const key = path.at(-1);
-  return key === 'id'
-    || key === 'sha'
-    || key === 'gitSha'
-    || key === 'keyRecord'
-    || (key === 'key' && path.includes('envs'));
+  return (
+    key === 'id' ||
+    key === 'sha' ||
+    key === 'gitSha' ||
+    key === 'keyRecord' ||
+    (key === 'key' && path.includes('envs'))
+  );
 }
 
 function looksHighEntropy(value: string): boolean {
   const longHexCandidates = value.match(/[A-Fa-f0-9]{48,}/gu) ?? [];
-  if (longHexCandidates.some((candidate) => (
-    /[A-Fa-f]/u.test(candidate)
-    && /[0-9]/u.test(candidate)
-    && new Set(candidate.toLowerCase()).size >= 8
-  ))) {
+  if (
+    longHexCandidates.some(
+      (candidate) =>
+        /[A-Fa-f]/u.test(candidate) &&
+        /[0-9]/u.test(candidate) &&
+        new Set(candidate.toLowerCase()).size >= 8,
+    )
+  ) {
     return true;
   }
 
@@ -382,26 +425,28 @@ function looksHighEntropy(value: string): boolean {
 
 function assertNoSensitiveContent(value: unknown, path: string[] = []): void {
   if (Array.isArray(value)) {
-    value.forEach((child, index) => assertNoSensitiveContent(child, [...path, String(index)]));
+    value.forEach((child, index) =>
+      assertNoSensitiveContent(child, [...path, String(index)]),
+    );
     return;
   }
   if (isObject(value)) {
     for (const [key, child] of Object.entries(value)) {
       const normalizedKey = key.toLowerCase().replace(/[^a-z0-9]/gu, '');
       if (
-        normalizedKey === 'value'
-        || normalizedKey === 'values'
-        || normalizedKey.includes('secret')
-        || normalizedKey.includes('token')
-        || normalizedKey.includes('password')
-        || normalizedKey === 'auth'
-        || normalizedKey.includes('authorization')
-        || normalizedKey.includes('cookie')
-        || normalizedKey.includes('header')
-        || normalizedKey === 'raw'
-        || normalizedKey.includes('buildenv')
-        || normalizedKey.includes('encryptedvalue')
-        || normalizedKey.includes('environmentvalue')
+        normalizedKey === 'value' ||
+        normalizedKey === 'values' ||
+        normalizedKey.includes('secret') ||
+        normalizedKey.includes('token') ||
+        normalizedKey.includes('password') ||
+        normalizedKey === 'auth' ||
+        normalizedKey.includes('authorization') ||
+        normalizedKey.includes('cookie') ||
+        normalizedKey.includes('header') ||
+        normalizedKey === 'raw' ||
+        normalizedKey.includes('buildenv') ||
+        normalizedKey.includes('encryptedvalue') ||
+        normalizedKey.includes('environmentvalue')
       ) {
         fail('SENSITIVE_PROPERTY_NAME');
       }
@@ -411,13 +456,18 @@ function assertNoSensitiveContent(value: unknown, path: string[] = []): void {
   }
   if (typeof value === 'string') {
     if (CREDENTIAL_PATTERN.test(value)) fail('CREDENTIAL_LIKE_VALUE');
-    if (looksHighEntropy(value) && !isApprovedHighEntropyPath(path)) fail('HIGH_ENTROPY_VALUE');
+    if (looksHighEntropy(value) && !isApprovedHighEntropyPath(path))
+      fail('HIGH_ENTROPY_VALUE');
   }
 }
 
 function validateInspect(value: unknown): void {
   const object = requireObject(value);
-  exactKeys(object, ['id', 'name', 'url', 'target', 'readyState', 'aliases'], 'UNKNOWN_INSPECT_FIELD');
+  exactKeys(
+    object,
+    ['id', 'name', 'url', 'target', 'readyState', 'aliases'],
+    'UNKNOWN_INSPECT_FIELD',
+  );
   projectInspect(object);
 }
 
@@ -442,10 +492,13 @@ function validateEnvironment(value: unknown): void {
   for (const row of object.envs) {
     const env = requireObject(row);
     const keys = Object.keys(env);
-    if (!keys.every((key) => ['key', 'type', 'target', 'gitBranch'].includes(key))) {
+    if (
+      !keys.every((key) => ['key', 'type', 'target', 'gitBranch'].includes(key))
+    ) {
       fail('UNKNOWN_ENV_ROW_FIELD');
     }
-    if (!['key', 'type', 'target'].every((key) => keys.includes(key))) fail('MISSING_ENV_ROW_FIELD');
+    if (!['key', 'type', 'target'].every((key) => keys.includes(key)))
+      fail('MISSING_ENV_ROW_FIELD');
   }
   projectEnvironment(object, object.scope);
 }
@@ -457,12 +510,18 @@ function validateRevocation(value: unknown): void {
 function validateBlobInventory(value: unknown[]): void {
   for (const row of value) {
     const object = requireObject(row, 'INVALID_BLOB_ROW');
-    exactKeys(object, ['pathname', 'url', 'size', 'uploadedAt'], 'UNKNOWN_BLOB_FIELD');
+    exactKeys(
+      object,
+      ['pathname', 'url', 'size', 'uploadedAt'],
+      'UNKNOWN_BLOB_FIELD',
+    );
     const pathname = requireString(object.pathname, 'INVALID_BLOB_PATH', 2_048);
     assertSafeUrlText(pathname);
-    if (pathname.startsWith('/') || pathname.includes('..')) fail('INVALID_BLOB_PATH');
+    if (pathname.startsWith('/') || pathname.includes('..'))
+      fail('INVALID_BLOB_PATH');
     requireBlobUrl(object.url);
-    if (!Number.isSafeInteger(object.size) || (object.size as number) < 0) fail('INVALID_BLOB_SIZE');
+    if (!Number.isSafeInteger(object.size) || (object.size as number) < 0)
+      fail('INVALID_BLOB_SIZE');
     requireUtcTimestamp(object.uploadedAt, 'INVALID_BLOB_UPLOAD_TIME');
   }
 }
@@ -471,11 +530,22 @@ function validateContainmentResult(value: unknown): void {
   const object = requireObject(value);
   exactKeys(
     object,
-    ['deployment', 'routes', 'blobs', 'credentialRevoked', 'environmentNameAbsent', 'verifiedAt'],
+    [
+      'deployment',
+      'routes',
+      'blobs',
+      'credentialRevoked',
+      'environmentNameAbsent',
+      'verifiedAt',
+    ],
     'UNKNOWN_RESULT_FIELD',
   );
   const deployment = requireObject(object.deployment);
-  exactKeys(deployment, ['id', 'gitSha', 'readyState', 'target'], 'UNKNOWN_RESULT_DEPLOYMENT_FIELD');
+  exactKeys(
+    deployment,
+    ['id', 'gitSha', 'readyState', 'target'],
+    'UNKNOWN_RESULT_DEPLOYMENT_FIELD',
+  );
   requireIdentifier(deployment.id, 'INVALID_DEPLOYMENT_ID');
   requireSha(deployment.gitSha);
   requireReadyState(deployment.readyState);
@@ -485,20 +555,33 @@ function validateContainmentResult(value: unknown): void {
   for (const row of object.routes) {
     const route = requireObject(row);
     const keys = Object.keys(route);
-    if (!keys.every((key) => ['path', 'status', 'destination'].includes(key))) fail('UNKNOWN_ROUTE_FIELD');
-    if (!keys.includes('path') || !keys.includes('status')) fail('MISSING_ROUTE_FIELD');
+    if (!keys.every((key) => ['path', 'status', 'destination'].includes(key)))
+      fail('UNKNOWN_ROUTE_FIELD');
+    if (!keys.includes('path') || !keys.includes('status'))
+      fail('MISSING_ROUTE_FIELD');
     const path = requireString(route.path, 'INVALID_ROUTE_PATH', 2_048);
-    if (!path.startsWith('/') || path.includes('..')) fail('INVALID_ROUTE_PATH');
-    if (!Number.isSafeInteger(route.status) || (route.status as number) < 100 || (route.status as number) > 599) {
+    if (!path.startsWith('/') || path.includes('..'))
+      fail('INVALID_ROUTE_PATH');
+    if (
+      !Number.isSafeInteger(route.status) ||
+      (route.status as number) < 100 ||
+      (route.status as number) > 599
+    ) {
       fail('INVALID_ROUTE_STATUS');
     }
-    if (route.destination !== undefined) requireSiteDestination(route.destination);
+    if (route.destination !== undefined)
+      requireSiteDestination(route.destination);
   }
 
   const blobs = requireObject(object.blobs);
-  exactKeys(blobs, ['beforeCount', 'afterCount', 'probes'], 'UNKNOWN_RESULT_BLOBS_FIELD');
+  exactKeys(
+    blobs,
+    ['beforeCount', 'afterCount', 'probes'],
+    'UNKNOWN_RESULT_BLOBS_FIELD',
+  );
   for (const count of [blobs.beforeCount, blobs.afterCount]) {
-    if (!Number.isSafeInteger(count) || (count as number) < 0) fail('INVALID_BLOB_COUNT');
+    if (!Number.isSafeInteger(count) || (count as number) < 0)
+      fail('INVALID_BLOB_COUNT');
   }
   if (!Array.isArray(blobs.probes)) fail('INVALID_BLOB_PROBES');
   for (const row of blobs.probes) {
@@ -506,15 +589,25 @@ function validateContainmentResult(value: unknown): void {
     exactKeys(probe, ['pathname', 'status'], 'UNKNOWN_BLOB_PROBE_FIELD');
     const pathname = requireString(probe.pathname, 'INVALID_BLOB_PATH', 2_048);
     assertSafeUrlText(pathname);
-    if (!Number.isSafeInteger(probe.status) || (probe.status as number) < 100 || (probe.status as number) > 599) {
+    if (
+      !Number.isSafeInteger(probe.status) ||
+      (probe.status as number) < 100 ||
+      (probe.status as number) > 599
+    ) {
       fail('INVALID_BLOB_STATUS');
     }
   }
 
-  if (object.credentialRevoked !== true) fail('INVALID_CREDENTIAL_REVOCATION_RESULT');
+  if (object.credentialRevoked !== true)
+    fail('INVALID_CREDENTIAL_REVOCATION_RESULT');
   const absence = requireObject(object.environmentNameAbsent);
-  exactKeys(absence, ['production', 'preview', 'development'], 'UNKNOWN_ENV_ABSENCE_FIELD');
-  if (!Object.values(absence).every((entry) => typeof entry === 'boolean')) fail('INVALID_ENV_ABSENCE_RESULT');
+  exactKeys(
+    absence,
+    ['production', 'preview', 'development'],
+    'UNKNOWN_ENV_ABSENCE_FIELD',
+  );
+  if (!Object.values(absence).every((entry) => typeof entry === 'boolean'))
+    fail('INVALID_ENV_ABSENCE_RESULT');
   requireUtcTimestamp(object.verifiedAt, 'INVALID_VERIFIED_AT');
 }
 
@@ -541,30 +634,41 @@ export function assertSafeEvidence(value: unknown): void {
     validateEnvironment(object);
   } else if (object.provider === 'OpenRouter') {
     validateRevocation(object);
-  } else if ('deployment' in object && 'routes' in object && 'blobs' in object) {
+  } else if (
+    'deployment' in object &&
+    'routes' in object &&
+    'blobs' in object
+  ) {
     validateContainmentResult(object);
   } else {
     fail('UNKNOWN_EVIDENCE_SCHEMA');
   }
 }
 
-function parseArguments(arguments_: string[]): { mode: string; options: Map<string, string> } {
+function parseArguments(arguments_: string[]): {
+  mode: string;
+  options: Map<string, string>;
+} {
   const [mode, ...optionArguments] = arguments_;
-  if (!mode || (!SANITIZING_MODES.has(mode) && mode !== 'verify-safe')) fail('INVALID_MODE');
+  if (!mode || (!SANITIZING_MODES.has(mode) && mode !== 'verify-safe'))
+    fail('INVALID_MODE');
   const options = new Map<string, string>();
   for (const argument of optionArguments) {
     const match = /^--([a-z-]+)=(.+)$/u.exec(argument);
     if (!match || options.has(match[1])) fail('INVALID_ARGUMENT');
     options.set(match[1], match[2]);
   }
-  const allowed = mode === 'sanitize-env'
-    ? new Set(['input', 'output', 'scope'])
-    : mode === 'verify-safe'
-      ? new Set(['input'])
-      : new Set(['input', 'output']);
-  if ([...options.keys()].some((key) => !allowed.has(key))) fail('INVALID_ARGUMENT');
+  const allowed =
+    mode === 'sanitize-env'
+      ? new Set(['input', 'output', 'scope'])
+      : mode === 'verify-safe'
+        ? new Set(['input'])
+        : new Set(['input', 'output']);
+  if ([...options.keys()].some((key) => !allowed.has(key)))
+    fail('INVALID_ARGUMENT');
   if (!options.has('input')) fail('MISSING_INPUT');
-  if (SANITIZING_MODES.has(mode) && !options.has('output')) fail('MISSING_OUTPUT');
+  if (SANITIZING_MODES.has(mode) && !options.has('output'))
+    fail('MISSING_OUTPUT');
   if (mode === 'sanitize-env' && !options.has('scope')) fail('MISSING_SCOPE');
   return { mode, options };
 }
@@ -583,7 +687,10 @@ function writeCanonical(path: string, value: unknown): void {
   const temporaryPath = `${absolutePath}.tmp-${process.pid}`;
   rmSync(temporaryPath, { force: true });
   try {
-    writeFileSync(temporaryPath, canonicalJson(value), { flag: 'wx', mode: 0o600 });
+    writeFileSync(temporaryPath, canonicalJson(value), {
+      flag: 'wx',
+      mode: 0o600,
+    });
     renameSync(temporaryPath, absolutePath);
   } finally {
     rmSync(temporaryPath, { force: true });
@@ -619,12 +726,16 @@ function main(): void {
     assertSafeEvidence(projected);
     writeCanonical(options.get('output')!, projected);
   } catch (error) {
-    const rule = error instanceof EvidenceError ? error.rule : 'UNEXPECTED_ERROR';
+    const rule =
+      error instanceof EvidenceError ? error.rule : 'UNEXPECTED_ERROR';
     process.stderr.write(`Evidence sanitizer failed: ${rule}\n`);
     process.exitCode = 1;
   }
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (
+  process.argv[1] &&
+  resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
   main();
 }

@@ -15,7 +15,9 @@ import { isPublished } from '../content/policy';
 const homepageUrl = `${SITE.siteUrl}/`;
 
 // Fetch latest blog posts (limit to 3)
-const allBlogPosts = await getCollection('blog', ({ data }) => isPublished(data));
+const allBlogPosts = await getCollection('blog', ({ data }) =>
+  isPublished(data),
+);
 const latestPosts = allBlogPosts
   .sort((a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime())
   .slice(0, 3);
@@ -26,7 +28,6 @@ const featuredWorks = allWorks
   .filter((work) => work.data.featured === true)
   .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
   .slice(0, 3);
-
 ---
 
 <BaseLayout
@@ -53,11 +54,14 @@ const featuredWorks = allWorks
     jobTitle={SITE.jobTitle}
     email={SITE.email}
     url={homepageUrl}
-    sameAs={Object.values(SOCIAL_LINKS).filter(url => url)}
+    sameAs={Object.values(SOCIAL_LINKS).filter((url) => url)}
   />
 
   <!-- Hero Section -->
-  <Section spacing="none" class="relative min-h-screen md:-mt-24 md:pt-24 flex items-center overflow-hidden">
+  <Section
+    spacing="none"
+    class="relative min-h-screen md:-mt-24 md:pt-24 flex items-center overflow-hidden"
+  >
     <div class="absolute inset-0 pointer-events-none" aria-hidden="true">
       <Grainient
         client:load
@@ -92,14 +96,18 @@ const featuredWorks = allWorks
     <Container size="lg" class="relative z-10">
       <div class="max-w-4xl mx-auto text-center">
         <h1 class="text-7xl font-bold leading-tight mb-m text-text-primary">
-          Hi,<br class="md:hidden"> I'm Jet Sanchez.
+          Hi,<br class="md:hidden" /> I'm Jet Sanchez.
         </h1>
         <p class="text-base text-text-secondary mb-l">
           Research, systems & tools for thinking clearly in an AI-driven world
         </p>
         <div class="flex flex-wrap gap-s justify-center">
-          <Button href="/about/" variant="primary" density="immersive">About me</Button>
-          <Button href="/contact/" variant="accent" density="immersive">Get in touch</Button>
+          <Button href="/about/" variant="primary" density="immersive"
+            >About me</Button
+          >
+          <Button href="/contact/" variant="accent" density="immersive"
+            >Get in touch</Button
+          >
         </div>
       </div>
     </Container>
@@ -112,33 +120,37 @@ const featuredWorks = allWorks
         <h2 class="text-3xl font-bold leading-tight text-text-primary">
           Latest Articles
         </h2>
-        <Button href="/blog/" variant="ghost"><span>View all <span class="text-accent-base">→</span></span></Button>
+        <Button href="/blog/" variant="ghost"
+          ><span>View all <span class="text-accent-base">→</span></span></Button
+        >
       </div>
 
-      {latestPosts.length > 0 ? (
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-m">
-          {latestPosts.map((post) => (
-            <BlogCard
-              variant="compact"
-              slug={post.id}
-              title={post.data.title}
-              shortTitle={post.data.shortTitle}
-              description={post.data.description}
-              summary={post.data.summary}
-              pubDate={post.data.pubDate}
-              tags={post.data.tags}
-              image={post.data.image}
-              content={post.body}
-            />
-          ))}
-        </div>
-      ) : (
-        <Card>
-          <p class="text-center text-text-tertiary py-l">
-            No blog posts yet. Check back soon!
-          </p>
-        </Card>
-      )}
+      {
+        latestPosts.length > 0 ? (
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-m">
+            {latestPosts.map((post) => (
+              <BlogCard
+                variant="compact"
+                slug={post.id}
+                title={post.data.title}
+                shortTitle={post.data.shortTitle}
+                description={post.data.description}
+                summary={post.data.summary}
+                pubDate={post.data.pubDate}
+                tags={post.data.tags}
+                image={post.data.image}
+                content={post.body}
+              />
+            ))}
+          </div>
+        ) : (
+          <Card>
+            <p class="text-center text-text-tertiary py-l">
+              No blog posts yet. Check back soon!
+            </p>
+          </Card>
+        )
+      }
     </Container>
   </Section>
 
@@ -149,37 +161,41 @@ const featuredWorks = allWorks
         <h2 class="text-3xl font-bold leading-tight text-text-primary">
           Featured Works
         </h2>
-        <Button href="/works/" variant="ghost"><span>View all <span class="text-accent-base">→</span></span></Button>
+        <Button href="/works/" variant="ghost"
+          ><span>View all <span class="text-accent-base">→</span></span></Button
+        >
       </div>
 
-      {featuredWorks.length > 0 ? (
-        <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-m">
-          {featuredWorks.map((work) => (
-            <WorkCard
-              variant="compact"
-              slug={work.id}
-              title={work.data.title}
-              shortTitle={work.data.shortTitle}
-              description={work.data.description}
-              summary={work.data.summary}
-              type={work.data.type}
-              date={work.data.date}
-              tags={work.data.tags}
-              featured={work.data.featured}
-              image={work.data.image}
-              venue={work.data.venue}
-              technologies={work.data.technologies}
-              links={work.data.links}
-            />
-          ))}
-        </div>
-      ) : (
-        <Card>
-          <p class="text-center text-text-tertiary py-l">
-            No featured works yet. Check back soon!
-          </p>
-        </Card>
-      )}
+      {
+        featuredWorks.length > 0 ? (
+          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-m">
+            {featuredWorks.map((work) => (
+              <WorkCard
+                variant="compact"
+                slug={work.id}
+                title={work.data.title}
+                shortTitle={work.data.shortTitle}
+                description={work.data.description}
+                summary={work.data.summary}
+                type={work.data.type}
+                date={work.data.date}
+                tags={work.data.tags}
+                featured={work.data.featured}
+                image={work.data.image}
+                venue={work.data.venue}
+                technologies={work.data.technologies}
+                links={work.data.links}
+              />
+            ))}
+          </div>
+        ) : (
+          <Card>
+            <p class="text-center text-text-tertiary py-l">
+              No featured works yet. Check back soon!
+            </p>
+          </Card>
+        )
+      }
     </Container>
   </Section>
 
@@ -187,15 +203,17 @@ const featuredWorks = allWorks
   <Section spacing="default" background="brand">
     <Container size="md">
       <div class="text-center">
-        <h2 class="text-3xl font-bold mb-s text-text-primary">
-          Let's Connect
-        </h2>
+        <h2 class="text-3xl font-bold mb-s text-text-primary">Let's Connect</h2>
         <p class="text-lg text-text-secondary mb-l">
           Interested in collaborating or have questions? Feel free to reach out!
         </p>
         <div class="flex flex-wrap justify-center gap-s">
-          <Button href="/contact/" variant="accent" density="immersive">Contact me</Button>
-          <Button href="/about/" variant="brand" density="immersive">Learn more</Button>
+          <Button href="/contact/" variant="accent" density="immersive"
+            >Contact me</Button
+          >
+          <Button href="/about/" variant="brand" density="immersive"
+            >Learn more</Button
+          >
         </div>
       </div>
     </Container>

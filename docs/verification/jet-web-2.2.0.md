@@ -6,14 +6,14 @@ This record fixes the starting point for the approved `2.2.0` work. It records o
 
 ## Execution start
 
-| Field | Verified value |
-| --- | --- |
-| Canonical repository | `/Users/jet/jet-web` |
-| Implementation branch | `codex/jet-web-2.2.0` |
-| Execution-start commit | `71dafed7dfb6a4a36d1d87129ba8fa9cc9693af1` |
-| `origin/main` at execution start | `0d59dc9210f38f5ab32dd8636604563bef8024a3` |
-| Production `v2.1.0` commit | `0d59dc9210f38f5ab32dd8636604563bef8024a3` |
-| Approved-content anchor | `27afb67dc169d5fd725d6e78457e5ee84e66145e` is an ancestor of the execution-start commit. |
+| Field                            | Verified value                                                                           |
+| -------------------------------- | ---------------------------------------------------------------------------------------- |
+| Canonical repository             | `/Users/jet/jet-web`                                                                     |
+| Implementation branch            | `codex/jet-web-2.2.0`                                                                    |
+| Execution-start commit           | `71dafed7dfb6a4a36d1d87129ba8fa9cc9693af1`                                               |
+| `origin/main` at execution start | `0d59dc9210f38f5ab32dd8636604563bef8024a3`                                               |
+| Production `v2.1.0` commit       | `0d59dc9210f38f5ab32dd8636604563bef8024a3`                                               |
+| Approved-content anchor          | `27afb67dc169d5fd725d6e78457e5ee84e66145e` is an ancestor of the execution-start commit. |
 
 The execution-start commit contains the approved [2.2.0 design](../superpowers/specs/2026-07-18-jet-web-2.2.0-design.md) and [implementation plan](../superpowers/plans/2026-07-18-jet-web-2.2.0.md). `package.json` declares Node `24.x`, and the routine verification workflow uses Node `24`.
 
@@ -23,12 +23,12 @@ At task start, the expected pre-implementation workspace changes were the frozen
 
 The required Node 24 baseline ran with Node `v24.18.0` and npm `11.16.0`:
 
-| Check | Result |
-| --- | --- |
-| `npm run check` | Passed with 0 errors and 0 warnings; Astro emitted 2 existing inline-script hints. |
-| `npm run test` | 50 test files and 623 tests passed. |
-| `npm run verify:docs` | 16 documents and 77 relative links verified. |
-| `npm run build` and production-artifact verification | Passed. |
+| Check                                                | Result                                                                             |
+| ---------------------------------------------------- | ---------------------------------------------------------------------------------- |
+| `npm run check`                                      | Passed with 0 errors and 0 warnings; Astro emitted 2 existing inline-script hints. |
+| `npm run test`                                       | 50 test files and 623 tests passed.                                                |
+| `npm run verify:docs`                                | 16 documents and 77 relative links verified.                                       |
+| `npm run build` and production-artifact verification | Passed.                                                                            |
 
 ## GitHub Release record
 
@@ -40,33 +40,33 @@ Task 3 moved the complete maintained assistant identity to Egregore while preser
 
 The identity contracts were written before the namespace move. The focused pre-move unit command failed across all seven selected files with 19 failing expectations, including the missing identity owner and old prompt, navigation, rendered, license, and artifact identities. After implementation, the following Node 24 evidence passed:
 
-| Check | Result |
-| --- | --- |
-| Focused Egregore unit and component owners | 9 files and 126 tests passed. |
-| `npm run check` | Passed with 0 errors and 0 warnings; Astro emitted 2 existing inline-script hints. The separate prerequisite commit `030ffd3` repairs a type-only semantic-token test regression reproduced at the exact Task 3 starting commit. |
-| `npm test` | 46 test files and 548 tests passed. |
-| `npm run build` and `npm run verify:production-artifacts` | Passed; the generated license and runtime surfaces are complete and the fake-runtime seam is absent. |
-| Focused Egregore, site, and accessibility browser owners | 220 tests passed and 20 intentionally skipped. An earlier timing-sensitive lifecycle timeout passed in isolation before the complete command passed on rerun. |
-| Active documentation links | 8 documents and 94 relative links verified. |
-| Frozen `docs/archive/releases/2.1.0/` checksum | All 6 tracked files matched the pre-task SHA-1 checksum manifest. |
-| Standard `npm run verify` gate | Passed end to end after making the reload-escape unit owner independent of the intentionally rotating loading headline. |
+| Check                                                     | Result                                                                                                                                                                                                                           |
+| --------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Focused Egregore unit and component owners                | 9 files and 126 tests passed.                                                                                                                                                                                                    |
+| `npm run check`                                           | Passed with 0 errors and 0 warnings; Astro emitted 2 existing inline-script hints. The separate prerequisite commit `030ffd3` repairs a type-only semantic-token test regression reproduced at the exact Task 3 starting commit. |
+| `npm test`                                                | 46 test files and 548 tests passed.                                                                                                                                                                                              |
+| `npm run build` and `npm run verify:production-artifacts` | Passed; the generated license and runtime surfaces are complete and the fake-runtime seam is absent.                                                                                                                             |
+| Focused Egregore, site, and accessibility browser owners  | 220 tests passed and 20 intentionally skipped. An earlier timing-sensitive lifecycle timeout passed in isolation before the complete command passed on rerun.                                                                    |
+| Active documentation links                                | 8 documents and 94 relative links verified.                                                                                                                                                                                      |
+| Frozen `docs/archive/releases/2.1.0/` checksum            | All 6 tracked files matched the pre-task SHA-1 checksum manifest.                                                                                                                                                                |
+| Standard `npm run verify` gate                            | Passed end to end after making the reload-escape unit owner independent of the intentionally rotating loading headline.                                                                                                          |
 
 ## Pending Task 6 platform modernization
 
 The platform migration is approved and planned but has not run. The values below are targets, not installed-version or passing-test claims:
 
-| Concern | Approved exact target | Evidence status |
-| --- | --- | --- |
-| Runtime | Node.js `24.x` | Pending phase readback |
-| Astro | `astro@7.1.3` | Pending phase 2 |
-| Astro integrations | `@astrojs/mdx@7.0.3`, `@astrojs/react@6.0.1`, `@astrojs/partytown@2.1.7`, `@astrojs/check@0.9.9`, `@astrojs/rss@4.0.19`, `@astrojs/sitemap@3.7.3` | Pending phase 2 |
-| Tailwind | `tailwindcss@4.3.3`, `@tailwindcss/vite@4.3.3`, `@tailwindcss/typography@0.5.20`; remove `@astrojs/tailwind` | Pending phase 1 |
-| TypeScript | `typescript@6.0.3`; TypeScript 7 excluded | Pending phase 2 |
-| React | `react@19.2.7`, `react-dom@19.2.7`, `@types/react@19.2.17`, `@types/react-dom@19.2.3`; both type packages move to `devDependencies` | Pending phase 2 |
-| UI/runtime dependencies | `framer-motion@12.42.2`, `lucide-react@1.25.0` | Pending phases 2 and 3 |
-| Build/test dependencies | `esbuild@0.28.1`, `tsx@4.23.1`, `@testing-library/jest-dom@7.0.0` | Pending phases 2 and 4 |
-| Other reviewed updates | `@vercel/blob@2.6.1`, `dotenv@17.4.2`, `unist-util-visit@5.1.0` | Pending phase 2 |
-| Local model runtime | retain exact `@litert-lm/core@0.14.0` | Pin must remain unchanged; real-model qualification stays in Task 12 |
+| Concern                 | Approved exact target                                                                                                                             | Evidence status                                                      |
+| ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
+| Runtime                 | Node.js `24.x`                                                                                                                                    | Pending phase readback                                               |
+| Astro                   | `astro@7.1.3`                                                                                                                                     | Pending phase 2                                                      |
+| Astro integrations      | `@astrojs/mdx@7.0.3`, `@astrojs/react@6.0.1`, `@astrojs/partytown@2.1.7`, `@astrojs/check@0.9.9`, `@astrojs/rss@4.0.19`, `@astrojs/sitemap@3.7.3` | Pending phase 2                                                      |
+| Tailwind                | `tailwindcss@4.3.3`, `@tailwindcss/vite@4.3.3`, `@tailwindcss/typography@0.5.20`; remove `@astrojs/tailwind`                                      | Pending phase 1                                                      |
+| TypeScript              | `typescript@6.0.3`; TypeScript 7 excluded                                                                                                         | Pending phase 2                                                      |
+| React                   | `react@19.2.7`, `react-dom@19.2.7`, `@types/react@19.2.17`, `@types/react-dom@19.2.3`; both type packages move to `devDependencies`               | Pending phase 2                                                      |
+| UI/runtime dependencies | `framer-motion@12.42.2`, `lucide-react@1.25.0`                                                                                                    | Pending phases 2 and 3                                               |
+| Build/test dependencies | `esbuild@0.28.1`, `tsx@4.23.1`, `@testing-library/jest-dom@7.0.0`                                                                                 | Pending phases 2 and 4                                               |
+| Other reviewed updates  | `@vercel/blob@2.6.1`, `dotenv@17.4.2`, `unist-util-visit@5.1.0`                                                                                   | Pending phase 2                                                      |
+| Local model runtime     | retain exact `@litert-lm/core@0.14.0`                                                                                                             | Pin must remain unchanged; real-model qualification stays in Task 12 |
 
 Task 6 first adopts Tailwind 4 through the supported JavaScript `@config` compatibility bridge. The later CSS-first `@theme` and semantic-token-owner rewrite is deliberately deferred because current semantic custom-property names collide with that model. It is a separately evaluated design-system migration, is not required for `2.2.0`, and must not be reported as silently completed by the Tailwind upgrade.
 
@@ -74,15 +74,15 @@ Populate this section during Task 6 with the four phase commit SHAs, Node/npm re
 
 ## Physical-device baseline
 
-| Field | Observed fact |
-| --- | --- |
-| Device | Xiaomi 14T |
-| Operating system | Android 16 |
-| Browser | Chrome `150.0.7871.128` |
-| Physical display | `1220 × 2712` |
-| Density | `520` |
-| Current refresh rate | `60 Hz` |
-| Observed page width | `375` CSS pixels |
+| Field                | Observed fact           |
+| -------------------- | ----------------------- |
+| Device               | Xiaomi 14T              |
+| Operating system     | Android 16              |
+| Browser              | Chrome `150.0.7871.128` |
+| Physical display     | `1220 × 2712`           |
+| Density              | `520`                   |
+| Current refresh rate | `60 Hz`                 |
+| Observed page width  | `375` CSS pixels        |
 
 Memory pressure remains plausible but unproven. The probe observed approximately `11.6 GB` total memory and `3.8 GB` available memory, alongside historical Chrome low-memory exits. No event was retained that correlates those exits with the Jet's Ghost 2.1 termination.
 

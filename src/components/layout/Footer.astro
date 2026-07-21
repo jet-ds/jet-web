@@ -60,17 +60,17 @@ const socialLinksArray = Object.entries(SOCIAL_LINKS)
 
       <!-- Social Links -->
       <div>
-        <h3 class="text-lg font-semibold mb-s text-text-primary">
-          Connect
-        </h3>
+        <h3 class="text-lg font-semibold mb-s text-text-primary">Connect</h3>
         <ul class="space-y-2xs">
-          {socialLinksArray.map(({ platform, url }) => (
-            <li>
-              <Link href={url} variant="muted" external>
-                {platform}
-              </Link>
-            </li>
-          ))}
+          {
+            socialLinksArray.map(({ platform, url }) => (
+              <li>
+                <Link href={url} variant="muted" external>
+                  {platform}
+                </Link>
+              </li>
+            ))
+          }
         </ul>
       </div>
     </div>
@@ -78,7 +78,8 @@ const socialLinksArray = Object.entries(SOCIAL_LINKS)
     <!-- Copyright -->
     <div class="mt-l pt-l border-t border-border-default">
       <p class="text-center text-sm text-text-tertiary">
-        © {currentYear} {SITE.author}. All rights reserved.
+        © {currentYear}
+        {SITE.author}. All rights reserved.
       </p>
     </div>
   </Container>

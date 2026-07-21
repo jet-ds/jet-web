@@ -303,31 +303,34 @@ const fixtures = [
 
 describe('structured data', () => {
   it('uses the slashful root identity for default schemas and the About Person', () => {
-    expect(buildStructuredData({ type: 'person' }).url).toBe('https://jetsanchez.com/');
-    expect(buildStructuredData({
-      type: 'webpage',
-      url: 'https://jetsanchez.com/about/',
-    }).isPartOf).toMatchObject({
+    expect(buildStructuredData({ type: 'person' }).url).toBe(
+      'https://jetsanchez.com/',
+    );
+    expect(
+      buildStructuredData({
+        type: 'webpage',
+        url: 'https://jetsanchez.com/about/',
+      }).isPartOf,
+    ).toMatchObject({
       '@id': 'https://jetsanchez.com/#website',
       url: 'https://jetsanchez.com/',
     });
   });
 
-  it.each(fixtures)('preserves the complete $name JSON shape', ({
-    props,
-    expectedType,
-    expectedSchema,
-  }) => {
-    const schema = buildStructuredData(props);
-    const serialized = JSON.stringify(schema);
-    const parsed: unknown = JSON.parse(serialized);
+  it.each(fixtures)(
+    'preserves the complete $name JSON shape',
+    ({ props, expectedType, expectedSchema }) => {
+      const schema = buildStructuredData(props);
+      const serialized = JSON.stringify(schema);
+      const parsed: unknown = JSON.parse(serialized);
 
-    expectTypeOf(schema).toEqualTypeOf<JsonLd>();
-    expectTypeOf(parsed).toEqualTypeOf<unknown>();
-    expect(schema['@type']).toBe(expectedType);
-    expect(schema).toEqual(expectedSchema);
-    expect(parsed).toEqual(expectedSchema);
-  });
+      expectTypeOf(schema).toEqualTypeOf<JsonLd>();
+      expectTypeOf(parsed).toEqualTypeOf<unknown>();
+      expect(schema['@type']).toBe(expectedType);
+      expect(schema).toEqual(expectedSchema);
+      expect(parsed).toEqual(expectedSchema);
+    },
+  );
 
   it('links a scholarly article to its canonical webpage', () => {
     const schema = buildStructuredData({

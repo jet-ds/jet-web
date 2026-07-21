@@ -18,14 +18,19 @@ export default defineConfig({
     screenshot: 'off',
     video: 'off',
   },
-  webServer: externalBaseUrl ? undefined : {
-    command: 'npm run build && npm run preview -- --host 127.0.0.1 --port 4322',
-    url: 'http://127.0.0.1:4322',
-    reuseExistingServer: false,
-    timeout: 120_000,
-  },
-  projects: [{
-    name: 'chrome-real-model',
-    use: { ...devices['Desktop Chrome'], channel: 'chrome' },
-  }],
+  webServer: externalBaseUrl
+    ? undefined
+    : {
+        command:
+          'npm run build && npm run preview -- --host 127.0.0.1 --port 4322',
+        url: 'http://127.0.0.1:4322',
+        reuseExistingServer: false,
+        timeout: 120_000,
+      },
+  projects: [
+    {
+      name: 'chrome-real-model',
+      use: { ...devices['Desktop Chrome'], channel: 'chrome' },
+    },
+  ],
 });

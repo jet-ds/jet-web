@@ -25,7 +25,7 @@ export const LITERT_LM_WASM_ASSETS = [
   'litertlm_wasm_compat_asyncify_internal.wasm',
 ] as const;
 
-export type LiteRtAsset = typeof LITERT_LM_WASM_ASSETS[number];
+export type LiteRtAsset = (typeof LITERT_LM_WASM_ASSETS)[number];
 
 export function isLiteRtAsset(asset: string | undefined): asset is LiteRtAsset {
   return LITERT_LM_WASM_ASSETS.some((allowedAsset) => allowedAsset === asset);

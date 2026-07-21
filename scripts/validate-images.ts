@@ -48,9 +48,10 @@ function readContentImages(): ImageReference[] {
         }
 
         const source = matter(readFileSync(path, 'utf8')).data;
-        const parsed = collection.name === 'blog'
-          ? blogSchema.parse(source)
-          : worksSchema.parse(source);
+        const parsed =
+          collection.name === 'blog'
+            ? blogSchema.parse(source)
+            : worksSchema.parse(source);
         if (!parsed.image) continue;
 
         const contentId = relative(collectionRoot, path)
@@ -64,7 +65,11 @@ function readContentImages(): ImageReference[] {
           field: 'image.url',
         });
 
-        if (collection.name === 'works' && 'darkUrl' in parsed.image && parsed.image.darkUrl) {
+        if (
+          collection.name === 'works' &&
+          'darkUrl' in parsed.image &&
+          parsed.image.darkUrl
+        ) {
           references.push({
             url: parsed.image.darkUrl,
             contentType: collection.name,
@@ -81,12 +86,17 @@ function readContentImages(): ImageReference[] {
   return references;
 }
 
-async function validateImage(url: string): Promise<{ ok: boolean; error?: string }> {
+async function validateImage(
+  url: string,
+): Promise<{ ok: boolean; error?: string }> {
   try {
     const response = await fetch(url, { method: 'HEAD' });
 
     if (!response.ok) {
-      return { ok: false, error: `HTTP ${response.status}: ${response.statusText}` };
+      return {
+        ok: false,
+        error: `HTTP ${response.status}: ${response.statusText}`,
+      };
     }
 
     const contentType = response.headers.get('content-type');
@@ -96,7 +106,10 @@ async function validateImage(url: string): Promise<{ ok: boolean; error?: string
 
     return { ok: true };
   } catch (error) {
-    return { ok: false, error: error instanceof Error ? error.message : String(error) };
+    return {
+      ok: false,
+      error: error instanceof Error ? error.message : String(error),
+    };
   }
 }
 

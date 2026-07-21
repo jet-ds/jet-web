@@ -18,10 +18,12 @@ export const APPROVED_MDX_COMPONENT_EXTRACTORS = {
 } as const satisfies Record<string, ComponentExtractor>;
 
 function isAstNode(value: unknown): value is AstNode {
-  return typeof value === 'object'
-    && value !== null
-    && 'type' in value
-    && typeof value.type === 'string';
+  return (
+    typeof value === 'object' &&
+    value !== null &&
+    'type' in value &&
+    typeof value.type === 'string'
+  );
 }
 
 function getChildren(node: AstNode): AstNode[] {
@@ -48,10 +50,7 @@ function normalizeText(value: string): string {
 
 function serializeChildrenAsBlocks(node: AstNode): string {
   return normalizeText(
-    getChildren(node)
-      .map(serializeBlock)
-      .filter(Boolean)
-      .join('\n\n'),
+    getChildren(node).map(serializeBlock).filter(Boolean).join('\n\n'),
   );
 }
 
@@ -98,9 +97,10 @@ function approvedComponentPropText(node: AstNode): string[] {
     return [];
   }
 
-  const extractor = APPROVED_MDX_COMPONENT_EXTRACTORS[
-    name as keyof typeof APPROVED_MDX_COMPONENT_EXTRACTORS
-  ];
+  const extractor =
+    APPROVED_MDX_COMPONENT_EXTRACTORS[
+      name as keyof typeof APPROVED_MDX_COMPONENT_EXTRACTORS
+    ];
   const approvedProps = new Set<string>(extractor.staticTextProps);
   if (!Array.isArray(node.attributes)) {
     return [];
@@ -136,7 +136,10 @@ function serializeMdxElement(node: AstNode, inline: boolean): string {
 }
 
 function inlineCode(value: string): string {
-  const longestRun = Math.max(0, ...Array.from(value.matchAll(/`+/g), (match) => match[0].length));
+  const longestRun = Math.max(
+    0,
+    ...Array.from(value.matchAll(/`+/g), (match) => match[0].length),
+  );
   const fence = '`'.repeat(Math.max(1, longestRun + 1));
   return `${fence}${value}${fence}`;
 }
@@ -184,7 +187,10 @@ function serializeInline(node: AstNode): string {
 
 function codeFence(node: AstNode): string {
   const value = getString(node, 'value').replace(/\r\n?/g, '\n');
-  const longestRun = Math.max(0, ...Array.from(value.matchAll(/`+/g), (match) => match[0].length));
+  const longestRun = Math.max(
+    0,
+    ...Array.from(value.matchAll(/`+/g), (match) => match[0].length),
+  );
   const fence = '`'.repeat(Math.max(3, longestRun + 1));
   const language = getString(node, 'lang').trim();
   return `${fence}${language}\n${value}\n${fence}`;
@@ -192,9 +198,10 @@ function codeFence(node: AstNode): string {
 
 function indentContinuation(value: string, width: number): string {
   const indentation = ' '.repeat(width);
-  return value.split('\n').map((line, index) => (
-    index === 0 ? line : `${indentation}${line}`
-  )).join('\n');
+  return value
+    .split('\n')
+    .map((line, index) => (index === 0 ? line : `${indentation}${line}`))
+    .join('\n');
 }
 
 function serializeListItem(node: AstNode, marker: string): string {
@@ -204,16 +211,16 @@ function serializeListItem(node: AstNode, marker: string): string {
     return marker.trimEnd();
   }
 
-  const checked = typeof node.checked === 'boolean'
-    ? `[${node.checked ? 'x' : ' '}] `
-    : '';
+  const checked =
+    typeof node.checked === 'boolean' ? `[${node.checked ? 'x' : ' '}] ` : '';
   const content = children.reduce((serialized, child) => {
     const block = serializeBlock(child);
     if (!block) {
       return serialized;
     }
 
-    const separator = serialized && child.type === 'list' ? '\n' : serialized ? '\n\n' : '';
+    const separator =
+      serialized && child.type === 'list' ? '\n' : serialized ? '\n\n' : '';
     return `${serialized}${separator}${block}`;
   }, '');
   return `${marker}${checked}${indentContinuation(content, marker.length)}`;
@@ -223,15 +230,20 @@ function serializeList(node: AstNode): string {
   const ordered = node.ordered === true;
   const start = typeof node.start === 'number' ? node.start : 1;
 
-  return getChildren(node).map((item, index) => {
-    const marker = ordered ? `${start + index}. ` : '- ';
-    return serializeListItem(item, marker);
-  }).join('\n');
+  return getChildren(node)
+    .map((item, index) => {
+      const marker = ordered ? `${start + index}. ` : '- ';
+      return serializeListItem(item, marker);
+    })
+    .join('\n');
 }
 
 function serializeBlockquote(node: AstNode): string {
   const content = serializeChildrenAsBlocks(node);
-  return content.split('\n').map((line) => line ? `> ${line}` : '>').join('\n');
+  return content
+    .split('\n')
+    .map((line) => (line ? `> ${line}` : '>'))
+    .join('\n');
 }
 
 function serializeTableCell(node: AstNode): string {
@@ -241,18 +253,17 @@ function serializeTableCell(node: AstNode): string {
 }
 
 function serializeTable(node: AstNode): string {
-  const rows = getChildren(node).map((row) => (
-    getChildren(row).map(serializeTableCell)
-  ));
+  const rows = getChildren(node).map((row) =>
+    getChildren(row).map(serializeTableCell),
+  );
 
   if (rows.length === 0) {
     return '';
   }
 
   const width = Math.max(...rows.map((row) => row.length));
-  const serializeRow = (row: string[]) => (
-    `| ${Array.from({ length: width }, (_, index) => row[index] ?? '').join(' | ')} |`
-  );
+  const serializeRow = (row: string[]) =>
+    `| ${Array.from({ length: width }, (_, index) => row[index] ?? '').join(' | ')} |`;
 
   return [
     serializeRow(rows[0]),
@@ -296,10 +307,12 @@ function serializeBlock(node: AstNode): string {
 }
 
 function isSectionHeading(node: AstNode): boolean {
-  return node.type === 'heading'
-    && typeof node.depth === 'number'
-    && node.depth >= 2
-    && node.depth <= 4;
+  return (
+    node.type === 'heading' &&
+    typeof node.depth === 'number' &&
+    node.depth >= 2 &&
+    node.depth <= 4
+  );
 }
 
 export function normalizeMdx(source: string): NormalizedSection[] {
@@ -330,7 +343,10 @@ export function normalizeMdx(source: string): NormalizedSection[] {
 
     const depth = node.depth as number;
     const nextHeading = normalizeText(serializePlainText(node)) || 'Untitled';
-    while (headingStack.length > 0 && headingStack[headingStack.length - 1].depth >= depth) {
+    while (
+      headingStack.length > 0 &&
+      headingStack[headingStack.length - 1].depth >= depth
+    ) {
       headingStack.pop();
     }
     headingStack.push({ depth, heading: nextHeading });

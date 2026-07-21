@@ -25,8 +25,14 @@ describe('publication policy', () => {
   });
 
   it('requires both published and assistant enabled', () => {
-    expect(isAssistantEligible({ status: 'published', assistant: true })).toBe(true);
-    expect(isAssistantEligible({ status: 'published', assistant: false })).toBe(false);
-    expect(isAssistantEligible({ status: 'draft', assistant: true })).toBe(false);
+    expect(isAssistantEligible({ status: 'published', assistant: true })).toBe(
+      true,
+    );
+    expect(isAssistantEligible({ status: 'published', assistant: false })).toBe(
+      false,
+    );
+    expect(isAssistantEligible({ status: 'draft', assistant: true })).toBe(
+      false,
+    );
   });
 });

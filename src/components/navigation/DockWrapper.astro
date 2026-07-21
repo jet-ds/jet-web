@@ -4,7 +4,4 @@ import LiquidGlassDock from './LiquidGlassDock';
 const currentPath = Astro.url.pathname;
 ---
 
-<LiquidGlassDock
-  currentPath={currentPath}
-  client:only="react"
-/>
+<LiquidGlassDock currentPath={currentPath} client:only="react" />

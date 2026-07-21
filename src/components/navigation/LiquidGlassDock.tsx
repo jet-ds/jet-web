@@ -27,9 +27,12 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
   const [hasScrolledOnPage, setHasScrolledOnPage] = useState(false);
 
   // Session-level: Has user discovered button in this browsing session?
-  const [buttonDiscoveredInSession, setButtonDiscoveredInSession] = useState(false);
+  const [buttonDiscoveredInSession, setButtonDiscoveredInSession] =
+    useState(false);
 
-  const [buttonLeftPosition, setButtonLeftPosition] = useState<number | null>(null);
+  const [buttonLeftPosition, setButtonLeftPosition] = useState<number | null>(
+    null,
+  );
 
   const { theme, toggleTheme } = useTheme();
   const isMobile = useMediaQuery('(max-width: 768px)');
@@ -147,10 +150,14 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
   }, [isMobile]);
 
   const Tooltip = ({ text }: { text: string }) => (
-    <div className={`absolute ${isMobile ? 'bottom-20' : 'top-20'} left-1/2 -translate-x-1/2`}>
-      <div className='relative px-2.5 py-0.5 bg-white/90 dark:bg-[#1d1d1f]/80 backdrop-blur-sm text-gray-800 dark:text-white text-xs rounded-md whitespace-nowrap border border-gray-300 dark:border-gray-600'>
+    <div
+      className={`absolute ${isMobile ? 'bottom-20' : 'top-20'} left-1/2 -translate-x-1/2`}
+    >
+      <div className="relative px-2.5 py-0.5 bg-white/90 dark:bg-[#1d1d1f]/80 backdrop-blur-sm text-gray-800 dark:text-white text-xs rounded-md whitespace-nowrap border border-gray-300 dark:border-gray-600">
         {text}
-        <div className={`absolute left-1/2 -translate-x-1/2 ${isMobile ? '-bottom-[5px] rotate-[225deg]' : '-top-[5px] rotate-45'} w-2.5 h-2.5 bg-white/90 dark:bg-[#1d1d1f]/80 backdrop-blur-sm border-t border-l border-gray-300 dark:border-gray-600`} />
+        <div
+          className={`absolute left-1/2 -translate-x-1/2 ${isMobile ? '-bottom-[5px] rotate-[225deg]' : '-top-[5px] rotate-45'} w-2.5 h-2.5 bg-white/90 dark:bg-[#1d1d1f]/80 backdrop-blur-sm border-t border-l border-gray-300 dark:border-gray-600`}
+        />
       </div>
     </div>
   );
@@ -175,12 +182,16 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
         id="site-navigation-dock"
         inert={isDockClosedOnMobile ? true : undefined}
         aria-hidden={isDockClosedOnMobile ? true : undefined}
-        className='fixed bottom-4 lg:bottom-auto lg:top-4 left-1/2 z-50'
+        className="fixed bottom-4 lg:bottom-auto lg:top-4 left-1/2 z-50"
         initial={{ x: '-50%' }}
-        animate={isMobile ? {
-          opacity: dockVisible ? 1 : 0,
-          y: dockVisible ? 0 : 100,
-        } : {}}
+        animate={
+          isMobile
+            ? {
+                opacity: dockVisible ? 1 : 0,
+                y: dockVisible ? 0 : 100,
+              }
+            : {}
+        }
         transition={{ duration: 0.3, ease: 'easeInOut' }}
         style={{
           pointerEvents: 'none',
@@ -198,7 +209,10 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
           opacity={0.9}
           className={`px-2 max-[359px]:px-0 py-3 md:px-3 md:py-6 !overflow-visible ${isDockClosedOnMobile ? 'pointer-events-none' : 'pointer-events-auto'}`}
         >
-          <div ref={dockRef} className='flex items-end space-x-2 max-[359px]:space-x-1 md:space-x-6 overflow-visible'>
+          <div
+            ref={dockRef}
+            className="flex items-end space-x-2 max-[359px]:space-x-1 md:space-x-6 overflow-visible"
+          >
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
               const isActive = isActiveNavItem(currentPath, item.href);
@@ -212,19 +226,27 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
                   tabIndex={isDockClosedOnMobile ? -1 : undefined}
                   onMouseEnter={() => !isMobile && setHoveredIcon(item.id)}
                   onMouseLeave={() => !isMobile && setHoveredIcon(null)}
-                  className='relative dock-icon-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-base focus-visible:ring-offset-2 focus-visible:ring-offset-bg-base rounded-xl'
+                  className="relative dock-icon-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-base focus-visible:ring-offset-2 focus-visible:ring-offset-bg-base rounded-xl"
                   style={{ transformOrigin: 'bottom center' }}
                 >
-                  <div className={`w-10 h-10 max-[359px]:w-9 max-[359px]:h-9 md:w-14 md:h-14 bg-gradient-to-t ${item.gradient} rounded-lg md:rounded-xl flex items-center justify-center shadow-lg transition-transform ${isActive ? 'ring-2 ring-white/50' : ''}`}>
-                    <Icon size={isMobile ? 24 : 32} className='text-white' strokeWidth={2} />
+                  <div
+                    className={`w-10 h-10 max-[359px]:w-9 max-[359px]:h-9 md:w-14 md:h-14 bg-gradient-to-t ${item.gradient} rounded-lg md:rounded-xl flex items-center justify-center shadow-lg transition-transform ${isActive ? 'ring-2 ring-white/50' : ''}`}
+                  >
+                    <Icon
+                      size={isMobile ? 24 : 32}
+                      className="text-white"
+                      strokeWidth={2}
+                    />
                   </div>
-                  {hoveredIcon === item.id && !isMobile && <Tooltip text={item.label} />}
+                  {hoveredIcon === item.id && !isMobile && (
+                    <Tooltip text={item.label} />
+                  )}
                 </a>
               );
             })}
 
-            <div className='flex items-center'>
-              <div className='w-px h-10 md:h-14 bg-black/50 dark:bg-white/50' />
+            <div className="flex items-center">
+              <div className="w-px h-10 md:h-14 bg-black/50 dark:bg-white/50" />
             </div>
 
             <button
@@ -233,18 +255,32 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
               onMouseEnter={() => !isMobile && setHoveredIcon('theme')}
               onMouseLeave={() => !isMobile && setHoveredIcon(null)}
               tabIndex={isDockClosedOnMobile ? -1 : undefined}
-              className='relative dock-icon-container'
+              className="relative dock-icon-container"
               style={{ transformOrigin: 'bottom center' }}
-              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              aria-label={
+                theme === 'dark'
+                  ? 'Switch to light mode'
+                  : 'Switch to dark mode'
+              }
             >
-              <div className='w-10 h-10 max-[359px]:w-9 max-[359px]:h-9 md:w-14 md:h-14 bg-gradient-to-t from-gray-700 to-gray-500 rounded-lg md:rounded-xl flex items-center justify-center shadow-lg transition-transform'>
+              <div className="w-10 h-10 max-[359px]:w-9 max-[359px]:h-9 md:w-14 md:h-14 bg-gradient-to-t from-gray-700 to-gray-500 rounded-lg md:rounded-xl flex items-center justify-center shadow-lg transition-transform">
                 {theme === 'dark' ? (
-                  <Sun size={isMobile ? 24 : 32} className='text-yellow-300' strokeWidth={2} />
+                  <Sun
+                    size={isMobile ? 24 : 32}
+                    className="text-yellow-300"
+                    strokeWidth={2}
+                  />
                 ) : (
-                  <Moon size={isMobile ? 24 : 32} className='text-blue-200' strokeWidth={2} />
+                  <Moon
+                    size={isMobile ? 24 : 32}
+                    className="text-blue-200"
+                    strokeWidth={2}
+                  />
                 )}
               </div>
-              {hoveredIcon === 'theme' && <Tooltip text={theme === 'dark' ? 'Light Mode' : 'Dark Mode'} />}
+              {hoveredIcon === 'theme' && (
+                <Tooltip text={theme === 'dark' ? 'Light Mode' : 'Dark Mode'} />
+              )}
             </button>
           </div>
         </GlassSurface>
@@ -253,7 +289,7 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
       {isMobile && shouldShowButton && buttonLeftPosition !== null && (
         <motion.button
           ref={disclosureButtonRef}
-          className='fixed z-50'
+          className="fixed z-50"
           style={{
             left: buttonLeftPosition,
             bottom: '1rem',

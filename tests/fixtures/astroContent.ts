@@ -12,7 +12,9 @@ interface StubState {
 }
 
 const stateKey = '__egregoreAstroContentStub__';
-const globalState = globalThis as typeof globalThis & { [stateKey]?: StubState };
+const globalState = globalThis as typeof globalThis & {
+  [stateKey]?: StubState;
+};
 
 function state(): StubState {
   globalState[stateKey] ??= { blog: [], works: [], calls: [] };
@@ -34,7 +36,9 @@ export function getAstroContentCalls(): string[] {
   return [...state().calls];
 }
 
-export async function getCollection(name: 'blog' | 'works'): Promise<StubEntry[]> {
+export async function getCollection(
+  name: 'blog' | 'works',
+): Promise<StubEntry[]> {
   state().calls.push(name);
   return state()[name];
 }

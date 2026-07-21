@@ -13,14 +13,18 @@ type Snapshot = {
 
 function runGit(arguments_: string[], encoding: 'buffer'): Buffer;
 function runGit(arguments_: string[], encoding: 'utf8'): string;
-function runGit(arguments_: string[], encoding: 'buffer' | 'utf8'): Buffer | string {
+function runGit(
+  arguments_: string[],
+  encoding: 'buffer' | 'utf8',
+): Buffer | string {
   const result = spawnSync('git', arguments_, {
     cwd: process.cwd(),
     encoding: encoding === 'utf8' ? 'utf8' : undefined,
     maxBuffer: 64 * 1024 * 1024,
     shell: false,
   });
-  if (result.error || result.status !== 0) throw new Error('GIT_SNAPSHOT_FAILED');
+  if (result.error || result.status !== 0)
+    throw new Error('GIT_SNAPSHOT_FAILED');
   return result.stdout;
 }
 
@@ -35,10 +39,10 @@ function hashFile(path: string): string | null {
 
 function isMissingFileError(error: unknown): boolean {
   return (
-    typeof error === 'object'
-    && error !== null
-    && 'code' in error
-    && (error as { code?: unknown }).code === 'ENOENT'
+    typeof error === 'object' &&
+    error !== null &&
+    'code' in error &&
+    (error as { code?: unknown }).code === 'ENOENT'
   );
 }
 
@@ -77,7 +81,10 @@ function changedPaths(before: Snapshot, after: Snapshot): string[] {
     if (before.files.get(path) !== after.files.get(path)) changed.add(path);
   }
   if (before.status !== after.status) {
-    for (const path of [...statusPaths(before.status), ...statusPaths(after.status)]) {
+    for (const path of [
+      ...statusPaths(before.status),
+      ...statusPaths(after.status),
+    ]) {
       changed.add(path);
     }
   }
@@ -107,7 +114,10 @@ export function verifyBuildPurity(): void {
   }
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (
+  process.argv[1] &&
+  resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
   try {
     verifyBuildPurity();
   } catch (error) {

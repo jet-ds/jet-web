@@ -41,7 +41,9 @@ describe('static production boundary', () => {
     expect(existsSync('src/pages/tools/chatbot.astro')).toBe(false);
     expect(existsSync('src/config/chatbot-artifacts.json')).toBe(false);
     expect(existsSync('src/utils/artifact-loader.ts')).toBe(false);
-    expect(readFileSync('.gitignore', 'utf8')).not.toContain('src/config/chatbot-artifacts.json');
+    expect(readFileSync('.gitignore', 'utf8')).not.toContain(
+      'src/config/chatbot-artifacts.json',
+    );
   });
 
   it('publishes the maintained Egregore real-model qualification commands', () => {
@@ -55,7 +57,7 @@ describe('static production boundary', () => {
 
   it('uses exact trailing-slash normalization with the permanent legacy redirect', () => {
     const vercelConfig = existsSync('vercel.json')
-      ? JSON.parse(readFileSync('vercel.json', 'utf8')) as unknown
+      ? (JSON.parse(readFileSync('vercel.json', 'utf8')) as unknown)
       : undefined;
     expect(vercelConfig).toEqual({
       $schema: 'https://openapi.vercel.sh/vercel.json',
@@ -99,7 +101,9 @@ describe('static production boundary', () => {
     expect(astroConfig).toContain(
       "const isProduction = process.env.VERCEL_ENV === 'production';",
     );
-    expect(astroConfig).toContain("const pathname = new URL(page).pathname.replace(/\\/$/, '') || '/';");
+    expect(astroConfig).toContain(
+      "const pathname = new URL(page).pathname.replace(/\\/$/, '') || '/';",
+    );
     expect(astroConfig).toContain("(isProduction || pathname !== '/chatbot')");
     expect(astroConfig).toContain("pathname !== '/tools'");
     expect(astroConfig).toContain("!pathname.startsWith('/tools/')");
@@ -109,16 +113,18 @@ describe('static production boundary', () => {
   });
 
   it('ignores generated verification output directories', () => {
-    assertGeneratedOutputIgnores((path) => spawnSync(
-      'git',
-      ['check-ignore', '--quiet', '--no-index', path],
-      { cwd: process.cwd() },
-    ).status === 0);
+    assertGeneratedOutputIgnores(
+      (path) =>
+        spawnSync('git', ['check-ignore', '--quiet', '--no-index', path], {
+          cwd: process.cwd(),
+        }).status === 0,
+    );
   });
 
   it('isolates disposable Playwright output from preserved release evidence', () => {
     expect(playwrightConfig.outputDir).toBe('test-results/playwright');
-    expect(productionPlaywrightConfig.outputDir).toBe('test-results/playwright');
+    expect(productionPlaywrightConfig.outputDir).toBe(
+      'test-results/playwright',
+    );
   });
-
 });

@@ -15,7 +15,11 @@ import {
   STEMMER_VERSION,
 } from '../../../src/features/egregore/selection/searchIndex';
 
-function source(slug: string, body: string, tags: string[] = []): AssistantSourceEntry {
+function source(
+  slug: string,
+  body: string,
+  tags: string[] = [],
+): AssistantSourceEntry {
   return {
     collection: 'blog',
     slug,
@@ -24,7 +28,8 @@ function source(slug: string, body: string, tags: string[] = []): AssistantSourc
     body,
     data: {
       title: slug === 'metadata' ? 'Astral title' : `Title ${slug}`,
-      description: slug === 'metadata' ? 'Nebular description' : `Description ${slug}`,
+      description:
+        slug === 'metadata' ? 'Nebular description' : `Description ${slug}`,
       pubDate: new Date('2026-01-01T00:00:00.000Z'),
       author: 'Jet Sanchez',
       tags,
@@ -36,10 +41,17 @@ function source(slug: string, body: string, tags: string[] = []): AssistantSourc
 
 function buildFixture(order: 'forward' | 'reverse' = 'forward') {
   const entries = [
-    source('metadata', 'Introduction text.\n\n## Orbital heading\n\nRunning retrieval workflows.', ['quasar-tag']),
+    source(
+      'metadata',
+      'Introduction text.\n\n## Orbital heading\n\nRunning retrieval workflows.',
+      ['quasar-tag'],
+    ),
     source('prefix', 'A retrieval system indexes evidence.'),
   ];
-  return buildKnowledgeBase(order === 'forward' ? entries : entries.reverse(), 'abc');
+  return buildKnowledgeBase(
+    order === 'forward' ? entries : entries.reverse(),
+    'abc',
+  );
 }
 
 function unicodeContent(secondForm: 'NFC' | 'NFD'): KnowledgePackage {
@@ -133,15 +145,20 @@ describe('deterministic MiniSearch artifact', () => {
   it('is byte-equivalent for canonical content regardless of source input order', () => {
     const forward = buildFixture('forward');
     const reverse = buildFixture('reverse');
-    expect(buildSearchIndexArtifact(forward.content))
-      .toEqual(buildSearchIndexArtifact(reverse.content));
+    expect(buildSearchIndexArtifact(forward.content)).toEqual(
+      buildSearchIndexArtifact(reverse.content),
+    );
   });
 
   it('indexes every canonical chunk exactly once', () => {
     const result = buildFixture();
 
-    expect(result.index.chunkIds).toEqual(result.content.chunks.map((chunk) => chunk.id));
-    expect(new Set(result.index.chunkIds).size).toBe(result.content.chunks.length);
+    expect(result.index.chunkIds).toEqual(
+      result.content.chunks.map((chunk) => chunk.id),
+    );
+    expect(new Set(result.index.chunkIds).size).toBe(
+      result.content.chunks.length,
+    );
     expect(result.index.chunkCount).toBe(result.content.chunks.length);
   });
 
@@ -152,27 +169,58 @@ describe('deterministic MiniSearch artifact', () => {
 
     const mixedArtifact = buildSearchIndexArtifact(mixed);
     const canonicalArtifact = buildSearchIndexArtifact(canonical);
-    expect(canonicalSerialize(mixedArtifact)).toBe(canonicalSerialize(canonicalArtifact));
+    expect(canonicalSerialize(mixedArtifact)).toBe(
+      canonicalSerialize(canonicalArtifact),
+    );
 
     const deliveredArtifact = JSON.parse(
       canonicalSerialize(mixedArtifact),
     ) as typeof mixedArtifact;
     const index = await loadSearchIndex(deliveredArtifact, mixed.corpusVersion);
     const expectedIds = mixed.chunks.map((chunk) => chunk.id).sort();
-    for (const term of ['café', 'résumé', 'crème', 'évidence', 'touché', 'cafe\u0301']) {
-      expect(index.search(term).map((result) => result.id).sort()).toEqual(expectedIds);
+    for (const term of [
+      'café',
+      'résumé',
+      'crème',
+      'évidence',
+      'touché',
+      'cafe\u0301',
+    ]) {
+      expect(
+        index
+          .search(term)
+          .map((result) => result.id)
+          .sort(),
+      ).toEqual(expectedIds);
     }
   });
 
   it('searches metadata and applies stop words, stemming, and five-character prefixes', async () => {
     const fixture = buildFixture();
-    const index = await loadSearchIndex(fixture.index, fixture.content.corpusVersion);
+    const index = await loadSearchIndex(
+      fixture.index,
+      fixture.content.corpusVersion,
+    );
     const metadataDocumentId = 'blog:metadata';
 
-    for (const term of ['astral', 'nebular', 'quasar-tag', 'orbital', 'running']) {
-      expect(index.search(term).some((result) => result.id.startsWith(metadataDocumentId))).toBe(true);
+    for (const term of [
+      'astral',
+      'nebular',
+      'quasar-tag',
+      'orbital',
+      'running',
+    ]) {
+      expect(
+        index
+          .search(term)
+          .some((result) => result.id.startsWith(metadataDocumentId)),
+      ).toBe(true);
     }
-    expect(index.search('runs').some((result) => result.id.startsWith(metadataDocumentId))).toBe(true);
+    expect(
+      index
+        .search('runs')
+        .some((result) => result.id.startsWith(metadataDocumentId)),
+    ).toBe(true);
     expect(index.search('the')).toEqual([]);
     expect(index.search('retri').length).toBeGreaterThan(0);
     expect(index.search('retr')).toEqual([]);
@@ -191,7 +239,9 @@ describe('deterministic MiniSearch artifact', () => {
   it('hydrates with the exact checked-in options', async () => {
     const fixture = buildFixture();
     const implementation = MiniSearch.loadJSAsync.bind(MiniSearch);
-    const spy = vi.spyOn(MiniSearch, 'loadJSAsync').mockImplementation(implementation);
+    const spy = vi
+      .spyOn(MiniSearch, 'loadJSAsync')
+      .mockImplementation(implementation);
 
     await loadSearchIndex(fixture.index, fixture.content.corpusVersion);
 
@@ -208,7 +258,9 @@ describe('deterministic MiniSearch artifact', () => {
     const fixture = buildFixture();
     const stale = { ...fixture.index, ...mutation } as typeof fixture.index;
 
-    await expect(loadSearchIndex(stale, fixture.content.corpusVersion)).rejects.toThrow(/version/i);
+    await expect(
+      loadSearchIndex(stale, fixture.content.corpusVersion),
+    ).rejects.toThrow(/version/i);
   });
 
   it('pins the evaluated index dependency versions', () => {

@@ -19,69 +19,95 @@ describe('real-model Partytown privacy classifiers', () => {
   it('accepts only a query-free and hash-free same-origin UUID-v4 blob script', () => {
     const scriptRequest = requestShape('GET', 'script');
 
-    expect(isPartytownBlobScript(
-      scriptRequest,
-      new URL(`blob:${origin}/${uuid}`),
-      origin,
-    )).toBe(true);
-    expect(isPartytownBlobScript(
-      scriptRequest,
-      new URL(`blob:${origin}/${uuid}?unexpected`),
-      origin,
-    )).toBe(false);
-    expect(isPartytownBlobScript(
-      scriptRequest,
-      new URL(`blob:${origin}/${uuid}#unexpected`),
-      origin,
-    )).toBe(false);
-    expect(isPartytownBlobScript(
-      scriptRequest,
-      new URL(`blob:https://example.com/${uuid}`),
-      origin,
-    )).toBe(false);
-    expect(isPartytownBlobScript(
-      requestShape('POST', 'script'),
-      new URL(`blob:${origin}/${uuid}`),
-      origin,
-    )).toBe(false);
+    expect(
+      isPartytownBlobScript(
+        scriptRequest,
+        new URL(`blob:${origin}/${uuid}`),
+        origin,
+      ),
+    ).toBe(true);
+    expect(
+      isPartytownBlobScript(
+        scriptRequest,
+        new URL(`blob:${origin}/${uuid}?unexpected`),
+        origin,
+      ),
+    ).toBe(false);
+    expect(
+      isPartytownBlobScript(
+        scriptRequest,
+        new URL(`blob:${origin}/${uuid}#unexpected`),
+        origin,
+      ),
+    ).toBe(false);
+    expect(
+      isPartytownBlobScript(
+        scriptRequest,
+        new URL(`blob:https://example.com/${uuid}`),
+        origin,
+      ),
+    ).toBe(false);
+    expect(
+      isPartytownBlobScript(
+        requestShape('POST', 'script'),
+        new URL(`blob:${origin}/${uuid}`),
+        origin,
+      ),
+    ).toBe(false);
   });
 
   it('accepts only the fixed timestamped same-origin sandbox document', () => {
     const documentRequest = requestShape('GET', 'document');
     const valid = `${origin}/~partytown/partytown-sandbox-sw.html?1721157600000`;
 
-    expect(isPartytownSandboxDocument(documentRequest, new URL(valid), origin)).toBe(true);
-    expect(isPartytownSandboxDocument(
-      documentRequest,
-      new URL(`${valid}&extra=1`),
-      origin,
-    )).toBe(false);
-    expect(isPartytownSandboxDocument(
-      documentRequest,
-      new URL(`${origin}/~partytown/other.html?1721157600000`),
-      origin,
-    )).toBe(false);
-    expect(isPartytownSandboxDocument(
-      requestShape('GET', 'script'),
-      new URL(valid),
-      origin,
-    )).toBe(false);
+    expect(
+      isPartytownSandboxDocument(documentRequest, new URL(valid), origin),
+    ).toBe(true);
+    expect(
+      isPartytownSandboxDocument(
+        documentRequest,
+        new URL(`${valid}&extra=1`),
+        origin,
+      ),
+    ).toBe(false);
+    expect(
+      isPartytownSandboxDocument(
+        documentRequest,
+        new URL(`${origin}/~partytown/other.html?1721157600000`),
+        origin,
+      ),
+    ).toBe(false);
+    expect(
+      isPartytownSandboxDocument(
+        requestShape('GET', 'script'),
+        new URL(valid),
+        origin,
+      ),
+    ).toBe(false);
   });
 
   it('allows only the infrastructure bypass cookie during protected Preview smoke', () => {
     expect(isAllowedDeploymentProtectionCookie(undefined, false)).toBe(true);
-    expect(isAllowedDeploymentProtectionCookie(
-      '_vercel_jwt=header.payload.signature',
-      true,
-    )).toBe(true);
-    expect(isAllowedDeploymentProtectionCookie(
-      '_vercel_jwt=header.payload.signature',
+    expect(
+      isAllowedDeploymentProtectionCookie(
+        '_vercel_jwt=header.payload.signature',
+        true,
+      ),
+    ).toBe(true);
+    expect(
+      isAllowedDeploymentProtectionCookie(
+        '_vercel_jwt=header.payload.signature',
+        false,
+      ),
+    ).toBe(false);
+    expect(
+      isAllowedDeploymentProtectionCookie(
+        '_vercel_jwt=header.payload.signature; other=value',
+        true,
+      ),
+    ).toBe(false);
+    expect(isAllowedDeploymentProtectionCookie('other=value', true)).toBe(
       false,
-    )).toBe(false);
-    expect(isAllowedDeploymentProtectionCookie(
-      '_vercel_jwt=header.payload.signature; other=value',
-      true,
-    )).toBe(false);
-    expect(isAllowedDeploymentProtectionCookie('other=value', true)).toBe(false);
+    );
   });
 });

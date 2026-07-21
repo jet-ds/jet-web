@@ -51,10 +51,12 @@ function validStatus(value: unknown): value is PublicationStatus {
   return value === 'draft' || value === 'published';
 }
 
-function validatedPublication(record: ContentValidationRecord): PublicationData | undefined {
+function validatedPublication(
+  record: ContentValidationRecord,
+): PublicationData | undefined {
   if (
-    !validStatus(record.status)
-    || (record.assistant !== undefined && typeof record.assistant !== 'boolean')
+    !validStatus(record.status) ||
+    (record.assistant !== undefined && typeof record.assistant !== 'boolean')
   ) {
     return undefined;
   }
@@ -70,8 +72,8 @@ export function validateContentRecords(
 
   for (const record of records) {
     const statusIsValid = validStatus(record.status);
-    const assistantIsValid = record.assistant === undefined
-      || typeof record.assistant === 'boolean';
+    const assistantIsValid =
+      record.assistant === undefined || typeof record.assistant === 'boolean';
 
     if (record.status === undefined) {
       errors.push({
@@ -175,24 +177,28 @@ export function assertGeneratedAssistantSources(
   return generatedCanonicalIds.flatMap((canonicalId) => {
     const record = recordsByCanonicalId.get(normalizeCanonicalId(canonicalId));
     if (record === undefined) {
-      return [{
-        code: 'generated-source-ineligible' as const,
-        path: `generated:${canonicalId}`,
-        message: `Generated assistant source does not match a content record: ${canonicalId}.`,
-      }];
+      return [
+        {
+          code: 'generated-source-ineligible' as const,
+          path: `generated:${canonicalId}`,
+          message: `Generated assistant source does not match a content record: ${canonicalId}.`,
+        },
+      ];
     }
 
     const publication = validatedPublication(record);
     if (
-      !record.tracked
-      || publication === undefined
-      || !isAssistantEligible(publication)
+      !record.tracked ||
+      publication === undefined ||
+      !isAssistantEligible(publication)
     ) {
-      return [{
-        code: 'generated-source-ineligible' as const,
-        path: record.path,
-        message: `Generated assistant source is not eligible and tracked: ${canonicalId}.`,
-      }];
+      return [
+        {
+          code: 'generated-source-ineligible' as const,
+          path: record.path,
+          message: `Generated assistant source is not eligible and tracked: ${canonicalId}.`,
+        },
+      ];
     }
 
     return [];

@@ -12,6 +12,8 @@ docs/verification/baselines/
 LICENSES/
 THIRD_PARTY_NOTICES.md
 src/data/**/*.mdx
+# prettier-plugin-astro 0.14.1 cannot parse conditional raw script bodies.
+src/components/seo/GoogleAnalytics.astro
 public/images-staging/
 public/**/*.avif
 public/**/*.bin

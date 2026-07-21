@@ -1,9 +1,4 @@
-import {
-  existsSync,
-  readFileSync,
-  readdirSync,
-  statSync,
-} from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -25,7 +20,7 @@ export const FORBIDDEN_PRODUCTION_ARTIFACT_MARKERS = [
 
 export interface ForbiddenProductionArtifact {
   path: string;
-  marker: typeof FORBIDDEN_PRODUCTION_ARTIFACT_MARKERS[number];
+  marker: (typeof FORBIDDEN_PRODUCTION_ARTIFACT_MARKERS)[number];
 }
 
 function emittedFiles(directory: string): string[] {
@@ -67,9 +62,11 @@ export function assertProductionArtifactsContainNoFakeRuntime(
 ): void {
   const findings = findForbiddenProductionArtifacts(directory);
   if (findings.length === 0) return;
-  throw new Error(`FORBIDDEN_PRODUCTION_ARTIFACT_CONTENT:${findings
-    .map(({ marker, path }) => `${path}:${marker}`)
-    .join(',')}`);
+  throw new Error(
+    `FORBIDDEN_PRODUCTION_ARTIFACT_CONTENT:${findings
+      .map(({ marker, path }) => `${path}:${marker}`)
+      .join(',')}`,
+  );
 }
 
 const REQUIRED_LICENSE_ARTIFACTS = [
@@ -114,19 +111,25 @@ export function assertProductionLicenseArtifacts(
   for (const artifact of REQUIRED_LICENSE_ARTIFACTS) {
     const emittedPath = resolve(root, artifact.emittedPath);
     if (!existsSync(emittedPath)) {
-      throw new Error(`PRODUCTION_LICENSE_ARTIFACT_MISSING:${artifact.emittedPath}`);
+      throw new Error(
+        `PRODUCTION_LICENSE_ARTIFACT_MISSING:${artifact.emittedPath}`,
+      );
     }
 
     const emitted = readFileSync(emittedPath);
     const expected = readFileSync(resolve(artifact.sourcePath));
     if (!emitted.equals(expected)) {
-      throw new Error(`PRODUCTION_LICENSE_ARTIFACT_MISMATCH:${artifact.emittedPath}`);
+      throw new Error(
+        `PRODUCTION_LICENSE_ARTIFACT_MISMATCH:${artifact.emittedPath}`,
+      );
     }
   }
 
   const licensePagePath = resolve(root, LICENSE_PAGE_ARTIFACT);
   if (!existsSync(licensePagePath)) {
-    throw new Error(`PRODUCTION_LICENSE_ARTIFACT_MISSING:${LICENSE_PAGE_ARTIFACT}`);
+    throw new Error(
+      `PRODUCTION_LICENSE_ARTIFACT_MISSING:${LICENSE_PAGE_ARTIFACT}`,
+    );
   }
 
   const licensePage = readFileSync(licensePagePath, 'utf8');
@@ -147,18 +150,25 @@ export function assertProductionRuntimeArtifacts(
     const emittedRelativePath = `assistant/runtime/litert-lm/0.14.0/${asset}`;
     const emittedPath = resolve(root, emittedRelativePath);
     if (!existsSync(emittedPath)) {
-      throw new Error(`PRODUCTION_RUNTIME_ARTIFACT_MISSING:${emittedRelativePath}`);
+      throw new Error(
+        `PRODUCTION_RUNTIME_ARTIFACT_MISSING:${emittedRelativePath}`,
+      );
     }
 
     const emitted = readFileSync(emittedPath);
     const expected = readFileSync(resolveLiteRtAssetPath(asset));
     if (!emitted.equals(expected)) {
-      throw new Error(`PRODUCTION_RUNTIME_ARTIFACT_MISMATCH:${emittedRelativePath}`);
+      throw new Error(
+        `PRODUCTION_RUNTIME_ARTIFACT_MISMATCH:${emittedRelativePath}`,
+      );
     }
   }
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (
+  process.argv[1] &&
+  resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
   try {
     const directory = process.argv[2] ?? resolve('dist');
     assertProductionArtifactsContainNoFakeRuntime(directory);
@@ -169,7 +179,9 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : 'UNEXPECTED_ERROR';
-    process.stderr.write(`Production artifact verification failed: ${message}\n`);
+    process.stderr.write(
+      `Production artifact verification failed: ${message}\n`,
+    );
     process.exitCode = 1;
   }
 }

@@ -8,9 +8,8 @@ import {
 
 const STORAGE_SAFETY_MARGIN_BYTES = 512 * 1024 * 1024;
 
-export const MIN_RECOMMENDED_AVAILABLE_STORAGE_BYTES = (
-  EGREGORE_MODEL.bytes + STORAGE_SAFETY_MARGIN_BYTES
-);
+export const MIN_RECOMMENDED_AVAILABLE_STORAGE_BYTES =
+  EGREGORE_MODEL.bytes + STORAGE_SAFETY_MARGIN_BYTES;
 
 export interface CapabilityEnvironment {
   secureContext: boolean;
@@ -83,14 +82,16 @@ function finiteNonNegative(value: number | undefined): number | null {
     : null;
 }
 
-function toStorageEstimate(
-  estimate: { quota?: number; usage?: number },
-): CapabilityStorageEstimate {
+function toStorageEstimate(estimate: {
+  quota?: number;
+  usage?: number;
+}): CapabilityStorageEstimate {
   const quotaBytes = finiteNonNegative(estimate.quota);
   const usageBytes = finiteNonNegative(estimate.usage);
-  const availableBytes = quotaBytes === null || usageBytes === null
-    ? null
-    : Math.max(0, quotaBytes - usageBytes);
+  const availableBytes =
+    quotaBytes === null || usageBytes === null
+      ? null
+      : Math.max(0, quotaBytes - usageBytes);
 
   return { quotaBytes, usageBytes, availableBytes };
 }
@@ -102,7 +103,7 @@ export async function checkBrowserCapabilities(
     return unsupportedReport(
       environment,
       'insecure-context',
-      "Egregore requires a secure browser context.",
+      'Egregore requires a secure browser context.',
     );
   }
 
@@ -110,7 +111,7 @@ export async function checkBrowserCapabilities(
     return unsupportedReport(
       environment,
       'webgpu-unavailable',
-      "This browser does not expose the WebGPU support Egregore needs.",
+      'This browser does not expose the WebGPU support Egregore needs.',
     );
   }
 
@@ -121,7 +122,7 @@ export async function checkBrowserCapabilities(
     return unsupportedReport(
       environment,
       'adapter-unavailable',
-      "This browser could not provide a WebGPU adapter for Egregore.",
+      'This browser could not provide a WebGPU adapter for Egregore.',
       false,
       cause,
     );
@@ -131,7 +132,7 @@ export async function checkBrowserCapabilities(
     return unsupportedReport(
       environment,
       'adapter-unavailable',
-      "This browser could not provide a WebGPU adapter for Egregore.",
+      'This browser could not provide a WebGPU adapter for Egregore.',
     );
   }
 
@@ -142,22 +143,26 @@ export async function checkBrowserCapabilities(
     try {
       storageEstimate = toStorageEstimate(await environment.storage.estimate());
       if (
-        storageEstimate.availableBytes !== null
-        && storageEstimate.availableBytes < MIN_RECOMMENDED_AVAILABLE_STORAGE_BYTES
+        storageEstimate.availableBytes !== null &&
+        storageEstimate.availableBytes < MIN_RECOMMENDED_AVAILABLE_STORAGE_BYTES
       ) {
-        warnings.push(createRuntimeError(
-          'storage-warning',
-          'Reported browser storage may be too low for the local model download.',
-          true,
-        ));
+        warnings.push(
+          createRuntimeError(
+            'storage-warning',
+            'Reported browser storage may be too low for the local model download.',
+            true,
+          ),
+        );
       }
     } catch (cause) {
-      warnings.push(createRuntimeError(
-        'storage-warning',
-        'Browser storage availability could not be estimated reliably.',
-        true,
-        cause,
-      ));
+      warnings.push(
+        createRuntimeError(
+          'storage-warning',
+          'Browser storage availability could not be estimated reliably.',
+          true,
+          cause,
+        ),
+      );
     }
   }
 

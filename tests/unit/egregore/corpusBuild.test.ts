@@ -1,6 +1,9 @@
 import { createHash } from 'node:crypto';
 import { describe, expect, it } from 'vitest';
-import type { BlogFrontmatter, WorksFrontmatter } from '../../../src/schemas/content';
+import type {
+  BlogFrontmatter,
+  WorksFrontmatter,
+} from '../../../src/schemas/content';
 import {
   buildKnowledgeBase,
   canonicalSerialize,
@@ -52,7 +55,9 @@ const worksData: WorksFrontmatter = {
   demo: 'https://example.com/demo',
 };
 
-function blogEntry(overrides: Partial<AssistantSourceEntry> = {}): AssistantSourceEntry {
+function blogEntry(
+  overrides: Partial<AssistantSourceEntry> = {},
+): AssistantSourceEntry {
   return {
     collection: 'blog',
     slug: 'included',
@@ -64,7 +69,9 @@ function blogEntry(overrides: Partial<AssistantSourceEntry> = {}): AssistantSour
   } as AssistantSourceEntry;
 }
 
-function worksEntry(overrides: Partial<AssistantSourceEntry> = {}): AssistantSourceEntry {
+function worksEntry(
+  overrides: Partial<AssistantSourceEntry> = {},
+): AssistantSourceEntry {
   return {
     collection: 'works',
     slug: 'research-project',
@@ -86,10 +93,13 @@ describe('knowledge-base generation', () => {
     const input = [excluded, blogEntry()];
     const result = buildKnowledgeBase(input, 'abc');
 
-    expect(result.content.documents.map((document) => document.id)).toEqual(['blog:included']);
+    expect(result.content.documents.map((document) => document.id)).toEqual([
+      'blog:included',
+    ]);
     expect(result.manifest.corpusVersion).toMatch(/^[a-f0-9]{64}$/);
-    expect(buildKnowledgeBase(input, 'abc').manifest.corpusVersion)
-      .toBe(buildKnowledgeBase(input, 'abc').manifest.corpusVersion);
+    expect(buildKnowledgeBase(input, 'abc').manifest.corpusVersion).toBe(
+      buildKnowledgeBase(input, 'abc').manifest.corpusVersion,
+    );
   });
 
   it('rejects assistant-enabled drafts before filtering', () => {
@@ -97,12 +107,15 @@ describe('knowledge-base generation', () => {
       data: { ...structuredClone(blogData), status: 'draft', assistant: true },
     });
 
-    expect(() => buildKnowledgeBase([draft], 'abc')).toThrow(/assistant.*published/i);
+    expect(() => buildKnowledgeBase([draft], 'abc')).toThrow(
+      /assistant.*published/i,
+    );
   });
 
   it('rejects eligible untracked sources inside the generator', () => {
-    expect(() => buildKnowledgeBase([blogEntry({ tracked: false })], 'abc'))
-      .toThrow(/tracked/i);
+    expect(() =>
+      buildKnowledgeBase([blogEntry({ tracked: false })], 'abc'),
+    ).toThrow(/tracked/i);
   });
 
   it('sorts canonical arrays independently of source input order', () => {
@@ -110,7 +123,9 @@ describe('knowledge-base generation', () => {
     const second = buildKnowledgeBase([blogEntry(), worksEntry()], 'same-sha');
 
     expect(canonicalSerialize(first)).toBe(canonicalSerialize(second));
-    expect(first.content.documents.map(({ id, order }) => ({ id, order }))).toEqual([
+    expect(
+      first.content.documents.map(({ id, order }) => ({ id, order })),
+    ).toEqual([
       { id: 'blog:included', order: 0 },
       { id: 'works:research-project', order: 1 },
     ]);
@@ -119,8 +134,12 @@ describe('knowledge-base generation', () => {
   it('binds the full-corpus statistic to the canonical runtime source payload', () => {
     const first = buildKnowledgeBase([worksEntry(), blogEntry()], 'same-sha');
     const second = buildKnowledgeBase([blogEntry(), worksEntry()], 'same-sha');
-    const documentsById = new Map(first.content.documents.map((document) => [document.id, document]));
-    const sectionsById = new Map(first.content.sections.map((section) => [section.id, section]));
+    const documentsById = new Map(
+      first.content.documents.map((document) => [document.id, document]),
+    );
+    const sectionsById = new Map(
+      first.content.sections.map((section) => [section.id, section]),
+    );
     const payload = first.content.chunks.map((chunk, index) => {
       const document = documentsById.get(chunk.documentId)!;
       const section = sectionsById.get(chunk.sectionId)!;
@@ -137,9 +156,15 @@ describe('knowledge-base generation', () => {
     });
     const exactTokens = serializeSourcePayload(payload).estimatedTokens;
 
-    expect(first.content.statistics.fullCorpusKnowledgeTokens).toBe(exactTokens);
-    expect(first.manifest.statistics.fullCorpusKnowledgeTokens).toBe(exactTokens);
-    expect(second.manifest.statistics.fullCorpusKnowledgeTokens).toBe(exactTokens);
+    expect(first.content.statistics.fullCorpusKnowledgeTokens).toBe(
+      exactTokens,
+    );
+    expect(first.manifest.statistics.fullCorpusKnowledgeTokens).toBe(
+      exactTokens,
+    );
+    expect(second.manifest.statistics.fullCorpusKnowledgeTokens).toBe(
+      exactTokens,
+    );
     expect(first.content.schemaVersion).toBe('1.0.0');
   });
 
@@ -148,7 +173,9 @@ describe('knowledge-base generation', () => {
     const second = buildKnowledgeBase([blogEntry()], 'commit-b');
 
     expect(first.manifest.corpusVersion).toBe(second.manifest.corpusVersion);
-    expect(first.manifest.contentSha256).not.toBe(second.manifest.contentSha256);
+    expect(first.manifest.contentSha256).not.toBe(
+      second.manifest.contentSha256,
+    );
     expect(first.content.sourceCommit).toBe('commit-a');
     expect(second.content.sourceCommit).toBe('commit-b');
   });
@@ -164,22 +191,41 @@ describe('knowledge-base generation', () => {
       canonicalUrl: 'https://jetsanchez.com/blog/included/',
       sourceHash: computeSourceHash(blogData, blogEntry().body),
     });
-    expect(result.content.sections.every((section, index) => section.order === index)).toBe(true);
-    expect(result.content.chunks.every((chunk, index) => chunk.order === index)).toBe(true);
+    expect(
+      result.content.sections.every(
+        (section, index) => section.order === index,
+      ),
+    ).toBe(true);
+    expect(
+      result.content.chunks.every((chunk, index) => chunk.order === index),
+    ).toBe(true);
   });
 
   it('rejects duplicate final document and canonical URL identities', () => {
-    expect(() => buildKnowledgeBase([
-      blogEntry(),
-      blogEntry({ sourcePath: 'src/data/blog/duplicate.mdx' }),
-    ], 'abc')).toThrow(/duplicate.*(?:document|canonical)/i);
+    expect(() =>
+      buildKnowledgeBase(
+        [blogEntry(), blogEntry({ sourcePath: 'src/data/blog/duplicate.mdx' })],
+        'abc',
+      ),
+    ).toThrow(/duplicate.*(?:document|canonical)/i);
   });
 
   it('rejects distinct source identities that normalize to one canonical URL', () => {
-    expect(() => buildKnowledgeBase([
-      blogEntry({ slug: 'same slug', sourcePath: 'src/data/blog/same-space.mdx' }),
-      blogEntry({ slug: 'same%20slug', sourcePath: 'src/data/blog/same-encoded.mdx' }),
-    ], 'abc')).toThrow(/duplicate canonical url/i);
+    expect(() =>
+      buildKnowledgeBase(
+        [
+          blogEntry({
+            slug: 'same slug',
+            sourcePath: 'src/data/blog/same-space.mdx',
+          }),
+          blogEntry({
+            slug: 'same%20slug',
+            sourcePath: 'src/data/blog/same-encoded.mdx',
+          }),
+        ],
+        'abc',
+      ),
+    ).toThrow(/duplicate canonical url/i);
   });
 
   it('fails closed before NFC-equivalent identities can enter canonical output', () => {
@@ -192,13 +238,20 @@ describe('knowledge-base generation', () => {
       sourcePath: 'src/data/blog/cafe-nfd.mdx',
     });
 
-    expect(() => buildKnowledgeBase([nfc, nfd], 'abc')).toThrow(/duplicate document id/i);
+    expect(() => buildKnowledgeBase([nfc, nfd], 'abc')).toThrow(
+      /duplicate document id/i,
+    );
   });
 
   it('normalizes heading and chunk identity inputs before hashing and serialization', () => {
-    const result = buildKnowledgeBase([blogEntry({
-      body: '## Cafe\u0301\n\nCafe\u0301 evidence.',
-    })], 'abc');
+    const result = buildKnowledgeBase(
+      [
+        blogEntry({
+          body: '## Cafe\u0301\n\nCafe\u0301 evidence.',
+        }),
+      ],
+      'abc',
+    );
     const section = result.content.sections[1];
     const chunk = result.content.chunks[0];
 
@@ -212,71 +265,232 @@ describe('knowledge-base generation', () => {
 });
 
 describe('source hash contract', () => {
-  function changedBlog(mutate: (value: BlogFrontmatter) => void): BlogFrontmatter {
+  function changedBlog(
+    mutate: (value: BlogFrontmatter) => void,
+  ): BlogFrontmatter {
     const value = structuredClone(blogData);
     mutate(value);
     return value;
   }
 
-  function changedWorks(mutate: (value: WorksFrontmatter) => void): WorksFrontmatter {
+  function changedWorks(
+    mutate: (value: WorksFrontmatter) => void,
+  ): WorksFrontmatter {
     const value = structuredClone(worksData);
     mutate(value);
     return value;
   }
 
-  const cases: Array<[
-    string,
-    BlogFrontmatter | WorksFrontmatter,
-    BlogFrontmatter | WorksFrontmatter,
-  ]> = [
-    ['title', blogData, changedBlog((value) => { value.title = 'Changed'; })],
-    ['SEO title', blogData, changedBlog((value) => { value.seoTitle = 'Changed'; })],
-    ['SEO description', blogData, changedBlog((value) => { value.seoDescription = 'Changed'; })],
-    ['description', blogData, changedBlog((value) => { value.description = 'Changed'; })],
-    ['status', blogData, changedBlog((value) => { value.status = 'draft'; })],
-    ['assistant', blogData, changedBlog((value) => { value.assistant = false; })],
-    ['pubDate', blogData, changedBlog((value) => { value.pubDate = new Date('2026-02-01'); })],
-    ['updatedDate', blogData, changedBlog((value) => { value.updatedDate = new Date('2026-02-02'); })],
-    ['author', blogData, changedBlog((value) => { value.author = 'Changed'; })],
-    ['tags', blogData, changedBlog((value) => { value.tags = [...value.tags].reverse(); })],
-    ['blog image URL', blogData, changedBlog((value) => {
-      value.image!.url = 'https://example.com/changed.png';
-    })],
-    ['blog image alt', blogData, changedBlog((value) => { value.image!.alt = 'Changed'; })],
-    ['blog image width', blogData, changedBlog((value) => { value.image!.width = 1280; })],
-    ['blog image height', blogData, changedBlog((value) => { value.image!.height = 720; })],
-    ['type', worksData, changedWorks((value) => { value.type = 'project'; })],
-    ['date', worksData, changedWorks((value) => { value.date = new Date('2025-09-01'); })],
-    ['featured', worksData, changedWorks((value) => { value.featured = false; })],
-    ['work image URL', worksData, changedWorks((value) => {
-      value.image!.url = 'https://example.com/changed.png';
-    })],
-    ['work image alt', worksData, changedWorks((value) => { value.image!.alt = 'Changed'; })],
-    ['link label', worksData, changedWorks((value) => { value.links![0].label = 'Changed'; })],
-    ['link URL', worksData, changedWorks((value) => {
-      value.links![0].url = 'https://example.com/changed';
-    })],
-    ['venue', worksData, changedWorks((value) => { value.venue = 'Changed'; })],
-    ['abstract', worksData, changedWorks((value) => { value.abstract = 'Changed'; })],
-    ['technologies', worksData, changedWorks((value) => {
-      value.technologies = [...value.technologies!, 'WebGPU'];
-    })],
-    ['repository', worksData, changedWorks((value) => {
-      value.repository = 'https://example.com/changed';
-    })],
-    ['demo', worksData, changedWorks((value) => { value.demo = 'https://example.com/changed'; })],
+  const cases: Array<
+    [
+      string,
+      BlogFrontmatter | WorksFrontmatter,
+      BlogFrontmatter | WorksFrontmatter,
+    ]
+  > = [
+    [
+      'title',
+      blogData,
+      changedBlog((value) => {
+        value.title = 'Changed';
+      }),
+    ],
+    [
+      'SEO title',
+      blogData,
+      changedBlog((value) => {
+        value.seoTitle = 'Changed';
+      }),
+    ],
+    [
+      'SEO description',
+      blogData,
+      changedBlog((value) => {
+        value.seoDescription = 'Changed';
+      }),
+    ],
+    [
+      'description',
+      blogData,
+      changedBlog((value) => {
+        value.description = 'Changed';
+      }),
+    ],
+    [
+      'status',
+      blogData,
+      changedBlog((value) => {
+        value.status = 'draft';
+      }),
+    ],
+    [
+      'assistant',
+      blogData,
+      changedBlog((value) => {
+        value.assistant = false;
+      }),
+    ],
+    [
+      'pubDate',
+      blogData,
+      changedBlog((value) => {
+        value.pubDate = new Date('2026-02-01');
+      }),
+    ],
+    [
+      'updatedDate',
+      blogData,
+      changedBlog((value) => {
+        value.updatedDate = new Date('2026-02-02');
+      }),
+    ],
+    [
+      'author',
+      blogData,
+      changedBlog((value) => {
+        value.author = 'Changed';
+      }),
+    ],
+    [
+      'tags',
+      blogData,
+      changedBlog((value) => {
+        value.tags = [...value.tags].reverse();
+      }),
+    ],
+    [
+      'blog image URL',
+      blogData,
+      changedBlog((value) => {
+        value.image!.url = 'https://example.com/changed.png';
+      }),
+    ],
+    [
+      'blog image alt',
+      blogData,
+      changedBlog((value) => {
+        value.image!.alt = 'Changed';
+      }),
+    ],
+    [
+      'blog image width',
+      blogData,
+      changedBlog((value) => {
+        value.image!.width = 1280;
+      }),
+    ],
+    [
+      'blog image height',
+      blogData,
+      changedBlog((value) => {
+        value.image!.height = 720;
+      }),
+    ],
+    [
+      'type',
+      worksData,
+      changedWorks((value) => {
+        value.type = 'project';
+      }),
+    ],
+    [
+      'date',
+      worksData,
+      changedWorks((value) => {
+        value.date = new Date('2025-09-01');
+      }),
+    ],
+    [
+      'featured',
+      worksData,
+      changedWorks((value) => {
+        value.featured = false;
+      }),
+    ],
+    [
+      'work image URL',
+      worksData,
+      changedWorks((value) => {
+        value.image!.url = 'https://example.com/changed.png';
+      }),
+    ],
+    [
+      'work image alt',
+      worksData,
+      changedWorks((value) => {
+        value.image!.alt = 'Changed';
+      }),
+    ],
+    [
+      'link label',
+      worksData,
+      changedWorks((value) => {
+        value.links![0].label = 'Changed';
+      }),
+    ],
+    [
+      'link URL',
+      worksData,
+      changedWorks((value) => {
+        value.links![0].url = 'https://example.com/changed';
+      }),
+    ],
+    [
+      'venue',
+      worksData,
+      changedWorks((value) => {
+        value.venue = 'Changed';
+      }),
+    ],
+    [
+      'abstract',
+      worksData,
+      changedWorks((value) => {
+        value.abstract = 'Changed';
+      }),
+    ],
+    [
+      'technologies',
+      worksData,
+      changedWorks((value) => {
+        value.technologies = [...value.technologies!, 'WebGPU'];
+      }),
+    ],
+    [
+      'repository',
+      worksData,
+      changedWorks((value) => {
+        value.repository = 'https://example.com/changed';
+      }),
+    ],
+    [
+      'demo',
+      worksData,
+      changedWorks((value) => {
+        value.demo = 'https://example.com/changed';
+      }),
+    ],
   ];
 
-  it.each(cases)('hashes the complete validated %s metadata leaf', (_label, fixture, changed) => {
-    expect(computeSourceHash(changed, 'Body.')).not.toBe(computeSourceHash(fixture, 'Body.'));
-  });
+  it.each(cases)(
+    'hashes the complete validated %s metadata leaf',
+    (_label, fixture, changed) => {
+      expect(computeSourceHash(changed, 'Body.')).not.toBe(
+        computeSourceHash(fixture, 'Body.'),
+      );
+    },
+  );
 
   it('hashes the MDX body and preserves meaningful array order', () => {
-    expect(computeSourceHash(blogData, 'Changed.')).not.toBe(computeSourceHash(blogData, 'Body.'));
-    expect(computeSourceHash(blogData, 'Body.')).not.toBe(computeSourceHash(
-      { ...blogData, tags: [...blogData.tags].reverse() },
-      'Body.',
-    ));
+    expect(computeSourceHash(blogData, 'Changed.')).not.toBe(
+      computeSourceHash(blogData, 'Body.'),
+    );
+    expect(computeSourceHash(blogData, 'Body.')).not.toBe(
+      computeSourceHash(
+        { ...blogData, tags: [...blogData.tags].reverse() },
+        'Body.',
+      ),
+    );
   });
 
   it('ignores object-key insertion order and normalizes dates and newlines', () => {
@@ -299,17 +513,28 @@ describe('source hash contract', () => {
       title: blogData.title,
     } satisfies BlogFrontmatter;
 
-    expect(computeSourceHash(reordered, 'Body.\r\nNext.'))
-      .toBe(computeSourceHash(blogData, 'Body.\nNext.'));
+    expect(computeSourceHash(reordered, 'Body.\r\nNext.')).toBe(
+      computeSourceHash(blogData, 'Body.\nNext.'),
+    );
   });
 });
 
 describe('source commit resolution', () => {
   it('returns Git HEAD for every matching environment combination', () => {
     expect(resolveSourceCommit({ gitHead: 'abc' })).toBe('abc');
-    expect(resolveSourceCommit({ gitHead: 'abc', vercelSha: 'abc' })).toBe('abc');
-    expect(resolveSourceCommit({ gitHead: 'abc', githubSha: 'abc' })).toBe('abc');
-    expect(resolveSourceCommit({ gitHead: 'abc', vercelSha: 'abc', githubSha: 'abc' })).toBe('abc');
+    expect(resolveSourceCommit({ gitHead: 'abc', vercelSha: 'abc' })).toBe(
+      'abc',
+    );
+    expect(resolveSourceCommit({ gitHead: 'abc', githubSha: 'abc' })).toBe(
+      'abc',
+    );
+    expect(
+      resolveSourceCommit({
+        gitHead: 'abc',
+        vercelSha: 'abc',
+        githubSha: 'abc',
+      }),
+    ).toBe('abc');
   });
 
   it('produces byte-identical packages through every matching environment combination', () => {
@@ -319,16 +544,19 @@ describe('source commit resolution', () => {
       { gitHead: 'abc', githubSha: 'abc' },
       { gitHead: 'abc', vercelSha: 'abc', githubSha: 'abc' },
     ];
-    const bytes = inputs.map((input) => canonicalSerialize(
-      buildKnowledgeBase([blogEntry()], resolveSourceCommit(input)),
-    ));
+    const bytes = inputs.map((input) =>
+      canonicalSerialize(
+        buildKnowledgeBase([blogEntry()], resolveSourceCommit(input)),
+      ),
+    );
 
     expect(new Set(bytes).size).toBe(1);
   });
 
   it('fails when supplied provenance disagrees or Git HEAD is unavailable', () => {
-    expect(() => resolveSourceCommit({ gitHead: 'abc', vercelSha: 'different' }))
-      .toThrow(/mismatch/i);
+    expect(() =>
+      resolveSourceCommit({ gitHead: 'abc', vercelSha: 'different' }),
+    ).toThrow(/mismatch/i);
     expect(() => resolveSourceCommit({ gitHead: '' })).toThrow(/git head/i);
   });
 });

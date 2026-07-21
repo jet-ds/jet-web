@@ -10,11 +10,7 @@ import {
 } from './types';
 
 export type FakeRuntimeFailurePoint =
-  | 'capability'
-  | 'load'
-  | 'generation'
-  | 'reset'
-  | 'unload';
+  'capability' | 'load' | 'generation' | 'reset' | 'unload';
 
 export interface FakeRuntimeOptions {
   testOnly: true;
@@ -62,7 +58,9 @@ export class FakeRuntimeRecorder {
   constructor(readonly runtimeId: number) {}
 
   get calls(): readonly FakeRuntimeCall[] {
-    return Object.freeze(this.callLog.map((call) => Object.freeze({ ...call })));
+    return Object.freeze(
+      this.callLog.map((call) => Object.freeze({ ...call })),
+    );
   }
 
   record(method: FakeRuntimeCall['method']): number {
@@ -157,7 +155,9 @@ interface ActiveGeneration {
 export class FakeRuntime implements LocalModelRuntime {
   private readonly responseChunks: readonly string[];
   private readonly capabilityReport: CapabilityReport;
-  private readonly failures: Partial<Record<FakeRuntimeFailurePoint, boolean | number>>;
+  private readonly failures: Partial<
+    Record<FakeRuntimeFailurePoint, boolean | number>
+  >;
   private readonly scheduler: FakeRuntimeScheduler;
   private readonly recorder: FakeRuntimeRecorder;
   private readonly recordResourceLifecycle: boolean;
@@ -168,16 +168,20 @@ export class FakeRuntime implements LocalModelRuntime {
 
   constructor(options: FakeRuntimeOptions) {
     if (options.testOnly !== true) {
-      throw new Error('FakeRuntime is test-only and requires explicit test authorization.');
+      throw new Error(
+        'FakeRuntime is test-only and requires explicit test authorization.',
+      );
     }
 
     this.responseChunks = [...(options.responseChunks ?? ['Test response.'])];
-    this.capabilityReport = options.capabilityReport ?? DEFAULT_CAPABILITY_REPORT;
+    this.capabilityReport =
+      options.capabilityReport ?? DEFAULT_CAPABILITY_REPORT;
     this.failures = { ...options.failures };
     this.scheduler = options.scheduler ?? DEFAULT_SCHEDULER;
     this.recorder = options.recorder ?? new FakeRuntimeRecorder(1);
     this.recordResourceLifecycle = options.recordResourceLifecycle ?? false;
-    this.emitLateChunkAfterCancellation = options.emitLateChunkAfterCancellation ?? false;
+    this.emitLateChunkAfterCancellation =
+      options.emitLateChunkAfterCancellation ?? false;
   }
 
   get calls(): readonly FakeRuntimeCall[] {
@@ -219,11 +223,13 @@ export class FakeRuntime implements LocalModelRuntime {
         ...DEFAULT_CAPABILITY_REPORT,
         supported: false,
         adapterAvailable: false,
-        failures: [createRuntimeError(
-          'adapter-unavailable',
-          'The test runtime was configured without a WebGPU adapter.',
-          false,
-        )],
+        failures: [
+          createRuntimeError(
+            'adapter-unavailable',
+            'The test runtime was configured without a WebGPU adapter.',
+            false,
+          ),
+        ],
       };
     }
 
@@ -274,8 +280,8 @@ export class FakeRuntime implements LocalModelRuntime {
       for (const [chunkIndex, chunk] of this.responseChunks.entries()) {
         await this.scheduler.waitForChunk(generation.operationId, chunkIndex);
         if (
-          generation.cancelled
-          || this.activeGeneration?.operationId !== generation.operationId
+          generation.cancelled ||
+          this.activeGeneration?.operationId !== generation.operationId
         ) {
           if (this.emitLateChunkAfterCancellation) handlers.onText(chunk);
           break;
@@ -317,9 +323,11 @@ export class FakeRuntime implements LocalModelRuntime {
     this.invalidateActiveGeneration();
     const operationId = this.calls.at(-1)?.operationId ?? 0;
     await this.scheduler.waitForUnload?.(operationId);
-    if (this.recordResourceLifecycle && this.hasEngine) this.record('engine.delete');
+    if (this.recordResourceLifecycle && this.hasEngine)
+      this.record('engine.delete');
     this.configuredFailure('unload');
-    if (this.recordResourceLifecycle && this.hasEngine) this.record('sdk.unload');
+    if (this.recordResourceLifecycle && this.hasEngine)
+      this.record('sdk.unload');
     this.hasEngine = false;
     this.hasConversation = false;
   }

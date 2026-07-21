@@ -26,22 +26,22 @@ npm run dev
 
 The development site is available at [http://localhost:4321](http://localhost:4321).
 
-| Command | Purpose |
-| --- | --- |
-| `npm run dev` | Start the Astro development server. |
-| `npm run check` | Run Astro and TypeScript checks. |
-| `npm run test` | Run the unit and component test suite. |
-| `npm run test:e2e` | Run the Playwright browser suite. |
-| `npm run verify:content` | Validate publication policy and tracked content. |
-| `npm run verify:docs` | Validate links in active Markdown documentation. |
-| `npm run verify:build-purity` | Prove the build does not perform external writes. |
-| `npm run build` | Validate content and build the production site. |
-| `npm run preview` | Serve the built site locally. |
-| `npm run verify` | Run the standard local and CI verification gate. |
-| `npm run qualify:egregore:mac` | Run the release-only Egregore qualification profile on the approved Mac environment. |
-| `npm run smoke:egregore` | Run the explicit Egregore real-model smoke profile. |
-| `npm run upload-image <type>/<file>` | Explicitly upload a staged image to Vercel Blob. |
-| `npm run capture:og` | Recreate the default OpenGraph image with explicit overwrite consent. |
+| Command                              | Purpose                                                                              |
+| ------------------------------------ | ------------------------------------------------------------------------------------ |
+| `npm run dev`                        | Start the Astro development server.                                                  |
+| `npm run check`                      | Run Astro and TypeScript checks.                                                     |
+| `npm run test`                       | Run the unit and component test suite.                                               |
+| `npm run test:e2e`                   | Run the Playwright browser suite.                                                    |
+| `npm run verify:content`             | Validate publication policy and tracked content.                                     |
+| `npm run verify:docs`                | Validate links in active Markdown documentation.                                     |
+| `npm run verify:build-purity`        | Prove the build does not perform external writes.                                    |
+| `npm run build`                      | Validate content and build the production site.                                      |
+| `npm run preview`                    | Serve the built site locally.                                                        |
+| `npm run verify`                     | Run the standard local and CI verification gate.                                     |
+| `npm run qualify:egregore:mac`       | Run the release-only Egregore qualification profile on the approved Mac environment. |
+| `npm run smoke:egregore`             | Run the explicit Egregore real-model smoke profile.                                  |
+| `npm run upload-image <type>/<file>` | Explicitly upload a staged image to Vercel Blob.                                     |
+| `npm run capture:og`                 | Recreate the default OpenGraph image with explicit overwrite consent.                |
 
 ## Verification
 

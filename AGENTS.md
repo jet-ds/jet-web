@@ -113,8 +113,8 @@ For blog records, copy the returned URL and verified intrinsic dimensions into t
 
 ```yaml
 image:
-  url: "https://example.public.blob.vercel-storage.com/images/blog/example-12345678.jpg"
-  alt: "A descriptive account of the visible image"
+  url: 'https://example.public.blob.vercel-storage.com/images/blog/example-12345678.jpg'
+  alt: 'A descriptive account of the visible image'
   width: 1920
   height: 1080
 ```

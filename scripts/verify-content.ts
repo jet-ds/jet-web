@@ -5,13 +5,7 @@ import {
   realpathSync,
   statSync,
 } from 'node:fs';
-import {
-  extname,
-  isAbsolute,
-  relative,
-  resolve,
-  sep,
-} from 'node:path';
+import { extname, isAbsolute, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import matter from 'gray-matter';
 import { SITE } from '../src/config/site';
@@ -46,10 +40,12 @@ const contentCollections = [
 
 function isContained(root: string, target: string): boolean {
   const pathFromRoot = relative(root, target);
-  return pathFromRoot === ''
-    || (!isAbsolute(pathFromRoot)
-      && pathFromRoot !== '..'
-      && !pathFromRoot.startsWith(`..${sep}`));
+  return (
+    pathFromRoot === '' ||
+    (!isAbsolute(pathFromRoot) &&
+      pathFromRoot !== '..' &&
+      !pathFromRoot.startsWith(`..${sep}`))
+  );
 }
 
 function resolveContained(root: string, ...segments: string[]): string {
@@ -69,25 +65,37 @@ function repositoryRelativePath(root: string, path: string): string {
 }
 
 function resolveRoot(arguments_: string[]): string {
-  if (arguments_.length > 1 || (arguments_.length === 1 && !arguments_[0].startsWith('--root='))) {
-    throw new Error('Usage: verify-content.ts [--root=<absolute-or-relative-path>]');
+  if (
+    arguments_.length > 1 ||
+    (arguments_.length === 1 && !arguments_[0].startsWith('--root='))
+  ) {
+    throw new Error(
+      'Usage: verify-content.ts [--root=<absolute-or-relative-path>]',
+    );
   }
 
-  const requestedRoot = arguments_.length === 0
-    ? repositoryRoot
-    : arguments_[0].slice('--root='.length);
+  const requestedRoot =
+    arguments_.length === 0
+      ? repositoryRoot
+      : arguments_[0].slice('--root='.length);
   if (requestedRoot === '' || requestedRoot.includes('\0')) {
-    throw new Error('Content verification root must be a non-empty filesystem path.');
+    throw new Error(
+      'Content verification root must be a non-empty filesystem path.',
+    );
   }
 
   let root: string;
   try {
     root = realpathSync(resolve(process.cwd(), requestedRoot));
   } catch {
-    throw new Error(`Content verification root does not exist: ${requestedRoot}`);
+    throw new Error(
+      `Content verification root does not exist: ${requestedRoot}`,
+    );
   }
   if (!statSync(root).isDirectory()) {
-    throw new Error(`Content verification root is not a directory: ${requestedRoot}`);
+    throw new Error(
+      `Content verification root is not a directory: ${requestedRoot}`,
+    );
   }
   return root;
 }
@@ -101,15 +109,23 @@ function readCollectionFiles(root: string): ContentFile[] {
     try {
       realCollectionRoot = realpathSync(collectionRoot);
     } catch {
-      throw new Error(`Required content directory does not exist: ${definition.directory}`);
+      throw new Error(
+        `Required content directory does not exist: ${definition.directory}`,
+      );
     }
-    if (!isContained(root, realCollectionRoot) || lstatSync(collectionRoot).isSymbolicLink()) {
-      throw new Error(`Content directory escapes the repository root: ${definition.directory}`);
+    if (
+      !isContained(root, realCollectionRoot) ||
+      lstatSync(collectionRoot).isSymbolicLink()
+    ) {
+      throw new Error(
+        `Content directory escapes the repository root: ${definition.directory}`,
+      );
     }
 
     const visit = (directory: string): void => {
-      for (const entry of readdirSync(directory, { withFileTypes: true })
-        .sort((left, right) => left.name.localeCompare(right.name, 'en'))) {
+      for (const entry of readdirSync(directory, { withFileTypes: true }).sort(
+        (left, right) => left.name.localeCompare(right.name, 'en'),
+      )) {
         const path = resolveContained(root, directory, entry.name);
         if (entry.isSymbolicLink()) {
           throw new Error(
@@ -120,7 +136,10 @@ function readCollectionFiles(root: string): ContentFile[] {
           visit(path);
           continue;
         }
-        if (entry.isFile() && ['.md', '.mdx'].includes(extname(entry.name).toLowerCase())) {
+        if (
+          entry.isFile() &&
+          ['.md', '.mdx'].includes(extname(entry.name).toLowerCase())
+        ) {
           files.push({
             collection: definition.collection,
             collectionRoot,
@@ -136,22 +155,30 @@ function readCollectionFiles(root: string): ContentFile[] {
   return files;
 }
 
-function publishedUrls(data: Record<string, unknown>): ContentValidationRecord['links'] {
+function publishedUrls(
+  data: Record<string, unknown>,
+): ContentValidationRecord['links'] {
   const urls: ContentValidationRecord['links'] = [];
 
   if (Array.isArray(data.links)) {
     data.links.forEach((value, index) => {
-      if (typeof value !== 'object' || value === null || !('url' in value)) return;
+      if (typeof value !== 'object' || value === null || !('url' in value))
+        return;
       urls.push({
-        label: 'label' in value && typeof value.label === 'string'
-          ? value.label
-          : `links[${index}].url`,
+        label:
+          'label' in value && typeof value.label === 'string'
+            ? value.label
+            : `links[${index}].url`,
         url: value.url,
       });
     });
   }
 
-  if (typeof data.image === 'object' && data.image !== null && 'url' in data.image) {
+  if (
+    typeof data.image === 'object' &&
+    data.image !== null &&
+    'url' in data.image
+  ) {
     urls.push({ label: 'image.url', url: data.image.url });
 
     if ('darkUrl' in data.image && data.image.darkUrl !== undefined) {
@@ -175,10 +202,18 @@ function parseContentRecord(
 ): ParsedContentRecord {
   const path = repositoryRelativePath(root, file.path);
   const parsed = matter(readFileSync(file.path, 'utf8'));
-  const relativeEntryPath = relative(file.collectionRoot, file.path).split(sep).join('/');
-  const canonicalSlug = relativeEntryPath.slice(0, -extname(relativeEntryPath).length);
+  const relativeEntryPath = relative(file.collectionRoot, file.path)
+    .split(sep)
+    .join('/');
+  const canonicalSlug = relativeEntryPath.slice(
+    0,
+    -extname(relativeEntryPath).length,
+  );
   const canonicalId = `${file.collection}:${canonicalSlug}`.normalize('NFC');
-  const canonicalUrl = new URL(`/${file.collection}/${canonicalSlug}`, SITE.siteUrl).toString();
+  const canonicalUrl = new URL(
+    `/${file.collection}/${canonicalSlug}`,
+    SITE.siteUrl,
+  ).toString();
   const data = parsed.data as Record<string, unknown>;
 
   return {
@@ -197,8 +232,9 @@ function parseContentRecord(
 }
 
 function schemaErrors(record: ParsedContentRecord): ContentPolicyError[] {
-  const result = (record.collection === 'blog' ? blogSchema : worksSchema)
-    .safeParse(record.data);
+  const result = (
+    record.collection === 'blog' ? blogSchema : worksSchema
+  ).safeParse(record.data);
   if (result.success) return [];
 
   return result.error.issues.map((issue) => ({
@@ -208,10 +244,15 @@ function schemaErrors(record: ParsedContentRecord): ContentPolicyError[] {
   }));
 }
 
-function compareErrors(left: ContentPolicyError, right: ContentPolicyError): number {
-  return left.path.localeCompare(right.path, 'en')
-    || left.code.localeCompare(right.code, 'en')
-    || left.message.localeCompare(right.message, 'en');
+function compareErrors(
+  left: ContentPolicyError,
+  right: ContentPolicyError,
+): number {
+  return (
+    left.path.localeCompare(right.path, 'en') ||
+    left.code.localeCompare(right.code, 'en') ||
+    left.message.localeCompare(right.message, 'en')
+  );
 }
 
 function escapeDiagnosticText(value: string): string {
@@ -226,10 +267,12 @@ function escapeDiagnosticText(value: string): string {
     '\\': '\\\\',
   };
 
-  return value.replace(/[\\\u0000-\u001f\u007f\u2028\u2029]/gu, (character) => (
-    commonEscapes[character]
-    ?? `\\u${character.codePointAt(0)?.toString(16).padStart(4, '0')}`
-  ));
+  return value.replace(
+    /[\\\u0000-\u001f\u007f\u2028\u2029]/gu,
+    (character) =>
+      commonEscapes[character] ??
+      `\\u${character.codePointAt(0)?.toString(16).padStart(4, '0')}`,
+  );
 }
 
 export async function main(): Promise<void> {
@@ -251,12 +294,16 @@ export async function main(): Promise<void> {
     }
   }
 
-  const policyErrors = validateContentRecords(records.map((record) => record.validation));
+  const policyErrors = validateContentRecords(
+    records.map((record) => record.validation),
+  );
   const invalidPolicyPaths = new Set(policyErrors.map((error) => error.path));
-  const validationErrors = records.flatMap((record) => (
-    invalidPolicyPaths.has(record.validation.path) ? [] : schemaErrors(record)
-  ));
-  const errors = [...parseErrors, ...policyErrors, ...validationErrors].sort(compareErrors);
+  const validationErrors = records.flatMap((record) =>
+    invalidPolicyPaths.has(record.validation.path) ? [] : schemaErrors(record),
+  );
+  const errors = [...parseErrors, ...policyErrors, ...validationErrors].sort(
+    compareErrors,
+  );
 
   if (errors.length > 0) {
     for (const error of errors) {
@@ -268,16 +315,18 @@ export async function main(): Promise<void> {
     return;
   }
 
-  const eligibleSources = records.filter((record) => (
-    record.validation.tracked
-    && (record.validation.status === 'draft' || record.validation.status === 'published')
-    && (record.validation.assistant === undefined
-      || typeof record.validation.assistant === 'boolean')
-    && isAssistantEligible({
-      status: record.validation.status,
-      assistant: record.validation.assistant,
-    })
-  ));
+  const eligibleSources = records.filter(
+    (record) =>
+      record.validation.tracked &&
+      (record.validation.status === 'draft' ||
+        record.validation.status === 'published') &&
+      (record.validation.assistant === undefined ||
+        typeof record.validation.assistant === 'boolean') &&
+      isAssistantEligible({
+        status: record.validation.status,
+        assistant: record.validation.assistant,
+      }),
+  );
   console.log(
     `Content policy verified: ${records.length} entries; ${eligibleSources.length} tracked assistant sources`,
   );

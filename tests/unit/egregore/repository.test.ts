@@ -65,20 +65,26 @@ function installFetch(value: Fixture, preserveManifestHashes = false) {
   const indexText = canonicalSerialize(value.index);
   const manifest = {
     ...value.manifest,
-    contentSha256: preserveManifestHashes ? value.manifest.contentSha256 : sha256(contentText),
-    indexSha256: preserveManifestHashes ? value.manifest.indexSha256 : sha256(indexText),
+    contentSha256: preserveManifestHashes
+      ? value.manifest.contentSha256
+      : sha256(contentText),
+    indexSha256: preserveManifestHashes
+      ? value.manifest.indexSha256
+      : sha256(indexText),
   };
   const payloads = new Map<string, string>([
     [URLS[0], canonicalSerialize(manifest)],
     [URLS[1], contentText],
     [URLS[2], indexText],
   ]);
-  const fetchMock = vi.fn(async (input: RequestInfo | URL, _init?: RequestInit) => {
-    const text = payloads.get(String(input));
-    return text === undefined
-      ? new Response('Not found', { status: 404 })
-      : new Response(text, { status: 200 });
-  });
+  const fetchMock = vi.fn(
+    async (input: RequestInfo | URL, _init?: RequestInit) => {
+      const text = payloads.get(String(input));
+      return text === undefined
+        ? new Response('Not found', { status: 404 })
+        : new Response(text, { status: 200 });
+    },
+  );
   vi.stubGlobal('fetch', fetchMock);
   return fetchMock;
 }
@@ -101,9 +107,15 @@ describe('StaticKnowledgeRepository', () => {
       expect(init).toMatchObject({ credentials: 'omit' });
       expect(init).not.toHaveProperty('headers');
     }
-    expect([...loaded.documentsById.keys()]).toEqual(value.content.documents.map(({ id }) => id));
-    expect([...loaded.sectionsById.keys()]).toEqual(value.content.sections.map(({ id }) => id));
-    expect([...loaded.chunksById.keys()]).toEqual(value.content.chunks.map(({ id }) => id));
+    expect([...loaded.documentsById.keys()]).toEqual(
+      value.content.documents.map(({ id }) => id),
+    );
+    expect([...loaded.sectionsById.keys()]).toEqual(
+      value.content.sections.map(({ id }) => id),
+    );
+    expect([...loaded.chunksById.keys()]).toEqual(
+      value.content.chunks.map(({ id }) => id),
+    );
     expect(loaded.searchIndex.search('repository').length).toBeGreaterThan(0);
   });
 
@@ -113,7 +125,9 @@ describe('StaticKnowledgeRepository', () => {
     const loaded = await new StaticKnowledgeRepository().load();
 
     for (const section of value.content.sections) {
-      const chunks = value.content.chunks.filter((chunk) => chunk.sectionId === section.id);
+      const chunks = value.content.chunks.filter(
+        (chunk) => chunk.sectionId === section.id,
+      );
       chunks.forEach((chunk, index) => {
         expect(loaded.neighborsByChunkId.get(chunk.id)).toEqual({
           ...(chunks[index - 1] ? { previous: chunks[index - 1].id } : {}),
@@ -137,45 +151,157 @@ describe('StaticKnowledgeRepository', () => {
   });
 
   it.each([
-    ['content corpus version', (value: Fixture) => { value.content.corpusVersion = 'stale'; }, false],
-    ['index corpus version', (value: Fixture) => { value.index.corpusVersion = 'stale'; }, false],
-    ['content byte hash', (value: Fixture) => { value.manifest.contentSha256 = '0'.repeat(64); }, true],
-    ['index byte hash', (value: Fixture) => { value.manifest.indexSha256 = '0'.repeat(64); }, true],
-    ['index config version', (value: Fixture) => { value.index.indexConfigVersion = 'stale' as '1.1.0'; }, false],
-    ['MiniSearch version', (value: Fixture) => { value.index.miniSearchVersion = 'stale' as '7.2.0'; }, false],
-    ['stemmer version', (value: Fixture) => { value.index.stemmerVersion = 'stale' as '2.0.1'; }, false],
-    ['indexed count', (value: Fixture) => { value.manifest.indexedChunkCount += 1; }, false],
-    ['missing chunk id', (value: Fixture) => { value.index.chunkIds.pop(); }, false],
-    ['duplicate chunk id', (value: Fixture) => { value.index.chunkIds[1] = value.index.chunkIds[0]; }, false],
-    ['unknown chunk id', (value: Fixture) => { value.index.chunkIds[0] = 'blog:unknown#section:hash:0'; }, false],
-    ['unknown serialized index id', (value: Fixture) => {
-      (value.index.index.documentIds as Record<string, string>)['0'] = 'blog:unknown#section:hash:0';
-    }, false],
-    ['missing section parent', (value: Fixture) => { value.content.sections[0].documentId = 'blog:unknown'; }, false],
-    ['missing chunk parent', (value: Fixture) => { value.content.chunks[0].sectionId = 'blog:repository#unknown'; }, false],
-    ['invalid neighbor order', (value: Fixture) => { value.content.chunks[1].order = value.content.chunks[0].order; }, false],
-    ['interleaved section order', (value: Fixture) => {
-      value.content.chunks[1].sectionId = value.content.sections[2].id;
-    }, false],
-    ['derived token statistics', (value: Fixture) => {
-      value.content.statistics.estimatedContentTokens += 1;
-      value.manifest.statistics.estimatedContentTokens += 1;
-    }, false],
-    ['derived full-corpus payload statistics', (value: Fixture) => {
-      value.content.statistics.fullCorpusKnowledgeTokens += 1;
-      value.manifest.statistics.fullCorpusKnowledgeTokens += 1;
-    }, false],
-    ['stale chunk content hash behind a valid outer hash', (value: Fixture) => {
-      value.content.chunks[0].text = 'Tampered chunk text.';
-    }, false],
-    ['stale corpus version behind a valid outer hash', (value: Fixture) => {
-      value.content.documents[0].title = 'Tampered title';
-    }, false],
-  ] as Array<[string, (value: Fixture) => void, boolean]>)('rejects %s mismatch or corruption', async (_label, mutate, preserveManifestHashes) => {
-    const value = fixture();
-    mutate(value);
-    installFetch(value, preserveManifestHashes);
+    [
+      'content corpus version',
+      (value: Fixture) => {
+        value.content.corpusVersion = 'stale';
+      },
+      false,
+    ],
+    [
+      'index corpus version',
+      (value: Fixture) => {
+        value.index.corpusVersion = 'stale';
+      },
+      false,
+    ],
+    [
+      'content byte hash',
+      (value: Fixture) => {
+        value.manifest.contentSha256 = '0'.repeat(64);
+      },
+      true,
+    ],
+    [
+      'index byte hash',
+      (value: Fixture) => {
+        value.manifest.indexSha256 = '0'.repeat(64);
+      },
+      true,
+    ],
+    [
+      'index config version',
+      (value: Fixture) => {
+        value.index.indexConfigVersion = 'stale' as '1.1.0';
+      },
+      false,
+    ],
+    [
+      'MiniSearch version',
+      (value: Fixture) => {
+        value.index.miniSearchVersion = 'stale' as '7.2.0';
+      },
+      false,
+    ],
+    [
+      'stemmer version',
+      (value: Fixture) => {
+        value.index.stemmerVersion = 'stale' as '2.0.1';
+      },
+      false,
+    ],
+    [
+      'indexed count',
+      (value: Fixture) => {
+        value.manifest.indexedChunkCount += 1;
+      },
+      false,
+    ],
+    [
+      'missing chunk id',
+      (value: Fixture) => {
+        value.index.chunkIds.pop();
+      },
+      false,
+    ],
+    [
+      'duplicate chunk id',
+      (value: Fixture) => {
+        value.index.chunkIds[1] = value.index.chunkIds[0];
+      },
+      false,
+    ],
+    [
+      'unknown chunk id',
+      (value: Fixture) => {
+        value.index.chunkIds[0] = 'blog:unknown#section:hash:0';
+      },
+      false,
+    ],
+    [
+      'unknown serialized index id',
+      (value: Fixture) => {
+        (value.index.index.documentIds as Record<string, string>)['0'] =
+          'blog:unknown#section:hash:0';
+      },
+      false,
+    ],
+    [
+      'missing section parent',
+      (value: Fixture) => {
+        value.content.sections[0].documentId = 'blog:unknown';
+      },
+      false,
+    ],
+    [
+      'missing chunk parent',
+      (value: Fixture) => {
+        value.content.chunks[0].sectionId = 'blog:repository#unknown';
+      },
+      false,
+    ],
+    [
+      'invalid neighbor order',
+      (value: Fixture) => {
+        value.content.chunks[1].order = value.content.chunks[0].order;
+      },
+      false,
+    ],
+    [
+      'interleaved section order',
+      (value: Fixture) => {
+        value.content.chunks[1].sectionId = value.content.sections[2].id;
+      },
+      false,
+    ],
+    [
+      'derived token statistics',
+      (value: Fixture) => {
+        value.content.statistics.estimatedContentTokens += 1;
+        value.manifest.statistics.estimatedContentTokens += 1;
+      },
+      false,
+    ],
+    [
+      'derived full-corpus payload statistics',
+      (value: Fixture) => {
+        value.content.statistics.fullCorpusKnowledgeTokens += 1;
+        value.manifest.statistics.fullCorpusKnowledgeTokens += 1;
+      },
+      false,
+    ],
+    [
+      'stale chunk content hash behind a valid outer hash',
+      (value: Fixture) => {
+        value.content.chunks[0].text = 'Tampered chunk text.';
+      },
+      false,
+    ],
+    [
+      'stale corpus version behind a valid outer hash',
+      (value: Fixture) => {
+        value.content.documents[0].title = 'Tampered title';
+      },
+      false,
+    ],
+  ] as Array<[string, (value: Fixture) => void, boolean]>)(
+    'rejects %s mismatch or corruption',
+    async (_label, mutate, preserveManifestHashes) => {
+      const value = fixture();
+      mutate(value);
+      installFetch(value, preserveManifestHashes);
 
-    await expect(new StaticKnowledgeRepository().load()).rejects.toThrow();
-  });
+      await expect(new StaticKnowledgeRepository().load()).rejects.toThrow();
+    },
+  );
 });

@@ -18,9 +18,9 @@ const hexEntropyCanary = createHash('sha256')
   .digest('hex');
 const encodedHexEntropyCanary = hexEntropyCanary
   .split('')
-  .map((character, index) => (
-    index % 8 === 0 ? `%${character.charCodeAt(0).toString(16)}` : character
-  ))
+  .map((character, index) =>
+    index % 8 === 0 ? `%${character.charCodeAt(0).toString(16)}` : character,
+  )
   .join('');
 
 type CliResult = ReturnType<typeof spawnSync>;
@@ -49,11 +49,10 @@ function runCli(
   if (includeOutput) arguments_.push(`--output=${outputPath}`);
   arguments_.push(...extraArguments);
 
-  const result = spawnSync(
-    process.execPath,
-    arguments_,
-    { cwd: projectRoot, encoding: 'utf8' },
-  );
+  const result = spawnSync(process.execPath, arguments_, {
+    cwd: projectRoot,
+    encoding: 'utf8',
+  });
 
   return { result, outputPath };
 }
@@ -257,21 +256,20 @@ describe('Vercel evidence sanitizer', () => {
     });
   });
 
-  it.each([
-    credentialCanary,
-    hexEntropyCanary,
-    'authorization:record-123',
-  ])('rejects unsafe bare provider record IDs', (keyRecord) => {
-    const { result } = runCli('sanitize-openrouter-revocation', {
-      provider: 'OpenRouter',
-      keyRecord,
-      status: 'disabled',
-      revokedAt: '2026-07-11T07:00:00.000Z',
-      verifiedAt: '2026-07-13T03:00:00.000Z',
-    });
+  it.each([credentialCanary, hexEntropyCanary, 'authorization:record-123'])(
+    'rejects unsafe bare provider record IDs',
+    (keyRecord) => {
+      const { result } = runCli('sanitize-openrouter-revocation', {
+        provider: 'OpenRouter',
+        keyRecord,
+        status: 'disabled',
+        revokedAt: '2026-07-11T07:00:00.000Z',
+        verifiedAt: '2026-07-13T03:00:00.000Z',
+      });
 
-    expectRejected(result);
-  });
+      expectRejected(result);
+    },
+  );
 
   it('rejects generic high-entropy data in a Git ref', () => {
     const { result, outputPath } = runCli('sanitize-deployment', {
@@ -313,35 +311,58 @@ describe('Vercel evidence sanitizer', () => {
     expect(() => readFileSync(outputPath)).toThrow();
   });
 
+  it.each([entropyCanary, encodeURIComponent(entropyCanary)])(
+    'rejects generic high-entropy data in Blob pathname and URL components',
+    (canary) => {
+      const { result } = runCli('verify-safe', [
+        {
+          pathname: `chatbot/${canary}.json`,
+          size: 123,
+          uploadedAt: '2026-07-11T07:00:00.000Z',
+          url: `https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/chatbot/${canary}.json`,
+        },
+      ]);
+
+      expectRejected(result);
+    },
+  );
+
   it.each([
-    entropyCanary,
-    encodeURIComponent(entropyCanary),
-  ])('rejects generic high-entropy data in Blob pathname and URL components', (canary) => {
-    const { result } = runCli('verify-safe', [{
-      pathname: `chatbot/${canary}.json`,
-      size: 123,
-      uploadedAt: '2026-07-11T07:00:00.000Z',
-      url: `https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/chatbot/${canary}.json`,
-    }]);
+    {
+      label: 'raw pathname',
+      pathname: `chatbot/${hexEntropyCanary}.json`,
+      urlPath: 'chatbot/safe-file.json',
+    },
+    {
+      label: 'decoded pathname',
+      pathname: `chatbot/${encodedHexEntropyCanary}.json`,
+      urlPath: 'chatbot/safe-file.json',
+    },
+    {
+      label: 'raw URL',
+      pathname: 'chatbot/safe-file.json',
+      urlPath: `chatbot/${hexEntropyCanary}.json`,
+    },
+    {
+      label: 'decoded URL',
+      pathname: 'chatbot/safe-file.json',
+      urlPath: `chatbot/${encodedHexEntropyCanary}.json`,
+    },
+  ])(
+    'rejects long hexadecimal data in a $label component',
+    ({ pathname, urlPath }) => {
+      const { result } = runCli('verify-safe', [
+        {
+          pathname,
+          size: 123,
+          uploadedAt: '2026-07-11T07:00:00.000Z',
+          url: `https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/${urlPath}`,
+        },
+      ]);
 
-    expectRejected(result);
-  });
-
-  it.each([
-    { label: 'raw pathname', pathname: `chatbot/${hexEntropyCanary}.json`, urlPath: 'chatbot/safe-file.json' },
-    { label: 'decoded pathname', pathname: `chatbot/${encodedHexEntropyCanary}.json`, urlPath: 'chatbot/safe-file.json' },
-    { label: 'raw URL', pathname: 'chatbot/safe-file.json', urlPath: `chatbot/${hexEntropyCanary}.json` },
-    { label: 'decoded URL', pathname: 'chatbot/safe-file.json', urlPath: `chatbot/${encodedHexEntropyCanary}.json` },
-  ])('rejects long hexadecimal data in a $label component', ({ pathname, urlPath }) => {
-    const { result } = runCli('verify-safe', [{
-      pathname,
-      size: 123,
-      uploadedAt: '2026-07-11T07:00:00.000Z',
-      url: `https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/${urlPath}`,
-    }]);
-
-    expectRejected(result);
-  });
+      expectRejected(result);
+    },
+  );
 
   it('retains explicit SHA and ID entropy exceptions', () => {
     const { result } = runCli('verify-safe', {
@@ -389,12 +410,20 @@ describe('Vercel evidence sanitizer', () => {
     const directory = temporaryDirectory();
     const inputPath = resolve(directory, 'input.json');
     const sentinelPath = resolve(directory, 'sentinel.txt');
-    writeFileSync(inputPath, `${JSON.stringify({ raw: credentialCanary })}\n`, { mode: 0o600 });
+    writeFileSync(inputPath, `${JSON.stringify({ raw: credentialCanary })}\n`, {
+      mode: 0o600,
+    });
     writeFileSync(sentinelPath, 'preserve-me\n', { mode: 0o600 });
 
     const result = spawnSync(
       process.execPath,
-      [tsx, sanitizer, 'verify-safe', `--input=${inputPath}`, `--output=${sentinelPath}`],
+      [
+        tsx,
+        sanitizer,
+        'verify-safe',
+        `--input=${inputPath}`,
+        `--output=${sentinelPath}`,
+      ],
       { cwd: projectRoot, encoding: 'utf8' },
     );
 
@@ -423,7 +452,8 @@ const twiceEncodedCanary = encodeURIComponent(onceEncodedCanary);
 const urlCanaries = [
   (origin: string) => `${origin}?token=${credentialCanary}`,
   (origin: string) => `${origin}?q=${onceEncodedCanary}`,
-  (origin: string) => origin.replace('https://', `https://${credentialCanary}@`),
+  (origin: string) =>
+    origin.replace('https://', `https://${credentialCanary}@`),
   (origin: string) => `${origin}/${credentialCanary}`,
   (origin: string) => `${origin}#${credentialCanary}`,
   (origin: string) => `${origin}/%0d%0a${onceEncodedCanary}`,
@@ -440,71 +470,87 @@ const urlSchemas: UrlSchema[] = [
   {
     name: 'inspect deployment URL',
     origin: 'https://jet-web-abc.vercel.app',
-    run: (url) => runCli('sanitize-inspect', {
-      id: 'dpl_approved123',
-      name: 'jet-web',
-      url,
-      target: 'production',
-      readyState: 'READY',
-      aliases: ['jetsanchez.com'],
-    }).result,
+    run: (url) =>
+      runCli('sanitize-inspect', {
+        id: 'dpl_approved123',
+        name: 'jet-web',
+        url,
+        target: 'production',
+        readyState: 'READY',
+        aliases: ['jetsanchez.com'],
+      }).result,
   },
   {
     name: 'inspect alias URL',
     origin: 'https://www.jetsanchez.com',
-    run: (url) => runCli('sanitize-inspect', {
-      id: 'dpl_approved123',
-      name: 'jet-web',
-      url: 'jet-web-abc.vercel.app',
-      target: 'production',
-      readyState: 'READY',
-      aliases: [url],
-    }).result,
+    run: (url) =>
+      runCli('sanitize-inspect', {
+        id: 'dpl_approved123',
+        name: 'jet-web',
+        url: 'jet-web-abc.vercel.app',
+        target: 'production',
+        readyState: 'READY',
+        aliases: [url],
+      }).result,
   },
   {
     name: 'deployment URL',
     origin: 'https://jet-web-abc.vercel.app',
-    run: (url) => runCli('sanitize-deployment', {
-      id: 'dpl_approved123',
-      name: 'jet-web',
-      projectId: 'prj_approved123',
-      url,
-      target: 'production',
-      readyState: 'READY',
-      createdAt: 1_752_300_000_000,
-      gitSource: {
-        type: 'github',
-        ref: 'main',
-        sha: 'c0d158c2f1ba73c879890fd2a8269f633d1f2d04',
-      },
-    }).result,
+    run: (url) =>
+      runCli('sanitize-deployment', {
+        id: 'dpl_approved123',
+        name: 'jet-web',
+        projectId: 'prj_approved123',
+        url,
+        target: 'production',
+        readyState: 'READY',
+        createdAt: 1_752_300_000_000,
+        gitSource: {
+          type: 'github',
+          ref: 'main',
+          sha: 'c0d158c2f1ba73c879890fd2a8269f633d1f2d04',
+        },
+      }).result,
   },
   {
     name: 'Blob inventory URL',
-    origin: 'https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/chatbot/evidence.json',
-    run: (url) => runCli('verify-safe', [{
-      pathname: 'chatbot/evidence.json',
-      size: 123,
-      uploadedAt: '2026-07-11T07:00:00.000Z',
-      url,
-    }]).result,
+    origin:
+      'https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/chatbot/evidence.json',
+    run: (url) =>
+      runCli('verify-safe', [
+        {
+          pathname: 'chatbot/evidence.json',
+          size: 123,
+          uploadedAt: '2026-07-11T07:00:00.000Z',
+          url,
+        },
+      ]).result,
   },
   {
     name: 'containment result destination URL',
     origin: 'https://jetsanchez.com/tools/chatbot',
-    run: (url) => runCli('verify-safe', {
-      blobs: { afterCount: 0, beforeCount: 1, probes: [{ pathname: 'chatbot/evidence.json', status: 404 }] },
-      credentialRevoked: true,
-      deployment: {
-        gitSha: 'c0d158c2f1ba73c879890fd2a8269f633d1f2d04',
-        id: 'dpl_approved123',
-        readyState: 'READY',
-        target: 'production',
-      },
-      environmentNameAbsent: { development: true, preview: true, production: true },
-      routes: [{ destination: url, path: '/chatbot', status: 308 }],
-      verifiedAt: '2026-07-13T03:00:00.000Z',
-    }).result,
+    run: (url) =>
+      runCli('verify-safe', {
+        blobs: {
+          afterCount: 0,
+          beforeCount: 1,
+          probes: [{ pathname: 'chatbot/evidence.json', status: 404 }],
+        },
+        credentialRevoked: true,
+        deployment: {
+          gitSha: 'c0d158c2f1ba73c879890fd2a8269f633d1f2d04',
+          id: 'dpl_approved123',
+          readyState: 'READY',
+          target: 'production',
+        },
+        environmentNameAbsent: {
+          development: true,
+          preview: true,
+          production: true,
+        },
+        routes: [{ destination: url, path: '/chatbot', status: 308 }],
+        verifiedAt: '2026-07-13T03:00:00.000Z',
+      }).result,
   },
 ];
 

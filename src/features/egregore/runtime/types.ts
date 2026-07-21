@@ -1,7 +1,4 @@
-import type {
-  EgregoreError,
-  EgregoreErrorCode,
-} from '../errors';
+import type { EgregoreError, EgregoreErrorCode } from '../errors';
 
 export interface CapabilityStorageEstimate {
   quotaBytes: number | null;
@@ -10,11 +7,7 @@ export interface CapabilityStorageEstimate {
 }
 
 export type BrowserFamily =
-  | 'chrome'
-  | 'edge'
-  | 'firefox'
-  | 'safari'
-  | 'unknown';
+  'chrome' | 'edge' | 'firefox' | 'safari' | 'unknown';
 
 export interface BrowserAdvisory {
   family: BrowserFamily;
@@ -66,14 +59,8 @@ export interface LocalModelRuntime {
 
 export type RuntimeError = Error & EgregoreError;
 
-function safeDiagnosticCause(
-  code: EgregoreErrorCode,
-  cause?: unknown,
-): string {
-  if (
-    typeof DOMException !== 'undefined'
-    && cause instanceof DOMException
-  ) {
+function safeDiagnosticCause(code: EgregoreErrorCode, cause?: unknown): string {
+  if (typeof DOMException !== 'undefined' && cause instanceof DOMException) {
     return 'DOMException';
   }
 

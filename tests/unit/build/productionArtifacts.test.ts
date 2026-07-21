@@ -30,7 +30,9 @@ afterEach(() => {
 });
 
 function temporaryBuildDirectory(): string {
-  const directory = mkdtempSync(join(tmpdir(), 'egregore-production-artifacts-'));
+  const directory = mkdtempSync(
+    join(tmpdir(), 'egregore-production-artifacts-'),
+  );
   temporaryDirectories.push(directory);
   return directory;
 }
@@ -57,8 +59,14 @@ function writeExactProductionSurface(directory: string): void {
   );
   mkdirSync(licensePageDirectory, { recursive: true });
   mkdirSync(liteRtDirectory, { recursive: true });
-  cpSync('THIRD_PARTY_NOTICES.md', join(directory, 'licenses', 'THIRD_PARTY_NOTICES.md'));
-  cpSync('LICENSES/Apache-2.0.txt', join(directory, 'licenses', 'apache-2.0.txt'));
+  cpSync(
+    'THIRD_PARTY_NOTICES.md',
+    join(directory, 'licenses', 'THIRD_PARTY_NOTICES.md'),
+  );
+  cpSync(
+    'LICENSES/Apache-2.0.txt',
+    join(directory, 'licenses', 'apache-2.0.txt'),
+  );
   cpSync(
     'LICENSES/minisearch-7.2.0-MIT.txt',
     join(directory, 'licenses', 'minisearch-7.2.0-MIT.txt'),
@@ -89,11 +97,19 @@ describe('ordinary production artifact containment', () => {
   it('accepts a clean emitted build tree', () => {
     const directory = temporaryBuildDirectory();
     mkdirSync(join(directory, '_astro'));
-    writeFileSync(join(directory, 'index.html'), '<main>Production site</main>');
-    writeFileSync(join(directory, '_astro', 'experience.js'), 'const local = true;');
+    writeFileSync(
+      join(directory, 'index.html'),
+      '<main>Production site</main>',
+    );
+    writeFileSync(
+      join(directory, '_astro', 'experience.js'),
+      'const local = true;',
+    );
 
     expect(findForbiddenProductionArtifacts(directory)).toEqual([]);
-    expect(() => assertProductionArtifactsContainNoFakeRuntime(directory)).not.toThrow();
+    expect(() =>
+      assertProductionArtifactsContainNoFakeRuntime(directory),
+    ).not.toThrow();
   });
 
   it('rejects every fake-runtime marker in nested emitted artifacts', () => {
@@ -113,15 +129,20 @@ describe('ordinary production artifact containment', () => {
       writeFileSync(join(nested, `chunk-${index}.js`), `/* ${marker} */`);
     });
 
-    expect(findForbiddenProductionArtifacts(directory).map(({ marker }) => marker)).toEqual(markers);
-    expect(() => assertProductionArtifactsContainNoFakeRuntime(directory)).toThrow(
-      /FORBIDDEN_PRODUCTION_ARTIFACT_CONTENT/,
-    );
+    expect(
+      findForbiddenProductionArtifacts(directory).map(({ marker }) => marker),
+    ).toEqual(markers);
+    expect(() =>
+      assertProductionArtifactsContainNoFakeRuntime(directory),
+    ).toThrow(/FORBIDDEN_PRODUCTION_ARTIFACT_CONTENT/);
   });
 
   it('rejects a build that omits the stable license surface', () => {
     const directory = temporaryBuildDirectory();
-    writeFileSync(join(directory, 'index.html'), '<main>Production site</main>');
+    writeFileSync(
+      join(directory, 'index.html'),
+      '<main>Production site</main>',
+    );
 
     const result = runProductionArtifactVerifier(directory);
 
@@ -164,14 +185,9 @@ describe('ordinary production artifact containment', () => {
     const directory = temporaryBuildDirectory();
     writeExactProductionSurface(directory);
     const asset = LITERT_LM_WASM_ASSETS[0];
-    rmSync(join(
-      directory,
-      'assistant',
-      'runtime',
-      'litert-lm',
-      '0.14.0',
-      asset,
-    ));
+    rmSync(
+      join(directory, 'assistant', 'runtime', 'litert-lm', '0.14.0', asset),
+    );
 
     const result = runProductionArtifactVerifier(directory);
 
@@ -186,14 +202,7 @@ describe('ordinary production artifact containment', () => {
     writeExactProductionSurface(directory);
     const asset = LITERT_LM_WASM_ASSETS[1];
     writeFileSync(
-      join(
-        directory,
-        'assistant',
-        'runtime',
-        'litert-lm',
-        '0.14.0',
-        asset,
-      ),
+      join(directory, 'assistant', 'runtime', 'litert-lm', '0.14.0', asset),
       'altered',
     );
 

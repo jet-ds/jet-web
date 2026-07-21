@@ -17,6 +17,8 @@ describe('SEO text presentation', () => {
   });
 
   it('leaves descriptions within the limit unchanged', () => {
-    expect(truncateDescription('Already concise.', 18)).toBe('Already concise.');
+    expect(truncateDescription('Already concise.', 18)).toBe(
+      'Already concise.',
+    );
   });
 });

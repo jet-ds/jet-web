@@ -10,22 +10,26 @@ import {
 const repeatedCode = `\`\`\`txt\n${'same content '.repeat(90).trim()}\n\`\`\``;
 const repeatedChunkFixture = {
   documentId: 'blog:repeated' as const,
-  sections: [{
-    heading: 'Repeated',
-    headingPath: ['Repeated'],
-    text: `${repeatedCode}\n\n${repeatedCode}`,
-    order: 0,
-  }],
+  sections: [
+    {
+      heading: 'Repeated',
+      headingPath: ['Repeated'],
+      text: `${repeatedCode}\n\n${repeatedCode}`,
+      order: 0,
+    },
+  ],
 };
 
 const collisionFixture = {
   documentId: 'blog:collision' as const,
-  sections: [{
-    heading: 'Collision',
-    headingPath: ['Collision'],
-    text: `\`\`\`txt\n${'first block '.repeat(90).trim()}\n\`\`\`\n\n\`\`\`txt\n${'second block '.repeat(90).trim()}\n\`\`\``,
-    order: 0,
-  }],
+  sections: [
+    {
+      heading: 'Collision',
+      headingPath: ['Collision'],
+      text: `\`\`\`txt\n${'first block '.repeat(90).trim()}\n\`\`\`\n\n\`\`\`txt\n${'second block '.repeat(90).trim()}\n\`\`\``,
+      order: 0,
+    },
+  ],
 };
 
 describe('knowledge segmentation', () => {
@@ -42,9 +46,18 @@ describe('knowledge segmentation', () => {
   it('keeps stable section ids and content-hashed chunk ids', () => {
     const result = segmentDocument({
       documentId: 'blog:example',
-      sections: [{ heading: 'Install', headingPath: ['Install'], text: 'Run the installer.', order: 0 }],
+      sections: [
+        {
+          heading: 'Install',
+          headingPath: ['Install'],
+          text: 'Run the installer.',
+          order: 0,
+        },
+      ],
     });
-    const expectedHash = createHash('sha256').update('Run the installer.').digest('hex');
+    const expectedHash = createHash('sha256')
+      .update('Run the installer.')
+      .digest('hex');
 
     expect(result.sections[0].id).toBe('blog:example#install');
     expect(result.chunks[0].id).toBe(`blog:example#install:${expectedHash}:0`);
@@ -55,9 +68,24 @@ describe('knowledge segmentation', () => {
     const result = segmentDocument({
       documentId: 'works:guide',
       sections: [
-        { heading: 'Install', headingPath: ['Install'], text: 'First.', order: 0 },
-        { heading: 'Linux', headingPath: ['Install', 'Linux'], text: 'Second.', order: 1 },
-        { heading: 'Linux', headingPath: ['Install', 'Linux'], text: 'Third.', order: 2 },
+        {
+          heading: 'Install',
+          headingPath: ['Install'],
+          text: 'First.',
+          order: 0,
+        },
+        {
+          heading: 'Linux',
+          headingPath: ['Install', 'Linux'],
+          text: 'Second.',
+          order: 1,
+        },
+        {
+          heading: 'Linux',
+          headingPath: ['Install', 'Linux'],
+          text: 'Third.',
+          order: 2,
+        },
       ],
     });
 
@@ -91,9 +119,19 @@ describe('knowledge segmentation', () => {
     const result = segmentDocument({
       documentId: 'blog:interleaved-collisions',
       sections: [
-        { heading: 'Foo 2', headingPath: ['Foo 2'], text: 'Natural ordinal.', order: 0 },
+        {
+          heading: 'Foo 2',
+          headingPath: ['Foo 2'],
+          text: 'Natural ordinal.',
+          order: 0,
+        },
         { heading: 'Foo', headingPath: ['Foo'], text: 'Base slug.', order: 1 },
-        { heading: 'Foo', headingPath: ['Foo'], text: 'Repeated base slug.', order: 2 },
+        {
+          heading: 'Foo',
+          headingPath: ['Foo'],
+          text: 'Repeated base slug.',
+          order: 2,
+        },
       ],
     });
     const sectionIds = result.sections.map((section) => section.id);
@@ -107,26 +145,32 @@ describe('knowledge segmentation', () => {
   });
 
   it('never exceeds the 512-token hard limit', () => {
-    const text = Array.from({ length: 600 }, (_, index) => `word${index}`).join(' ');
+    const text = Array.from({ length: 600 }, (_, index) => `word${index}`).join(
+      ' ',
+    );
     const result = segmentDocument({
       documentId: 'blog:large',
       sections: [{ heading: 'Large', headingPath: ['Large'], text, order: 0 }],
     });
 
     expect(result.chunks.length).toBeGreaterThan(1);
-    expect(result.chunks.every((chunk) => chunk.estimatedTokens <= 512)).toBe(true);
+    expect(result.chunks.every((chunk) => chunk.estimatedTokens <= 512)).toBe(
+      true,
+    );
   });
 
   it('keeps fenced code blocks intact when they fit the hard limit', () => {
     const code = `\`\`\`ts\n${'const value = true;\n'.repeat(55).trim()}\n\`\`\``;
     const result = segmentDocument({
       documentId: 'blog:code',
-      sections: [{
-        heading: 'Code',
-        headingPath: ['Code'],
-        text: `Intro paragraph.\n\n${code}\n\nClosing paragraph.`,
-        order: 0,
-      }],
+      sections: [
+        {
+          heading: 'Code',
+          headingPath: ['Code'],
+          text: `Intro paragraph.\n\n${code}\n\nClosing paragraph.`,
+          order: 0,
+        },
+      ],
     });
 
     expect(result.chunks.some((chunk) => chunk.text === code)).toBe(true);
@@ -136,29 +180,44 @@ describe('knowledge segmentation', () => {
     const oversizedCode = `\`\`\`txt\n${'x'.repeat(4_500)}\n\`\`\``;
     const result = segmentDocument({
       documentId: 'blog:oversized',
-      sections: [{
-        heading: 'Oversized',
-        headingPath: ['Oversized'],
-        text: `${oversizedCode}\n\n${'y'.repeat(4_500)}`,
-        order: 0,
-      }],
+      sections: [
+        {
+          heading: 'Oversized',
+          headingPath: ['Oversized'],
+          text: `${oversizedCode}\n\n${'y'.repeat(4_500)}`,
+          order: 0,
+        },
+      ],
     });
 
     expect(result.chunks.length).toBeGreaterThan(4);
-    expect(result.chunks.every((chunk) => chunk.estimatedTokens <= 512)).toBe(true);
+    expect(result.chunks.every((chunk) => chunk.estimatedTokens <= 512)).toBe(
+      true,
+    );
   });
 
   it('gives repeated identical chunks distinct deterministic ids', () => {
     const result = segmentDocument(repeatedChunkFixture);
 
-    expect(new Set(result.chunks.map((chunk) => chunk.id)).size).toBe(result.chunks.length);
-    expect(result.chunks.map((chunk) => chunk.sameTextOccurrence)).toEqual([0, 1]);
+    expect(new Set(result.chunks.map((chunk) => chunk.id)).size).toBe(
+      result.chunks.length,
+    );
+    expect(result.chunks.map((chunk) => chunk.sameTextOccurrence)).toEqual([
+      0, 1,
+    ]);
   });
 
   it('does not create chunks for empty sections', () => {
     const result = segmentDocument({
       documentId: 'blog:empty',
-      sections: [{ heading: 'Introduction', headingPath: ['Introduction'], text: '', order: 0 }],
+      sections: [
+        {
+          heading: 'Introduction',
+          headingPath: ['Introduction'],
+          text: '',
+          order: 0,
+        },
+      ],
     });
 
     expect(result.sections).toHaveLength(1);
@@ -166,12 +225,14 @@ describe('knowledge segmentation', () => {
   });
 
   it('fails closed when the digest provider produces a final id collision', () => {
-    expect(() => segmentDocument(collisionFixture, { digest: () => '0'.repeat(64) }))
-      .toThrow(/duplicate chunk id/i);
+    expect(() =>
+      segmentDocument(collisionFixture, { digest: () => '0'.repeat(64) }),
+    ).toThrow(/duplicate chunk id/i);
   });
 
   it('rejects digest providers that do not return a full SHA-256 hex digest', () => {
-    expect(() => segmentDocument(repeatedChunkFixture, { digest: () => 'not-a-sha256' }))
-      .toThrow(/sha-256 digest/i);
+    expect(() =>
+      segmentDocument(repeatedChunkFixture, { digest: () => 'not-a-sha256' }),
+    ).toThrow(/sha-256 digest/i);
   });
 });

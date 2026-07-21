@@ -1,8 +1,5 @@
 import { EGREGORE_IDENTITY } from '../../../config/egregore';
-import type {
-  SelectedSource,
-  SelectionResult,
-} from '../selection/types';
+import type { SelectedSource, SelectionResult } from '../selection/types';
 
 export const FAKE_SCENARIOS = [
   'default',
@@ -23,7 +20,7 @@ export const FAKE_SCENARIOS = [
   'late-event',
 ] as const;
 
-export type FakeScenario = typeof FAKE_SCENARIOS[number];
+export type FakeScenario = (typeof FAKE_SCENARIOS)[number];
 
 export interface FakeScenarioRequest {
   testBuild: boolean;
@@ -39,11 +36,7 @@ export interface ResolvedFakeScenario {
 }
 
 type ScenarioFailurePoint =
-  | 'capability'
-  | 'load'
-  | 'generation'
-  | 'reset'
-  | 'unload';
+  'capability' | 'load' | 'generation' | 'reset' | 'unload';
 
 export interface FakeScenarioConfiguration {
   responseChunks: readonly string[];
@@ -77,17 +70,32 @@ export function getFakeScenarioConfiguration(
 ): FakeScenarioConfiguration {
   switch (scenario) {
     case 'checking':
-      return { responseChunks: DEFAULT_RESPONSE_CHUNKS, capabilityDelayMs: 60_000 };
+      return {
+        responseChunks: DEFAULT_RESPONSE_CHUNKS,
+        capabilityDelayMs: 60_000,
+      };
     case 'unsupported':
-      return { responseChunks: DEFAULT_RESPONSE_CHUNKS, failures: { capability: true } };
+      return {
+        responseChunks: DEFAULT_RESPONSE_CHUNKS,
+        failures: { capability: true },
+      };
     case 'load-failure':
       return { responseChunks: DEFAULT_RESPONSE_CHUNKS, failures: { load: 1 } };
     case 'generation-failure':
-      return { responseChunks: DEFAULT_RESPONSE_CHUNKS, failures: { generation: 1 } };
+      return {
+        responseChunks: DEFAULT_RESPONSE_CHUNKS,
+        failures: { generation: 1 },
+      };
     case 'reset-failure':
-      return { responseChunks: DEFAULT_RESPONSE_CHUNKS, failures: { reset: 1 } };
+      return {
+        responseChunks: DEFAULT_RESPONSE_CHUNKS,
+        failures: { reset: 1 },
+      };
     case 'unload-failure':
-      return { responseChunks: DEFAULT_RESPONSE_CHUNKS, failures: { unload: 1 } };
+      return {
+        responseChunks: DEFAULT_RESPONSE_CHUNKS,
+        failures: { unload: 1 },
+      };
     case 'loading':
       return { responseChunks: DEFAULT_RESPONSE_CHUNKS, loadDelayMs: 60_000 };
     case 'unloading':
@@ -130,10 +138,7 @@ export function getFakeScenarioConfiguration(
   }
 }
 
-function withCitationId(
-  source: SelectedSource,
-  index: number,
-): SelectedSource {
+function withCitationId(source: SelectedSource, index: number): SelectedSource {
   return {
     ...source,
     citationId: `S${index + 1}`,
@@ -146,20 +151,22 @@ export function configureFakeCitationSelection(
   const primary = selection.sources[0];
   if (primary === undefined) return selection;
 
-  const duplicateDocument = selection.sources.find((source) => (
-    source !== primary
-    && source.canonicalUrl === primary.canonicalUrl
-  ));
-  const distinctDocument = selection.sources.find((source) => (
-    source.canonicalUrl !== primary.canonicalUrl
-  ));
+  const duplicateDocument = selection.sources.find(
+    (source) =>
+      source !== primary && source.canonicalUrl === primary.canonicalUrl,
+  );
+  const distinctDocument = selection.sources.find(
+    (source) => source.canonicalUrl !== primary.canonicalUrl,
+  );
   if (duplicateDocument === undefined || distinctDocument === undefined) {
     return selection;
   }
 
   const fixtureSources = [distinctDocument, primary, duplicateDocument];
   const fixtureIds = new Set(fixtureSources.map(({ chunkId }) => chunkId));
-  const remaining = selection.sources.filter(({ chunkId }) => !fixtureIds.has(chunkId));
+  const remaining = selection.sources.filter(
+    ({ chunkId }) => !fixtureIds.has(chunkId),
+  );
 
   return {
     ...selection,
@@ -174,11 +181,11 @@ export function configureFakeSourceSentinel(
 
   return {
     ...selection,
-    sources: selection.sources.map((source, index) => (
+    sources: selection.sources.map((source, index) =>
       index === 0
         ? { ...source, text: `${source.text} ${FAKE_SOURCE_SENTINEL}` }
-        : source
-    )),
+        : source,
+    ),
   };
 }
 
@@ -189,23 +196,23 @@ export function resolveFakeScenario({
   pathname,
   sessionAuthorized = false,
 }: FakeScenarioRequest): ResolvedFakeScenario | null {
-  if (
-    !testBuild
-    || (hostname !== '127.0.0.1' && hostname !== 'localhost')
-  ) return null;
+  if (!testBuild || (hostname !== '127.0.0.1' && hostname !== 'localhost'))
+    return null;
 
   const searchParams = new URLSearchParams(search);
   const explicitFakeRuntime = searchParams.get('runtime') === 'fake';
-  const continuedFakeRuntime = sessionAuthorized
-    && pathname === EGREGORE_IDENTITY.canonicalPath
-    && searchParams.get('runtime') === null;
+  const continuedFakeRuntime =
+    sessionAuthorized &&
+    pathname === EGREGORE_IDENTITY.canonicalPath &&
+    searchParams.get('runtime') === null;
   if (!explicitFakeRuntime && !continuedFakeRuntime) return null;
 
   const requestedScenario = searchParams.get('scenario');
-  const scenario = requestedScenario !== null
-    && (FAKE_SCENARIOS as readonly string[]).includes(requestedScenario)
-    ? requestedScenario as FakeScenario
-    : 'default';
+  const scenario =
+    requestedScenario !== null &&
+    (FAKE_SCENARIOS as readonly string[]).includes(requestedScenario)
+      ? (requestedScenario as FakeScenario)
+      : 'default';
 
   return {
     scenario,

@@ -21,45 +21,62 @@ describe('Egregore fake browser scenarios', () => {
       hostname: '127.0.0.1',
     } as const;
 
-    expect(resolveFakeScenario({
-      ...enabled,
-      search: '?runtime=fake&scenario=citations',
-    })).toEqual({ scenario: 'citations', slowStream: false });
-    expect(resolveFakeScenario({
-      ...enabled,
-      search: '?runtime=fake&scenario=not-allowlisted&prompt=PRIVATE&source=PRIVATE',
-    })).toEqual({ scenario: 'default', slowStream: false });
-    expect(resolveFakeScenario({
-      ...enabled,
-      search: '?runtime=fake&stream=slow&prompt=PRIVATE&source=PRIVATE',
-    })).toEqual({ scenario: 'default', slowStream: true });
+    expect(
+      resolveFakeScenario({
+        ...enabled,
+        search: '?runtime=fake&scenario=citations',
+      }),
+    ).toEqual({ scenario: 'citations', slowStream: false });
+    expect(
+      resolveFakeScenario({
+        ...enabled,
+        search:
+          '?runtime=fake&scenario=not-allowlisted&prompt=PRIVATE&source=PRIVATE',
+      }),
+    ).toEqual({ scenario: 'default', slowStream: false });
+    expect(
+      resolveFakeScenario({
+        ...enabled,
+        search: '?runtime=fake&stream=slow&prompt=PRIVATE&source=PRIVATE',
+      }),
+    ).toEqual({ scenario: 'default', slowStream: true });
 
-    expect(resolveFakeScenario({
-      ...enabled,
-      search: '?scenario=citations',
-    })).toBeNull();
-    expect(resolveFakeScenario({
-      testBuild: false,
-      hostname: '127.0.0.1',
-      search: '?runtime=fake&scenario=citations',
-    })).toBeNull();
-    expect(resolveFakeScenario({
-      testBuild: true,
-      hostname: 'jetsanchez.com',
-      search: '?runtime=fake&scenario=citations',
-    })).toBeNull();
-    expect(resolveFakeScenario({
-      ...enabled,
-      pathname: '/chatbot/',
-      search: '',
-      sessionAuthorized: true,
-    })).toEqual({ scenario: 'default', slowStream: false });
-    expect(resolveFakeScenario({
-      ...enabled,
-      pathname: '/about/',
-      search: '',
-      sessionAuthorized: true,
-    })).toBeNull();
+    expect(
+      resolveFakeScenario({
+        ...enabled,
+        search: '?scenario=citations',
+      }),
+    ).toBeNull();
+    expect(
+      resolveFakeScenario({
+        testBuild: false,
+        hostname: '127.0.0.1',
+        search: '?runtime=fake&scenario=citations',
+      }),
+    ).toBeNull();
+    expect(
+      resolveFakeScenario({
+        testBuild: true,
+        hostname: 'jetsanchez.com',
+        search: '?runtime=fake&scenario=citations',
+      }),
+    ).toBeNull();
+    expect(
+      resolveFakeScenario({
+        ...enabled,
+        pathname: '/chatbot/',
+        search: '',
+        sessionAuthorized: true,
+      }),
+    ).toEqual({ scenario: 'default', slowStream: false });
+    expect(
+      resolveFakeScenario({
+        ...enabled,
+        pathname: '/about/',
+        search: '',
+        sessionAuthorized: true,
+      }),
+    ).toBeNull();
 
     expect(FAKE_SCENARIOS).toEqual([
       'default',
@@ -116,10 +133,12 @@ describe('Egregore fake browser scenarios', () => {
     expect(getFakeScenarioConfiguration('stop-recovery')).toMatchObject({
       chunkDelayMs: 120,
     });
-    expect(getFakeScenarioConfiguration('citations').responseChunks.join(''))
-      .toMatch(/\[S2\][\s\S]*\[S1\][\s\S]*\[S2\]/);
-    expect(getFakeScenarioConfiguration('zero-citation').responseChunks.join(''))
-      .not.toMatch(/\[S\d+\]/);
+    expect(
+      getFakeScenarioConfiguration('citations').responseChunks.join(''),
+    ).toMatch(/\[S2\][\s\S]*\[S1\][\s\S]*\[S2\]/);
+    expect(
+      getFakeScenarioConfiguration('zero-citation').responseChunks.join(''),
+    ).not.toMatch(/\[S\d+\]/);
     expect(getFakeScenarioConfiguration('exhaustion')).toMatchObject({
       exhaustAfterCompletedGenerations: 1,
     });
@@ -128,8 +147,9 @@ describe('Egregore fake browser scenarios', () => {
       emitLateChunkAfterCancellation: true,
     });
 
-    expect(JSON.stringify(getFakeScenarioConfiguration('default')))
-      .not.toMatch(/prompt|sourcePayload|PRIVATE/i);
+    expect(JSON.stringify(getFakeScenarioConfiguration('default'))).not.toMatch(
+      /prompt|sourcePayload|PRIVATE/i,
+    );
     expect(getFakeScenarioConfiguration('default')).toMatchObject({
       capabilityDelayMs: 50,
     });
@@ -147,7 +167,9 @@ describe('Egregore fake browser scenarios', () => {
     await runtime.checkCapabilities();
     recorder.record('repository.load');
     await runtime.load({});
-    await runtime.createSession([{ role: 'system', content: 'PRIVATE_PREFACE' }]);
+    await runtime.createSession([
+      { role: 'system', content: 'PRIVATE_PREFACE' },
+    ]);
     await runtime.generate('PRIVATE_PROMPT', { onText: () => undefined });
     await runtime.reset();
     recorder.record('repository.unload');
@@ -171,50 +193,57 @@ describe('Egregore fake browser scenarios', () => {
     ]);
     expect(Object.isFrozen(runtime.calls)).toBe(true);
     expect(runtime.calls.every(Object.isFrozen)).toBe(true);
-    expect(JSON.stringify(runtime.calls)).not.toMatch(/PRIVATE|prompt|preface|response/i);
+    expect(JSON.stringify(runtime.calls)).not.toMatch(
+      /PRIVATE|prompt|preface|response/i,
+    );
   });
 
   it('audits every production-runtime method without recording method payloads', async () => {
     const forwarded: string[] = [];
     const recorder = new FakeRuntimeRecorder(11);
-    const runtime = createAuditedRuntime({
-      checkCapabilities: async () => {
-        forwarded.push('checkCapabilities');
-        return {
-          supported: true,
-          warnings: [],
-          failures: [],
-          secureContext: true,
-          webGpuAvailable: true,
-          adapterAvailable: true,
-          browser: { family: 'unknown', version: null },
-          storageEstimate: null,
-        };
+    const runtime = createAuditedRuntime(
+      {
+        checkCapabilities: async () => {
+          forwarded.push('checkCapabilities');
+          return {
+            supported: true,
+            warnings: [],
+            failures: [],
+            secureContext: true,
+            webGpuAvailable: true,
+            adapterAvailable: true,
+            browser: { family: 'unknown', version: null },
+            storageEstimate: null,
+          };
+        },
+        load: async () => {
+          forwarded.push('load');
+        },
+        createSession: async () => {
+          forwarded.push('createSession');
+        },
+        generate: async () => {
+          forwarded.push('generate');
+          return { finishReason: 'completed' };
+        },
+        cancel: () => {
+          forwarded.push('cancel');
+        },
+        reset: async () => {
+          forwarded.push('reset');
+        },
+        unload: async () => {
+          forwarded.push('unload');
+        },
       },
-      load: async () => {
-        forwarded.push('load');
-      },
-      createSession: async () => {
-        forwarded.push('createSession');
-      },
-      generate: async () => {
-        forwarded.push('generate');
-        return { finishReason: 'completed' };
-      },
-      cancel: () => {
-        forwarded.push('cancel');
-      },
-      reset: async () => {
-        forwarded.push('reset');
-      },
-      unload: async () => {
-        forwarded.push('unload');
-      },
-    }, recorder);
+      recorder,
+    );
 
     await runtime.checkCapabilities();
     await runtime.load({ onPhase: () => undefined });
-    await runtime.createSession([{ role: 'system', content: 'PRIVATE_PREFACE' }]);
+    await runtime.createSession([
+      { role: 'system', content: 'PRIVATE_PREFACE' },
+    ]);
     await runtime.generate('PRIVATE_PROMPT', { onText: () => undefined });
     runtime.cancel();
     await runtime.reset();
@@ -246,13 +275,19 @@ describe('Egregore fake browser scenarios', () => {
       },
     });
 
-    await expect(runtime.generate('first', { onText: () => undefined }))
-      .rejects.toMatchObject({ code: 'generation-failed' });
-    await expect(runtime.generate('second', { onText: () => undefined }))
-      .resolves.toEqual({ finishReason: 'completed' });
-    await expect(runtime.reset()).rejects.toMatchObject({ code: 'engine-cleanup-failed' });
+    await expect(
+      runtime.generate('first', { onText: () => undefined }),
+    ).rejects.toMatchObject({ code: 'generation-failed' });
+    await expect(
+      runtime.generate('second', { onText: () => undefined }),
+    ).resolves.toEqual({ finishReason: 'completed' });
+    await expect(runtime.reset()).rejects.toMatchObject({
+      code: 'engine-cleanup-failed',
+    });
     await expect(runtime.reset()).resolves.toBeUndefined();
-    await expect(runtime.unload()).rejects.toMatchObject({ code: 'engine-cleanup-failed' });
+    await expect(runtime.unload()).rejects.toMatchObject({
+      code: 'engine-cleanup-failed',
+    });
     await expect(runtime.unload()).resolves.toBeUndefined();
   });
 
@@ -295,7 +330,9 @@ describe('Egregore fake browser scenarios', () => {
     });
     await Promise.resolve();
     expect(unloadSettled).toBe(false);
-    expect(runtime.calls.map(({ method }) => method)).not.toContain('engine.delete');
+    expect(runtime.calls.map(({ method }) => method)).not.toContain(
+      'engine.delete',
+    );
     releaseUnload();
     await unloading;
     expect(runtime.calls.map(({ method }) => method).slice(-2)).toEqual([
@@ -324,7 +361,9 @@ describe('Egregore fake browser scenarios', () => {
     });
     await Promise.resolve();
     expect(settled).toBe(false);
-    expect(runtime.calls.map(({ method }) => method)).toEqual(['checkCapabilities']);
+    expect(runtime.calls.map(({ method }) => method)).toEqual([
+      'checkCapabilities',
+    ]);
     releaseCapability();
     await expect(checking).resolves.toMatchObject({ supported: true });
   });
@@ -365,16 +404,22 @@ describe('Egregore fake browser scenarios', () => {
 
     const configured = configureFakeCitationSelection(packed);
 
-    expect(configured.sources.map(({ citationId, canonicalUrl }) => ({
-      citationId,
-      canonicalUrl,
-    }))).toEqual([
+    expect(
+      configured.sources.map(({ citationId, canonicalUrl }) => ({
+        citationId,
+        canonicalUrl,
+      })),
+    ).toEqual([
       { citationId: 'S1', canonicalUrl: '/other/' },
       { citationId: 'S2', canonicalUrl: '/long/' },
       { citationId: 'S3', canonicalUrl: '/long/' },
     ]);
     expect(configured).not.toBe(packed);
-    expect(packed.sources.map(({ citationId }) => citationId)).toEqual(['S1', 'S2', 'S3']);
+    expect(packed.sources.map(({ citationId }) => citationId)).toEqual([
+      'S1',
+      'S2',
+      'S3',
+    ]);
   });
 
   it('seeds an independent privacy sentinel into fake selected context only', () => {
@@ -392,6 +437,8 @@ describe('Egregore fake browser scenarios', () => {
     );
     expect(configured.sources[1]?.text).toBe('Second published source.');
     expect(packed.sources[0]?.text).toBe('Published source text.');
-    expect(JSON.stringify(configured)).not.toContain('EGREGORE_PROMPT_SENTINEL_7f9e2d');
+    expect(JSON.stringify(configured)).not.toContain(
+      'EGREGORE_PROMPT_SENTINEL_7f9e2d',
+    );
   });
 });

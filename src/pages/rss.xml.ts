@@ -10,7 +10,9 @@ export async function GET(context: APIContext) {
 
   // Sort by date (newest first)
   const sortedPosts = blog.sort((a, b) => {
-    return new Date(b.data.pubDate).getTime() - new Date(a.data.pubDate).getTime();
+    return (
+      new Date(b.data.pubDate).getTime() - new Date(a.data.pubDate).getTime()
+    );
   });
 
   return rss({

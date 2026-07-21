@@ -28,10 +28,12 @@ describe('browser capability checks', () => {
   it('rejects an insecure context before requesting a GPU adapter', async () => {
     const requestAdapter = vi.fn().mockResolvedValue({});
 
-    const report = await checkBrowserCapabilities(capabilityEnvironment({
-      secureContext: false,
-      gpu: { requestAdapter },
-    }));
+    const report = await checkBrowserCapabilities(
+      capabilityEnvironment({
+        secureContext: false,
+        gpu: { requestAdapter },
+      }),
+    );
 
     expect(report).toMatchObject({
       supported: false,
@@ -39,12 +41,16 @@ describe('browser capability checks', () => {
       webGpuAvailable: true,
       adapterAvailable: false,
     });
-    expect(report.failures.map(({ code }) => code)).toEqual(['insecure-context']);
+    expect(report.failures.map(({ code }) => code)).toEqual([
+      'insecure-context',
+    ]);
     expect(requestAdapter).not.toHaveBeenCalled();
   });
 
   it('rejects a browser without WebGPU', async () => {
-    const report = await checkBrowserCapabilities(capabilityEnvironment({ gpu: undefined }));
+    const report = await checkBrowserCapabilities(
+      capabilityEnvironment({ gpu: undefined }),
+    );
 
     expect(report).toMatchObject({
       supported: false,
@@ -52,32 +58,42 @@ describe('browser capability checks', () => {
       webGpuAvailable: false,
       adapterAvailable: false,
     });
-    expect(report.failures.map(({ code }) => code)).toEqual(['webgpu-unavailable']);
+    expect(report.failures.map(({ code }) => code)).toEqual([
+      'webgpu-unavailable',
+    ]);
   });
 
   it('rejects a null WebGPU adapter', async () => {
-    const report = await checkBrowserCapabilities(capabilityEnvironment({
-      gpu: { requestAdapter: vi.fn().mockResolvedValue(null) },
-    }));
+    const report = await checkBrowserCapabilities(
+      capabilityEnvironment({
+        gpu: { requestAdapter: vi.fn().mockResolvedValue(null) },
+      }),
+    );
 
     expect(report.supported).toBe(false);
     expect(report.adapterAvailable).toBe(false);
-    expect(report.failures.map(({ code }) => code)).toEqual(['adapter-unavailable']);
+    expect(report.failures.map(({ code }) => code)).toEqual([
+      'adapter-unavailable',
+    ]);
   });
 
   it('reports low storage as a warning without blocking support', async () => {
-    const report = await checkBrowserCapabilities(capabilityEnvironment({
-      storage: {
-        estimate: vi.fn().mockResolvedValue({
-          quota: MIN_RECOMMENDED_AVAILABLE_STORAGE_BYTES,
-          usage: 1,
-        }),
-      },
-    }));
+    const report = await checkBrowserCapabilities(
+      capabilityEnvironment({
+        storage: {
+          estimate: vi.fn().mockResolvedValue({
+            quota: MIN_RECOMMENDED_AVAILABLE_STORAGE_BYTES,
+            usage: 1,
+          }),
+        },
+      }),
+    );
 
     expect(report.supported).toBe(true);
     expect(report.failures).toEqual([]);
-    expect(report.warnings.map(({ code }) => code)).toEqual(['storage-warning']);
+    expect(report.warnings.map(({ code }) => code)).toEqual([
+      'storage-warning',
+    ]);
     expect(report.storageEstimate).toEqual({
       quotaBytes: MIN_RECOMMENDED_AVAILABLE_STORAGE_BYTES,
       usageBytes: 1,
@@ -88,9 +104,11 @@ describe('browser capability checks', () => {
   it('supports a secure browser with WebGPU and an adapter', async () => {
     const requestAdapter = vi.fn().mockResolvedValue({ name: 'test-adapter' });
 
-    const report = await checkBrowserCapabilities(capabilityEnvironment({
-      gpu: { requestAdapter },
-    }));
+    const report = await checkBrowserCapabilities(
+      capabilityEnvironment({
+        gpu: { requestAdapter },
+      }),
+    );
 
     expect(report).toEqual({
       supported: true,
@@ -113,9 +131,11 @@ describe('browser capability checks', () => {
   });
 
   it('reports a known browser family and version without changing support', async () => {
-    const report = await checkBrowserCapabilities(capabilityEnvironment({
-      userAgent: 'Mozilla/5.0 Chrome/131.0.6778.86 Safari/537.36',
-    }));
+    const report = await checkBrowserCapabilities(
+      capabilityEnvironment({
+        userAgent: 'Mozilla/5.0 Chrome/131.0.6778.86 Safari/537.36',
+      }),
+    );
 
     expect(report.supported).toBe(true);
     expect(report.browser).toEqual({
@@ -125,9 +145,11 @@ describe('browser capability checks', () => {
   });
 
   it('reports an unknown browser as advisory metadata without blocking support', async () => {
-    const report = await checkBrowserCapabilities(capabilityEnvironment({
-      userAgent: 'NovelBrowser/99.4',
-    }));
+    const report = await checkBrowserCapabilities(
+      capabilityEnvironment({
+        userAgent: 'NovelBrowser/99.4',
+      }),
+    );
 
     expect(report.supported).toBe(true);
     expect(report.failures).toEqual([]);

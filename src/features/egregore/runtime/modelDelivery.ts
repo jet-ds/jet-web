@@ -76,10 +76,12 @@ export interface ModelDeliveryValidation {
   initialUrlMatch: boolean;
   trustedHostnames: string[];
   redirectDepth: number;
-  runtimeLength: 'unavailable' | {
-    kind: 'complete-unencoded-artifact';
-    bytes: number;
-  };
+  runtimeLength:
+    | 'unavailable'
+    | {
+        kind: 'complete-unencoded-artifact';
+        bytes: number;
+      };
   failures: ModelDeliveryFailure[];
 }
 
@@ -131,18 +133,19 @@ function parseTrustedModelUrl(
   }
 
   if (
-    url.protocol !== 'https:'
-    || url.port !== ''
-    || url.username !== ''
-    || url.password !== ''
+    url.protocol !== 'https:' ||
+    url.port !== '' ||
+    url.username !== '' ||
+    url.password !== ''
   ) {
     return undefined;
   }
 
-  const trusted = policy.some(({ hostname, allowSubdomains }) => (
-    url.hostname === hostname
-    || (allowSubdomains && url.hostname.endsWith(`.${hostname}`))
-  ));
+  const trusted = policy.some(
+    ({ hostname, allowSubdomains }) =>
+      url.hostname === hostname ||
+      (allowSubdomains && url.hostname.endsWith(`.${hostname}`)),
+  );
 
   return trusted ? url : undefined;
 }
@@ -154,7 +157,9 @@ export function isTrustedModelOrigin(
   return parseTrustedModelUrl(value, policy) !== undefined;
 }
 
-function hasOnlyAllowedHeaders(headers: ModelDeliveryRequest['headers']): boolean {
+function hasOnlyAllowedHeaders(
+  headers: ModelDeliveryRequest['headers'],
+): boolean {
   if (!headers) {
     return true;
   }
@@ -190,7 +195,10 @@ export function validateModelDeliveryChain(
   let redirectDepth = 0;
   let runtimeLength: ModelDeliveryValidation['runtimeLength'] = 'unavailable';
 
-  const addFailure = (hopIndex: number, ruleCode: ModelDeliveryRuleCode): void => {
+  const addFailure = (
+    hopIndex: number,
+    ruleCode: ModelDeliveryRuleCode,
+  ): void => {
     const key = `${hopIndex}:${ruleCode}`;
     if (!failureKeys.has(key)) {
       failureKeys.add(key);
@@ -207,7 +215,10 @@ export function validateModelDeliveryChain(
   }
 
   chain.forEach((hop, hopIndex) => {
-    const trustedUrl = parseTrustedModelUrl(hop.request.url, config.trustedOrigins);
+    const trustedUrl = parseTrustedModelUrl(
+      hop.request.url,
+      config.trustedOrigins,
+    );
 
     if (!trustedUrl) {
       addFailure(hopIndex, 'ORIGIN_NOT_TRUSTED');
@@ -228,9 +239,9 @@ export function validateModelDeliveryChain(
     }
 
     if (
-      hop.request.credentials !== undefined
-      && hop.request.credentials !== 'omit'
-      && hop.request.credentials !== 'same-origin'
+      hop.request.credentials !== undefined &&
+      hop.request.credentials !== 'omit' &&
+      hop.request.credentials !== 'same-origin'
     ) {
       addFailure(hopIndex, 'REQUEST_CREDENTIALS_NOT_ALLOWED');
     }
@@ -239,7 +250,9 @@ export function validateModelDeliveryChain(
       addFailure(hopIndex, 'REQUEST_HEADER_NOT_ALLOWED');
     }
 
-    if (Object.keys(hop.request).some((key) => !ALLOWED_REQUEST_KEYS.has(key))) {
+    if (
+      Object.keys(hop.request).some((key) => !ALLOWED_REQUEST_KEYS.has(key))
+    ) {
       addFailure(hopIndex, 'REQUEST_PRIVATE_DATA_PRESENT');
     }
 

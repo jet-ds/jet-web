@@ -3,7 +3,8 @@ import { SITE } from '../config/site';
 const SITE_ROOT_URL = new URL('/', SITE.siteUrl).toString();
 
 export type JsonPrimitive = string | number | boolean | null;
-export type JsonValue = JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
+export type JsonValue =
+  JsonPrimitive | JsonValue[] | { [key: string]: JsonValue };
 export type JsonLd = {
   '@context': 'https://schema.org';
   '@type': string;
@@ -154,7 +155,9 @@ function buildBlogPostingSchema(
     ...(headline !== undefined && { headline }),
     ...(props.description !== undefined && { description: props.description }),
     ...(props.image && { image: props.image }),
-    ...(props.datePublished !== undefined && { datePublished: props.datePublished }),
+    ...(props.datePublished !== undefined && {
+      datePublished: props.datePublished,
+    }),
     ...(dateModified !== undefined && { dateModified }),
     author: {
       '@type': 'Person',
@@ -286,7 +289,9 @@ function buildScholarlyArticleSchema(
     ...(props.description !== undefined && { description: props.description }),
     ...(props.abstract && { abstract: props.abstract }),
     ...(props.image && { image: props.image }),
-    ...(props.datePublished !== undefined && { datePublished: props.datePublished }),
+    ...(props.datePublished !== undefined && {
+      datePublished: props.datePublished,
+    }),
     ...(dateModified !== undefined && { dateModified }),
     author: {
       '@type': 'Person',

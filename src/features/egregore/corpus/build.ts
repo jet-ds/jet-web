@@ -15,7 +15,10 @@ import {
   MINISEARCH_VERSION,
   STEMMER_VERSION,
 } from '../selection/searchIndex';
-import { serializeSourcePayload, type SourcePayloadRecord } from '../sourcePayload';
+import {
+  serializeSourcePayload,
+  type SourcePayloadRecord,
+} from '../sourcePayload';
 import { normalizeMdx } from './normalize';
 import { SEGMENTATION_VERSION, segmentDocument } from './segment';
 import { canonicalSerialize } from './canonical';
@@ -82,40 +85,58 @@ function validateBase(entry: AssistantSourceEntry): void {
     throw new Error('Assistant source collection must be blog or works.');
   }
   if (
-    typeof entry.slug !== 'string'
-    || entry.slug.trim() === ''
-    || entry.slug.startsWith('/')
-    || entry.slug.endsWith('/')
-    || entry.slug.includes('\\')
-    || entry.slug.split('/').some((part) => part === '' || part === '.' || part === '..')
+    typeof entry.slug !== 'string' ||
+    entry.slug.trim() === '' ||
+    entry.slug.startsWith('/') ||
+    entry.slug.endsWith('/') ||
+    entry.slug.includes('\\') ||
+    entry.slug
+      .split('/')
+      .some((part) => part === '' || part === '.' || part === '..')
   ) {
     throw new Error(`Invalid assistant source slug: ${String(entry.slug)}.`);
   }
   if (typeof entry.body !== 'string') {
     throw new Error(`Assistant source body must be a string: ${entry.slug}.`);
   }
-  if (typeof entry.sourcePath !== 'string' || typeof entry.tracked !== 'boolean') {
+  if (
+    typeof entry.sourcePath !== 'string' ||
+    typeof entry.tracked !== 'boolean'
+  ) {
     throw new Error(`Assistant source provenance is invalid: ${entry.slug}.`);
   }
 }
 
-function validateAndNormalizeEntry(entry: AssistantSourceEntry): AssistantSourceEntry {
+function validateAndNormalizeEntry(
+  entry: AssistantSourceEntry,
+): AssistantSourceEntry {
   validateBase(entry);
-  const data = entry.collection === 'blog'
-    ? blogSchema.parse(entry.data)
-    : worksSchema.parse(entry.data);
+  const data =
+    entry.collection === 'blog'
+      ? blogSchema.parse(entry.data)
+      : worksSchema.parse(entry.data);
 
   if (data.assistant === true && data.status !== 'published') {
-    throw new Error(`Assistant-enabled content must be published: ${entry.collection}:${entry.slug}.`);
+    throw new Error(
+      `Assistant-enabled content must be published: ${entry.collection}:${entry.slug}.`,
+    );
   }
   if (isAssistantEligible(data) && !entry.tracked) {
-    throw new Error(`Assistant source must be tracked by Git: ${entry.collection}:${entry.slug}.`);
+    throw new Error(
+      `Assistant source must be tracked by Git: ${entry.collection}:${entry.slug}.`,
+    );
   }
   if (isAssistantEligible(data) && entry.sourcePath.trim() === '') {
-    throw new Error(`Assistant source requires a repository source path: ${entry.collection}:${entry.slug}.`);
+    throw new Error(
+      `Assistant source requires a repository source path: ${entry.collection}:${entry.slug}.`,
+    );
   }
 
-  return { ...entry, slug: entry.slug.normalize('NFC'), data } as AssistantSourceEntry;
+  return {
+    ...entry,
+    slug: entry.slug.normalize('NFC'),
+    data,
+  } as AssistantSourceEntry;
 }
 
 function assertUnique<T>(
@@ -133,7 +154,10 @@ function assertUnique<T>(
   }
 }
 
-function documentFromEntry(entry: AssistantSourceEntry, order: number): KnowledgeDocument {
+function documentFromEntry(
+  entry: AssistantSourceEntry,
+  order: number,
+): KnowledgeDocument {
   const id = `${entry.collection}:${entry.slug}` as DocumentId;
   const isBlog = entry.collection === 'blog';
   const publishedAt = isBlog ? entry.data.pubDate : entry.data.date;
@@ -161,8 +185,12 @@ function fullCorpusSourcePayload(
   sections: readonly KnowledgeSection[],
   chunks: readonly KnowledgeChunk[],
 ): SourcePayloadRecord[] {
-  const documentsById = new Map(documents.map((document) => [document.id, document]));
-  const sectionsById = new Map(sections.map((section) => [section.id, section]));
+  const documentsById = new Map(
+    documents.map((document) => [document.id, document]),
+  );
+  const sectionsById = new Map(
+    sections.map((section) => [section.id, section]),
+  );
   return chunks.map((chunk, index) => {
     const document = documentsById.get(chunk.documentId);
     const section = sectionsById.get(chunk.sectionId);
@@ -193,10 +221,16 @@ export function buildKnowledgeBase(
   const eligible = entries
     .map(validateAndNormalizeEntry)
     .filter((entry) => isAssistantEligible(entry.data))
-    .sort((left, right) => (
-      compareText(left.collection, right.collection) || compareText(left.slug, right.slug)
-    ));
-  assertUnique(eligible, (entry) => `${entry.collection}:${entry.slug}`, 'document id');
+    .sort(
+      (left, right) =>
+        compareText(left.collection, right.collection) ||
+        compareText(left.slug, right.slug),
+    );
+  assertUnique(
+    eligible,
+    (entry) => `${entry.collection}:${entry.slug}`,
+    'document id',
+  );
 
   const documents: KnowledgeDocument[] = [];
   const sections: KnowledgeSection[] = [];
@@ -222,18 +256,23 @@ export function buildKnowledgeBase(
     documentCount: documents.length,
     sectionCount: sections.length,
     chunkCount: chunks.length,
-    estimatedContentTokens: chunks.reduce((total, chunk) => total + chunk.estimatedTokens, 0),
+    estimatedContentTokens: chunks.reduce(
+      (total, chunk) => total + chunk.estimatedTokens,
+      0,
+    ),
     fullCorpusKnowledgeTokens: serializeSourcePayload(
       fullCorpusSourcePayload(documents, sections, chunks),
     ).estimatedTokens,
   };
-  const corpusVersion = sha256(canonicalSerialize({
-    schemaVersion: SCHEMA_VERSION,
-    segmentationVersion: SEGMENTATION_VERSION,
-    documents,
-    sections,
-    chunks,
-  }));
+  const corpusVersion = sha256(
+    canonicalSerialize({
+      schemaVersion: SCHEMA_VERSION,
+      segmentationVersion: SEGMENTATION_VERSION,
+      documents,
+      sections,
+      chunks,
+    }),
+  );
   const content: KnowledgePackage = {
     schemaVersion: SCHEMA_VERSION,
     segmentationVersion: SEGMENTATION_VERSION,
@@ -280,7 +319,11 @@ export function resolveSourceCommit(input: SourceCommitInput): string {
     ['Vercel', input.vercelSha],
     ['GitHub', input.githubSha],
   ] as const) {
-    if (supplied !== undefined && supplied.trim() !== '' && supplied.trim() !== gitHead) {
+    if (
+      supplied !== undefined &&
+      supplied.trim() !== '' &&
+      supplied.trim() !== gitHead
+    ) {
       throw new Error(`${provider} source commit mismatch with Git HEAD.`);
     }
   }
@@ -302,7 +345,9 @@ function cleanGitEnvironment(): NodeJS.ProcessEnv {
   return environment;
 }
 
-export async function readGitHead(root: string = process.cwd()): Promise<string> {
+export async function readGitHead(
+  root: string = process.cwd(),
+): Promise<string> {
   try {
     const { stdout } = await execFileAsync('git', ['rev-parse', 'HEAD'], {
       cwd: root,

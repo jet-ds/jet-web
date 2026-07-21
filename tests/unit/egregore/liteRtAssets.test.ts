@@ -29,36 +29,51 @@ const expectedAssets = [
 
 describe('LiteRT-LM same-origin assets', () => {
   it('pins the installed package and exact public WASM allowlist', () => {
-    const packageDirectory = dirname(dirname(resolveLiteRtAssetPath(expectedAssets[0])));
+    const packageDirectory = dirname(
+      dirname(resolveLiteRtAssetPath(expectedAssets[0])),
+    );
     const packageJson = JSON.parse(
       readFileSync(join(packageDirectory, 'package.json'), 'utf8'),
     ) as { version: string };
 
     expect(packageJson.version).toBe('0.14.0');
     expect(LITERT_LM_WASM_ASSETS).toEqual(expectedAssets);
-    expect(EGREGORE_PATHS.liteRtWasm).toBe('/assistant/runtime/litert-lm/0.14.0/');
+    expect(EGREGORE_PATHS.liteRtWasm).toBe(
+      '/assistant/runtime/litert-lm/0.14.0/',
+    );
   });
 
   it('prerenders only the allowlisted package assets', () => {
     expect(prerender).toBe(true);
-    expect(getStaticPaths()).toEqual(expectedAssets.map((asset) => ({
-      params: { asset },
-    })));
+    expect(getStaticPaths()).toEqual(
+      expectedAssets.map((asset) => ({
+        params: { asset },
+      })),
+    );
   });
 
-  it.each(expectedAssets)('emits %s byte-for-byte with the correct content type', async (asset) => {
-    const installedBytes = await readFileAsync(resolveLiteRtAssetPath(asset));
-    const response = await GET({ params: { asset } });
+  it.each(expectedAssets)(
+    'emits %s byte-for-byte with the correct content type',
+    async (asset) => {
+      const installedBytes = await readFileAsync(resolveLiteRtAssetPath(asset));
+      const response = await GET({ params: { asset } });
 
-    expect(response.status).toBe(200);
-    expect(response.headers.get('Content-Type')).toBe(getLiteRtAssetContentType(asset));
-    expect(Buffer.from(await response.arrayBuffer()).equals(installedBytes)).toBe(true);
-  });
+      expect(response.status).toBe(200);
+      expect(response.headers.get('Content-Type')).toBe(
+        getLiteRtAssetContentType(asset),
+      );
+      expect(
+        Buffer.from(await response.arrayBuffer()).equals(installedBytes),
+      ).toBe(true);
+    },
+  );
 
-  it.each(['unknown.wasm', '../litertlm_wasm_internal.wasm', 'nested/file.js']) (
+  it.each(['unknown.wasm', '../litertlm_wasm_internal.wasm', 'nested/file.js'])(
     'rejects unknown or path-traversal asset %s',
     async (asset) => {
-      expect(() => resolveLiteRtAssetPath(asset)).toThrow('LITERT_ASSET_NOT_ALLOWED');
+      expect(() => resolveLiteRtAssetPath(asset)).toThrow(
+        'LITERT_ASSET_NOT_ALLOWED',
+      );
 
       const response = await GET({ params: { asset } });
 

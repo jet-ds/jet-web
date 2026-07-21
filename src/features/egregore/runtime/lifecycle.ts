@@ -99,8 +99,8 @@ export function reduceEgregoreLifecycle(
   }
 
   if (
-    event.type === 'cleanup-failed'
-    && (state.status === 'generating' || state.status === 'cancelling')
+    event.type === 'cleanup-failed' &&
+    (state.status === 'generating' || state.status === 'cancelling')
   ) {
     return status(state, 'unload-error', { error: event.error });
   }
@@ -177,8 +177,8 @@ export function reduceEgregoreLifecycle(
         : state;
     case 'cancelling':
       if (
-        event.type === 'generation-cancelled'
-        || event.type === 'generation-succeeded'
+        event.type === 'generation-cancelled' ||
+        event.type === 'generation-succeeded'
       ) {
         return status(state, 'ready', { error: null });
       }

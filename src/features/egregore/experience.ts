@@ -1,11 +1,7 @@
 import type { EgregoreLifecycleStatus } from './runtime/lifecycle';
 
 export type GhostAnimationMode =
-  | 'idle'
-  | 'scanning'
-  | 'loading'
-  | 'ready'
-  | 'thinking';
+  'idle' | 'scanning' | 'loading' | 'ready' | 'thinking';
 
 export type ComposerActionTone = 'accent' | 'neutral' | 'stop';
 
@@ -61,22 +57,20 @@ const LOADING_HEADLINE_INTERVAL_SECONDS = 12;
 const LOADING_REASSURANCE_THRESHOLD_SECONDS = 36;
 
 function getSafeElapsedSeconds(elapsedSeconds: number): number {
-  return Number.isFinite(elapsedSeconds)
-    ? Math.max(0, elapsedSeconds)
-    : 0;
+  return Number.isFinite(elapsedSeconds) ? Math.max(0, elapsedSeconds) : 0;
 }
 
 export function getLoadingHeadline(elapsedSeconds: number): string {
   const safeElapsedSeconds = getSafeElapsedSeconds(elapsedSeconds);
-  const headlineIndex = Math.floor(
-    safeElapsedSeconds / LOADING_HEADLINE_INTERVAL_SECONDS,
-  ) % LOADING_HEADLINES.length;
+  const headlineIndex =
+    Math.floor(safeElapsedSeconds / LOADING_HEADLINE_INTERVAL_SECONDS) %
+    LOADING_HEADLINES.length;
   return LOADING_HEADLINES[headlineIndex] ?? LOADING_HEADLINES[0];
 }
 
 export function getLoadingReassurance(elapsedSeconds: number): string | null {
-  return getSafeElapsedSeconds(elapsedSeconds)
-    >= LOADING_REASSURANCE_THRESHOLD_SECONDS
+  return getSafeElapsedSeconds(elapsedSeconds) >=
+    LOADING_REASSURANCE_THRESHOLD_SECONDS
     ? 'First load may take a few minutes.'
     : null;
 }
@@ -121,33 +115,33 @@ export function getLifecycleAnnouncement(
 ): string {
   switch (lifecycle) {
     case 'idle':
-      return "Egregore is not running.";
+      return 'Egregore is not running.';
     case 'checking-capabilities':
-      return "Checking whether this browser can run Egregore.";
+      return 'Checking whether this browser can run Egregore.';
     case 'awaiting-consent':
-      return "Compatibility check complete. Egregore is ready to load.";
+      return 'Compatibility check complete. Egregore is ready to load.';
     case 'unsupported':
-      return "This browser cannot run Egregore.";
+      return 'This browser cannot run Egregore.';
     case 'loading':
-      return "Egregore is loading on this device.";
+      return 'Egregore is loading on this device.';
     case 'load-error':
-      return "Egregore did not finish loading. Review the recovery action.";
+      return 'Egregore did not finish loading. Review the recovery action.';
     case 'ready':
-      return "Egregore is ready.";
+      return 'Egregore is ready.';
     case 'generating':
-      return "Egregore is responding.";
+      return 'Egregore is responding.';
     case 'cancelling':
       return 'Stopping the current response.';
     case 'generation-error':
       return 'The response was interrupted. Review the recovery action.';
     case 'resetting':
-      return "Starting a new Egregore session.";
+      return 'Starting a new Egregore session.';
     case 'reset-error':
       return 'The new session did not start. Review the recovery action.';
     case 'unloading':
-      return "Unloading Egregore from this device.";
+      return 'Unloading Egregore from this device.';
     case 'unload-error':
-      return "Egregore did not finish unloading. Review the recovery action.";
+      return 'Egregore did not finish unloading. Review the recovery action.';
   }
 }
 
@@ -155,11 +149,14 @@ export function shouldFocusComposer(
   previous: EgregoreLifecycleStatus,
   current: EgregoreLifecycleStatus,
 ): boolean {
-  return current === 'ready' && [
-    'loading',
-    'resetting',
-    'generation-error',
-    'generating',
-    'cancelling',
-  ].includes(previous);
+  return (
+    current === 'ready' &&
+    [
+      'loading',
+      'resetting',
+      'generation-error',
+      'generating',
+      'cancelling',
+    ].includes(previous)
+  );
 }

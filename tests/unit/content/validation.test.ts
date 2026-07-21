@@ -6,7 +6,9 @@ import {
   validateContentRecords,
 } from '../../../src/content/validation';
 
-function record(overrides: Partial<ContentValidationRecord> = {}): ContentValidationRecord {
+function record(
+  overrides: Partial<ContentValidationRecord> = {},
+): ContentValidationRecord {
   return {
     path: 'src/data/blog/example.mdx',
     tracked: true,
@@ -71,7 +73,9 @@ describe('content validation', () => {
     },
     {
       name: 'HTTP published link URL',
-      overrides: { links: [{ label: 'Reference', url: 'http://example.com/reference' }] },
+      overrides: {
+        links: [{ label: 'Reference', url: 'http://example.com/reference' }],
+      },
       code: 'invalid-link-url',
     },
     {
@@ -88,10 +92,13 @@ describe('content validation', () => {
     name: string;
     overrides: Partial<ContentValidationRecord>;
     code: ContentPolicyError['code'];
-  }>)('reports $name with a stable path-qualified rule', ({ overrides, code }) => {
-    const input = record(overrides);
-    expectRule(validateContentRecords([input]), code, input.path);
-  });
+  }>)(
+    'reports $name with a stable path-qualified rule',
+    ({ overrides, code }) => {
+      const input = record(overrides);
+      expectRule(validateContentRecords([input]), code, input.path);
+    },
+  );
 
   it('does not apply publication predicates after invalid raw fields', () => {
     const input = record({
@@ -109,15 +116,21 @@ describe('content validation', () => {
   });
 
   it('allows omitted assistant because the shared schema defaults it to false', () => {
-    expect(validateContentRecords([record({ assistant: undefined })])).toEqual([]);
+    expect(validateContentRecords([record({ assistant: undefined })])).toEqual(
+      [],
+    );
   });
 
   it('validates published links but leaves draft links for authoring', () => {
-    expect(validateContentRecords([record({
-      status: 'draft',
-      assistant: false,
-      links: [{ label: 'Work in progress', url: '#' }],
-    })])).toEqual([]);
+    expect(
+      validateContentRecords([
+        record({
+          status: 'draft',
+          assistant: false,
+          links: [{ label: 'Work in progress', url: '#' }],
+        }),
+      ]),
+    ).toEqual([]);
   });
 
   it('detects canonical IDs that normalize to the same Unicode value', () => {
@@ -136,7 +149,9 @@ describe('content validation', () => {
   });
 
   it('detects canonical URLs that are equal after URL normalization', () => {
-    const first = record({ canonicalUrl: 'https://JETsanchez.com:443/blog/example' });
+    const first = record({
+      canonicalUrl: 'https://JETsanchez.com:443/blog/example',
+    });
     const duplicate = record({
       path: 'src/data/blog/duplicate-url.mdx',
       canonicalId: 'blog:duplicate-url',
@@ -169,13 +184,16 @@ describe('content validation', () => {
       generatedId: 'blog:example',
       path: 'src/data/blog/example.mdx',
     },
-  ])('rejects a $name generated assistant source', ({ records, generatedId, path }) => {
-    expectRule(
-      assertGeneratedAssistantSources(records, [generatedId]),
-      'generated-source-ineligible',
-      path,
-    );
-  });
+  ])(
+    'rejects a $name generated assistant source',
+    ({ records, generatedId, path }) => {
+      expectRule(
+        assertGeneratedAssistantSources(records, [generatedId]),
+        'generated-source-ineligible',
+        path,
+      );
+    },
+  );
 
   it('accepts an untracked disabled draft without making it a generated source', () => {
     const draft = record({ tracked: false, status: 'draft', assistant: false });

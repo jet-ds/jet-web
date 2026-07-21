@@ -31,12 +31,14 @@ export const blogSchema = z.object({
   author: z.string().default('Jet Sanchez'),
   tags: z.array(z.string()).default([]),
   ...publicationFields,
-  image: z.object({
-    url: z.string(),
-    alt: z.string(),
-    width: z.number().int().positive(),
-    height: z.number().int().positive(),
-  }).optional(),
+  image: z
+    .object({
+      url: z.string(),
+      alt: z.string(),
+      width: z.number().int().positive(),
+      height: z.number().int().positive(),
+    })
+    .optional(),
 });
 
 /**
@@ -54,17 +56,23 @@ export const worksSchema = z.object({
   tags: z.array(z.string()).default([]),
   ...publicationFields,
   featured: z.boolean().default(false),
-  image: z.object({
-    url: z.string(),
-    darkUrl: z.string().optional(),
-    alt: z.string(),
-    width: z.number().int().positive().optional(),
-    height: z.number().int().positive().optional(),
-  }).optional(),
-  links: z.array(z.object({
-    label: z.string(),
-    url: z.string(),
-  })).optional(),
+  image: z
+    .object({
+      url: z.string(),
+      darkUrl: z.string().optional(),
+      alt: z.string(),
+      width: z.number().int().positive().optional(),
+      height: z.number().int().positive().optional(),
+    })
+    .optional(),
+  links: z
+    .array(
+      z.object({
+        label: z.string(),
+        url: z.string(),
+      }),
+    )
+    .optional(),
   // For research papers
   venue: z.string().optional(),
   abstract: z.string().optional(),

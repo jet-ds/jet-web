@@ -1,5 +1,11 @@
 import type { PropsWithChildren } from 'react';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+} from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import LiquidGlassDock from '../../../src/components/navigation/LiquidGlassDock';
 
@@ -14,7 +20,10 @@ vi.mock('../../../src/hooks/useTheme', () => ({
 }));
 
 vi.mock('../../../src/components/navigation/GlassSurface', () => ({
-  default: ({ children, className }: PropsWithChildren<{ className?: string }>) => (
+  default: ({
+    children,
+    className,
+  }: PropsWithChildren<{ className?: string }>) => (
     <div className={className}>{children}</div>
   ),
 }));
@@ -60,7 +69,9 @@ describe('LiquidGlassDock', () => {
     expect(dock).not.toHaveAttribute('inert');
     expect(dock).not.toHaveAttribute('aria-hidden');
     expect(blogLink).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
+    expect(screen.getByRole('link', { name: 'Home' })).not.toHaveAttribute(
+      'aria-current',
+    );
     expect(blogLink).toHaveClass(
       'focus-visible:ring-brand-base',
       'focus-visible:ring-offset-bg-base',
@@ -70,16 +81,22 @@ describe('LiquidGlassDock', () => {
   it('hides the discovered mobile dock from focus until opened and restores focus on close', async () => {
     const { rerender } = render(<LiquidGlassDock currentPath="/blog/post" />);
 
-    expect(screen.queryByRole('button', { name: 'Open navigation' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Open navigation' }),
+    ).not.toBeInTheDocument();
 
     setScrollY(100);
     fireEvent.scroll(window);
-    expect(screen.queryByRole('button', { name: 'Open navigation' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Open navigation' }),
+    ).not.toBeInTheDocument();
 
     setScrollY(101);
     fireEvent.scroll(window);
 
-    const disclosure = await screen.findByRole('button', { name: 'Open navigation' });
+    const disclosure = await screen.findByRole('button', {
+      name: 'Open navigation',
+    });
     const dock = document.querySelector('#site-navigation-dock');
 
     expect(disclosure).toHaveAttribute('aria-expanded', 'false');
@@ -93,10 +110,9 @@ describe('LiquidGlassDock', () => {
 
     fireEvent.click(disclosure);
 
-    expect(screen.getByRole('button', { name: 'Close navigation' })).toHaveAttribute(
-      'aria-expanded',
-      'true',
-    );
+    expect(
+      screen.getByRole('button', { name: 'Close navigation' }),
+    ).toHaveAttribute('aria-expanded', 'true');
     expect(dock).not.toHaveAttribute('inert');
     expect(dock).not.toHaveAttribute('aria-hidden');
     dock?.querySelectorAll('a, button').forEach((element) => {
@@ -126,8 +142,12 @@ describe('LiquidGlassDock', () => {
     rerender(<LiquidGlassDock currentPath="/blog/post" />);
 
     await waitFor(() => {
-      expect(screen.queryByRole('button', { name: 'Open navigation' })).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Close navigation' })).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'Open navigation' }),
+      ).not.toBeInTheDocument();
+      expect(
+        screen.queryByRole('button', { name: 'Close navigation' }),
+      ).not.toBeInTheDocument();
       expect(dock).not.toHaveAttribute('inert');
       expect(dock).not.toHaveAttribute('aria-hidden');
     });
@@ -138,7 +158,9 @@ describe('LiquidGlassDock', () => {
 
     render(<LiquidGlassDock currentPath="/blog/post" />);
 
-    const disclosure = await screen.findByRole('button', { name: 'Open navigation' });
+    const disclosure = await screen.findByRole('button', {
+      name: 'Open navigation',
+    });
     const dock = document.querySelector('#site-navigation-dock');
 
     expect(disclosure).toHaveAttribute('aria-expanded', 'false');

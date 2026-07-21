@@ -81,9 +81,9 @@ function readBlocks(text: string): TextBlock[] {
 
         const closingFence = line.trim().match(/^(`+|~+)\s*$/);
         if (
-          closingFence
-          && closingFence[1][0] === fenceCharacter
-          && closingFence[1].length >= fenceLength
+          closingFence &&
+          closingFence[1][0] === fenceCharacter &&
+          closingFence[1].length >= fenceLength
         ) {
           break;
         }
@@ -146,7 +146,12 @@ function splitCodeBlock(text: string): string[] {
   const opening = lines[0];
   const openingMatch = opening.match(/^\s*(`{3,}|~{3,})(.*)$/);
   const closing = lines.at(-1)?.trim() ?? '';
-  if (!openingMatch || !new RegExp(`^\\${openingMatch[1][0]}{${openingMatch[1].length},}$`).test(closing)) {
+  if (
+    !openingMatch ||
+    !new RegExp(`^\\${openingMatch[1][0]}{${openingMatch[1].length},}$`).test(
+      closing,
+    )
+  ) {
     return splitText(text, MAX_CHARACTERS);
   }
 
@@ -159,9 +164,9 @@ function splitCodeBlock(text: string): string[] {
   }
 
   const content = lines.slice(1, -1).join('\n');
-  return splitText(content, contentLimit).map((part) => (
-    `${fence}${language}\n${part}\n${fence}`
-  ));
+  return splitText(content, contentLimit).map(
+    (part) => `${fence}${language}\n${part}\n${fence}`,
+  );
 }
 
 function overlapTail(text: string): string {
@@ -208,9 +213,10 @@ function chunkSection(text: string): string[] {
       const previous = flush();
       const overlap = overlapTail(previous);
       const overlappedCandidate = joinBlocks(overlap, unit);
-      current = estimateTokens(overlappedCandidate) <= SEGMENTATION.maxTokens
-        ? overlappedCandidate
-        : unit;
+      current =
+        estimateTokens(overlappedCandidate) <= SEGMENTATION.maxTokens
+          ? overlappedCandidate
+          : unit;
     }
   }
 

@@ -37,12 +37,15 @@ function isScannedDocument(path: string): boolean {
   return path === 'docs/archive/README.md';
 }
 
-function filesystemTarget(documentPath: string, destination: string): string | null {
+function filesystemTarget(
+  documentPath: string,
+  destination: string,
+): string | null {
   if (
-    destination.startsWith('#')
-    || destination.startsWith('//')
-    || destination.startsWith('/')
-    || externalScheme.test(destination)
+    destination.startsWith('#') ||
+    destination.startsWith('//') ||
+    destination.startsWith('/') ||
+    externalScheme.test(destination)
   ) {
     return null;
   }
@@ -60,7 +63,9 @@ function filesystemTarget(documentPath: string, destination: string): string | n
     throw new Error(`INVALID_LINK_PATH:${documentPath}:${destination}`);
   }
 
-  const target = posix.normalize(posix.join(posix.dirname(documentPath), decoded));
+  const target = posix.normalize(
+    posix.join(posix.dirname(documentPath), decoded),
+  );
   if (posix.isAbsolute(target) || target === '..' || target.startsWith('../')) {
     throw new Error(`LINK_ESCAPES_REPOSITORY:${documentPath}:${destination}`);
   }
@@ -75,18 +80,26 @@ function linkedDestinations(markdown: string): string[] {
 
   visit(tree, (node) => {
     const candidate = node as MarkdownNode;
-    if ((candidate.type === 'link' || candidate.type === 'image') && candidate.url) {
+    if (
+      (candidate.type === 'link' || candidate.type === 'image') &&
+      candidate.url
+    ) {
       destinations.push(candidate.url);
       return;
     }
     if (
-      (candidate.type === 'linkReference' || candidate.type === 'imageReference')
-      && candidate.identifier
+      (candidate.type === 'linkReference' ||
+        candidate.type === 'imageReference') &&
+      candidate.identifier
     ) {
       references.add(candidate.identifier.toLowerCase());
       return;
     }
-    if (candidate.type === 'definition' && candidate.identifier && candidate.url) {
+    if (
+      candidate.type === 'definition' &&
+      candidate.identifier &&
+      candidate.url
+    ) {
       definitions.set(candidate.identifier.toLowerCase(), candidate.url);
     }
   });
@@ -130,9 +143,10 @@ export async function verifyTrackedMarkdownLinks(
 
   if (failures.size > 0) {
     const details = [...failures]
-      .map(([documentPath, missing]) => (
-        `${documentPath}: ${[...missing].sort((left, right) => left.localeCompare(right, 'en')).join(', ')}`
-      ))
+      .map(
+        ([documentPath, missing]) =>
+          `${documentPath}: ${[...missing].sort((left, right) => left.localeCompare(right, 'en')).join(', ')}`,
+      )
       .join('\n');
     throw new Error(`BROKEN_DOCUMENTATION_LINKS:\n${details}`);
   }
@@ -146,14 +160,19 @@ function gitTrackedMarkdown(repositoryRoot: string): string[] {
     encoding: 'buffer',
     shell: false,
   });
-  if (result.error || result.status !== 0) throw new Error('GIT_MARKDOWN_LIST_FAILED');
+  if (result.error || result.status !== 0)
+    throw new Error('GIT_MARKDOWN_LIST_FAILED');
   return result.stdout.toString('utf8').split('\0').filter(Boolean);
 }
 
 function repositoryPath(repositoryRoot: string, path: string): string {
   const absolute = resolve(repositoryRoot, ...path.split('/'));
   const fromRoot = relative(repositoryRoot, absolute);
-  if (fromRoot === '..' || fromRoot.startsWith(`..${sep}`) || isAbsolute(fromRoot)) {
+  if (
+    fromRoot === '..' ||
+    fromRoot.startsWith(`..${sep}`) ||
+    isAbsolute(fromRoot)
+  ) {
     throw new Error(`LINK_ESCAPES_REPOSITORY:${path}`);
   }
   return absolute;
@@ -162,24 +181,33 @@ function repositoryPath(repositoryRoot: string, path: string): string {
 function productionDependencies(repositoryRoot: string): DocLinkDependencies {
   return {
     trackedMarkdown: () => gitTrackedMarkdown(repositoryRoot),
-    readFile: (path) => readFileSync(repositoryPath(repositoryRoot, path), 'utf8'),
+    readFile: (path) =>
+      readFileSync(repositoryPath(repositoryRoot, path), 'utf8'),
     exists: (path) => existsSync(repositoryPath(repositoryRoot, path)),
   };
 }
 
 const repositoryRoot = resolve(fileURLToPath(import.meta.url), '../..');
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (
+  process.argv[1] &&
+  resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
   verifyTrackedMarkdownLinks(
     { repositoryRoot },
     productionDependencies(repositoryRoot),
-  ).then((result) => {
-    process.stdout.write(
-      `Documentation links verified: ${result.checkedDocuments} documents, ${result.checkedLinks} relative links.\n`,
-    );
-  }).catch((error: unknown) => {
-    const message = error instanceof Error ? error.message : 'UNEXPECTED_ERROR';
-    process.stderr.write(`Documentation link verification failed: ${message}\n`);
-    process.exitCode = 1;
-  });
+  )
+    .then((result) => {
+      process.stdout.write(
+        `Documentation links verified: ${result.checkedDocuments} documents, ${result.checkedLinks} relative links.\n`,
+      );
+    })
+    .catch((error: unknown) => {
+      const message =
+        error instanceof Error ? error.message : 'UNEXPECTED_ERROR';
+      process.stderr.write(
+        `Documentation link verification failed: ${message}\n`,
+      );
+      process.exitCode = 1;
+    });
 }

@@ -99,56 +99,62 @@ const canonicalURL = getCanonicalURL(Astro.url.pathname);
           </h1>
 
           <!-- Meta Information -->
-          <div class="flex flex-wrap items-center gap-s text-sm text-text-tertiary mb-m">
-          <div>
-            <span class="font-medium">By {author}</span>
+          <div
+            class="flex flex-wrap items-center gap-s text-sm text-text-tertiary mb-m"
+          >
+            <div>
+              <span class="font-medium">By {author}</span>
+            </div>
+            <div>•</div>
+            <time datetime={pubDate.toISOString()}>
+              {formattedPubDate}
+            </time>
+            {
+              formattedUpdatedDate && (
+                <>
+                  <div>•</div>
+                  <div>Updated: {formattedUpdatedDate}</div>
+                </>
+              )
+            }
+            {
+              readingTime && (
+                <>
+                  <div>•</div>
+                  <div>{readingTime} min read</div>
+                </>
+              )
+            }
           </div>
-          <div>•</div>
-          <time datetime={pubDate.toISOString()}>
-            {formattedPubDate}
-          </time>
-          {formattedUpdatedDate && (
-            <>
-              <div>•</div>
-              <div>
-                Updated: {formattedUpdatedDate}
-              </div>
-            </>
-          )}
-          {readingTime && (
-            <>
-              <div>•</div>
-              <div>
-                {readingTime} min read
-              </div>
-            </>
-          )}
-        </div>
 
-        <!-- Tags -->
-        {tags.length > 0 && (
-          <div class="flex flex-wrap gap-2xs">
-            {tags.map((tag) => (
-              <Tag variant="primary">{tag}</Tag>
-            ))}
-          </div>
-        )}
+          <!-- Tags -->
+          {
+            tags.length > 0 && (
+              <div class="flex flex-wrap gap-2xs">
+                {tags.map((tag) => (
+                  <Tag variant="primary">{tag}</Tag>
+                ))}
+              </div>
+            )
+          }
         </header>
 
         <!-- Featured Image -->
-        {image && (
-          <div class="aspect-video overflow-hidden rounded-lg mb-l">
-            <OptimizedImage
-              src={image.url}
-              alt={image.alt}
-              width={image.width}
-              height={image.height}
-              class="w-full h-full object-cover"
-              loading="eager"
-              sizes="(max-width: 768px) 100vw, 800px"
-            />
-          </div>
-        )}
+        {
+          image && (
+            <div class="aspect-video overflow-hidden rounded-lg mb-l">
+              <OptimizedImage
+                src={image.url}
+                alt={image.alt}
+                width={image.width}
+                height={image.height}
+                class="w-full h-full object-cover"
+                loading="eager"
+                sizes="(max-width: 768px) 100vw, 800px"
+              />
+            </div>
+          )
+        }
 
         <!-- Article Content -->
         <slot />

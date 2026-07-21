@@ -18,7 +18,7 @@ export interface DateItem {
  */
 export function sortByDate<T extends DateItem>(
   items: T[],
-  order: 'desc' | 'asc' = 'desc'
+  order: 'desc' | 'asc' = 'desc',
 ): T[] {
   return [...items].sort((a, b) => {
     // Get the date from either 'date' or 'pubDate' property
@@ -46,7 +46,7 @@ export function sortByDate<T extends DateItem>(
  */
 export function sortBlogPosts<T extends { data: { pubDate: Date } }>(
   posts: T[],
-  order: 'desc' | 'asc' = 'desc'
+  order: 'desc' | 'asc' = 'desc',
 ): T[] {
   return [...posts].sort((a, b) => {
     const timeA = new Date(a.data.pubDate).getTime();
@@ -63,7 +63,7 @@ export function sortBlogPosts<T extends { data: { pubDate: Date } }>(
  */
 export function sortWorks<T extends { data: { date: Date } }>(
   works: T[],
-  order: 'desc' | 'asc' = 'desc'
+  order: 'desc' | 'asc' = 'desc',
 ): T[] {
   return [...works].sort((a, b) => {
     const timeA = new Date(a.data.date).getTime();

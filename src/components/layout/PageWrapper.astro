@@ -4,11 +4,7 @@ export interface Props {
   class?: string;
 }
 
-const {
-  spacing = 'default',
-  class: className = '',
-  ...rest
-} = Astro.props;
+const { spacing = 'default', class: className = '', ...rest } = Astro.props;
 
 const spacingClasses = {
   none: '',

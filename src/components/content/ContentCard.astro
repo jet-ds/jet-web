@@ -51,39 +51,51 @@ const additionalTagCount = Math.max(tags.length - visibleTags.length, 0);
   data-content-card-variant={variant}
   {...rest}
 >
-  {image && (
-    <div data-content-card-media class="aspect-video overflow-hidden">
-      <ThemeAwareImage
-        src={image.url}
-        darkSrc={image.darkUrl}
-        alt={image.alt}
-        width={800}
-        height={450}
-        class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-        loading="lazy"
-        sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-      />
-    </div>
-  )}
+  {
+    image && (
+      <div data-content-card-media class="aspect-video overflow-hidden">
+        <ThemeAwareImage
+          src={image.url}
+          darkSrc={image.darkUrl}
+          alt={image.alt}
+          width={800}
+          height={450}
+          class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
+          loading="lazy"
+          sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
+        />
+      </div>
+    )
+  }
 
   <div class="p-card flex-1 flex flex-col">
-    {(badge || featured) && (
-      <div class="flex items-center justify-between mb-xs">
-        {badge ? (
-          <Tag variant={badgeVariant} size="sm">{badge}</Tag>
-        ) : (
-          <span aria-hidden="true"></span>
-        )}
-        {featured && (
-          <span class="text-accent-text text-xs font-medium flex items-center gap-3xs">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4 text-accent-base" viewBox="0 0 20 20" fill="currentColor" aria-hidden="true">
-              <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-            </svg>
-            Featured
-          </span>
-        )}
-      </div>
-    )}
+    {
+      (badge || featured) && (
+        <div class="flex items-center justify-between mb-xs">
+          {badge ? (
+            <Tag variant={badgeVariant} size="sm">
+              {badge}
+            </Tag>
+          ) : (
+            <span aria-hidden="true" />
+          )}
+          {featured && (
+            <span class="text-accent-text text-xs font-medium flex items-center gap-3xs">
+              <svg
+                xmlns="http://www.w3.org/2000/svg"
+                class="h-4 w-4 text-accent-base"
+                viewBox="0 0 20 20"
+                fill="currentColor"
+                aria-hidden="true"
+              >
+                <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
+              </svg>
+              Featured
+            </span>
+          )}
+        </div>
+      )
+    }
 
     <Heading
       data-content-card-title
@@ -96,38 +108,58 @@ const additionalTagCount = Math.max(tags.length - visibleTags.length, 0);
       {description}
     </p>
 
-    <div data-content-card-metadata class="min-h-[3.25rem] mb-s text-sm text-text-tertiary">
+    <div
+      data-content-card-metadata
+      class="min-h-[3.25rem] mb-s text-sm text-text-tertiary"
+    >
       <slot name="metadata" />
     </div>
 
     <div class="min-h-[2rem] flex flex-wrap content-start gap-2xs">
-      {visibleTags.map((tag) => (
-        <Tag size="sm">{tag}</Tag>
-      ))}
-      {additionalTagCount > 0 && (
-        <span class="self-center text-xs text-text-tertiary">
-          <span aria-hidden="true">+{additionalTagCount}</span>
-          <span class="sr-only">plus {additionalTagCount} more tags</span>
-        </span>
-      )}
+      {visibleTags.map((tag) => <Tag size="sm">{tag}</Tag>)}
+      {
+        additionalTagCount > 0 && (
+          <span class="self-center text-xs text-text-tertiary">
+            <span aria-hidden="true">+{additionalTagCount}</span>
+            <span class="sr-only">plus {additionalTagCount} more tags</span>
+          </span>
+        )
+      }
     </div>
   </div>
 
-  {externalLinks.length > 0 && (
-    <div slot="actions" class="flex flex-wrap gap-2xs px-card py-s border-t border-border-default">
-      {externalLinks.map((link) => (
-        <a
-          href={link.url}
-          target="_blank"
-          rel="noopener noreferrer"
-          class="inline-flex items-center gap-3xs text-sm text-brand-text hover:underline"
-        >
-          {link.label}
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-3 w-3 text-accent-base" fill="none" viewBox="0 0 24 24" stroke="currentColor" aria-hidden="true">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14" />
-          </svg>
-        </a>
-      ))}
-    </div>
-  )}
+  {
+    externalLinks.length > 0 && (
+      <div
+        slot="actions"
+        class="flex flex-wrap gap-2xs px-card py-s border-t border-border-default"
+      >
+        {externalLinks.map((link) => (
+          <a
+            href={link.url}
+            target="_blank"
+            rel="noopener noreferrer"
+            class="inline-flex items-center gap-3xs text-sm text-brand-text hover:underline"
+          >
+            {link.label}
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-3 w-3 text-accent-base"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M10 6H6a2 2 0 00-2 2v10a2 2 0 002 2h10a2 2 0 002-2v-4M14 4h6m0 0v6m0-6L10 14"
+              />
+            </svg>
+          </a>
+        ))}
+      </div>
+    )
+  }
 </Card>

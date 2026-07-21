@@ -6,7 +6,7 @@
  */
 export function formatDate(
   date: Date | string,
-  format: 'long' | 'medium' | 'short' = 'medium'
+  format: 'long' | 'medium' | 'short' = 'medium',
 ): string {
   const dateObj = typeof date === 'string' ? new Date(date) : date;
 

@@ -32,7 +32,9 @@ function blogData(
 
 type BlogSourceEntry = Extract<AssistantSourceEntry, { collection: 'blog' }>;
 
-function adapterEntry(overrides: Partial<BlogSourceEntry> = {}): BlogSourceEntry {
+function adapterEntry(
+  overrides: Partial<BlogSourceEntry> = {},
+): BlogSourceEntry {
   return {
     collection: 'blog',
     slug: 'synthetic',
@@ -44,25 +46,33 @@ function adapterEntry(overrides: Partial<BlogSourceEntry> = {}): BlogSourceEntry
   };
 }
 
-function dependencies(entries: AssistantSourceEntry[]): AstroCorpusDependencies {
+function dependencies(
+  entries: AssistantSourceEntry[],
+): AstroCorpusDependencies {
   return {
     root: '/repository',
     environment: {},
     loadCollections: vi.fn(async () => ({
-      blog: entries.filter((entry) => entry.collection === 'blog').map((entry) => ({
-        id: entry.slug,
-        filePath: `/repository/${entry.sourcePath}`,
-        body: entry.body,
-        data: entry.data,
-      })),
-      works: entries.filter((entry) => entry.collection === 'works').map((entry) => ({
-        id: entry.slug,
-        filePath: `/repository/${entry.sourcePath}`,
-        body: entry.body,
-        data: entry.data,
-      })),
+      blog: entries
+        .filter((entry) => entry.collection === 'blog')
+        .map((entry) => ({
+          id: entry.slug,
+          filePath: `/repository/${entry.sourcePath}`,
+          body: entry.body,
+          data: entry.data,
+        })),
+      works: entries
+        .filter((entry) => entry.collection === 'works')
+        .map((entry) => ({
+          id: entry.slug,
+          filePath: `/repository/${entry.sourcePath}`,
+          body: entry.body,
+          data: entry.data,
+        })),
     })),
-    loadTrackedPaths: vi.fn(() => new Set(entries.map((entry) => entry.sourcePath))),
+    loadTrackedPaths: vi.fn(
+      () => new Set(entries.map((entry) => entry.sourcePath)),
+    ),
     readHead: vi.fn(async () => 'abc'),
   };
 }
@@ -82,17 +92,25 @@ describe('Astro corpus adapter', () => {
     });
     const deps = dependencies([included, excluded, invalidDraft]);
 
-    await expect(buildFromAstroCollections(deps)).rejects.toThrow(/assistant.*published/i);
+    await expect(buildFromAstroCollections(deps)).rejects.toThrow(
+      /assistant.*published/i,
+    );
     expect(deps.loadCollections).toHaveBeenCalledOnce();
   });
 
   it('normalizes Loader API paths and rejects repository escapes', () => {
-    expect(repositorySourcePath('/repository', '/repository/src/data/blog/example.mdx'))
-      .toBe('src/data/blog/example.mdx');
-    expect(repositorySourcePath('/repository', 'src/data/works/example.mdx'))
-      .toBe('src/data/works/example.mdx');
-    expect(() => repositorySourcePath('/repository', '/outside/example.mdx'))
-      .toThrow(/outside the repository/i);
+    expect(
+      repositorySourcePath(
+        '/repository',
+        '/repository/src/data/blog/example.mdx',
+      ),
+    ).toBe('src/data/blog/example.mdx');
+    expect(
+      repositorySourcePath('/repository', 'src/data/works/example.mdx'),
+    ).toBe('src/data/works/example.mdx');
+    expect(() =>
+      repositorySourcePath('/repository', '/outside/example.mdx'),
+    ).toThrow(/outside the repository/i);
   });
 
   it('fails closed when Git tracking cannot be established', async () => {
@@ -101,7 +119,9 @@ describe('Astro corpus adapter', () => {
       throw new Error('Git unavailable');
     });
 
-    await expect(buildFromAstroCollections(deps)).rejects.toThrow(/git unavailable/i);
+    await expect(buildFromAstroCollections(deps)).rejects.toThrow(
+      /git unavailable/i,
+    );
   });
 
   it('memoizes one shared package build', async () => {
@@ -121,27 +141,33 @@ describe('static corpus endpoint handlers', () => {
   beforeEach(() => {
     vi.resetModules();
     setAstroContentStub({
-      blog: [{
-        id: 'synthetic-endpoint',
-        filePath: resolve('src/data/blog/how-to-install-claude-code-cli-2026.mdx'),
-        body: 'Synthetic endpoint body.',
-        data: blogData(),
-      }],
+      blog: [
+        {
+          id: 'synthetic-endpoint',
+          filePath: resolve(
+            'src/data/blog/how-to-install-claude-code-cli-2026.mdx',
+          ),
+          body: 'Synthetic endpoint body.',
+          data: blogData(),
+        },
+      ],
       works: [],
     });
   });
 
   it('share one package and return exact canonical bytes and headers', async () => {
-    const [{ GET: manifestGet }, { GET: contentGet }, { GET: indexGet }] = await Promise.all([
-      import('../../../src/pages/assistant/corpus/manifest.json'),
-      import('../../../src/pages/assistant/corpus/content.json'),
-      import('../../../src/pages/assistant/corpus/index.json'),
-    ]);
-    const [manifestResponse, contentResponse, indexResponse] = await Promise.all([
-      manifestGet({} as never),
-      contentGet({} as never),
-      indexGet({} as never),
-    ]);
+    const [{ GET: manifestGet }, { GET: contentGet }, { GET: indexGet }] =
+      await Promise.all([
+        import('../../../src/pages/assistant/corpus/manifest.json'),
+        import('../../../src/pages/assistant/corpus/content.json'),
+        import('../../../src/pages/assistant/corpus/index.json'),
+      ]);
+    const [manifestResponse, contentResponse, indexResponse] =
+      await Promise.all([
+        manifestGet({} as never),
+        contentGet({} as never),
+        indexGet({} as never),
+      ]);
     const [manifestText, contentText, indexText] = await Promise.all([
       manifestResponse.text(),
       contentResponse.text(),
@@ -150,8 +176,12 @@ describe('static corpus endpoint handlers', () => {
 
     expect(getAstroContentCalls().sort()).toEqual(['blog', 'works']);
     for (const response of [manifestResponse, contentResponse, indexResponse]) {
-      expect(response.headers.get('Content-Type')).toBe('application/json; charset=utf-8');
-      expect(response.headers.get('Cache-Control')).toBe('public, max-age=0, must-revalidate');
+      expect(response.headers.get('Content-Type')).toBe(
+        'application/json; charset=utf-8',
+      );
+      expect(response.headers.get('Cache-Control')).toBe(
+        'public, max-age=0, must-revalidate',
+      );
       expect(response.headers.get('X-Robots-Tag')).toBe('noindex, nofollow');
     }
     expect(manifestText).toBe(canonicalSerialize(JSON.parse(manifestText)));

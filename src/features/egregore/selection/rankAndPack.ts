@@ -7,11 +7,7 @@ import type {
 } from '../corpus/types';
 import { measureSourcePayloadItem } from '../sourcePayload';
 import { estimateTokensFromCharacters } from '../tokenEstimate';
-import type {
-  SelectedSource,
-  SelectionInput,
-  SelectionResult,
-} from './types';
+import type { SelectedSource, SelectionInput, SelectionResult } from './types';
 
 type CandidateReason = SelectedSource['selectionReason'];
 
@@ -39,15 +35,22 @@ function candidateReasonOrder(reason: CandidateReason): number {
 }
 
 function compareCandidates(left: Candidate, right: Candidate): number {
-  return (right.score ?? Number.NEGATIVE_INFINITY) - (left.score ?? Number.NEGATIVE_INFINITY)
-    || candidateReasonOrder(left.reason) - candidateReasonOrder(right.reason)
-    || left.document.order - right.document.order
-    || left.section.order - right.section.order
-    || left.chunk.order - right.chunk.order
-    || compareText(left.chunk.id, right.chunk.id);
+  return (
+    (right.score ?? Number.NEGATIVE_INFINITY) -
+      (left.score ?? Number.NEGATIVE_INFINITY) ||
+    candidateReasonOrder(left.reason) - candidateReasonOrder(right.reason) ||
+    left.document.order - right.document.order ||
+    left.section.order - right.section.order ||
+    left.chunk.order - right.chunk.order ||
+    compareText(left.chunk.id, right.chunk.id)
+  );
 }
 
-function selectedSource(candidate: Candidate, citationId: `S${number}`, input: SelectionInput): SelectedSource {
+function selectedSource(
+  candidate: Candidate,
+  citationId: `S${number}`,
+  input: SelectionInput,
+): SelectedSource {
   return {
     citationId,
     documentId: candidate.document.id,
@@ -87,10 +90,14 @@ function resolveCandidate(
   const document = knowledgeBase.documentsById.get(chunk.documentId);
   const section = knowledgeBase.sectionsById.get(chunk.sectionId);
   if (document === undefined || section === undefined) {
-    throw new Error(`Chunk has an unknown document or section parent: ${chunkId}`);
+    throw new Error(
+      `Chunk has an unknown document or section parent: ${chunkId}`,
+    );
   }
   if (section.documentId !== document.id) {
-    throw new Error(`Chunk has inconsistent document and section parents: ${chunkId}`);
+    throw new Error(
+      `Chunk has inconsistent document and section parents: ${chunkId}`,
+    );
   }
   return { chunk, document, section, reason, score };
 }
@@ -103,7 +110,9 @@ function nominateExpansion(
 ): void {
   const current = nominations.get(chunkId);
   if (current !== undefined && current.sectionId !== sectionId) {
-    throw new Error(`Neighbor nomination crosses a section boundary: ${chunkId}`);
+    throw new Error(
+      `Neighbor nomination crosses a section boundary: ${chunkId}`,
+    );
   }
   if (current === undefined || score > current.score) {
     nominations.set(chunkId, { score, sectionId });
@@ -113,8 +122,13 @@ function nominateExpansion(
 export function rankAndPackContext(input: SelectionInput): SelectionResult {
   const startedAt = performance.now();
   const { knowledgeBase } = input;
-  const rawResults = knowledgeBase.searchIndex.search(input.query)
-    .sort((left, right) => right.score - left.score || compareText(String(left.id), String(right.id)));
+  const rawResults = knowledgeBase.searchIndex
+    .search(input.query)
+    .sort(
+      (left, right) =>
+        right.score - left.score ||
+        compareText(String(left.id), String(right.id)),
+    );
 
   const direct = new Map<ChunkId, Candidate>();
   const expansions = new Map<ChunkId, ExpansionNomination>();
@@ -128,7 +142,12 @@ export function rankAndPackContext(input: SelectionInput): SelectionResult {
       continue;
     }
 
-    const candidate = resolveCandidate(input, id, 'lexical-match', result.score);
+    const candidate = resolveCandidate(
+      input,
+      id,
+      'lexical-match',
+      result.score,
+    );
     direct.set(id, candidate);
     const neighbors = knowledgeBase.neighborsByChunkId.get(id);
     if (neighbors === undefined) {
@@ -136,7 +155,12 @@ export function rankAndPackContext(input: SelectionInput): SelectionResult {
     }
     for (const neighborId of [neighbors.previous, neighbors.next]) {
       if (neighborId !== undefined) {
-        nominateExpansion(expansions, neighborId, result.score * 0.5, candidate.section.id);
+        nominateExpansion(
+          expansions,
+          neighborId,
+          result.score * 0.5,
+          candidate.section.id,
+        );
       }
     }
   }
@@ -151,7 +175,12 @@ export function rankAndPackContext(input: SelectionInput): SelectionResult {
       }
       continue;
     }
-    const candidate = resolveCandidate(input, id, 'heading-expansion', nomination.score);
+    const candidate = resolveCandidate(
+      input,
+      id,
+      'heading-expansion',
+      nomination.score,
+    );
     if (candidate.section.id !== nomination.sectionId) {
       throw new Error(`Neighbor lookup crosses a section boundary: ${id}`);
     }
@@ -160,10 +189,13 @@ export function rankAndPackContext(input: SelectionInput): SelectionResult {
   }
   candidates.sort(compareCandidates);
 
-  const completeCorpusIncluded = knowledgeBase.package.statistics.fullCorpusKnowledgeTokens
-    <= input.budget.knowledgeLimit;
+  const completeCorpusIncluded =
+    knowledgeBase.package.statistics.fullCorpusKnowledgeTokens <=
+    input.budget.knowledgeLimit;
   if (completeCorpusIncluded) {
-    const selectedIds = new Set(candidates.map((candidate) => candidate.chunk.id));
+    const selectedIds = new Set(
+      candidates.map((candidate) => candidate.chunk.id),
+    );
     for (const chunk of knowledgeBase.package.chunks) {
       if (!selectedIds.has(chunk.id)) {
         candidates.push(resolveCandidate(input, chunk.id, 'complete-corpus'));
@@ -178,8 +210,11 @@ export function rankAndPackContext(input: SelectionInput): SelectionResult {
     const citationId = `S${sources.length + 1}` as const;
     const source = selectedSource(candidate, citationId, input);
     const item = measureSourcePayloadItem(source);
-    const nextCharacters = serializedCharacters + item.characters + (sources.length === 0 ? 0 : 1);
-    if (estimateTokensFromCharacters(nextCharacters) > input.budget.knowledgeLimit) {
+    const nextCharacters =
+      serializedCharacters + item.characters + (sources.length === 0 ? 0 : 1);
+    if (
+      estimateTokensFromCharacters(nextCharacters) > input.budget.knowledgeLimit
+    ) {
       rejectedForBudgetCount += 1;
       continue;
     }
@@ -189,13 +224,14 @@ export function rankAndPackContext(input: SelectionInput): SelectionResult {
 
   const knowledgeTokens = estimateTokensFromCharacters(serializedCharacters);
   if (
-    completeCorpusIncluded
-    && (
-      sources.length !== knowledgeBase.package.statistics.chunkCount
-      || knowledgeTokens !== knowledgeBase.package.statistics.fullCorpusKnowledgeTokens
-    )
+    completeCorpusIncluded &&
+    (sources.length !== knowledgeBase.package.statistics.chunkCount ||
+      knowledgeTokens !==
+        knowledgeBase.package.statistics.fullCorpusKnowledgeTokens)
   ) {
-    throw new Error('Packed full-corpus payload does not match the verified statistic.');
+    throw new Error(
+      'Packed full-corpus payload does not match the verified statistic.',
+    );
   }
 
   return {

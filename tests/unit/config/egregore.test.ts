@@ -13,7 +13,8 @@ describe('Egregore identity', () => {
   });
 
   it('projects into navigation without changing the canonical route', () => {
-    expect(NAV_ITEMS.find(({ href }) => href === EGREGORE_IDENTITY.canonicalPath))
-      .toMatchObject({ id: 'egregore', label: 'Egregore', href: '/chatbot/' });
+    expect(
+      NAV_ITEMS.find(({ href }) => href === EGREGORE_IDENTITY.canonicalPath),
+    ).toMatchObject({ id: 'egregore', label: 'Egregore', href: '/chatbot/' });
   });
 });

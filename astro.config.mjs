@@ -22,9 +22,11 @@ export default defineConfig({
     sitemap({
       filter: (page) => {
         const pathname = new URL(page).pathname.replace(/\/$/, '') || '/';
-        return (isProduction || pathname !== '/chatbot')
-          && pathname !== '/tools'
-          && !pathname.startsWith('/tools/');
+        return (
+          (isProduction || pathname !== '/chatbot') &&
+          pathname !== '/tools' &&
+          !pathname.startsWith('/tools/')
+        );
       },
     }),
     partytown({

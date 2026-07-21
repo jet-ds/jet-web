@@ -1,8 +1,4 @@
-import {
-  EGREGORE_CONTEXT,
-  EGREGORE_MODEL,
-  EGREGORE_PATHS,
-} from '../config';
+import { EGREGORE_CONTEXT, EGREGORE_MODEL, EGREGORE_PATHS } from '../config';
 import { checkBrowserCapabilities } from './capabilities';
 import {
   createRuntimeError,
@@ -18,7 +14,9 @@ import {
 type LiteRtModule = typeof import('@litert-lm/core');
 type LiteRtModuleLoader = () => Promise<LiteRtModule>;
 type LiteRtEngine = Awaited<ReturnType<LiteRtModule['Engine']['create']>>;
-type LiteRtConversation = Awaited<ReturnType<LiteRtEngine['createConversation']>>;
+type LiteRtConversation = Awaited<
+  ReturnType<LiteRtEngine['createConversation']>
+>;
 
 type CleanupFailure = 'conversation' | 'engine' | 'runtime';
 
@@ -35,7 +33,7 @@ function cleanupRuntimeError(
 ): CleanupRuntimeError {
   const error = createRuntimeError(
     'engine-cleanup-failed',
-    "Egregore could not fully release the local model runtime.",
+    'Egregore could not fully release the local model runtime.',
     true,
     new Error('runtime-cleanup-failed'),
   ) as CleanupRuntimeError;
@@ -48,9 +46,11 @@ function isRuntimeError(cause: unknown): cause is RuntimeError {
 }
 
 function isCleanupRuntimeError(cause: unknown): cause is CleanupRuntimeError {
-  return isRuntimeError(cause)
-    && cause.code === 'engine-cleanup-failed'
-    && Array.isArray((cause as Partial<CleanupRuntimeError>).cleanupFailures);
+  return (
+    isRuntimeError(cause) &&
+    cause.code === 'engine-cleanup-failed' &&
+    Array.isArray((cause as Partial<CleanupRuntimeError>).cleanupFailures)
+  );
 }
 
 export class LiteRtGemmaRuntime implements LocalModelRuntime {
@@ -70,7 +70,8 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
   private activeGeneration: number | null = null;
 
   constructor(
-    private readonly loadModule: LiteRtModuleLoader = () => import('@litert-lm/core'),
+    private readonly loadModule: LiteRtModuleLoader = () =>
+      import('@litert-lm/core'),
   ) {}
 
   checkCapabilities(): Promise<CapabilityReport> {
@@ -79,14 +80,14 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
 
   async load(options: LoadOptions): Promise<void> {
     if (
-      this.activeLoad
-      || this.engine
-      || this.liteRt
-      || this.hasPendingCleanup()
+      this.activeLoad ||
+      this.engine ||
+      this.liteRt ||
+      this.hasPendingCleanup()
     ) {
       throw createRuntimeError(
         'model-load-failed',
-        "Egregore local model runtime is already loaded.",
+        'Egregore local model runtime is already loaded.',
         true,
       );
     }
@@ -152,7 +153,7 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
       if (failures.length > 0) throw cleanupRuntimeError(failures);
       throw createRuntimeError(
         'model-load-failed',
-        "Egregore could not load the local model.",
+        'Egregore could not load the local model.',
         true,
         cause,
       );
@@ -164,14 +165,14 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
     if (!engine) {
       throw createRuntimeError(
         'model-load-failed',
-        "Egregore local model is not loaded.",
+        'Egregore local model is not loaded.',
         true,
       );
     }
     if (this.activeSessionCreation) {
       throw createRuntimeError(
         'generation-failed',
-        "Egregore accepts only one active session creation.",
+        'Egregore accepts only one active session creation.',
         true,
       );
     }
@@ -219,7 +220,7 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
       if (!this.isSessionCreationActive(epoch, engine)) return;
       throw createRuntimeError(
         'generation-failed',
-        "Egregore could not start the local conversation.",
+        'Egregore could not start the local conversation.',
         true,
         cause,
       );
@@ -245,14 +246,14 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
     if (!conversation) {
       throw createRuntimeError(
         'generation-failed',
-        "Egregore does not have an active conversation.",
+        'Egregore does not have an active conversation.',
         true,
       );
     }
     if (this.activeGeneration !== null) {
       throw createRuntimeError(
         'generation-failed',
-        "Egregore accepts only one active generation.",
+        'Egregore accepts only one active generation.',
         true,
       );
     }
@@ -294,7 +295,7 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
       }
       throw createRuntimeError(
         'generation-failed',
-        "Egregore could not complete the response.",
+        'Egregore could not complete the response.',
         true,
         cause,
       );
@@ -403,14 +404,18 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
   }
 
   private isActiveGeneration(operationId: number): boolean {
-    return this.activeGeneration === operationId
-      && this.operationGeneration === operationId;
+    return (
+      this.activeGeneration === operationId &&
+      this.operationGeneration === operationId
+    );
   }
 
   private hasPendingCleanup(): boolean {
-    return this.pendingConversationCleanup !== null
-      || this.pendingEngineCleanup !== null
-      || this.pendingRuntimeCleanup !== null;
+    return (
+      this.pendingConversationCleanup !== null ||
+      this.pendingEngineCleanup !== null ||
+      this.pendingRuntimeCleanup !== null
+    );
   }
 
   private adoptPendingCleanup(

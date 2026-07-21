@@ -49,24 +49,31 @@ const hoverClasses = interactive
   ? 'hover:border-brand-base hover:shadow-md cursor-pointer'
   : '';
 const clipClass = clip ? 'overflow-hidden' : '';
-const clippedFocusClass = clip && interactive
-  ? 'has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-brand-base'
-  : '';
-const linkedFocusClass = href && !clip
-  ? 'has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-brand-base'
-  : '';
+const clippedFocusClass =
+  clip && interactive
+    ? 'has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-brand-base'
+    : '';
+const linkedFocusClass =
+  href && !clip
+    ? 'has-[:focus-visible]:outline has-[:focus-visible]:outline-2 has-[:focus-visible]:outline-offset-2 has-[:focus-visible]:outline-brand-base'
+    : '';
 const linkedLayoutClass = href ? '[&:not([hidden])]:flex flex-col' : '';
 
 const classes = `${surfaceClasses[surface]} ${radiusClasses[resolvedRadius]} ${baseClasses} ${rootPaddingClass} ${hoverClasses} ${clipClass} ${clippedFocusClass} ${linkedFocusClass} ${linkedLayoutClass} ${className}`;
 ---
 
 <div class={classes} {...rest}>
-  {href ? (
-    <a href={href} class={`${linkedPaddingClass} flex flex-1 flex-col group focus-visible:outline-none`}>
+  {
+    href ? (
+      <a
+        href={href}
+        class={`${linkedPaddingClass} flex flex-1 flex-col group focus-visible:outline-none`}
+      >
+        <slot />
+      </a>
+    ) : (
       <slot />
-    </a>
-  ) : (
-    <slot />
-  )}
+    )
+  }
   <slot name="actions" />
 </div>

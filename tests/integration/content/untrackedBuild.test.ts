@@ -13,7 +13,10 @@ import { describe, expect, it } from 'vitest';
 
 const repositoryRoot = process.cwd();
 const tsxExecutable = resolve(repositoryRoot, 'node_modules/.bin/tsx');
-const verifyContentScript = resolve(repositoryRoot, 'scripts/verify-content.ts');
+const verifyContentScript = resolve(
+  repositoryRoot,
+  'scripts/verify-content.ts',
+);
 
 const validBlog = `---
 title: Example blog
@@ -85,7 +88,9 @@ function createFixture(): Fixture {
     shell: false,
   });
   if (initialized.status !== 0) {
-    throw new Error(initialized.stderr || 'Failed to initialize fixture Git repository.');
+    throw new Error(
+      initialized.stderr || 'Failed to initialize fixture Git repository.',
+    );
   }
 
   return { root, blogDirectory, worksDirectory };
@@ -128,7 +133,10 @@ function runContentVerification(root: string): SpawnSyncReturns<string> {
   });
 }
 
-function runBuildChain(root: string, sentinel: string): SpawnSyncReturns<string> {
+function runBuildChain(
+  root: string,
+  sentinel: string,
+): SpawnSyncReturns<string> {
   const result = runContentVerification(root);
   if (result.status === 0) writeFileSync(sentinel, 'astro build reached\n');
   return result;
@@ -162,13 +170,16 @@ describe('production content verification', () => {
     const fixture = createFixture();
 
     try {
-      stageBaseline(fixture, `---
+      stageBaseline(
+        fixture,
+        `---
 description: Missing title
 pubDate: 2026-07-11
 status: draft
 assistant: false
 ---
-`);
+`,
+      );
 
       const result = runContentVerification(fixture.root);
 
@@ -185,12 +196,15 @@ assistant: false
     const fixture = createFixture();
 
     try {
-      stageBaseline(fixture, `---
+      stageBaseline(
+        fixture,
+        `---
 description: Missing title and publication status
 pubDate: 2026-07-11
 assistant: false
 ---
-`);
+`,
+      );
 
       const result = runContentVerification(fixture.root);
 
@@ -246,10 +260,18 @@ demo: http://example.com/demo
       const result = runContentVerification(fixture.root);
 
       expect(result.status).toBe(1);
-      expect(result.stderr).toContain('image.url must use an absolute HTTPS URL');
-      expect(result.stderr).toContain('image.darkUrl must use an absolute HTTPS URL');
-      expect(result.stderr).toContain('Reference must use an absolute HTTPS URL');
-      expect(result.stderr).toContain('repository must use an absolute HTTPS URL');
+      expect(result.stderr).toContain(
+        'image.url must use an absolute HTTPS URL',
+      );
+      expect(result.stderr).toContain(
+        'image.darkUrl must use an absolute HTTPS URL',
+      );
+      expect(result.stderr).toContain(
+        'Reference must use an absolute HTTPS URL',
+      );
+      expect(result.stderr).toContain(
+        'repository must use an absolute HTTPS URL',
+      );
       expect(result.stderr).toContain('demo must use an absolute HTTPS URL');
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
@@ -288,7 +310,10 @@ demo: http://example.com/demo
 
     try {
       stageBaseline(fixture);
-      writeFileSync(resolve(fixture.root, newlinePath), untrackedPublishedAssistant);
+      writeFileSync(
+        resolve(fixture.root, newlinePath),
+        untrackedPublishedAssistant,
+      );
 
       const result = runContentVerification(fixture.root);
 
@@ -355,7 +380,9 @@ demo: http://example.com/demo
       const result = runContentVerification(file);
 
       expect(result.status).toBe(1);
-      expect(result.stderr).toContain('Content verification root is not a directory');
+      expect(result.stderr).toContain(
+        'Content verification root is not a directory',
+      );
     } finally {
       rmSync(root, { recursive: true, force: true });
     }
@@ -372,7 +399,9 @@ demo: http://example.com/demo
       const result = runContentVerification(fixture.root);
 
       expect(result.status).toBe(1);
-      expect(result.stderr).toContain('Content directory escapes the repository root');
+      expect(result.stderr).toContain(
+        'Content directory escapes the repository root',
+      );
     } finally {
       rmSync(fixture.root, { recursive: true, force: true });
       rmSync(outside, { recursive: true, force: true });

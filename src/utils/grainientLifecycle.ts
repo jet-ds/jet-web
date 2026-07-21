@@ -14,11 +14,7 @@ export interface GrainientRendererSnapshot {
 }
 
 export type GrainientRendererAction =
-  | 'initialize'
-  | 'start-loop'
-  | 'stop-loop'
-  | 'dispose'
-  | 'none';
+  'initialize' | 'start-loop' | 'stop-loop' | 'dispose' | 'none';
 
 export function shouldRunGrainient(state: GrainientLifecycleState): boolean {
   return !state.documentHidden && state.inViewport && !state.reducedMotion;

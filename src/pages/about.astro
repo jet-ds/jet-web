@@ -43,7 +43,7 @@ const activeSocialLinks = Object.entries(SOCIAL_LINKS)
     email={SITE.email}
     url={`${SITE.siteUrl}/`}
     pageUrl={`${SITE.siteUrl}/about/`}
-    sameAs={Object.values(SOCIAL_LINKS).filter(url => url)}
+    sameAs={Object.values(SOCIAL_LINKS).filter((url) => url)}
   />
 
   <PageWrapper spacing="default">
@@ -65,16 +65,23 @@ const activeSocialLinks = Object.entries(SOCIAL_LINKS)
           <div class="prose prose-lg dark:prose-invert max-w-none">
             <h2 class="text-2xl font-bold leading-tight mb-s">Background</h2>
             <p>
-              I am a marketing engineer working at the intersection of AI research, applied AI, and systems design.
+              I am a marketing engineer working at the intersection of AI
+              research, applied AI, and systems design.
             </p>
             <p>
-              At Digital Squad, I lead AI research & development and drive content strategy and SEO, building internal AI maturity, designing practical AI-enabled workflows, and translating complex technical ideas into execution that drives results.
+              At Digital Squad, I lead AI research & development and drive
+              content strategy and SEO, building internal AI maturity, designing
+              practical AI-enabled workflows, and translating complex technical
+              ideas into execution that drives results.
             </p>
             <p>
-              Alongside that work, I write and publish research exploring long-term trajectories in advanced AI, especially where capability, governance, and ethics collide.
+              Alongside that work, I write and publish research exploring
+              long-term trajectories in advanced AI, especially where
+              capability, governance, and ethics collide.
             </p>
             <p>
-              This site is my public workspace: papers, essays, and experiments in thinking, plus the systems that ship them.
+              This site is my public workspace: papers, essays, and experiments
+              in thinking, plus the systems that ship them.
             </p>
           </div>
         </Card>
@@ -95,79 +102,83 @@ const activeSocialLinks = Object.entries(SOCIAL_LINKS)
 
       <!-- Interests & Expertise -->
       <Card surface="subtle" class="mb-l">
-      <h2 class="text-2xl font-bold mb-m text-text-primary">
-        Interests & Expertise
-      </h2>
-      <div class="grid grid-cols-1 md:grid-cols-2 gap-m">
-        <div>
-          <h3 class="text-lg font-semibold mb-xs text-accent-text">
-            Research Areas
-          </h3>
-          <ul class="space-y-2xs text-text-secondary">
-            <li>• Artificial Intelligence</li>
-            <li>• AI Safety & Alignment</li>
-            <li>• Recursive and Complex Systems</li>
-            <li>• Cognitive Architectures</li>
-            <li>• Machine Theory of Mind (ToM)</li>
-            <li>• Future of Technology</li>
-            <li>• Technology Policy & Governance</li>
-          </ul>
-        </div>
-        <div>
-          <h3 class="text-lg font-semibold mb-xs text-accent-text">
-            Technical Focus
-          </h3>
-          <ul class="space-y-2xs text-text-secondary">
-            <li>• Marketing Engineering</li>
-            <li>• SEO & GEO Strategy</li>
-            <li>• Applied Business Logic & Systems Integration</li>
-            <li>• Agentic AI Orchestration</li>
-            <li>• RAG Pipeline Design & Engineering</li>
-            <li>• Full-Stack AI Product Leadership & Delivery</li>
-            <li>• Modern JavaScript / TypeScript / Astro</li>
-          </ul>
-        </div>
-      </div>
-    </Card>
-
-    <!-- Connect Section -->
-    <Card surface="subtle">
-      <h2 class="text-2xl font-bold mb-m text-text-primary">
-        Connect
-      </h2>
-      <p class="text-text-secondary mb-m">
-        I'm always interested in connecting with people doing serious work in AI, research, governance, or future-ready strategy. If something here resonates or you want to collaborate, feel free to reach out.
-      </p>
-
-      {activeSocialLinks.length > 0 ? (
-        <div class="flex flex-wrap gap-s">
-          {activeSocialLinks.map((social) => (
-            <Button
-              href={social.url}
-              external
-              variant="brand"
-              density="compact"
-            >
-              {social.platform}
-              <span class="text-xs text-accent-base" aria-hidden="true">↗</span>
-              <span class="sr-only">(opens in a new tab)</span>
-            </Button>
-          ))}
-        </div>
-      ) : (
-        <div class="space-y-xs">
-          <div class="flex items-center gap-xs text-text-tertiary">
-            <span class="font-semibold">Email:</span>
-            <Link href={`mailto:${SITE.email}`} variant="primary">
-              {SITE.email}
-            </Link>
+        <h2 class="text-2xl font-bold mb-m text-text-primary">
+          Interests & Expertise
+        </h2>
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-m">
+          <div>
+            <h3 class="text-lg font-semibold mb-xs text-accent-text">
+              Research Areas
+            </h3>
+            <ul class="space-y-2xs text-text-secondary">
+              <li>• Artificial Intelligence</li>
+              <li>• AI Safety & Alignment</li>
+              <li>• Recursive and Complex Systems</li>
+              <li>• Cognitive Architectures</li>
+              <li>• Machine Theory of Mind (ToM)</li>
+              <li>• Future of Technology</li>
+              <li>• Technology Policy & Governance</li>
+            </ul>
           </div>
-          <p class="text-sm text-text-tertiary">
-            Social links can be configured in the site configuration.
-          </p>
+          <div>
+            <h3 class="text-lg font-semibold mb-xs text-accent-text">
+              Technical Focus
+            </h3>
+            <ul class="space-y-2xs text-text-secondary">
+              <li>• Marketing Engineering</li>
+              <li>• SEO & GEO Strategy</li>
+              <li>• Applied Business Logic & Systems Integration</li>
+              <li>• Agentic AI Orchestration</li>
+              <li>• RAG Pipeline Design & Engineering</li>
+              <li>• Full-Stack AI Product Leadership & Delivery</li>
+              <li>• Modern JavaScript / TypeScript / Astro</li>
+            </ul>
+          </div>
         </div>
-      )}
-    </Card>
+      </Card>
+
+      <!-- Connect Section -->
+      <Card surface="subtle">
+        <h2 class="text-2xl font-bold mb-m text-text-primary">Connect</h2>
+        <p class="text-text-secondary mb-m">
+          I'm always interested in connecting with people doing serious work in
+          AI, research, governance, or future-ready strategy. If something here
+          resonates or you want to collaborate, feel free to reach out.
+        </p>
+
+        {
+          activeSocialLinks.length > 0 ? (
+            <div class="flex flex-wrap gap-s">
+              {activeSocialLinks.map((social) => (
+                <Button
+                  href={social.url}
+                  external
+                  variant="brand"
+                  density="compact"
+                >
+                  {social.platform}
+                  <span class="text-xs text-accent-base" aria-hidden="true">
+                    ↗
+                  </span>
+                  <span class="sr-only">(opens in a new tab)</span>
+                </Button>
+              ))}
+            </div>
+          ) : (
+            <div class="space-y-xs">
+              <div class="flex items-center gap-xs text-text-tertiary">
+                <span class="font-semibold">Email:</span>
+                <Link href={`mailto:${SITE.email}`} variant="primary">
+                  {SITE.email}
+                </Link>
+              </div>
+              <p class="text-sm text-text-tertiary">
+                Social links can be configured in the site configuration.
+              </p>
+            </div>
+          )
+        }
+      </Card>
     </Container>
   </PageWrapper>
 </BaseLayout>

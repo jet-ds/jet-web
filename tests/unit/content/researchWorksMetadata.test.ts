@@ -12,9 +12,11 @@ describe('research Works metadata', () => {
     const work = workFrontmatter('src/data/works/broad-reach-uneven-depth.mdx');
 
     expect(work).toMatchObject({
-      title: 'Broad Reach, Uneven Depth? Reconciling Philippine Generative-AI Diffusion Across Three Telemetry Systems',
+      title:
+        'Broad Reach, Uneven Depth? Reconciling Philippine Generative-AI Diffusion Across Three Telemetry Systems',
       shortTitle: 'Broad Reach, Uneven Depth?',
-      summary: 'A cross-platform audit showing how Philippine generative-AI standing shifts across three telemetry systems.',
+      summary:
+        'A cross-platform audit showing how Philippine generative-AI standing shifts across three telemetry systems.',
       type: 'research',
       status: 'draft',
       assistant: false,

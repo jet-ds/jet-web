@@ -13,7 +13,10 @@ import {
   type AssistantSourceEntry,
   type KnowledgeBaseBuild,
 } from './build';
-import type { BlogFrontmatter, WorksFrontmatter } from '../../../schemas/content';
+import type {
+  BlogFrontmatter,
+  WorksFrontmatter,
+} from '../../../schemas/content';
 
 interface AstroBlogEntry {
   id: string;
@@ -46,23 +49,30 @@ function canonicalUrl(collection: 'blog' | 'works', slug: string): string {
   return new URL(`/${collection}/${slug}/`, SITE.siteUrl).toString();
 }
 
-export function repositorySourcePath(root: string, filePath: string | undefined): string {
+export function repositorySourcePath(
+  root: string,
+  filePath: string | undefined,
+): string {
   if (filePath === undefined || filePath.trim() === '') {
     return '';
   }
-  const absolutePath = isAbsolute(filePath) ? filePath : resolve(root, filePath);
+  const absolutePath = isAbsolute(filePath)
+    ? filePath
+    : resolve(root, filePath);
   const pathFromRoot = relative(root, absolutePath);
   if (
-    isAbsolute(pathFromRoot)
-    || pathFromRoot === '..'
-    || pathFromRoot.startsWith(`..${sep}`)
+    isAbsolute(pathFromRoot) ||
+    pathFromRoot === '..' ||
+    pathFromRoot.startsWith(`..${sep}`)
   ) {
     throw new Error(`Assistant source is outside the repository: ${filePath}`);
   }
   return pathFromRoot.split(sep).join('/');
 }
 
-function validationRecord(entry: AssistantSourceEntry): ContentValidationRecord {
+function validationRecord(
+  entry: AssistantSourceEntry,
+): ContentValidationRecord {
   return {
     path: entry.sourcePath,
     tracked: entry.tracked,
@@ -70,9 +80,10 @@ function validationRecord(entry: AssistantSourceEntry): ContentValidationRecord 
     canonicalUrl: canonicalUrl(entry.collection, entry.slug),
     status: entry.data.status,
     assistant: entry.data.assistant,
-    links: entry.collection === 'works'
-      ? (entry.data.links ?? []).map((link) => ({ ...link }))
-      : [],
+    links:
+      entry.collection === 'works'
+        ? (entry.data.links ?? []).map((link) => ({ ...link }))
+        : [],
   };
 }
 
@@ -83,7 +94,10 @@ export async function buildFromAstroCollections(
   const trackedPaths = dependencies.loadTrackedPaths(dependencies.root);
   const entries: AssistantSourceEntry[] = [
     ...blog.map((entry) => {
-      const sourcePath = repositorySourcePath(dependencies.root, entry.filePath);
+      const sourcePath = repositorySourcePath(
+        dependencies.root,
+        entry.filePath,
+      );
       return {
         collection: 'blog' as const,
         slug: entry.id,
@@ -94,7 +108,10 @@ export async function buildFromAstroCollections(
       };
     }),
     ...works.map((entry) => {
-      const sourcePath = repositorySourcePath(dependencies.root, entry.filePath);
+      const sourcePath = repositorySourcePath(
+        dependencies.root,
+        entry.filePath,
+      );
       return {
         collection: 'works' as const,
         slug: entry.id,
@@ -145,4 +162,6 @@ const productionDependencies: AstroCorpusDependencies = {
   readHead: readGitHead,
 };
 
-export const loadAstroKnowledgeBase = createAstroKnowledgeBaseLoader(productionDependencies);
+export const loadAstroKnowledgeBase = createAstroKnowledgeBaseLoader(
+  productionDependencies,
+);

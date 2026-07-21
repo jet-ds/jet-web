@@ -1,6 +1,13 @@
 ---
 export interface Props {
-  variant?: 'primary' | 'accent' | 'brand' | 'secondary' | 'outline' | 'ghost' | 'filter';
+  variant?:
+    | 'primary'
+    | 'accent'
+    | 'brand'
+    | 'secondary'
+    | 'outline'
+    | 'ghost'
+    | 'filter';
   density?: 'compact' | 'default' | 'immersive';
   href?: string;
   class?: string;
@@ -55,9 +62,8 @@ const classes = `action ${actionVariantClasses[variant]} ${densityClasses[densit
 
 const Element = href ? 'a' : 'button';
 const elementProps = href ? { href } : { type };
-const externalProps = href && external
-  ? { target: '_blank', rel: 'noopener noreferrer' }
-  : {};
+const externalProps =
+  href && external ? { target: '_blank', rel: 'noopener noreferrer' } : {};
 ---
 
 <Element

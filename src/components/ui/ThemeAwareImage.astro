@@ -28,38 +28,40 @@ const {
 const resolvedLoading = darkSrc ? 'eager' : loading;
 ---
 
-{darkSrc ? (
-  <>
+{
+  darkSrc ? (
+    <>
+      <OptimizedImage
+        src={src}
+        alt={alt}
+        width={width}
+        height={height}
+        class={`${className} dark:hidden`}
+        loading={resolvedLoading}
+        sizes={sizes}
+        quality={quality}
+      />
+      <OptimizedImage
+        src={darkSrc}
+        alt={alt}
+        width={width}
+        height={height}
+        class={`hidden ${className} dark:block`}
+        loading={resolvedLoading}
+        sizes={sizes}
+        quality={quality}
+      />
+    </>
+  ) : (
     <OptimizedImage
       src={src}
       alt={alt}
       width={width}
       height={height}
-      class={`${className} dark:hidden`}
+      class={className}
       loading={resolvedLoading}
       sizes={sizes}
       quality={quality}
     />
-    <OptimizedImage
-      src={darkSrc}
-      alt={alt}
-      width={width}
-      height={height}
-      class={`hidden ${className} dark:block`}
-      loading={resolvedLoading}
-      sizes={sizes}
-      quality={quality}
-    />
-  </>
-) : (
-  <OptimizedImage
-    src={src}
-    alt={alt}
-    width={width}
-    height={height}
-    class={className}
-    loading={resolvedLoading}
-    sizes={sizes}
-    quality={quality}
-  />
-)}
+  )
+}

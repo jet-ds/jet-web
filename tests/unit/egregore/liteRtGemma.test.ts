@@ -7,10 +7,12 @@ import {
 import { LiteRtGemmaRuntime } from '../../../src/features/egregore/runtime/liteRtGemma';
 
 interface StreamMessage {
-  content?: string | Array<{
-    type: string;
-    text?: string;
-  }>;
+  content?:
+    | string
+    | Array<{
+        type: string;
+        text?: string;
+      }>;
 }
 
 interface FakeConversation {
@@ -40,7 +42,9 @@ function deferred<T>(): Deferred<T> {
   return { promise, resolve, reject };
 }
 
-function streamFrom(messages: readonly StreamMessage[]): ReadableStream<StreamMessage> {
+function streamFrom(
+  messages: readonly StreamMessage[],
+): ReadableStream<StreamMessage> {
   return new ReadableStream({
     start(controller) {
       for (const message of messages) controller.enqueue(message);
@@ -98,19 +102,29 @@ function fakeEngine(
   };
 }
 
-function runtimeHarness(options: {
-  engines?: FakeEngine[];
-  loadLiteRtLm?: (path: string) => Promise<unknown>;
-  unloadLiteRtLm?: () => void;
-} = {}) {
+function runtimeHarness(
+  options: {
+    engines?: FakeEngine[];
+    loadLiteRtLm?: (path: string) => Promise<unknown>;
+    unloadLiteRtLm?: () => void;
+  } = {},
+) {
   const calls: string[] = [];
-  const engines = [...(options.engines ?? [fakeEngine([fakeConversation()], calls)])];
-  const loadLiteRtLm = vi.fn(options.loadLiteRtLm ?? (async () => {
-    calls.push('loadLiteRtLm');
-  }));
-  const unloadLiteRtLm = vi.fn(options.unloadLiteRtLm ?? (() => {
-    calls.push('unloadLiteRtLm');
-  }));
+  const engines = [
+    ...(options.engines ?? [fakeEngine([fakeConversation()], calls)]),
+  ];
+  const loadLiteRtLm = vi.fn(
+    options.loadLiteRtLm ??
+      (async () => {
+        calls.push('loadLiteRtLm');
+      }),
+  );
+  const unloadLiteRtLm = vi.fn(
+    options.unloadLiteRtLm ??
+      (() => {
+        calls.push('unloadLiteRtLm');
+      }),
+  );
   const create = vi.fn(async (_settings: unknown) => {
     calls.push('Engine.create');
     const engine = engines.shift();
@@ -154,9 +168,15 @@ describe('LiteRT-LM Gemma runtime', () => {
 
     await runtime.load({ onPhase: (phase) => phases.push(phase) });
 
-    expect(calls.slice(0, 3)).toEqual(['loadModule', 'loadLiteRtLm', 'Engine.create']);
+    expect(calls.slice(0, 3)).toEqual([
+      'loadModule',
+      'loadLiteRtLm',
+      'Engine.create',
+    ]);
     expect(loadLiteRtLm).toHaveBeenCalledWith(EGREGORE_PATHS.liteRtWasm);
-    expect(loadLiteRtLm).not.toHaveBeenCalledWith(expect.stringContaining('jsdelivr'));
+    expect(loadLiteRtLm).not.toHaveBeenCalledWith(
+      expect.stringContaining('jsdelivr'),
+    );
     expect(create).toHaveBeenCalledWith({
       model: EGREGORE_MODEL.url,
       mainExecutorSettings: {
@@ -194,9 +214,9 @@ describe('LiteRT-LM Gemma runtime', () => {
     });
     expect(EGREGORE_CONTEXT.responseReserve).toBe(1_024);
     expect(
-      EGREGORE_CONTEXT.maxContextTokens
-      - EGREGORE_CONTEXT.responseReserve
-      - EGREGORE_CONTEXT.estimatorHeadroom,
+      EGREGORE_CONTEXT.maxContextTokens -
+        EGREGORE_CONTEXT.responseReserve -
+        EGREGORE_CONTEXT.estimatorHeadroom,
     ).toBe(12_083);
     expect(EGREGORE_CONTEXT.estimatorHeadroom).toBe(3_277);
   });
@@ -234,7 +254,9 @@ describe('LiteRT-LM Gemma runtime', () => {
 
     await runtime.load({});
     await runtime.createSession([{ role: 'system', content: 'First' }]);
-    const replacing = runtime.createSession([{ role: 'system', content: 'Replacement' }]);
+    const replacing = runtime.createSession([
+      { role: 'system', content: 'Replacement' },
+    ]);
     await vi.waitFor(() => expect(calls).toContain('replacement.start'));
     calls.length = 0;
 
@@ -245,25 +267,28 @@ describe('LiteRT-LM Gemma runtime', () => {
 
     await replacing;
     await unloading;
-    expect(calls).toEqual([
-      'replacement.end',
-      'stale.delete',
-      'engine.delete',
-    ]);
-    await expect(runtime.generate('Question', { onText: () => undefined }))
-      .rejects.toMatchObject({ code: 'generation-failed' });
+    expect(calls).toEqual(['replacement.end', 'stale.delete', 'engine.delete']);
+    await expect(
+      runtime.generate('Question', { onText: () => undefined }),
+    ).rejects.toMatchObject({ code: 'generation-failed' });
   });
 
   it('waits for deferred session creation during reset and deletes the stale conversation', async () => {
     const stale = fakeConversation();
     const creation = deferred<FakeConversation>();
     const engine = fakeEngine([]);
-    engine.createConversation.mockImplementationOnce(async () => creation.promise);
+    engine.createConversation.mockImplementationOnce(
+      async () => creation.promise,
+    );
     const { runtime } = runtimeHarness({ engines: [engine] });
 
     await runtime.load({});
-    const creating = runtime.createSession([{ role: 'system', content: 'Pending' }]);
-    await vi.waitFor(() => expect(engine.createConversation).toHaveBeenCalledTimes(1));
+    const creating = runtime.createSession([
+      { role: 'system', content: 'Pending' },
+    ]);
+    await vi.waitFor(() =>
+      expect(engine.createConversation).toHaveBeenCalledTimes(1),
+    );
     let resetSettled = false;
     const resetting = runtime.reset().then(() => {
       resetSettled = true;
@@ -277,8 +302,9 @@ describe('LiteRT-LM Gemma runtime', () => {
 
     expect(stale.delete).toHaveBeenCalledTimes(1);
     expect(engine.delete).not.toHaveBeenCalled();
-    await expect(runtime.generate('Question', { onText: () => undefined }))
-      .rejects.toMatchObject({ code: 'generation-failed' });
+    await expect(
+      runtime.generate('Question', { onText: () => undefined }),
+    ).rejects.toMatchObject({ code: 'generation-failed' });
   });
 
   it('preserves a stale-session cleanup failure after cancellation for a later retry', async () => {
@@ -288,12 +314,18 @@ describe('LiteRT-LM Gemma runtime', () => {
       .mockResolvedValueOnce(undefined);
     const creation = deferred<FakeConversation>();
     const engine = fakeEngine([]);
-    engine.createConversation.mockImplementationOnce(async () => creation.promise);
+    engine.createConversation.mockImplementationOnce(
+      async () => creation.promise,
+    );
     const { runtime } = runtimeHarness({ engines: [engine] });
 
     await runtime.load({});
-    const creating = runtime.createSession([{ role: 'system', content: 'Pending' }]);
-    await vi.waitFor(() => expect(engine.createConversation).toHaveBeenCalledTimes(1));
+    const creating = runtime.createSession([
+      { role: 'system', content: 'Pending' },
+    ]);
+    await vi.waitFor(() =>
+      expect(engine.createConversation).toHaveBeenCalledTimes(1),
+    );
     runtime.cancel();
     creation.resolve(stale);
 
@@ -314,12 +346,16 @@ describe('LiteRT-LM Gemma runtime', () => {
       .mockResolvedValueOnce(undefined);
     const creation = deferred<FakeConversation>();
     const engine = fakeEngine([]);
-    engine.createConversation.mockImplementationOnce(async () => creation.promise);
+    engine.createConversation.mockImplementationOnce(
+      async () => creation.promise,
+    );
     const { runtime } = runtimeHarness({ engines: [engine] });
 
     await runtime.load({});
     const creating = runtime.createSession([]);
-    await vi.waitFor(() => expect(engine.createConversation).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() =>
+      expect(engine.createConversation).toHaveBeenCalledTimes(1),
+    );
     const resetting = runtime.reset();
     creation.resolve(stale);
 
@@ -341,18 +377,25 @@ describe('LiteRT-LM Gemma runtime', () => {
     const first = fakeConversation();
     const creation = deferred<FakeConversation>();
     const engine = fakeEngine([]);
-    engine.createConversation.mockImplementationOnce(async () => creation.promise);
+    engine.createConversation.mockImplementationOnce(
+      async () => creation.promise,
+    );
     const { runtime } = runtimeHarness({ engines: [engine] });
 
     await runtime.load({});
-    const creating = runtime.createSession([{ role: 'system', content: 'First' }]);
-    await vi.waitFor(() => expect(engine.createConversation).toHaveBeenCalledTimes(1));
+    const creating = runtime.createSession([
+      { role: 'system', content: 'First' },
+    ]);
+    await vi.waitFor(() =>
+      expect(engine.createConversation).toHaveBeenCalledTimes(1),
+    );
 
-    await expect(runtime.createSession([{ role: 'system', content: 'Second' }]))
-      .rejects.toMatchObject({
-        name: 'EgregoreRuntimeError',
-        code: 'generation-failed',
-      });
+    await expect(
+      runtime.createSession([{ role: 'system', content: 'Second' }]),
+    ).rejects.toMatchObject({
+      name: 'EgregoreRuntimeError',
+      code: 'generation-failed',
+    });
     expect(engine.createConversation).toHaveBeenCalledTimes(1);
 
     creation.resolve(first);
@@ -361,18 +404,20 @@ describe('LiteRT-LM Gemma runtime', () => {
   });
 
   it('streams string and text-part content in order while ignoring non-text parts', async () => {
-    const conversation = fakeConversation(streamFrom([
-      { content: 'One' },
-      {
-        content: [
-          { type: 'text', text: ' two' },
-          { type: 'image' },
-          { type: 'text', text: ' three' },
-          { type: 'text' },
-        ],
-      },
-      {},
-    ]));
+    const conversation = fakeConversation(
+      streamFrom([
+        { content: 'One' },
+        {
+          content: [
+            { type: 'text', text: ' two' },
+            { type: 'image' },
+            { type: 'text', text: ' three' },
+            { type: 'text' },
+          ],
+        },
+        {},
+      ]),
+    );
     const engine = fakeEngine([conversation]);
     const { runtime } = runtimeHarness({ engines: [engine] });
     const fragments: string[] = [];
@@ -471,7 +516,9 @@ describe('LiteRT-LM Gemma runtime', () => {
 
     const unloading = runtime.unload();
     try {
-      await vi.waitFor(() => expect(conversation.delete).toHaveBeenCalledTimes(1));
+      await vi.waitFor(() =>
+        expect(conversation.delete).toHaveBeenCalledTimes(1),
+      );
       expect(calls.slice(0, 2)).toEqual([
         'conversation.cancel',
         'conversation.delete',
@@ -518,23 +565,32 @@ describe('LiteRT-LM Gemma runtime', () => {
   it('keeps failed unload resources pending, blocks load, and retries cleanup in order', async () => {
     const calls: string[] = [];
     const conversation = fakeConversation(streamFrom([]), calls);
-    conversation.delete.mockImplementationOnce(async () => {
-      calls.push('conversation.delete');
-      throw new Error('PRIVATE_PROMPT_SENTINEL');
-    }).mockImplementationOnce(async () => {
-      calls.push('conversation.delete');
-    });
+    conversation.delete
+      .mockImplementationOnce(async () => {
+        calls.push('conversation.delete');
+        throw new Error('PRIVATE_PROMPT_SENTINEL');
+      })
+      .mockImplementationOnce(async () => {
+        calls.push('conversation.delete');
+      });
     const firstEngine = fakeEngine([conversation], calls, 'engine');
-    firstEngine.delete.mockImplementationOnce(async () => {
-      calls.push('engine.delete');
-      throw new Error('PRIVATE_RESPONSE_SENTINEL');
-    }).mockImplementationOnce(async () => {
-      calls.push('engine.delete');
-    });
-    const secondEngine = fakeEngine([fakeConversation()], calls, 'fresh-engine');
+    firstEngine.delete
+      .mockImplementationOnce(async () => {
+        calls.push('engine.delete');
+        throw new Error('PRIVATE_RESPONSE_SENTINEL');
+      })
+      .mockImplementationOnce(async () => {
+        calls.push('engine.delete');
+      });
+    const secondEngine = fakeEngine(
+      [fakeConversation()],
+      calls,
+      'fresh-engine',
+    );
     const { loadModule, runtime, unloadLiteRtLm } = runtimeHarness({
       engines: [firstEngine, secondEngine],
-      unloadLiteRtLm: vi.fn()
+      unloadLiteRtLm: vi
+        .fn()
         .mockImplementationOnce(() => {
           calls.push('unloadLiteRtLm');
           throw new Error('PRIVATE_RUNTIME_SENTINEL');
@@ -627,7 +683,9 @@ describe('LiteRT-LM Gemma runtime', () => {
       code: 'engine-cleanup-failed',
       diagnosticCause: 'Error',
     });
-    expect(JSON.stringify(replacementError)).not.toContain('PRIVATE_OLD_SESSION_SENTINEL');
+    expect(JSON.stringify(replacementError)).not.toContain(
+      'PRIVATE_OLD_SESSION_SENTINEL',
+    );
     expect(engine.createConversation).toHaveBeenCalledTimes(1);
 
     await runtime.createSession([{ role: 'system', content: 'Second' }]);
@@ -646,7 +704,9 @@ describe('LiteRT-LM Gemma runtime', () => {
     await runtime.load({});
     let sessionError: unknown;
     try {
-      await runtime.createSession([{ role: 'system', content: 'PRIVATE_SYSTEM_SENTINEL' }]);
+      await runtime.createSession([
+        { role: 'system', content: 'PRIVATE_SYSTEM_SENTINEL' },
+      ]);
     } catch (error) {
       sessionError = error;
     }
@@ -708,7 +768,9 @@ describe('LiteRT-LM Gemma runtime', () => {
       code: 'model-load-failed',
       diagnosticCause: 'Error',
     });
-    expect(JSON.stringify(loadError)).not.toContain('PRIVATE_MODEL_URL_SENTINEL');
+    expect(JSON.stringify(loadError)).not.toContain(
+      'PRIVATE_MODEL_URL_SENTINEL',
+    );
   });
 
   it('deletes a model engine that resolves after Stop before unloading the singleton', async () => {
@@ -747,7 +809,8 @@ describe('LiteRT-LM Gemma runtime', () => {
 
   it('propagates an active-load cleanup failure through unload and keeps it retryable', async () => {
     const wasmLoad = deferred<unknown>();
-    const unloadLiteRtLm = vi.fn()
+    const unloadLiteRtLm = vi
+      .fn()
       .mockImplementationOnce(() => {
         throw new Error('PRIVATE_ACTIVE_LOAD_CLEANUP');
       })
@@ -778,10 +841,22 @@ describe('LiteRT-LM Gemma runtime', () => {
 
   it('creates fresh module, engine, and conversation state after unload and route re-entry', async () => {
     const calls: string[] = [];
-    const firstConversation = fakeConversation(streamFrom([]), calls, 'first-conversation');
-    const secondConversation = fakeConversation(streamFrom([]), calls, 'second-conversation');
+    const firstConversation = fakeConversation(
+      streamFrom([]),
+      calls,
+      'first-conversation',
+    );
+    const secondConversation = fakeConversation(
+      streamFrom([]),
+      calls,
+      'second-conversation',
+    );
     const firstEngine = fakeEngine([firstConversation], calls, 'first-engine');
-    const secondEngine = fakeEngine([secondConversation], calls, 'second-engine');
+    const secondEngine = fakeEngine(
+      [secondConversation],
+      calls,
+      'second-engine',
+    );
     const { loadModule, runtime, unloadLiteRtLm } = runtimeHarness({
       engines: [firstEngine, secondEngine],
     });

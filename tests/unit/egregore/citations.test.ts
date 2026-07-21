@@ -36,10 +36,12 @@ describe('citation allowlisting', () => {
     const first = source('S1', 'First');
     const second = source('S2', 'Second');
 
-    expect(extractValidCitations(
-      'Second claim [S2], first claim [S1], repeated [S2] [S1].',
-      [first, second],
-    )).toEqual([
+    expect(
+      extractValidCitations(
+        'Second claim [S2], first claim [S1], repeated [S2] [S1].',
+        [first, second],
+      ),
+    ).toEqual([
       { id: 'S2', source: second },
       { id: 'S1', source: first },
     ]);
@@ -48,21 +50,27 @@ describe('citation allowlisting', () => {
   it('rejects unknown and citation-shaped but unselected IDs', () => {
     const selected = source('S1', 'Selected');
 
-    expect(extractValidCitations(
-      'Valid [S1], forged [S99], leading-zero [S01], malformed [Sx] and bare S1.',
-      [selected],
-    )).toEqual([{ id: 'S1', source: selected }]);
+    expect(
+      extractValidCitations(
+        'Valid [S1], forged [S99], leading-zero [S01], malformed [Sx] and bare S1.',
+        [selected],
+      ),
+    ).toEqual([{ id: 'S1', source: selected }]);
   });
 
   it('returns no citations when the current turn selected no sources', () => {
-    expect(extractValidCitations('A confident but unsupported answer [S1].', []))
-      .toEqual([]);
+    expect(
+      extractValidCitations('A confident but unsupported answer [S1].', []),
+    ).toEqual([]);
   });
 
   it('presents only validated cited documents, not uncited selected context', () => {
     const cited = source('S1', 'Cited');
     const uncited = source('S2', 'Selected but unused');
-    const citations = extractValidCitations('Supported claim [S1].', [cited, uncited]);
+    const citations = extractValidCitations('Supported claim [S1].', [
+      cited,
+      uncited,
+    ]);
 
     expect(getCitedDocumentSources(citations)).toEqual([
       { id: 'S1', source: cited },
@@ -77,20 +85,24 @@ describe('citation allowlisting', () => {
       title: 'Same document, later chunk',
     };
 
-    expect(getCitedDocumentSources([
-      { id: 'S2', source: firstChunk },
-      { id: 'S3', source: secondChunk },
-    ])).toEqual([{ id: 'S2', source: firstChunk }]);
+    expect(
+      getCitedDocumentSources([
+        { id: 'S2', source: firstChunk },
+        { id: 'S3', source: secondChunk },
+      ]),
+    ).toEqual([{ id: 'S2', source: firstChunk }]);
   });
 
   it('preserves first-citation order across different documents', () => {
     const firstCited = source('S3', 'First cited document');
     const secondCited = source('S1', 'Second cited document');
 
-    expect(getCitedDocumentSources([
-      { id: 'S3', source: firstCited },
-      { id: 'S1', source: secondCited },
-    ])).toEqual([
+    expect(
+      getCitedDocumentSources([
+        { id: 'S3', source: firstCited },
+        { id: 'S1', source: secondCited },
+      ]),
+    ).toEqual([
       { id: 'S3', source: firstCited },
       { id: 'S1', source: secondCited },
     ]);

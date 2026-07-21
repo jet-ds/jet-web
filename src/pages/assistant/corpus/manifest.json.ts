@@ -1,7 +1,5 @@
 import type { APIRoute } from 'astro';
-import {
-  canonicalSerialize,
-} from '../../../features/egregore/corpus/build';
+import { canonicalSerialize } from '../../../features/egregore/corpus/build';
 import { loadAstroKnowledgeBase } from '../../../features/egregore/corpus/astro';
 
 export const prerender = true;

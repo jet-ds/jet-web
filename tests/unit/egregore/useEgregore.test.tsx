@@ -92,7 +92,7 @@ const hookModulePath = '../../../src/features/egregore/state/useEgregore';
 afterEach(() => cleanup());
 
 async function loadSubject(): Promise<UseEgregore> {
-  const module = await import(hookModulePath) as {
+  const module = (await import(hookModulePath)) as {
     useEgregore: UseEgregore;
   };
   return module.useEgregore;
@@ -108,7 +108,9 @@ class OrderedFakeRuntime extends FakeRuntime {
   constructor(
     private readonly order: string[],
     responseChunks: readonly string[] = ['Grounded answer [S1].'],
-    scheduler?: { waitForChunk(operationId: number, chunkIndex: number): Promise<void> },
+    scheduler?: {
+      waitForChunk(operationId: number, chunkIndex: number): Promise<void>;
+    },
     failures?: FakeRuntimeOptions['failures'],
     generationFailuresBeforeSuccess = 0,
     resetFailuresBeforeSuccess = 0,
@@ -155,7 +157,10 @@ class OrderedFakeRuntime extends FakeRuntime {
   ): Promise<GenerationResult> {
     this.order.push('runtime.generate');
     this.generationMessages.push(message);
-    if (this.failNextGenerationRequested || this.remainingGenerationFailures > 0) {
+    if (
+      this.failNextGenerationRequested ||
+      this.remainingGenerationFailures > 0
+    ) {
       this.failNextGenerationRequested = false;
       if (this.remainingGenerationFailures > 0) {
         this.remainingGenerationFailures -= 1;
@@ -281,23 +286,25 @@ function selection(
   };
 }
 
-function createHarness(options: {
-  responseChunks?: readonly string[];
-  scheduler?: ManualScheduler;
-  runtimeFailures?: FakeRuntimeOptions['failures'];
-  repositoryError?: Error;
-  repositoryFailuresBeforeSuccess?: number;
-  repositoryUnloadError?: Error;
-  selection?: SelectionResult;
-  generationFailuresBeforeSuccess?: number;
-  resetFailuresBeforeSuccess?: number;
-  capabilityReport?: CapabilityReport;
-  loadErrorCode?: 'engine-cleanup-failed';
-  repositoryLoad?: (signal?: AbortSignal) => Promise<LoadedKnowledgeBase>;
-  runtimeUnloadWait?: Promise<void>;
-  runtimeCreateSessionWait?: Promise<void>;
-  runtimeCreateSessionError?: Error;
-} = {}) {
+function createHarness(
+  options: {
+    responseChunks?: readonly string[];
+    scheduler?: ManualScheduler;
+    runtimeFailures?: FakeRuntimeOptions['failures'];
+    repositoryError?: Error;
+    repositoryFailuresBeforeSuccess?: number;
+    repositoryUnloadError?: Error;
+    selection?: SelectionResult;
+    generationFailuresBeforeSuccess?: number;
+    resetFailuresBeforeSuccess?: number;
+    capabilityReport?: CapabilityReport;
+    loadErrorCode?: 'engine-cleanup-failed';
+    repositoryLoad?: (signal?: AbortSignal) => Promise<LoadedKnowledgeBase>;
+    runtimeUnloadWait?: Promise<void>;
+    runtimeCreateSessionWait?: Promise<void>;
+    runtimeCreateSessionError?: Error;
+  } = {},
+) {
   const order: string[] = [];
   const source = selectedSource();
   const selected = options.selection ?? selection([source]);
@@ -315,7 +322,8 @@ function createHarness(options: {
     options.runtimeCreateSessionError,
   );
   const knowledgeBase = {} as LoadedKnowledgeBase;
-  let repositoryFailuresRemaining = options.repositoryFailuresBeforeSuccess ?? 0;
+  let repositoryFailuresRemaining =
+    options.repositoryFailuresBeforeSuccess ?? 0;
   const repository: WishedKnowledgeRepository = {
     load: vi.fn(async (signal?: AbortSignal) => {
       order.push('repository.load');
@@ -340,30 +348,35 @@ function createHarness(options: {
     order.push('select');
     return selected;
   });
-  const assemble = vi.fn((
-    query: string,
-    history: Array<{ role: 'user' | 'assistant'; content: string }>,
-  ) => {
-    order.push('assemble');
-    return {
-      preface: [
-        { role: 'system' as const, content: 'Ground only in the supplied source.' },
-        ...history,
-      ],
-      userMessage: query,
-      selectedSources: [...selected.sources],
-      estimatedTokens: 24,
-      diagnostics: {
-        systemTokens: 8,
-        questionTokens: 4,
-        historyTokens: 0,
-        knowledgeTokens: 8,
-        responseReserve: EGREGORE_CONTEXT.responseReserve,
-        estimatorHeadroom: EGREGORE_CONTEXT.estimatorHeadroom,
-        totalContextTokens: EGREGORE_CONTEXT.maxContextTokens,
-      },
-    };
-  });
+  const assemble = vi.fn(
+    (
+      query: string,
+      history: Array<{ role: 'user' | 'assistant'; content: string }>,
+    ) => {
+      order.push('assemble');
+      return {
+        preface: [
+          {
+            role: 'system' as const,
+            content: 'Ground only in the supplied source.',
+          },
+          ...history,
+        ],
+        userMessage: query,
+        selectedSources: [...selected.sources],
+        estimatedTokens: 24,
+        diagnostics: {
+          systemTokens: 8,
+          questionTokens: 4,
+          historyTokens: 0,
+          knowledgeTokens: 8,
+          responseReserve: EGREGORE_CONTEXT.responseReserve,
+          estimatorHeadroom: EGREGORE_CONTEXT.estimatorHeadroom,
+          totalContextTokens: EGREGORE_CONTEXT.maxContextTokens,
+        },
+      };
+    },
+  );
 
   let nextTurnId = 0;
   const dependencies: WishedDependencies = {
@@ -371,21 +384,22 @@ function createHarness(options: {
     createRuntime: () => runtime,
     rankAndPackContext: rankAndPack,
     assemblePrompt: assemble,
-    extractValidCitations: vi.fn((
-      response: string,
-      sources: SelectedSource[],
-    ): ValidCitation[] => {
-      const seen = new Set<string>();
-      const citations: ValidCitation[] = [];
-      for (const match of response.matchAll(/\[(S\d+)\]/g)) {
-        const id = match[1] as `S${number}`;
-        const citedSource = sources.find((candidate) => candidate.citationId === id);
-        if (citedSource === undefined || seen.has(id)) continue;
-        seen.add(id);
-        citations.push({ id, source: citedSource });
-      }
-      return citations;
-    }),
+    extractValidCitations: vi.fn(
+      (response: string, sources: SelectedSource[]): ValidCitation[] => {
+        const seen = new Set<string>();
+        const citations: ValidCitation[] = [];
+        for (const match of response.matchAll(/\[(S\d+)\]/g)) {
+          const id = match[1] as `S${number}`;
+          const citedSource = sources.find(
+            (candidate) => candidate.citationId === id,
+          );
+          if (citedSource === undefined || seen.has(id)) continue;
+          seen.add(id);
+          citations.push({ id, source: citedSource });
+        }
+        return citations;
+      },
+    ),
     createTurnId: () => `turn-${++nextTurnId}`,
     now: () => 1_000,
   };
@@ -437,10 +451,7 @@ describe('useEgregore activation boundary', () => {
     });
 
     expect(result.current.state.lifecycle.status).toBe('ready');
-    expect(harness.order).toEqual([
-      'repository.load',
-      'runtime.load',
-    ]);
+    expect(harness.order).toEqual(['repository.load', 'runtime.load']);
   });
 
   it('checks compatibility without crossing any heavy-work boundary', async () => {
@@ -465,12 +476,14 @@ describe('useEgregore activation boundary', () => {
     const harness = createHarness({
       capabilityReport: {
         supported: true,
-        warnings: [{
-          code: 'storage-warning',
-          message: 'PRIVATE_STORAGE_DETAILS',
-          recoverable: true,
-          diagnosticCause: 'PRIVATE_DIAGNOSTIC',
-        }],
+        warnings: [
+          {
+            code: 'storage-warning',
+            message: 'PRIVATE_STORAGE_DETAILS',
+            recoverable: true,
+            diagnosticCause: 'PRIVATE_DIAGNOSTIC',
+          },
+        ],
         failures: [],
         secureContext: true,
         webGpuAvailable: true,
@@ -490,7 +503,9 @@ describe('useEgregore activation boundary', () => {
       code: 'storage-warning',
       diagnosticCause: 'storage-warning',
     });
-    expect(JSON.stringify(result.current.state.capability)).not.toContain('PRIVATE');
+    expect(JSON.stringify(result.current.state.capability)).not.toContain(
+      'PRIVATE',
+    );
   });
 
   it('sanitizes unsupported capability failures before exposing the recovery UI', async () => {
@@ -499,12 +514,14 @@ describe('useEgregore activation boundary', () => {
       capabilityReport: {
         supported: false,
         warnings: [],
-        failures: [{
-          code: 'adapter-unavailable',
-          message: 'PRIVATE_GPU_DETAILS',
-          recoverable: false,
-          diagnosticCause: 'PRIVATE_DIAGNOSTIC',
-        }],
+        failures: [
+          {
+            code: 'adapter-unavailable',
+            message: 'PRIVATE_GPU_DETAILS',
+            recoverable: false,
+            diagnosticCause: 'PRIVATE_DIAGNOSTIC',
+          },
+        ],
         secureContext: true,
         webGpuAvailable: true,
         adapterAvailable: false,
@@ -558,7 +575,9 @@ describe('useEgregore activation boundary', () => {
 
   it('orders selection, prompt assembly, session creation, and streamed generation', async () => {
     const useEgregore = await loadSubject();
-    const harness = createHarness({ responseChunks: ['Grounded ', 'answer [S1].'] });
+    const harness = createHarness({
+      responseChunks: ['Grounded ', 'answer [S1].'],
+    });
     const { result } = renderHook(() => useEgregore(harness.dependencies));
     await makeReady(result);
     harness.order.length = 0;
@@ -574,14 +593,19 @@ describe('useEgregore activation boundary', () => {
       'runtime.generate',
     ]);
     expect(result.current.state.turns).toEqual([
-      expect.objectContaining({ role: 'user', content: 'What did Jet publish?' }),
+      expect.objectContaining({
+        role: 'user',
+        content: 'What did Jet publish?',
+      }),
       expect.objectContaining({
         role: 'assistant',
         content: 'Grounded answer [S1].',
         citations: [{ id: 'S1', source: harness.source }],
       }),
     ]);
-    expect(result.current.state.turns.every((turn) => !('sources' in turn))).toBe(true);
+    expect(
+      result.current.state.turns.every((turn) => !('sources' in turn)),
+    ).toBe(true);
     expect(result.current.state.lifecycle.status).toBe('ready');
   });
 
@@ -621,7 +645,9 @@ describe('useEgregore activation boundary', () => {
 
     act(() => scheduler.releaseNext());
     await act(async () => generation);
-    expect(JSON.stringify(result.current.state.turns)).not.toContain('DROP THIS');
+    expect(JSON.stringify(result.current.state.turns)).not.toContain(
+      'DROP THIS',
+    );
   });
 
   it('aborts an in-flight corpus fetch before ordered cleanup and never starts the runtime', async () => {
@@ -632,10 +658,14 @@ describe('useEgregore activation boundary', () => {
     const harness = createHarness({
       repositoryLoad: (signal) => {
         receivedSignal = signal;
-        signal?.addEventListener('abort', () => {
-          abortObserved = true;
-          fallback.reject(new DOMException('Aborted', 'AbortError'));
-        }, { once: true });
+        signal?.addEventListener(
+          'abort',
+          () => {
+            abortObserved = true;
+            fallback.reject(new DOMException('Aborted', 'AbortError'));
+          },
+          { once: true },
+        );
         return fallback.promise;
       },
     });
@@ -662,7 +692,9 @@ describe('useEgregore activation boundary', () => {
       'repository.unload',
       'runtime.unload',
     ]);
-    expect(harness.runtime.calls.some(({ method }) => method === 'load')).toBe(false);
+    expect(harness.runtime.calls.some(({ method }) => method === 'load')).toBe(
+      false,
+    );
     expect(result.current.state.lifecycle.status).toBe('idle');
   });
 
@@ -717,14 +749,18 @@ describe('useEgregore activation boundary', () => {
       'repository.unload',
       'runtime.unload',
     ]);
-    expect(harness.runtime.calls.some(({ method }) => method === 'load')).toBe(false);
+    expect(harness.runtime.calls.some(({ method }) => method === 'load')).toBe(
+      false,
+    );
     expect(result.current.state.lifecycle.status).toBe('idle');
   });
 
   it('performs the same ordered cleanup when the route unmounts', async () => {
     const useEgregore = await loadSubject();
     const harness = createHarness();
-    const { result, unmount } = renderHook(() => useEgregore(harness.dependencies));
+    const { result, unmount } = renderHook(() =>
+      useEgregore(harness.dependencies),
+    );
     await makeReady(result);
     harness.order.length = 0;
 
@@ -747,13 +783,19 @@ describe('useEgregore activation boundary', () => {
     const harness = createHarness({
       repositoryLoad: (signal) => {
         receivedSignal = signal;
-        signal?.addEventListener('abort', () => {
-          activationWork.reject(new DOMException('Aborted', 'AbortError'));
-        }, { once: true });
+        signal?.addEventListener(
+          'abort',
+          () => {
+            activationWork.reject(new DOMException('Aborted', 'AbortError'));
+          },
+          { once: true },
+        );
         return activationWork.promise;
       },
     });
-    const { result, unmount } = renderHook(() => useEgregore(harness.dependencies));
+    const { result, unmount } = renderHook(() =>
+      useEgregore(harness.dependencies),
+    );
     await act(async () => result.current.checkCompatibility());
     let activation!: Promise<void>;
     act(() => {
@@ -766,13 +808,17 @@ describe('useEgregore activation boundary', () => {
     await act(async () => activation);
 
     expect(receivedSignal?.aborted).toBe(true);
-    await waitFor(() => expect(harness.order).toEqual([
-      'runtime.cancel',
-      'runtime.reset',
-      'repository.unload',
-      'runtime.unload',
-    ]));
-    expect(harness.runtime.calls.some(({ method }) => method === 'load')).toBe(false);
+    await waitFor(() =>
+      expect(harness.order).toEqual([
+        'runtime.cancel',
+        'runtime.reset',
+        'repository.unload',
+        'runtime.unload',
+      ]),
+    );
+    expect(harness.runtime.calls.some(({ method }) => method === 'load')).toBe(
+      false,
+    );
   });
 
   it('classifies search-index validation failures without attempting model load', async () => {
@@ -795,11 +841,14 @@ describe('useEgregore activation boundary', () => {
 
   it('sanitizes dependency failures and rejects unrecognized error codes', async () => {
     const useEgregore = await loadSubject();
-    const hostileError = Object.assign(new Error('PRIVATE_PROMPT_OR_SOURCE_TEXT'), {
-      code: 'attacker-controlled-code',
-      recoverable: false,
-      diagnosticCause: 'PRIVATE_DIAGNOSTIC',
-    });
+    const hostileError = Object.assign(
+      new Error('PRIVATE_PROMPT_OR_SOURCE_TEXT'),
+      {
+        code: 'attacker-controlled-code',
+        recoverable: false,
+        diagnosticCause: 'PRIVATE_DIAGNOSTIC',
+      },
+    );
     const harness = createHarness({ repositoryError: hostileError });
     const { result } = renderHook(() => useEgregore(harness.dependencies));
 
@@ -813,7 +862,9 @@ describe('useEgregore activation boundary', () => {
       recoverable: true,
       diagnosticCause: 'Error',
     });
-    expect(JSON.stringify(result.current.state.error)).not.toMatch(/PRIVATE|attacker/);
+    expect(JSON.stringify(result.current.state.error)).not.toMatch(
+      /PRIVATE|attacker/,
+    );
   });
 
   it('acknowledges a recoverable load error and retries from explicit consent', async () => {
@@ -837,7 +888,9 @@ describe('useEgregore activation boundary', () => {
     });
     expect(result.current.state.lifecycle.status).toBe('ready');
     expect(harness.repository.load).toHaveBeenCalledTimes(2);
-    expect(harness.runtime.calls.filter(({ method }) => method === 'load')).toHaveLength(1);
+    expect(
+      harness.runtime.calls.filter(({ method }) => method === 'load'),
+    ).toHaveLength(1);
   });
 
   it.each([
@@ -849,10 +902,15 @@ describe('useEgregore activation boundary', () => {
     async (_label, completeCorpusIncluded, hasSource) => {
       const useEgregore = await loadSubject();
       const source = selectedSource();
-      const selected = selection(hasSource ? [source] : [], completeCorpusIncluded);
+      const selected = selection(
+        hasSource ? [source] : [],
+        completeCorpusIncluded,
+      );
       const harness = createHarness({
         selection: selected,
-        responseChunks: [hasSource ? 'Answer [S1].' : 'I do not have a grounded source.'],
+        responseChunks: [
+          hasSource ? 'Answer [S1].' : 'I do not have a grounded source.',
+        ],
       });
       const { result } = renderHook(() => useEgregore(harness.dependencies));
       await makeReady(result);
@@ -867,7 +925,9 @@ describe('useEgregore activation boundary', () => {
         selected,
         EGREGORE_CONTEXT,
       );
-      expect(result.current.state.turns.at(-1)?.citations).toHaveLength(hasSource ? 1 : 0);
+      expect(result.current.state.turns.at(-1)?.citations).toHaveLength(
+        hasSource ? 1 : 0,
+      );
       expect(result.current.state.turns.at(-1)).not.toHaveProperty('sources');
     },
   );
@@ -890,7 +950,9 @@ describe('useEgregore activation boundary', () => {
     act(() => scheduler.releaseNext());
     await waitFor(() => expect(scheduler.pendingCount).toBe(1));
     await waitFor(() => {
-      expect(result.current.state.turns.at(-1)?.content).toBe('Partial response. ');
+      expect(result.current.state.turns.at(-1)?.content).toBe(
+        'Partial response. ',
+      );
     });
 
     act(() => result.current.stop());
@@ -918,7 +980,9 @@ describe('useEgregore activation boundary', () => {
     act(() => {
       submission = result.current.sendMessage('Stop before generation starts.');
     });
-    await waitFor(() => expect(harness.order).toContain('runtime.createSession'));
+    await waitFor(() =>
+      expect(harness.order).toContain('runtime.createSession'),
+    );
 
     act(() => result.current.stop());
     expect(result.current.state.lifecycle.status).toBe('cancelling');
@@ -953,9 +1017,13 @@ describe('useEgregore activation boundary', () => {
 
     let submission!: Promise<void>;
     act(() => {
-      submission = result.current.sendMessage('Stop with failed stale cleanup.');
+      submission = result.current.sendMessage(
+        'Stop with failed stale cleanup.',
+      );
     });
-    await waitFor(() => expect(harness.order).toContain('runtime.createSession'));
+    await waitFor(() =>
+      expect(harness.order).toContain('runtime.createSession'),
+    );
     act(() => result.current.stop());
     sessionCreation.resolve(undefined);
     await act(async () => submission);
@@ -964,7 +1032,7 @@ describe('useEgregore activation boundary', () => {
     expect(result.current.state.lifecycle.status).toBe('unload-error');
     expect(result.current.state.error).toMatchObject({
       code: 'engine-cleanup-failed',
-      message: "Egregore could not fully release the local model runtime.",
+      message: 'Egregore could not fully release the local model runtime.',
     });
     expect(JSON.stringify(result.current.state.error)).not.toContain('PRIVATE');
     expect(result.current.state.turns.at(-1)).toMatchObject({
@@ -1058,7 +1126,9 @@ describe('useEgregore activation boundary', () => {
     expect(result.current.state.lifecycle.status).toBe('generation-error');
     expect(result.current.state.error?.code).toBe('generation-failed');
     expect(JSON.stringify(result.current.state.turns)).toBe(priorTranscript);
-    expect(JSON.stringify(result.current.state.turns)).not.toContain('Retry this exact question');
+    expect(JSON.stringify(result.current.state.turns)).not.toContain(
+      'Retry this exact question',
+    );
 
     act(() => result.current.recoverFromError());
     expect(result.current.state.lifecycle.status).toBe('ready');
@@ -1083,7 +1153,9 @@ describe('useEgregore activation boundary', () => {
       'Retry this exact question',
     ]);
     expect(result.current.state.lifecycle.status).toBe('ready');
-    expect(result.current.state.turns.at(-1)?.content).toBe('Grounded answer [S1].');
+    expect(result.current.state.turns.at(-1)?.content).toBe(
+      'Grounded answer [S1].',
+    );
   });
 
   it('preserves the exact transcript and avoids runtime calls at conversation exhaustion', async () => {
@@ -1097,7 +1169,9 @@ describe('useEgregore activation boundary', () => {
     const transcript = JSON.stringify(result.current.state.turns);
     const runtimeCallCount = harness.runtime.calls.length;
     const exhausted = Object.assign(
-      new Error('The current session is full. Start a new session to continue.'),
+      new Error(
+        'The current session is full. Start a new session to continue.',
+      ),
       {
         name: 'EgregorePromptError',
         code: 'conversation-limit-reached',
@@ -1160,7 +1234,7 @@ describe('EgregoreExperience production composition', () => {
 
     expect(screen.getByText('jet-web 9.8.7-test')).toBeInTheDocument();
     const licenses = screen.getByRole('link', {
-      name: "Open Egregore model and open-source licenses",
+      name: 'Open Egregore model and open-source licenses',
     });
     expect(licenses).toHaveAttribute('href', '/licenses/egregore/');
 
@@ -1180,18 +1254,24 @@ describe('EgregoreExperience production composition', () => {
 
     const visibleStatus = screen.getByTestId('lifecycle-visible-status');
     const announcement = screen.getByTestId('lifecycle-announcement');
-    expect(screen.queryByTestId('lifecycle-status-slot')).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId('lifecycle-status-slot'),
+    ).not.toBeInTheDocument();
     expect(visibleStatus).toHaveClass('w-fit');
-    expect(visibleStatus.className).not.toMatch(/(?:^|\s)(?:min-w-|w-\[|h-(?:\[|\d))/);
+    expect(visibleStatus.className).not.toMatch(
+      /(?:^|\s)(?:min-w-|w-\[|h-(?:\[|\d))/,
+    );
     expect(visibleStatus.className).not.toMatch(
       /(?:^|\s)(?:border(?:-\S+)?|bg-\S+|rounded\S*|shadow\S*|p[trblxy]?-\S+)(?:\s|$)/,
     );
     expect(visibleStatus).toHaveAttribute('aria-hidden', 'true');
     expect(visibleStatus).not.toHaveAttribute('aria-live');
-    expect(within(visibleStatus).getByTestId('lifecycle-visual-label')).toHaveTextContent('Not running');
+    expect(
+      within(visibleStatus).getByTestId('lifecycle-visual-label'),
+    ).toHaveTextContent('Not running');
     expect(announcement).toHaveAttribute('role', 'status');
     expect(announcement).toHaveAttribute('aria-live', 'polite');
-    expect(announcement).toHaveTextContent("Egregore is not running.");
+    expect(announcement).toHaveTextContent('Egregore is not running.');
     expect(visibleStatus).not.toHaveTextContent('%');
   });
 
@@ -1202,17 +1282,29 @@ describe('EgregoreExperience production composition', () => {
       scheduler,
     });
     render(<EgregoreExperience dependencies={harness.dependencies} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Load Egregore/ }));
-    const composer = await screen.findByRole('textbox', { name: "Ask Egregore" });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Check compatibility' }),
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Load Egregore/ }),
+    );
+    const composer = await screen.findByRole('textbox', {
+      name: 'Ask Egregore',
+    });
     const visibleStatus = screen.getByTestId('lifecycle-visible-status');
     const newSession = screen.getByRole('button', { name: /New session/ });
     const unload = screen.getByRole('button', { name: /^Unload/ });
     const readyLabels = [newSession.textContent, unload.textContent];
     expect(newSession).toBeEnabled();
     expect(unload).toBeEnabled();
-    expect(visibleStatus.compareDocumentPosition(newSession) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(newSession.compareDocumentPosition(unload) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(
+      visibleStatus.compareDocumentPosition(newSession) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      newSession.compareDocumentPosition(unload) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
 
     const metadata = screen.getByTestId('composer-metadata');
     const keyboardHint = screen.getByTestId('composer-keyboard-hint');
@@ -1230,11 +1322,15 @@ describe('EgregoreExperience production composition', () => {
     fireEvent.change(composer, { target: { value: 'Hold this response' } });
     fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
     await waitFor(() => expect(scheduler.pendingCount).toBe(1));
-    await waitFor(() => expect(screen.getByTestId('lifecycle-announcement')).toHaveTextContent(
-      "Egregore is responding.",
-    ));
+    await waitFor(() =>
+      expect(screen.getByTestId('lifecycle-announcement')).toHaveTextContent(
+        'Egregore is responding.',
+      ),
+    );
 
-    expect(screen.getByRole('button', { name: /New session/ })).toBe(newSession);
+    expect(screen.getByRole('button', { name: /New session/ })).toBe(
+      newSession,
+    );
     expect(screen.getByRole('button', { name: /^Unload/ })).toBe(unload);
     expect(newSession).toBeDisabled();
     expect(unload).toBeEnabled();
@@ -1247,20 +1343,26 @@ describe('EgregoreExperience production composition', () => {
   });
 
   it('keeps activation explicit and exposes cited documents only through a collapsed disclosure', async () => {
-    const harness = createHarness({ responseChunks: ['Grounded answer [S1].'] });
+    const harness = createHarness({
+      responseChunks: ['Grounded answer [S1].'],
+    });
     render(<EgregoreExperience dependencies={harness.dependencies} />);
 
     expect(screen.getByText(/frontier local AI/)).toBeInTheDocument();
     expect(screen.queryByText(/runs Gemma 4 E2B/)).not.toBeInTheDocument();
     expect(screen.queryByRole('textbox')).not.toBeInTheDocument();
-    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Check compatibility' }),
+    );
     await screen.findByRole('button', { name: /Load Egregore/ });
     expect(harness.runtime.calls.map(({ method }) => method)).toEqual([
       'checkCapabilities',
     ]);
 
     fireEvent.click(screen.getByRole('button', { name: /Load Egregore/ }));
-    const composer = await screen.findByRole('textbox', { name: "Ask Egregore" });
+    const composer = await screen.findByRole('textbox', {
+      name: 'Ask Egregore',
+    });
     await waitFor(() => expect(composer).toHaveFocus());
     expect(harness.runtime.calls.map(({ method }) => method)).toEqual([
       'checkCapabilities',
@@ -1270,42 +1372,72 @@ describe('EgregoreExperience production composition', () => {
     fireEvent.change(composer, { target: { value: 'What did Jet publish?' } });
     fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
     await screen.findByRole('link', { name: '[S1] Grounded source' });
-    const sourceTrigger = await screen.findByRole('button', { name: '1 source' });
+    const sourceTrigger = await screen.findByRole('button', {
+      name: '1 source',
+    });
 
-    expect(screen.queryByText('What does Jet write about agentic work?')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('What does Jet write about agentic work?'),
+    ).not.toBeInTheDocument();
     expect(sourceTrigger).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.getAllByRole('link', { name: /Grounded source/ })).toHaveLength(1);
-    expect(screen.queryByRole('region', { name: 'Sources for this response' })).not.toBeInTheDocument();
+    expect(
+      screen.getAllByRole('link', { name: /Grounded source/ }),
+    ).toHaveLength(1);
+    expect(
+      screen.queryByRole('region', { name: 'Sources for this response' }),
+    ).not.toBeInTheDocument();
 
     sourceTrigger.focus();
     fireEvent.click(sourceTrigger);
-    const sourceRegion = screen.getByRole('region', { name: 'Sources for this response' });
+    const sourceRegion = screen.getByRole('region', {
+      name: 'Sources for this response',
+    });
     expect(sourceTrigger).toHaveAttribute('aria-expanded', 'true');
     expect(sourceTrigger).toHaveAttribute('aria-controls', sourceRegion.id);
     expect(within(sourceRegion).getByRole('list')).toBeInTheDocument();
-    expect(within(sourceRegion).getByRole('link', { name: '[S1] Grounded source' }))
-      .toBeInTheDocument();
+    expect(
+      within(sourceRegion).getByRole('link', { name: '[S1] Grounded source' }),
+    ).toBeInTheDocument();
 
     fireEvent.click(sourceTrigger);
     expect(sourceTrigger).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByRole('region', { name: 'Sources for this response' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('region', { name: 'Sources for this response' }),
+    ).not.toBeInTheDocument();
   });
 
   it('keeps the reliability disclosure through starter selection, removes it on submit, and restores it after reset', async () => {
     const disclosureCopy = 'Egregore can make mistakes. Check cited sources.';
-    const harness = createHarness({ responseChunks: ['Grounded answer [S1].'] });
+    const harness = createHarness({
+      responseChunks: ['Grounded answer [S1].'],
+    });
     render(<EgregoreExperience dependencies={harness.dependencies} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Load Egregore/ }));
-    const composer = await screen.findByRole('textbox', { name: "Ask Egregore" });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Check compatibility' }),
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Load Egregore/ }),
+    );
+    const composer = await screen.findByRole('textbox', {
+      name: 'Ask Egregore',
+    });
     const disclosure = screen.getByText(disclosureCopy);
     const form = composer.closest('form');
-    if (!(form instanceof HTMLFormElement)) throw new Error('Composer form is missing.');
+    if (!(form instanceof HTMLFormElement))
+      throw new Error('Composer form is missing.');
 
     expect(disclosure).toHaveClass('text-sm', 'text-text-tertiary', 'mb-2xs');
-    expect(disclosure.compareDocumentPosition(form) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    expect(form.compareDocumentPosition(screen.getByTestId('composer-metadata')) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
-    fireEvent.click(screen.getByText('What does Jet write about agentic work?'));
+    expect(
+      disclosure.compareDocumentPosition(form) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(
+      form.compareDocumentPosition(screen.getByTestId('composer-metadata')) &
+        Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    fireEvent.click(
+      screen.getByText('What does Jet write about agentic work?'),
+    );
     expect(screen.getByText(disclosureCopy)).toBeInTheDocument();
 
     fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
@@ -1323,11 +1455,15 @@ describe('EgregoreExperience production composition', () => {
       scheduler,
     });
     render(<EgregoreExperience dependencies={harness.dependencies} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Check compatibility' }),
+    );
     const load = await screen.findByRole('button', { name: /Load Egregore/ });
     fireEvent.pointerDown(load, { pointerType: 'touch' });
     fireEvent.click(load);
-    const composer = await screen.findByRole('textbox', { name: "Ask Egregore" });
+    const composer = await screen.findByRole('textbox', {
+      name: 'Ask Egregore',
+    });
     expect(composer).not.toHaveFocus();
 
     fireEvent.pointerDown(composer, { pointerType: 'touch' });
@@ -1340,9 +1476,11 @@ describe('EgregoreExperience production composition', () => {
     expect(composer).not.toHaveFocus();
     await waitFor(() => expect(scheduler.pendingCount).toBe(1));
     act(() => scheduler.releaseNext());
-    await waitFor(() => expect(screen.getByTestId('lifecycle-announcement')).toHaveTextContent(
-      "Egregore is ready.",
-    ));
+    await waitFor(() =>
+      expect(screen.getByTestId('lifecycle-announcement')).toHaveTextContent(
+        'Egregore is ready.',
+      ),
+    );
     expect(composer).not.toHaveFocus();
 
     const newSession = screen.getByRole('button', { name: /New session/ });
@@ -1354,13 +1492,20 @@ describe('EgregoreExperience production composition', () => {
 
   it('preserves touch modality through virtual-keyboard character input and Enter', async () => {
     const scheduler = new ManualScheduler();
-    const harness = createHarness({ responseChunks: ['Answer [S1].'], scheduler });
+    const harness = createHarness({
+      responseChunks: ['Answer [S1].'],
+      scheduler,
+    });
     render(<EgregoreExperience dependencies={harness.dependencies} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Check compatibility' }),
+    );
     const load = await screen.findByRole('button', { name: /Load Egregore/ });
     fireEvent.pointerDown(load, { pointerType: 'touch' });
     fireEvent.click(load);
-    const composer = await screen.findByRole('textbox', { name: "Ask Egregore" });
+    const composer = await screen.findByRole('textbox', {
+      name: 'Ask Egregore',
+    });
     fireEvent.pointerDown(composer, { pointerType: 'touch' });
     composer.focus();
     fireEvent.keyDown(composer, { key: 'V', code: 'KeyV' });
@@ -1370,9 +1515,11 @@ describe('EgregoreExperience production composition', () => {
     expect(composer).not.toHaveFocus();
     await waitFor(() => expect(scheduler.pendingCount).toBe(1));
     act(() => scheduler.releaseNext());
-    await waitFor(() => expect(screen.getByTestId('lifecycle-announcement')).toHaveTextContent(
-      "Egregore is ready.",
-    ));
+    await waitFor(() =>
+      expect(screen.getByTestId('lifecycle-announcement')).toHaveTextContent(
+        'Egregore is ready.',
+      ),
+    );
     expect(composer).not.toHaveFocus();
   });
 
@@ -1383,11 +1530,15 @@ describe('EgregoreExperience production composition', () => {
       scheduler,
     });
     render(<EgregoreExperience dependencies={harness.dependencies} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Check compatibility' }),
+    );
     const load = await screen.findByRole('button', { name: /Load Egregore/ });
     fireEvent.pointerDown(load, { pointerType: 'touch' });
     fireEvent.click(load);
-    const composer = await screen.findByRole('textbox', { name: "Ask Egregore" });
+    const composer = await screen.findByRole('textbox', {
+      name: 'Ask Egregore',
+    });
     fireEvent.pointerDown(composer, { pointerType: 'touch' });
     composer.focus();
     fireEvent.keyDown(composer, { key: 'C', code: 'KeyC' });
@@ -1415,24 +1566,38 @@ describe('EgregoreExperience production composition', () => {
       runtimeCreateSessionWait: sessionCreation.promise,
     });
     render(<EgregoreExperience dependencies={harness.dependencies} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Load Egregore/ }));
-    const composer = await screen.findByRole('textbox', { name: "Ask Egregore" });
-    fireEvent.change(composer, { target: { value: 'Stop this before generation.' } });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Check compatibility' }),
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Load Egregore/ }),
+    );
+    const composer = await screen.findByRole('textbox', {
+      name: 'Ask Egregore',
+    });
+    fireEvent.change(composer, {
+      target: { value: 'Stop this before generation.' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
-    await waitFor(() => expect(harness.order).toContain('runtime.createSession'));
+    await waitFor(() =>
+      expect(harness.order).toContain('runtime.createSession'),
+    );
 
     fireEvent.click(screen.getByRole('button', { name: 'Stop response' }));
-    await waitFor(() => expect(screen.getByTestId('lifecycle-announcement')).toHaveTextContent(
-      'Stopping the current response.',
-    ));
+    await waitFor(() =>
+      expect(screen.getByTestId('lifecycle-announcement')).toHaveTextContent(
+        'Stopping the current response.',
+      ),
+    );
     sessionCreation.resolve(undefined);
 
     expect(await screen.findByText('Stopped')).toBeInTheDocument();
     expect(screen.getByTestId('lifecycle-announcement')).toHaveTextContent(
-      "Egregore is ready.",
+      'Egregore is ready.',
     );
-    expect(screen.queryByRole('button', { name: 'Try another question' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Try another question' }),
+    ).not.toBeInTheDocument();
     expect(harness.order).not.toContain('runtime.generate');
   });
 
@@ -1447,66 +1612,104 @@ describe('EgregoreExperience production composition', () => {
       ),
     });
     render(<EgregoreExperience dependencies={harness.dependencies} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Load Egregore/ }));
-    const composer = await screen.findByRole('textbox', { name: "Ask Egregore" });
-    fireEvent.change(composer, { target: { value: 'Stop with failed cleanup.' } });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Check compatibility' }),
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Load Egregore/ }),
+    );
+    const composer = await screen.findByRole('textbox', {
+      name: 'Ask Egregore',
+    });
+    fireEvent.change(composer, {
+      target: { value: 'Stop with failed cleanup.' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
-    await waitFor(() => expect(harness.order).toContain('runtime.createSession'));
+    await waitFor(() =>
+      expect(harness.order).toContain('runtime.createSession'),
+    );
     fireEvent.click(screen.getByRole('button', { name: 'Stop response' }));
-    await waitFor(() => expect(screen.getByTestId('lifecycle-announcement')).toHaveTextContent(
-      'Stopping the current response.',
-    ));
+    await waitFor(() =>
+      expect(screen.getByTestId('lifecycle-announcement')).toHaveTextContent(
+        'Stopping the current response.',
+      ),
+    );
     sessionCreation.resolve(undefined);
 
-    expect(await screen.findByText(
-      "Egregore could not fully release the local model runtime.",
-    )).toBeInTheDocument();
+    expect(
+      await screen.findByText(
+        'Egregore could not fully release the local model runtime.',
+      ),
+    ).toBeInTheDocument();
     expect(screen.getByText('Stopped')).toBeInTheDocument();
-    await waitFor(() => expect(screen.getAllByTestId('lifecycle-visual-label')).toHaveLength(1));
-    expect(screen.getByTestId('lifecycle-visual-label')).toHaveTextContent('Not running');
-    expect(screen.getByTestId('lifecycle-announcement')).toHaveTextContent(
-      "Egregore did not finish unloading. Review the recovery action.",
+    await waitFor(() =>
+      expect(screen.getAllByTestId('lifecycle-visual-label')).toHaveLength(1),
     );
-    expect(screen.queryByRole('button', { name: 'Try another question' })).not.toBeInTheDocument();
+    expect(screen.getByTestId('lifecycle-visual-label')).toHaveTextContent(
+      'Not running',
+    );
+    expect(screen.getByTestId('lifecycle-announcement')).toHaveTextContent(
+      'Egregore did not finish unloading. Review the recovery action.',
+    );
+    expect(
+      screen.queryByRole('button', { name: 'Try another question' }),
+    ).not.toBeInTheDocument();
     const unload = screen.getByRole('button', { name: 'Retry unload' });
     fireEvent.click(unload);
-    expect(await screen.findByRole('button', { name: 'Check compatibility' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: 'Check compatibility' }),
+    ).toBeInTheDocument();
   });
 
   it('keeps touch-origin virtual-keyboard recovery blurred after character input', async () => {
     const harness = createHarness({ generationFailuresBeforeSuccess: 1 });
     render(<EgregoreExperience dependencies={harness.dependencies} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Check compatibility' }),
+    );
     const load = await screen.findByRole('button', { name: /Load Egregore/ });
     fireEvent.pointerDown(load, { pointerType: 'touch' });
     fireEvent.click(load);
-    const composer = await screen.findByRole('textbox', { name: "Ask Egregore" });
+    const composer = await screen.findByRole('textbox', {
+      name: 'Ask Egregore',
+    });
     fireEvent.pointerDown(composer, { pointerType: 'touch' });
     composer.focus();
     fireEvent.keyDown(composer, { key: 'R', code: 'KeyR' });
-    fireEvent.change(composer, { target: { value: 'Recover without reopening the keyboard' } });
+    fireEvent.change(composer, {
+      target: { value: 'Recover without reopening the keyboard' },
+    });
     fireEvent.keyDown(composer, { key: 'Enter' });
     expect(composer).not.toHaveFocus();
 
-    const recovery = await screen.findByRole('button', { name: 'Try another question' });
+    const recovery = await screen.findByRole('button', {
+      name: 'Try another question',
+    });
     fireEvent.pointerDown(recovery, { pointerType: 'touch' });
     fireEvent.click(recovery);
-    await waitFor(() => expect(screen.getByTestId('lifecycle-announcement')).toHaveTextContent(
-      "Egregore is ready.",
-    ));
+    await waitFor(() =>
+      expect(screen.getByTestId('lifecycle-announcement')).toHaveTextContent(
+        'Egregore is ready.',
+      ),
+    );
     expect(composer).not.toHaveFocus();
   });
 
   it('waits for the touch visual viewport to settle before final submit positioning', async () => {
-    const originalVisualViewport = Object.getOwnPropertyDescriptor(window, 'visualViewport');
+    const originalVisualViewport = Object.getOwnPropertyDescriptor(
+      window,
+      'visualViewport',
+    );
     let resizeListener: (() => void) | null = null;
     const visualViewport = {
-      addEventListener: vi.fn((_type: string, listener: EventListenerOrEventListenerObject) => {
-        resizeListener = typeof listener === 'function'
-          ? () => listener(new Event('resize'))
-          : () => listener.handleEvent(new Event('resize'));
-      }),
+      addEventListener: vi.fn(
+        (_type: string, listener: EventListenerOrEventListenerObject) => {
+          resizeListener =
+            typeof listener === 'function'
+              ? () => listener(new Event('resize'))
+              : () => listener.handleEvent(new Event('resize'));
+        },
+      ),
       removeEventListener: vi.fn(() => {
         resizeListener = null;
       }),
@@ -1518,27 +1721,41 @@ describe('EgregoreExperience production composition', () => {
 
     try {
       const scheduler = new ManualScheduler();
-      const harness = createHarness({ responseChunks: ['Settled response [S1].'], scheduler });
+      const harness = createHarness({
+        responseChunks: ['Settled response [S1].'],
+        scheduler,
+      });
       render(<EgregoreExperience dependencies={harness.dependencies} />);
-      fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
+      fireEvent.click(
+        screen.getByRole('button', { name: 'Check compatibility' }),
+      );
       const load = await screen.findByRole('button', { name: /Load Egregore/ });
       fireEvent.pointerDown(load, { pointerType: 'touch' });
       fireEvent.click(load);
-      const composer = await screen.findByRole('textbox', { name: "Ask Egregore" });
+      const composer = await screen.findByRole('textbox', {
+        name: 'Ask Egregore',
+      });
       fireEvent.pointerDown(composer, { pointerType: 'touch' });
       composer.focus();
       fireEvent.keyDown(composer, { key: 'S', code: 'KeyS' });
-      fireEvent.change(composer, { target: { value: 'Settle after keyboard dismissal' } });
+      fireEvent.change(composer, {
+        target: { value: 'Settle after keyboard dismissal' },
+      });
       fireEvent.keyDown(composer, { key: 'Enter' });
       expect(composer).not.toHaveFocus();
 
       const scroller = await screen.findByTestId('conversation-scroller');
       let assignedScrollTop = -1;
-      Object.defineProperty(scroller, 'scrollHeight', { configurable: true, value: 600 });
+      Object.defineProperty(scroller, 'scrollHeight', {
+        configurable: true,
+        value: 600,
+      });
       Object.defineProperty(scroller, 'scrollTop', {
         configurable: true,
         get: () => assignedScrollTop,
-        set: (value: number) => { assignedScrollTop = value; },
+        set: (value: number) => {
+          assignedScrollTop = value;
+        },
       });
       expect(assignedScrollTop).toBe(-1);
       expect(resizeListener).not.toBeNull();
@@ -1560,7 +1777,10 @@ describe('EgregoreExperience production composition', () => {
 
   it('retains focus for desktop keyboard Load, hardware Enter, completion, and New session', async () => {
     const scheduler = new ManualScheduler();
-    const harness = createHarness({ responseChunks: ['Answer [S1].'], scheduler });
+    const harness = createHarness({
+      responseChunks: ['Answer [S1].'],
+      scheduler,
+    });
     render(<EgregoreExperience dependencies={harness.dependencies} />);
     const check = screen.getByRole('button', { name: 'Check compatibility' });
     fireEvent.keyDown(check, { key: 'Enter' });
@@ -1568,7 +1788,9 @@ describe('EgregoreExperience production composition', () => {
     const load = await screen.findByRole('button', { name: /Load Egregore/ });
     fireEvent.keyDown(load, { key: 'Enter' });
     fireEvent.click(load);
-    const composer = await screen.findByRole('textbox', { name: "Ask Egregore" });
+    const composer = await screen.findByRole('textbox', {
+      name: 'Ask Egregore',
+    });
     await waitFor(() => expect(composer).toHaveFocus());
 
     fireEvent.pointerDown(composer, { pointerType: 'mouse' });
@@ -1578,9 +1800,11 @@ describe('EgregoreExperience production composition', () => {
     expect(composer).toHaveFocus();
     await waitFor(() => expect(scheduler.pendingCount).toBe(1));
     act(() => scheduler.releaseNext());
-    await waitFor(() => expect(screen.getByTestId('lifecycle-announcement')).toHaveTextContent(
-      "Egregore is ready.",
-    ));
+    await waitFor(() =>
+      expect(screen.getByTestId('lifecycle-announcement')).toHaveTextContent(
+        'Egregore is ready.',
+      ),
+    );
     expect(composer).toHaveFocus();
 
     const newSession = screen.getByRole('button', { name: /New session/ });
@@ -1597,18 +1821,29 @@ describe('EgregoreExperience production composition', () => {
       scheduler,
     });
     render(<EgregoreExperience dependencies={harness.dependencies} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Load Egregore/ }));
-    const composer = await screen.findByRole('textbox', { name: "Ask Egregore" });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Check compatibility' }),
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Load Egregore/ }),
+    );
+    const composer = await screen.findByRole('textbox', {
+      name: 'Ask Egregore',
+    });
     fireEvent.change(composer, { target: { value: 'Stream late tokens' } });
     fireEvent.keyDown(composer, { key: 'Enter' });
     const scroller = await screen.findByTestId('conversation-scroller');
     let assignedScrollTop = -1;
-    Object.defineProperty(scroller, 'scrollHeight', { configurable: true, value: 640 });
+    Object.defineProperty(scroller, 'scrollHeight', {
+      configurable: true,
+      value: 640,
+    });
     Object.defineProperty(scroller, 'scrollTop', {
       configurable: true,
       get: () => assignedScrollTop,
-      set: (value: number) => { assignedScrollTop = value; },
+      set: (value: number) => {
+        assignedScrollTop = value;
+      },
     });
 
     await waitFor(() => expect(scheduler.pendingCount).toBe(1));
@@ -1637,19 +1872,35 @@ describe('EgregoreExperience production composition', () => {
       scheduler,
     });
     render(<EgregoreExperience dependencies={harness.dependencies} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Load Egregore/ }));
-    const composer = await screen.findByRole('textbox', { name: "Ask Egregore" });
-    fireEvent.change(composer, { target: { value: 'Stream enough content to overflow' } });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Check compatibility' }),
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Load Egregore/ }),
+    );
+    const composer = await screen.findByRole('textbox', {
+      name: 'Ask Egregore',
+    });
+    fireEvent.change(composer, {
+      target: { value: 'Stream enough content to overflow' },
+    });
     fireEvent.keyDown(composer, { key: 'Enter' });
     const scroller = await screen.findByTestId('conversation-scroller');
     let assignedScrollTop = 700;
-    Object.defineProperty(scroller, 'clientHeight', { configurable: true, value: 200 });
-    Object.defineProperty(scroller, 'scrollHeight', { configurable: true, value: 900 });
+    Object.defineProperty(scroller, 'clientHeight', {
+      configurable: true,
+      value: 200,
+    });
+    Object.defineProperty(scroller, 'scrollHeight', {
+      configurable: true,
+      value: 900,
+    });
     Object.defineProperty(scroller, 'scrollTop', {
       configurable: true,
       get: () => assignedScrollTop,
-      set: (value: number) => { assignedScrollTop = value; },
+      set: (value: number) => {
+        assignedScrollTop = value;
+      },
     });
 
     await waitFor(() => expect(scheduler.pendingCount).toBe(1));
@@ -1663,7 +1914,9 @@ describe('EgregoreExperience production composition', () => {
     act(() => scheduler.releaseNext());
     await screen.findByText(/Second unseen chunk/);
     expect(assignedScrollTop).toBe(200);
-    const jumpToLatest = await screen.findByRole('button', { name: 'Jump to latest' });
+    const jumpToLatest = await screen.findByRole('button', {
+      name: 'Jump to latest',
+    });
     expect(jumpToLatest).toHaveClass('action', 'action--compact');
     expect(jumpToLatest).toHaveAttribute('data-action-density', 'compact');
     expect(jumpToLatest).not.toHaveFocus();
@@ -1671,14 +1924,18 @@ describe('EgregoreExperience production composition', () => {
 
     fireEvent.click(jumpToLatest);
     expect(assignedScrollTop).toBe(900);
-    expect(screen.queryByRole('button', { name: 'Jump to latest' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Jump to latest' }),
+    ).not.toBeInTheDocument();
     expect(composer).toHaveFocus();
 
     await waitFor(() => expect(scheduler.pendingCount).toBe(1));
     act(() => scheduler.releaseNext());
     await screen.findByText(/Third chunk after jump/);
     await waitFor(() => expect(assignedScrollTop).toBe(900));
-    expect(screen.queryByRole('button', { name: 'Jump to latest' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Jump to latest' }),
+    ).not.toBeInTheDocument();
 
     assignedScrollTop = 200;
     fireEvent.scroll(scroller);
@@ -1690,7 +1947,9 @@ describe('EgregoreExperience production composition', () => {
 
     assignedScrollTop = 700;
     fireEvent.scroll(scroller);
-    expect(screen.queryByRole('button', { name: 'Jump to latest' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Jump to latest' }),
+    ).not.toBeInTheDocument();
   });
 
   it('keeps following when content grows before a programmatic scroll event is delivered', async () => {
@@ -1704,10 +1963,18 @@ describe('EgregoreExperience production composition', () => {
       scheduler,
     });
     render(<EgregoreExperience dependencies={harness.dependencies} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Load Egregore/ }));
-    const composer = await screen.findByRole('textbox', { name: "Ask Egregore" });
-    fireEvent.change(composer, { target: { value: 'Stream enough content to overflow' } });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Check compatibility' }),
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Load Egregore/ }),
+    );
+    const composer = await screen.findByRole('textbox', {
+      name: 'Ask Egregore',
+    });
+    fireEvent.change(composer, {
+      target: { value: 'Stream enough content to overflow' },
+    });
     fireEvent.keyDown(composer, { key: 'Enter' });
     const scroller = await screen.findByTestId('conversation-scroller');
     const clientHeight = 200;
@@ -1745,11 +2012,15 @@ describe('EgregoreExperience production composition', () => {
     await waitFor(() => expect(scheduler.pendingCount).toBe(1));
     act(() => scheduler.releaseNext());
     await screen.findByText(/Second unseen chunk/);
-    const jumpToLatest = await screen.findByRole('button', { name: 'Jump to latest' });
+    const jumpToLatest = await screen.findByRole('button', {
+      name: 'Jump to latest',
+    });
 
     fireEvent.click(jumpToLatest);
     expect(assignedScrollTop).toBe(700);
-    expect(screen.queryByRole('button', { name: 'Jump to latest' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Jump to latest' }),
+    ).not.toBeInTheDocument();
 
     currentScrollHeight = 1_100;
     fireEvent.scroll(scroller);
@@ -1759,7 +2030,9 @@ describe('EgregoreExperience production composition', () => {
     act(() => scheduler.releaseNext());
     await screen.findByRole('link', { name: '[S1] Grounded source' });
     await waitFor(() => expect(assignedScrollTop).toBe(900));
-    expect(screen.queryByRole('button', { name: 'Jump to latest' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Jump to latest' }),
+    ).not.toBeInTheDocument();
   });
 
   it('keeps uncited packed context out of a one-source disclosure', async () => {
@@ -1782,28 +2055,46 @@ describe('EgregoreExperience production composition', () => {
     });
     render(<EgregoreExperience dependencies={harness.dependencies} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Load Egregore/ }));
-    const composer = await screen.findByRole('textbox', { name: "Ask Egregore" });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Check compatibility' }),
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Load Egregore/ }),
+    );
+    const composer = await screen.findByRole('textbox', {
+      name: 'Ask Egregore',
+    });
     fireEvent.change(composer, { target: { value: 'Use one source' } });
     fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
 
     await screen.findByRole('link', { name: '[S1] Grounded source' });
-    const sourceTrigger = await screen.findByRole('button', { name: '1 source' });
+    const sourceTrigger = await screen.findByRole('button', {
+      name: '1 source',
+    });
     expect(sourceTrigger).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByRole('region', { name: 'Sources for this response' })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /Uncited second source/ })).not.toBeInTheDocument();
-    expect(screen.queryByRole('link', { name: /Uncited third source/ })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('region', { name: 'Sources for this response' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: /Uncited second source/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('link', { name: /Uncited third source/ }),
+    ).not.toBeInTheDocument();
 
     fireEvent.click(sourceTrigger);
-    const sourceRegion = screen.getByRole('region', { name: 'Sources for this response' });
+    const sourceRegion = screen.getByRole('region', {
+      name: 'Sources for this response',
+    });
     expect(within(sourceRegion).getAllByRole('link')).toHaveLength(1);
-    expect(within(sourceRegion).getByRole('link', { name: '[S1] Grounded source' }))
-      .toBeInTheDocument();
+    expect(
+      within(sourceRegion).getByRole('link', { name: '[S1] Grounded source' }),
+    ).toBeInTheDocument();
   });
 
   it('wraps a complete long source title without truncation or clamping', async () => {
-    const longTitle = 'The Recursive Convergence Hypothesis: Emergent Sentience as a Structural Attractor of Recursive ASI';
+    const longTitle =
+      'The Recursive Convergence Hypothesis: Emergent Sentience as a Structural Attractor of Recursive ASI';
     const longTitleSource = {
       ...selectedSource(),
       title: longTitle,
@@ -1814,19 +2105,37 @@ describe('EgregoreExperience production composition', () => {
     });
     render(<EgregoreExperience dependencies={harness.dependencies} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Load Egregore/ }));
-    const composer = await screen.findByRole('textbox', { name: "Ask Egregore" });
-    fireEvent.change(composer, { target: { value: 'Use the long source title' } });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Check compatibility' }),
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Load Egregore/ }),
+    );
+    const composer = await screen.findByRole('textbox', {
+      name: 'Ask Egregore',
+    });
+    fireEvent.change(composer, {
+      target: { value: 'Use the long source title' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
 
-    const sourceTrigger = await screen.findByRole('button', { name: '1 source' });
+    const sourceTrigger = await screen.findByRole('button', {
+      name: '1 source',
+    });
     fireEvent.click(sourceTrigger);
-    const sourceRegion = screen.getByRole('region', { name: 'Sources for this response' });
-    const sourceLink = within(sourceRegion).getByRole('link', { name: `[S1] ${longTitle}` });
+    const sourceRegion = screen.getByRole('region', {
+      name: 'Sources for this response',
+    });
+    const sourceLink = within(sourceRegion).getByRole('link', {
+      name: `[S1] ${longTitle}`,
+    });
     const title = within(sourceLink).getByText(longTitle);
     expect(title).toHaveTextContent(longTitle);
-    expect(title).toHaveClass('min-w-0', 'break-words', '[overflow-wrap:anywhere]');
+    expect(title).toHaveClass(
+      'min-w-0',
+      'break-words',
+      '[overflow-wrap:anywhere]',
+    );
     expect(title.className).not.toMatch(/line-clamp|truncate|overflow-hidden/);
     expect(title.textContent).toBe(longTitle);
     expect(sourceLink.className).not.toMatch(/rounded-full/);
@@ -1859,7 +2168,9 @@ describe('EgregoreExperience production composition', () => {
       canonicalUrl: 'https://jetsanchez.com/blog/uncited-packed/',
     };
     const harness = createHarness({
-      responseChunks: ['Supported by the first chunk [S2], then another document [S3], and the same document again [S1].'],
+      responseChunks: [
+        'Supported by the first chunk [S2], then another document [S3], and the same document again [S1].',
+      ],
       selection: selection([
         laterSharedChunk,
         firstSharedChunk,
@@ -1869,39 +2180,67 @@ describe('EgregoreExperience production composition', () => {
     });
     render(<EgregoreExperience dependencies={harness.dependencies} />);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Load Egregore/ }));
-    const composer = await screen.findByRole('textbox', { name: "Ask Egregore" });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Check compatibility' }),
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Load Egregore/ }),
+    );
+    const composer = await screen.findByRole('textbox', {
+      name: 'Ask Egregore',
+    });
     fireEvent.change(composer, { target: { value: 'Use multiple sources' } });
     fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
 
-    const sourceTrigger = await screen.findByRole('button', { name: '2 sources' });
+    const sourceTrigger = await screen.findByRole('button', {
+      name: '2 sources',
+    });
     expect(sourceTrigger).toHaveAttribute('aria-expanded', 'false');
     fireEvent.click(sourceTrigger);
-    const sourceRegion = screen.getByRole('region', { name: 'Sources for this response' });
+    const sourceRegion = screen.getByRole('region', {
+      name: 'Sources for this response',
+    });
     const sourceLinks = within(sourceRegion).getAllByRole('link');
     expect(sourceLinks).toHaveLength(2);
     expect(sourceLinks.map((link) => link.getAttribute('aria-label'))).toEqual([
       '[S2] Same document, first cited chunk',
       '[S3] Second cited document',
     ]);
-    expect(within(sourceRegion).queryByText('Same document, later citation')).not.toBeInTheDocument();
-    expect(within(sourceRegion).queryByText('Uncited packed document')).not.toBeInTheDocument();
+    expect(
+      within(sourceRegion).queryByText('Same document, later citation'),
+    ).not.toBeInTheDocument();
+    expect(
+      within(sourceRegion).queryByText('Uncited packed document'),
+    ).not.toBeInTheDocument();
   });
 
   it('renders no source disclosure for a completed response with zero validated citations', async () => {
-    const harness = createHarness({ responseChunks: ['Answer without a citation.'] });
+    const harness = createHarness({
+      responseChunks: ['Answer without a citation.'],
+    });
     render(<EgregoreExperience dependencies={harness.dependencies} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Load Egregore/ }));
-    const composer = await screen.findByRole('textbox', { name: "Ask Egregore" });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Check compatibility' }),
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Load Egregore/ }),
+    );
+    const composer = await screen.findByRole('textbox', {
+      name: 'Ask Egregore',
+    });
     fireEvent.change(composer, { target: { value: 'Answer without sources' } });
     fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
 
     await screen.findByText('Answer without a citation.');
-    expect(screen.queryByRole('button', { name: /sources?/ })).not.toBeInTheDocument();
-    expect(screen.queryByTestId('response-source-disclosure')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('response-source-footer')).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /sources?/ }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId('response-source-disclosure'),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId('response-source-footer'),
+    ).not.toBeInTheDocument();
   });
 
   it('waits for completion before showing sources and keeps a cited stopped response collapsed', async () => {
@@ -1911,56 +2250,94 @@ describe('EgregoreExperience production composition', () => {
       scheduler,
     });
     render(<EgregoreExperience dependencies={harness.dependencies} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Load Egregore/ }));
-    const composer = await screen.findByRole('textbox', { name: "Ask Egregore" });
-    fireEvent.change(composer, { target: { value: 'Stop after a cited chunk' } });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Check compatibility' }),
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Load Egregore/ }),
+    );
+    const composer = await screen.findByRole('textbox', {
+      name: 'Ask Egregore',
+    });
+    fireEvent.change(composer, {
+      target: { value: 'Stop after a cited chunk' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
 
     await waitFor(() => expect(scheduler.pendingCount).toBe(1));
     act(() => scheduler.releaseNext());
     await screen.findByText(/Partial cited response/);
-    expect(screen.queryByRole('button', { name: /sources?/ })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: /sources?/ }),
+    ).not.toBeInTheDocument();
     await waitFor(() => expect(scheduler.pendingCount).toBe(1));
     fireEvent.click(screen.getByRole('button', { name: 'Stop response' }));
     act(() => scheduler.releaseNext());
 
     expect(await screen.findByText('Stopped')).toBeInTheDocument();
-    const sourceTrigger = await screen.findByRole('button', { name: '1 source' });
+    const sourceTrigger = await screen.findByRole('button', {
+      name: '1 source',
+    });
     expect(sourceTrigger).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.queryByRole('region', { name: 'Sources for this response' })).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('region', { name: 'Sources for this response' }),
+    ).not.toBeInTheDocument();
   });
 
   it('keeps expansion state local to each completed assistant response', async () => {
-    const harness = createHarness({ responseChunks: ['Grounded answer [S1].'] });
+    const harness = createHarness({
+      responseChunks: ['Grounded answer [S1].'],
+    });
     render(<EgregoreExperience dependencies={harness.dependencies} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Load Egregore/ }));
-    const composer = await screen.findByRole('textbox', { name: "Ask Egregore" });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Check compatibility' }),
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Load Egregore/ }),
+    );
+    const composer = await screen.findByRole('textbox', {
+      name: 'Ask Egregore',
+    });
 
     fireEvent.change(composer, { target: { value: 'First response' } });
     fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
-    const firstTrigger = await screen.findByRole('button', { name: '1 source' });
+    const firstTrigger = await screen.findByRole('button', {
+      name: '1 source',
+    });
     fireEvent.click(firstTrigger);
     expect(firstTrigger).toHaveAttribute('aria-expanded', 'true');
 
     fireEvent.change(composer, { target: { value: 'Second response' } });
     fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
-    await waitFor(() => expect(screen.getAllByRole('button', { name: '1 source' })).toHaveLength(2));
+    await waitFor(() =>
+      expect(screen.getAllByRole('button', { name: '1 source' })).toHaveLength(
+        2,
+      ),
+    );
     const [first, second] = screen.getAllByRole('button', { name: '1 source' });
     expect(first).toHaveAttribute('aria-expanded', 'true');
     expect(second).toHaveAttribute('aria-expanded', 'false');
-    expect(screen.getAllByRole('region', { name: 'Sources for this response' })).toHaveLength(1);
+    expect(
+      screen.getAllByRole('region', { name: 'Sources for this response' }),
+    ).toHaveLength(1);
   });
 
   it('restores one failed question for an explicit retry without rendering the failed pair', async () => {
     const harness = createHarness();
     render(<EgregoreExperience dependencies={harness.dependencies} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Load Egregore/ }));
-    const composer = await screen.findByRole('textbox', { name: "Ask Egregore" });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Check compatibility' }),
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Load Egregore/ }),
+    );
+    const composer = await screen.findByRole('textbox', {
+      name: 'Ask Egregore',
+    });
 
-    fireEvent.change(composer, { target: { value: 'Prior complete question' } });
+    fireEvent.change(composer, {
+      target: { value: 'Prior complete question' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
     await screen.findByRole('link', { name: '[S1] Grounded source' });
     const priorTranscript = [
@@ -1969,23 +2346,33 @@ describe('EgregoreExperience production composition', () => {
     ];
     harness.runtime.failNextGeneration();
 
-    fireEvent.change(composer, { target: { value: 'Retry this exact question' } });
+    fireEvent.change(composer, {
+      target: { value: 'Retry this exact question' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
-    const recovery = await screen.findByRole('button', { name: 'Try another question' });
-    expect(screen.queryAllByText('Retry this exact question').filter(
-      (element) => element.tagName === 'P',
-    )).toHaveLength(0);
-    await waitFor(() => expect(composer).toHaveValue('Retry this exact question'));
+    const recovery = await screen.findByRole('button', {
+      name: 'Try another question',
+    });
+    expect(
+      screen
+        .queryAllByText('Retry this exact question')
+        .filter((element) => element.tagName === 'P'),
+    ).toHaveLength(0);
+    await waitFor(() =>
+      expect(composer).toHaveValue('Retry this exact question'),
+    );
     await waitFor(() => expect(recovery).toHaveFocus());
 
     fireEvent.click(recovery);
     await waitFor(() => expect(composer).toHaveFocus());
     fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
-    await waitFor(() => expect(harness.runtime.generationMessages).toEqual([
-      'Prior complete question',
-      'Retry this exact question',
-      'Retry this exact question',
-    ]));
+    await waitFor(() =>
+      expect(harness.runtime.generationMessages).toEqual([
+        'Prior complete question',
+        'Retry this exact question',
+        'Retry this exact question',
+      ]),
+    );
 
     const retryAssemblies = harness.assemblePrompt.mock.calls.filter(
       ([question]) => question === 'Retry this exact question',
@@ -1999,20 +2386,33 @@ describe('EgregoreExperience production composition', () => {
     const suggestion = 'What does Jet write about agentic work?';
     const harness = createHarness({ generationFailuresBeforeSuccess: 1 });
     render(<EgregoreExperience dependencies={harness.dependencies} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Load Egregore/ }));
-    const composer = await screen.findByRole('textbox', { name: "Ask Egregore" });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Check compatibility' }),
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Load Egregore/ }),
+    );
+    const composer = await screen.findByRole('textbox', {
+      name: 'Ask Egregore',
+    });
     expect(screen.getByText(suggestion)).toBeInTheDocument();
 
-    fireEvent.change(composer, { target: { value: 'First submitted question' } });
+    fireEvent.change(composer, {
+      target: { value: 'First submitted question' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
-    const recovery = await screen.findByRole('button', { name: 'Try another question' });
+    const recovery = await screen.findByRole('button', {
+      name: 'Try another question',
+    });
 
-    await waitFor(() => expect(composer).toHaveValue('First submitted question'));
+    await waitFor(() =>
+      expect(composer).toHaveValue('First submitted question'),
+    );
     await waitFor(() => expect(recovery).toHaveFocus());
     expect(screen.queryByText(suggestion)).not.toBeInTheDocument();
-    expect(screen.queryByText('Egregore can make mistakes. Check cited sources.'))
-      .not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Egregore can make mistakes. Check cited sources.'),
+    ).not.toBeInTheDocument();
 
     fireEvent.click(recovery);
     await waitFor(() => expect(composer).toHaveFocus());
@@ -2026,20 +2426,33 @@ describe('EgregoreExperience production composition', () => {
       resetFailuresBeforeSuccess: 1,
     });
     render(<EgregoreExperience dependencies={harness.dependencies} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Load Egregore/ }));
-    const composer = await screen.findByRole('textbox', { name: "Ask Egregore" });
-    fireEvent.change(composer, { target: { value: 'Reset only after success' } });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Check compatibility' }),
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Load Egregore/ }),
+    );
+    const composer = await screen.findByRole('textbox', {
+      name: 'Ask Egregore',
+    });
+    fireEvent.change(composer, {
+      target: { value: 'Reset only after success' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Try another question' }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Try another question' }),
+    );
     await waitFor(() => expect(composer).toHaveFocus());
 
     fireEvent.click(screen.getByRole('button', { name: /New session/ }));
-    const retry = await screen.findByRole('button', { name: 'Retry new session' });
+    const retry = await screen.findByRole('button', {
+      name: 'Retry new session',
+    });
     await waitFor(() => expect(retry).toHaveFocus());
     expect(screen.queryByText(suggestion)).not.toBeInTheDocument();
-    expect(screen.queryByText('Egregore can make mistakes. Check cited sources.'))
-      .not.toBeInTheDocument();
+    expect(
+      screen.queryByText('Egregore can make mistakes. Check cited sources.'),
+    ).not.toBeInTheDocument();
     expect(composer).toHaveValue('Reset only after success');
 
     fireEvent.click(retry);
@@ -2051,20 +2464,28 @@ describe('EgregoreExperience production composition', () => {
   it('returns recoverable load errors to consent and focuses the load action', async () => {
     const harness = createHarness({ repositoryFailuresBeforeSuccess: 1 });
     render(<EgregoreExperience dependencies={harness.dependencies} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Check compatibility' }),
+    );
     const readyMessage = await screen.findByTestId('activation-status-message');
-    expect(readyMessage).toHaveTextContent('This browser is ready for the local runtime');
+    expect(readyMessage).toHaveTextContent(
+      'This browser is ready for the local runtime',
+    );
     fireEvent.click(screen.getByRole('button', { name: /Load Egregore/ }));
 
-    const returnToLoad = await screen.findByRole('button', { name: 'Return to load' });
+    const returnToLoad = await screen.findByRole('button', {
+      name: 'Return to load',
+    });
     const errorMessage = screen.getByTestId('activation-status-message');
     expect(errorMessage).toHaveAttribute('id', readyMessage.id);
     expect(errorMessage).toHaveTextContent(
-      "Egregore could not load its published knowledge base.",
+      'Egregore could not load its published knowledge base.',
     );
-    expect(screen.getAllByText(
-      "Egregore could not load its published knowledge base.",
-    )).toHaveLength(1);
+    expect(
+      screen.getAllByText(
+        'Egregore could not load its published knowledge base.',
+      ),
+    ).toHaveLength(1);
     expect(returnToLoad).toHaveAttribute('aria-describedby', errorMessage.id);
     await waitFor(() => expect(returnToLoad).toHaveFocus());
     fireEvent.click(returnToLoad);
@@ -2076,14 +2497,22 @@ describe('EgregoreExperience production composition', () => {
   it('offers a focused unload action when load fails during runtime cleanup', async () => {
     const harness = createHarness({ loadErrorCode: 'engine-cleanup-failed' });
     render(<EgregoreExperience dependencies={harness.dependencies} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Load Egregore/ }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Check compatibility' }),
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Load Egregore/ }),
+    );
 
-    const unload = await screen.findByRole('button', { name: "Unload Egregore" });
+    const unload = await screen.findByRole('button', {
+      name: 'Unload Egregore',
+    });
     await waitFor(() => expect(unload).toHaveFocus());
     fireEvent.click(unload);
 
-    const checkCompatibility = await screen.findByRole('button', { name: 'Check compatibility' });
+    const checkCompatibility = await screen.findByRole('button', {
+      name: 'Check compatibility',
+    });
     await waitFor(() => expect(checkCompatibility).toHaveFocus());
     expect(harness.order.slice(-4)).toEqual([
       'runtime.cancel',
@@ -2096,30 +2525,54 @@ describe('EgregoreExperience production composition', () => {
   it('clears the draft only after unload succeeds', async () => {
     const harness = createHarness();
     render(<EgregoreExperience dependencies={harness.dependencies} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Load Egregore/ }));
-    const composer = await screen.findByRole('textbox', { name: "Ask Egregore" });
-    fireEvent.change(composer, { target: { value: 'Clear only after cleanup' } });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Check compatibility' }),
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Load Egregore/ }),
+    );
+    const composer = await screen.findByRole('textbox', {
+      name: 'Ask Egregore',
+    });
+    fireEvent.change(composer, {
+      target: { value: 'Clear only after cleanup' },
+    });
 
     fireEvent.click(screen.getByRole('button', { name: /Unload/ }));
-    const checkCompatibility = await screen.findByRole('button', { name: 'Check compatibility' });
+    const checkCompatibility = await screen.findByRole('button', {
+      name: 'Check compatibility',
+    });
     await waitFor(() => expect(checkCompatibility).toHaveFocus());
     fireEvent.click(checkCompatibility);
-    fireEvent.click(await screen.findByRole('button', { name: /Load Egregore/ }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Load Egregore/ }),
+    );
 
-    expect(await screen.findByRole('textbox', { name: "Ask Egregore" })).toHaveValue('');
+    expect(
+      await screen.findByRole('textbox', { name: 'Ask Egregore' }),
+    ).toHaveValue('');
   });
 
   it('preserves the draft when unload cleanup fails', async () => {
     const harness = createHarness({ runtimeFailures: { reset: true } });
     render(<EgregoreExperience dependencies={harness.dependencies} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Load Egregore/ }));
-    const composer = await screen.findByRole('textbox', { name: "Ask Egregore" });
-    fireEvent.change(composer, { target: { value: 'Preserve after cleanup failure' } });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Check compatibility' }),
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Load Egregore/ }),
+    );
+    const composer = await screen.findByRole('textbox', {
+      name: 'Ask Egregore',
+    });
+    fireEvent.change(composer, {
+      target: { value: 'Preserve after cleanup failure' },
+    });
 
     fireEvent.click(screen.getByRole('button', { name: /Unload/ }));
-    const retryUnload = await screen.findByRole('button', { name: 'Retry unload' });
+    const retryUnload = await screen.findByRole('button', {
+      name: 'Retry unload',
+    });
     await waitFor(() => expect(retryUnload).toHaveFocus());
 
     expect(composer).toHaveValue('Preserve after cleanup failure');
@@ -2132,22 +2585,36 @@ describe('EgregoreExperience production composition', () => {
       resetFailuresBeforeSuccess: 1,
     });
     render(<EgregoreExperience dependencies={harness.dependencies} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Load Egregore/ }));
-    const composer = await screen.findByRole('textbox', { name: "Ask Egregore" });
-    fireEvent.change(composer, { target: { value: 'Unload only after success' } });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Check compatibility' }),
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Load Egregore/ }),
+    );
+    const composer = await screen.findByRole('textbox', {
+      name: 'Ask Egregore',
+    });
+    fireEvent.change(composer, {
+      target: { value: 'Unload only after success' },
+    });
     fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
-    fireEvent.click(await screen.findByRole('button', { name: 'Try another question' }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Try another question' }),
+    );
     await waitFor(() => expect(composer).toHaveFocus());
 
     fireEvent.click(screen.getByRole('button', { name: /Unload/ }));
-    const retryUnload = await screen.findByRole('button', { name: 'Retry unload' });
+    const retryUnload = await screen.findByRole('button', {
+      name: 'Retry unload',
+    });
     await waitFor(() => expect(retryUnload).toHaveFocus());
     expect(screen.queryByText(suggestion)).not.toBeInTheDocument();
     expect(composer).toHaveValue('Unload only after success');
 
     fireEvent.click(retryUnload);
-    const checkCompatibility = await screen.findByRole('button', { name: 'Check compatibility' });
+    const checkCompatibility = await screen.findByRole('button', {
+      name: 'Check compatibility',
+    });
     await waitFor(() => expect(checkCompatibility).toHaveFocus());
   });
 
@@ -2163,20 +2630,34 @@ describe('EgregoreExperience production composition', () => {
         reloadPage={reloadPage}
       />,
     );
-    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Load Egregore/ }));
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Check compatibility' }),
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Load Egregore/ }),
+    );
 
     expect(await screen.findByTestId('loading-stack')).toBeInTheDocument();
     expect(screen.getByTestId('loading-phase-visual')).toBeInTheDocument();
     expect(screen.getByTestId('loading-main-ghost')).toBeInTheDocument();
     expect(screen.getAllByTestId('loading-ghost-afterimage')).toHaveLength(2);
     expect(screen.getAllByTestId('loading-inward-particle')).toHaveLength(4);
-    expect(screen.queryByTestId('loading-progress-track')).not.toBeInTheDocument();
-    expect(screen.queryByTestId('loading-liveness-indicator')).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId('loading-progress-track'),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByTestId('loading-liveness-indicator'),
+    ).not.toBeInTheDocument();
     expect(screen.getByTestId('loading-reassurance-slot')).toBeInTheDocument();
-    expect(screen.queryByText('First load may take a few minutes.')).not.toBeInTheDocument();
-    const cancelAndReload = screen.getByRole('button', { name: 'Cancel and reload' });
-    expect(screen.queryByRole('button', { name: /unload/i })).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('First load may take a few minutes.'),
+    ).not.toBeInTheDocument();
+    const cancelAndReload = screen.getByRole('button', {
+      name: 'Cancel and reload',
+    });
+    expect(
+      screen.queryByRole('button', { name: /unload/i }),
+    ).not.toBeInTheDocument();
 
     fireEvent.click(cancelAndReload);
     expect(reloadPage).toHaveBeenCalledTimes(1);
@@ -2190,14 +2671,24 @@ describe('EgregoreExperience production composition', () => {
   it('keeps elapsed loading time outside the polite live region', async () => {
     const activation = createDeferred<LoadedKnowledgeBase>();
     const harness = createHarness({ repositoryLoad: () => activation.promise });
-    const view = render(<EgregoreExperience dependencies={harness.dependencies} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Load Egregore/ }));
+    const view = render(
+      <EgregoreExperience dependencies={harness.dependencies} />,
+    );
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Check compatibility' }),
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Load Egregore/ }),
+    );
 
     const loadingStatus = await screen.findByTestId('lifecycle-announcement');
     const elapsed = screen.getByText(/Elapsed \d+s/);
-    expect(loadingStatus).toHaveTextContent("Egregore is loading on this device.");
-    expect(within(loadingStatus).queryByText(/Elapsed/)).not.toBeInTheDocument();
+    expect(loadingStatus).toHaveTextContent(
+      'Egregore is loading on this device.',
+    );
+    expect(
+      within(loadingStatus).queryByText(/Elapsed/),
+    ).not.toBeInTheDocument();
     expect(elapsed).not.toHaveAttribute('aria-live');
 
     view.unmount();
@@ -2208,9 +2699,13 @@ describe('EgregoreExperience production composition', () => {
     const unloadWait = createDeferred<void>();
     const harness = createHarness({ runtimeUnloadWait: unloadWait.promise });
     render(<EgregoreExperience dependencies={harness.dependencies} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Check compatibility' }));
-    fireEvent.click(await screen.findByRole('button', { name: /Load Egregore/ }));
-    await screen.findByRole('textbox', { name: "Ask Egregore" });
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Check compatibility' }),
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Load Egregore/ }),
+    );
+    await screen.findByRole('textbox', { name: 'Ask Egregore' });
 
     const performanceNow = vi.spyOn(performance, 'now').mockReturnValue(0);
     fireEvent.click(screen.getByRole('button', { name: /^Unload/ }));
@@ -2223,10 +2718,14 @@ describe('EgregoreExperience production composition', () => {
       () => expect(screen.getByText('Elapsed 37s')).toBeInTheDocument(),
       { timeout: 3_000 },
     );
-    expect(screen.queryByText('First load may take a few minutes.')).not.toBeInTheDocument();
+    expect(
+      screen.queryByText('First load may take a few minutes.'),
+    ).not.toBeInTheDocument();
     performanceNow.mockRestore();
 
     unloadWait.resolve();
-    expect(await screen.findByRole('button', { name: 'Check compatibility' })).toBeInTheDocument();
+    expect(
+      await screen.findByRole('button', { name: 'Check compatibility' }),
+    ).toBeInTheDocument();
   });
 });

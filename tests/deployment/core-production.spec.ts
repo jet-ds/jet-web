@@ -18,12 +18,18 @@ test.beforeEach(async ({ context }) => {
   );
 });
 
-test('production preserves core containment and canonical redirects', async ({ context }) => {
+test('production preserves core containment and canonical redirects', async ({
+  context,
+}) => {
   const request = context.request;
   const apiRedirect = await request.post('/api/chat', { maxRedirects: 0 });
   expect(apiRedirect.status()).toBe(308);
-  expect(new URL(apiRedirect.headers().location, 'https://jetsanchez.com').toString())
-    .toBe('https://jetsanchez.com/api/chat/');
+  expect(
+    new URL(
+      apiRedirect.headers().location,
+      'https://jetsanchez.com',
+    ).toString(),
+  ).toBe('https://jetsanchez.com/api/chat/');
 
   const apiTerminal = await request.post('/api/chat/', { maxRedirects: 0 });
   expect(apiTerminal.status()).toBe(404);
@@ -37,27 +43,43 @@ test('production preserves core containment and canonical redirects', async ({ c
   expect(chatbotTerminal.status()).toBe(200);
   expect(chatbotTerminal.headers().location).toBeUndefined();
 
-  const legacySlashless = await request.get('/tools/chatbot', { maxRedirects: 0 });
+  const legacySlashless = await request.get('/tools/chatbot', {
+    maxRedirects: 0,
+  });
   expect(legacySlashless.status()).toBe(308);
   expect(legacySlashless.headers().location).toBe('/tools/chatbot/');
 
-  const legacySlashful = await request.get('/tools/chatbot/', { maxRedirects: 0 });
+  const legacySlashful = await request.get('/tools/chatbot/', {
+    maxRedirects: 0,
+  });
   expect(legacySlashful.status()).toBe(308);
   expect(legacySlashful.headers().location).toBe('/chatbot/');
 
-  const canonicalLicenseSlashless = await request.get('/licenses/egregore', { maxRedirects: 0 });
+  const canonicalLicenseSlashless = await request.get('/licenses/egregore', {
+    maxRedirects: 0,
+  });
   expect(canonicalLicenseSlashless.status()).toBe(308);
-  expect(canonicalLicenseSlashless.headers().location).toBe('/licenses/egregore/');
+  expect(canonicalLicenseSlashless.headers().location).toBe(
+    '/licenses/egregore/',
+  );
 
-  const canonicalLicense = await request.get('/licenses/egregore/', { maxRedirects: 0 });
+  const canonicalLicense = await request.get('/licenses/egregore/', {
+    maxRedirects: 0,
+  });
   expect(canonicalLicense.status()).toBe(200);
   expect(canonicalLicense.headers().location).toBeUndefined();
 
-  const legacyLicenseSlashless = await request.get('/licenses/jets-ghost', { maxRedirects: 0 });
+  const legacyLicenseSlashless = await request.get('/licenses/jets-ghost', {
+    maxRedirects: 0,
+  });
   expect(legacyLicenseSlashless.status()).toBe(308);
-  expect(legacyLicenseSlashless.headers().location).toBe('/licenses/jets-ghost/');
+  expect(legacyLicenseSlashless.headers().location).toBe(
+    '/licenses/jets-ghost/',
+  );
 
-  const legacyLicenseSlashful = await request.get('/licenses/jets-ghost/', { maxRedirects: 0 });
+  const legacyLicenseSlashful = await request.get('/licenses/jets-ghost/', {
+    maxRedirects: 0,
+  });
   expect(legacyLicenseSlashful.status()).toBe(308);
   expect(legacyLicenseSlashful.headers().location).toBe('/licenses/egregore/');
 
@@ -68,8 +90,9 @@ test('production preserves core containment and canonical redirects', async ({ c
   const toolsTerminal = await request.get('/tools/', { maxRedirects: 0 });
   expect(toolsTerminal.status()).toBe(200);
   expect(toolsTerminal.headers().location).toBeUndefined();
-  expect(await toolsTerminal.text())
-    .toContain('<meta name="robots" content="noindex, nofollow">');
+  expect(await toolsTerminal.text()).toContain(
+    '<meta name="robots" content="noindex, nofollow">',
+  );
 
   const toolsLookalike = await request.get('/toolshed/', { maxRedirects: 0 });
   expect(toolsLookalike.status()).toBe(404);
@@ -80,15 +103,19 @@ test('production preserves core containment and canonical redirects', async ({ c
     { maxRedirects: 0 },
   );
   expect(runtimeAsset.status()).toBe(200);
-  expect(runtimeAsset.headers()['cache-control'])
-    .toBe('public, max-age=31536000, immutable');
+  expect(runtimeAsset.headers()['cache-control']).toBe(
+    'public, max-age=31536000, immutable',
+  );
 
   const about = await request.get('/about', { maxRedirects: 0 });
   expect(about.status()).toBe(308);
   expect(about.headers().location).toBe('/about/');
 });
 
-test('deployment exposes the target-gated canonical Egregore identity', async ({ page, context }) => {
+test('deployment exposes the target-gated canonical Egregore identity', async ({
+  page,
+  context,
+}) => {
   const request = context.request;
   const canonical = 'https://jetsanchez.com/chatbot/';
   const response = await page.goto('/chatbot/');
@@ -97,31 +124,47 @@ test('deployment exposes the target-gated canonical Egregore identity', async ({
     'content',
     expectedNoindex ? 'noindex, nofollow' : 'index, follow',
   );
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', canonical);
-  await expect(page.locator('meta[property="og:url"]')).toHaveAttribute('content', canonical);
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+    'href',
+    canonical,
+  );
+  await expect(page.locator('meta[property="og:url"]')).toHaveAttribute(
+    'content',
+    canonical,
+  );
 
-  const schemas = await page.locator('script[type="application/ld+json"]').allTextContents();
-  const parsed = schemas.map((schema) => JSON.parse(schema) as {
-    '@type'?: string;
-    '@id'?: string;
-    name?: string;
-    url?: string;
-    hasPart?: Array<{ '@type'?: string; name?: string; url?: string }>;
-  });
+  const schemas = await page
+    .locator('script[type="application/ld+json"]')
+    .allTextContents();
+  const parsed = schemas.map(
+    (schema) =>
+      JSON.parse(schema) as {
+        '@type'?: string;
+        '@id'?: string;
+        name?: string;
+        url?: string;
+        hasPart?: Array<{ '@type'?: string; name?: string; url?: string }>;
+      },
+  );
   expect(parsed.find((schema) => schema['@type'] === 'WebPage')).toMatchObject({
     '@id': `${canonical}#webpage`,
     url: canonical,
   });
-  expect(parsed.find((schema) => schema['@type'] === 'SoftwareApplication')).toMatchObject({
+  expect(
+    parsed.find((schema) => schema['@type'] === 'SoftwareApplication'),
+  ).toMatchObject({
     '@id': `${canonical}#softwareapplication`,
     name: 'Egregore',
     url: canonical,
   });
 
   const dock = page.locator('#site-navigation-dock');
-  await expect(dock.getByRole('link', { name: 'Egregore', exact: true }))
-    .toHaveAttribute('href', '/chatbot/');
-  await expect(dock.getByRole('link', { name: 'Tools', exact: true })).toHaveCount(0);
+  await expect(
+    dock.getByRole('link', { name: 'Egregore', exact: true }),
+  ).toHaveAttribute('href', '/chatbot/');
+  await expect(
+    dock.getByRole('link', { name: 'Tools', exact: true }),
+  ).toHaveCount(0);
 
   const structuredNavigation = parsed.find(
     (schema) => schema['@type'] === 'SiteNavigationElement',
@@ -131,9 +174,13 @@ test('deployment exposes the target-gated canonical Egregore identity', async ({
     name: 'Egregore',
     url: canonical,
   });
-  expect(structuredNavigation?.hasPart?.some(({ name }) => name === 'Tools')).toBe(false);
+  expect(
+    structuredNavigation?.hasPart?.some(({ name }) => name === 'Tools'),
+  ).toBe(false);
 
-  const html = await (await request.get('/chatbot/', { maxRedirects: 0 })).text();
+  const html = await (
+    await request.get('/chatbot/', { maxRedirects: 0 })
+  ).text();
   const noscript = [...html.matchAll(/<noscript>([\s\S]*?)<\/noscript>/gu)]
     .map((match) => match[1])
     .join('\n');
@@ -142,37 +189,74 @@ test('deployment exposes the target-gated canonical Egregore identity', async ({
   expect(noscript).not.toContain('href="/tools/"');
   expect(noscript).not.toContain('>Tools</a>');
 
-  const sitemap = await (await request.get('/sitemap-0.xml', { maxRedirects: 0 })).text();
-  const memberships = sitemap.match(/https:\/\/jetsanchez\.com\/chatbot\//g) ?? [];
+  const sitemap = await (
+    await request.get('/sitemap-0.xml', { maxRedirects: 0 })
+  ).text();
+  const memberships =
+    sitemap.match(/https:\/\/jetsanchez\.com\/chatbot\//g) ?? [];
   expect(memberships).toHaveLength(expectedNoindex ? 0 : 1);
   expect(sitemap).not.toContain('https://jetsanchez.com/tools/');
 });
 
-test('deployment exposes one canonical Egregore license document', async ({ page, context }) => {
+test('deployment exposes one canonical Egregore license document', async ({
+  page,
+  context,
+}) => {
   const canonical = 'https://jetsanchez.com/licenses/egregore/';
   const response = await page.goto('/licenses/egregore/');
   expect(response?.status()).toBe(200);
   await expect(page).toHaveTitle(/Egregore model and open-source licenses/iu);
-  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'index, follow');
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', canonical);
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
+    'content',
+    'index, follow',
+  );
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+    'href',
+    canonical,
+  );
 
-  const sitemap = await (await context.request.get('/sitemap-0.xml', { maxRedirects: 0 })).text();
-  expect(sitemap.match(/https:\/\/jetsanchez\.com\/licenses\/egregore\//gu) ?? []).toHaveLength(1);
+  const sitemap = await (
+    await context.request.get('/sitemap-0.xml', { maxRedirects: 0 })
+  ).text();
+  expect(
+    sitemap.match(/https:\/\/jetsanchez\.com\/licenses\/egregore\//gu) ?? [],
+  ).toHaveLength(1);
   expect(sitemap).not.toContain('https://jetsanchez.com/licenses/jets-ghost/');
 });
 
-test('production About has one canonical indexable identity', async ({ page, context }) => {
+test('production About has one canonical indexable identity', async ({
+  page,
+  context,
+}) => {
   const request = context.request;
   const canonical = 'https://jetsanchez.com/about/';
   const response = await page.goto('/about/');
   expect(response?.status()).toBe(200);
-  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'index, follow');
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', canonical);
-  await expect(page.locator('meta[property="og:url"]')).toHaveAttribute('content', canonical);
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
+    'content',
+    'index, follow',
+  );
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+    'href',
+    canonical,
+  );
+  await expect(page.locator('meta[property="og:url"]')).toHaveAttribute(
+    'content',
+    canonical,
+  );
 
-  const schemas = await page.locator('script[type="application/ld+json"]').allTextContents();
+  const schemas = await page
+    .locator('script[type="application/ld+json"]')
+    .allTextContents();
   const webpage = schemas
-    .map((schema) => JSON.parse(schema) as { '@type'?: string; '@id'?: string; url?: string })
+    .map(
+      (schema) =>
+        JSON.parse(schema) as {
+          '@type'?: string;
+          '@id'?: string;
+          url?: string;
+        },
+    )
     .find((schema) => schema['@type'] === 'WebPage');
   expect(webpage).toMatchObject({
     '@type': 'WebPage',
@@ -180,11 +264,17 @@ test('production About has one canonical indexable identity', async ({ page, con
     url: canonical,
   });
 
-  const sitemap = await (await request.get('/sitemap-0.xml', { maxRedirects: 0 })).text();
-  expect(sitemap.match(/https:\/\/jetsanchez\.com\/about\//g) ?? []).toHaveLength(1);
+  const sitemap = await (
+    await request.get('/sitemap-0.xml', { maxRedirects: 0 })
+  ).text();
+  expect(
+    sitemap.match(/https:\/\/jetsanchez\.com\/about\//g) ?? [],
+  ).toHaveLength(1);
 });
 
-test('production retired routes are direct 404s and absent from feeds', async ({ context }) => {
+test('production retired routes are direct 404s and absent from feeds', async ({
+  context,
+}) => {
   const request = context.request;
   const slugs = ['the-future-of-ai', 'building-with-astro'];
   for (const slug of slugs) {
@@ -193,7 +283,9 @@ test('production retired routes are direct 404s and absent from feeds', async ({
     expect(response.headers().location).toBeUndefined();
   }
 
-  const sitemap = await (await request.get('/sitemap-0.xml', { maxRedirects: 0 })).text();
+  const sitemap = await (
+    await request.get('/sitemap-0.xml', { maxRedirects: 0 })
+  ).text();
   const rss = await (await request.get('/rss.xml', { maxRedirects: 0 })).text();
   for (const slug of slugs) {
     expect(sitemap).not.toContain(slug);
@@ -201,7 +293,9 @@ test('production retired routes are direct 404s and absent from feeds', async ({
   }
 });
 
-test('production machine endpoints retain extension-bearing paths', async ({ context }) => {
+test('production machine endpoints retain extension-bearing paths', async ({
+  context,
+}) => {
   const request = context.request;
   for (const path of ['/rss.xml', '/robots.txt', '/sitemap-index.xml']) {
     const response = await request.get(path, { maxRedirects: 0 });
@@ -210,7 +304,9 @@ test('production machine endpoints retain extension-bearing paths', async ({ con
   }
 });
 
-test('production HTTP-noindexes assistant corpus JSON only', async ({ context }) => {
+test('production HTTP-noindexes assistant corpus JSON only', async ({
+  context,
+}) => {
   const request = context.request;
   const corpusPaths = [
     '/assistant/corpus/manifest.json',
@@ -224,7 +320,9 @@ test('production HTTP-noindexes assistant corpus JSON only', async ({ context })
     expect(response.headers()['x-robots-tag']).toBe('noindex, nofollow');
   }
 
-  const sitemap = await (await request.get('/sitemap-0.xml', { maxRedirects: 0 })).text();
+  const sitemap = await (
+    await request.get('/sitemap-0.xml', { maxRedirects: 0 })
+  ).text();
   for (const path of corpusPaths) expect(sitemap).not.toContain(path);
   expect(sitemap).toContain('https://jetsanchez.com/licenses/egregore/');
   expect(sitemap).not.toContain('https://jetsanchez.com/licenses/jets-ghost/');

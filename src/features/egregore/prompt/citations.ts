@@ -21,7 +21,9 @@ export function extractValidCitations(
   response: string,
   sources: SelectedSource[],
 ): ValidCitation[] {
-  const selectedById = new Map(sources.map((source) => [source.citationId, source]));
+  const selectedById = new Map(
+    sources.map((source) => [source.citationId, source]),
+  );
   const seen = new Set<`S${number}`>();
   const citations: ValidCitation[] = [];
 
