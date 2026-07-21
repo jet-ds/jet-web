@@ -109,19 +109,6 @@ export default [
     },
   },
   {
-    name: 'jet-web/astro-inline-script-boundary',
-    files: [
-      'src/components/seo/GoogleAnalytics.astro',
-      'src/components/seo/GoogleAnalytics.astro/*.{js,ts}',
-    ],
-    rules: {
-      // `define:vars` injects a runtime binding that astro-eslint-parser reports as unused.
-      '@typescript-eslint/no-unused-vars': 'off',
-      // Preserve Google's documented `gtag` shim, which deliberately forwards `arguments`.
-      'prefer-rest-params': 'off',
-    },
-  },
-  {
     name: 'jet-web/react',
     files: ['**/*.tsx'],
     plugins: {
