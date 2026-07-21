@@ -4,6 +4,14 @@ import tailwindConfig from '../../tailwind.config.mjs';
 
 const globalStyles = readFileSync('src/styles/global.css', 'utf8');
 
+function requireObjectRecord(value: unknown, label: string): Record<string, unknown> {
+  if (typeof value !== 'object' || value === null || Array.isArray(value)) {
+    throw new TypeError(`${label} must be an object record.`);
+  }
+
+  return value as Record<string, unknown>;
+}
+
 function tokenBlock(selector: ':root' | '.dark'): string {
   return globalStyles.match(new RegExp(`${selector.replace('.', '\\.')}\\s*\\{([^}]*)\\}`, 'u'))?.[1] ?? '';
 }
@@ -28,12 +36,15 @@ describe('machine-readable design-system contracts', () => {
   it('keeps broad brand sections distinct from soft actions in both themes', () => {
     const light = tokenBlock(':root');
     const dark = tokenBlock('.dark');
+    const theme = requireObjectRecord(tailwindConfig.theme, 'Tailwind theme');
+    const extensions = requireObjectRecord(theme['extend'], 'Tailwind theme extensions');
+    const colors = requireObjectRecord(extensions['colors'], 'Tailwind extended colors');
 
     expect(tokenValue(light, 'section-brand')).toBe('oklch(0.9502 0.0069 247.9)');
     expect(tokenValue(dark, 'section-brand')).toBe('oklch(0.3536 0.0306 248.71)');
     expect(tokenValue(light, 'section-brand')).not.toBe(tokenValue(light, 'brand-subtle'));
     expect(tokenValue(dark, 'section-brand')).not.toBe(tokenValue(dark, 'brand-subtle'));
-    expect(tailwindConfig.theme.extend.colors['section-brand'])
+    expect(colors['section-brand'])
       .toBe('var(--color-section-brand)');
   });
 
