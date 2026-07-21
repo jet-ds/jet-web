@@ -86,7 +86,6 @@
         }
       ],
       "route": "/",
-      "screenshot": "screenshots/home-desktop.png",
       "status": 200,
       "title": "Research, Systems & Applied AI | Jet Sanchez",
       "url": "https://jetsanchez.com/",
@@ -175,7 +174,6 @@
         }
       ],
       "route": "/",
-      "screenshot": "screenshots/home-mobile.png",
       "status": 200,
       "title": "Research, Systems & Applied AI | Jet Sanchez",
       "url": "https://jetsanchez.com/",
@@ -244,7 +242,6 @@
         }
       ],
       "route": "/blog",
-      "screenshot": "screenshots/blog-index-desktop.png",
       "status": 200,
       "title": "Blog | Jet Sanchez",
       "url": "https://jetsanchez.com/blog",
@@ -313,7 +310,6 @@
         }
       ],
       "route": "/blog",
-      "screenshot": "screenshots/blog-index-mobile.png",
       "status": 200,
       "title": "Blog | Jet Sanchez",
       "url": "https://jetsanchez.com/blog",
@@ -410,7 +406,6 @@
         }
       ],
       "route": "/blog/how-to-install-claude-code-cli-2026",
-      "screenshot": "screenshots/blog-claude-desktop.png",
       "status": 200,
       "title": "How to Install and Get Started With Claude Code CLI in 2026 | Jet Sanchez",
       "url": "https://jetsanchez.com/blog/how-to-install-claude-code-cli-2026",
@@ -507,7 +502,6 @@
         }
       ],
       "route": "/blog/how-to-install-claude-code-cli-2026",
-      "screenshot": "screenshots/blog-claude-mobile.png",
       "status": 200,
       "title": "How to Install and Get Started With Claude Code CLI in 2026 | Jet Sanchez",
       "url": "https://jetsanchez.com/blog/how-to-install-claude-code-cli-2026",
@@ -576,7 +570,6 @@
         }
       ],
       "route": "/contact",
-      "screenshot": "screenshots/contact-desktop.png",
       "status": 200,
       "title": "Contact | Jet Sanchez",
       "url": "https://jetsanchez.com/contact",
@@ -645,7 +638,6 @@
         }
       ],
       "route": "/contact",
-      "screenshot": "screenshots/contact-mobile.png",
       "status": 200,
       "title": "Contact | Jet Sanchez",
       "url": "https://jetsanchez.com/contact",
@@ -714,7 +706,6 @@
         }
       ],
       "route": "/tools",
-      "screenshot": "screenshots/tools-desktop.png",
       "status": 200,
       "title": "Tools | Jet Sanchez",
       "url": "https://jetsanchez.com/tools",
@@ -783,7 +774,6 @@
         }
       ],
       "route": "/tools",
-      "screenshot": "screenshots/tools-mobile.png",
       "status": 200,
       "title": "Tools | Jet Sanchez",
       "url": "https://jetsanchez.com/tools",
@@ -852,7 +842,6 @@
         }
       ],
       "route": "/works",
-      "screenshot": "screenshots/works-index-desktop.png",
       "status": 200,
       "title": "Works | Jet Sanchez",
       "url": "https://jetsanchez.com/works",
@@ -921,7 +910,6 @@
         }
       ],
       "route": "/works",
-      "screenshot": "screenshots/works-index-mobile.png",
       "status": 200,
       "title": "Works | Jet Sanchez",
       "url": "https://jetsanchez.com/works",
@@ -1022,7 +1010,6 @@
         }
       ],
       "route": "/works/recursive-convergence-hypothesis",
-      "screenshot": "screenshots/works-rch-desktop.png",
       "status": 200,
       "title": "The Recursive Convergence Hypothesis: Emergent Sentience as a Structural Attractor of Recursive ASI | Jet Sanchez",
       "url": "https://jetsanchez.com/works/recursive-convergence-hypothesis",
@@ -1123,7 +1110,6 @@
         }
       ],
       "route": "/works/recursive-convergence-hypothesis",
-      "screenshot": "screenshots/works-rch-mobile.png",
       "status": 200,
       "title": "The Recursive Convergence Hypothesis: Emergent Sentience as a Structural Attractor of Recursive ASI | Jet Sanchez",
       "url": "https://jetsanchez.com/works/recursive-convergence-hypothesis",

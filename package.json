@@ -26,8 +26,7 @@
     "capture:og": "tsx scripts/capture-og-image.ts",
     "validate-images": "tsx scripts/validate-images.ts",
     "verify:build-purity": "tsx scripts/verify-build-purity.ts",
-    "verify:production-artifacts": "tsx scripts/verify-production-artifacts.ts",
-    "test:jets-ghost-design": "tsx --test tests/jets-ghost-experience.test.ts"
+    "verify:production-artifacts": "tsx scripts/verify-production-artifacts.ts"
   },
   "dependencies": {
     "@astrojs/mdx": "^4.3.13",

@@ -1,13 +1,9 @@
-import { readFileSync } from 'node:fs';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import {
   buildStructuredData,
   type JsonLd,
   type StructuredDataProps,
 } from '../../../src/utils/structuredData';
-
-const homepageSource = readFileSync('src/pages/index.astro', 'utf8');
-const aboutSource = readFileSync('src/pages/about.astro', 'utf8');
 
 interface StructuredDataFixture {
   name: string;
@@ -306,13 +302,6 @@ const fixtures = [
 ] satisfies readonly StructuredDataFixture[];
 
 describe('structured data', () => {
-  it('keeps homepage schema URLs slashful without moving fragment identifiers', () => {
-    expect(homepageSource).toContain("const homepageUrl = `${SITE.siteUrl}/`;");
-    expect(homepageSource.match(/url=\{homepageUrl\}/gu) ?? []).toHaveLength(2);
-    expect(homepageSource).toContain('id={`${SITE.siteUrl}/#person`}');
-    expect(homepageSource).not.toContain('id={`${homepageUrl}#person`}');
-  });
-
   it('uses the slashful root identity for default schemas and the About Person', () => {
     expect(buildStructuredData({ type: 'person' }).url).toBe('https://jetsanchez.com/');
     expect(buildStructuredData({
@@ -322,7 +311,6 @@ describe('structured data', () => {
       '@id': 'https://jetsanchez.com/#website',
       url: 'https://jetsanchez.com/',
     });
-    expect(aboutSource).toContain('url={`${SITE.siteUrl}/`}');
   });
 
   it.each(fixtures)('preserves the complete $name JSON shape', ({

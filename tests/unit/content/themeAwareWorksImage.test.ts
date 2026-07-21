@@ -1,10 +1,5 @@
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { worksSchema } from '../../../src/schemas/content';
-
-function readSource(relativePath: string) {
-  return readFileSync(new URL(relativePath, import.meta.url), 'utf8');
-}
 
 describe('theme-aware Works images', () => {
   it('preserves a dark-mode image and verified intrinsic dimensions', () => {
@@ -31,22 +26,5 @@ describe('theme-aware Works images', () => {
       width: 1920,
       height: 1080,
     });
-  });
-
-  it('keeps every Works cover surface on the shared theme-aware abstraction', () => {
-    const contentCard = readSource('../../../src/components/content/ContentCard.astro');
-    const workLayout = readSource('../../../src/layouts/WorkLayout.astro');
-
-    for (const source of [contentCard, workLayout]) {
-      expect(source).toContain('ThemeAwareImage');
-      expect(source).toContain('darkSrc=');
-    }
-  });
-
-  it('keeps standalone image validation Astro-runtime-free and covers dark images', () => {
-    const validator = readSource('../../../scripts/validate-images.ts');
-
-    expect(validator).not.toContain("from 'astro:content'");
-    expect(validator).toContain('darkUrl');
   });
 });

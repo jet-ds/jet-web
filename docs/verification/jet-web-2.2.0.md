@@ -17,7 +17,7 @@ This record fixes the starting point for the approved `2.2.0` work. It records o
 
 The execution-start commit contains the approved [2.2.0 design](../superpowers/specs/2026-07-18-jet-web-2.2.0-design.md) and [implementation plan](../superpowers/plans/2026-07-18-jet-web-2.2.0.md). `package.json` declares Node `24.x`, and the routine verification workflow uses Node `24`.
 
-At task start, the expected pre-implementation workspace changes were the frozen [2.1.0 qualification and follow-up record](./jets-ghost-2.1.0.md) and user-owned material under `Untracked/`. The latter was not inspected, altered, or staged.
+At task start, the expected pre-implementation workspace changes were the frozen [2.1.0 qualification and follow-up record](../archive/releases/2.1.0/jets-ghost-2.1.0.md) and user-owned material under `Untracked/`. The latter was not inspected, altered, or staged.
 
 ## Repository verification
 

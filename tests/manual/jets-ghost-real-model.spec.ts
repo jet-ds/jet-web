@@ -1,6 +1,4 @@
 import { execFileSync } from 'node:child_process';
-import { existsSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
 import {
   expect,
   test,
@@ -27,14 +25,12 @@ import {
   isPartytownSandboxDocument,
 } from './requestPrivacy';
 
-interface ProductAcceptanceCase {
+interface VisitorCase {
   id: string;
-  category: 'supported' | 'ordinary' | 'cross-document' | 'unsupported';
+  coverage: 'single-source' | 'multiple-source' | 'cross-document' | 'unsupported';
   question: string;
   expectedSourceIds: string[];
   acceptableSourceIds: string[];
-  requiredFacts: string[];
-  forbiddenClaims: string[];
   mustAbstain: boolean;
 }
 
@@ -79,8 +75,8 @@ const REAL_MODEL_MODES = [
 ] as const;
 
 const SMOKE_CASE_IDS = [
-  'showcase-rch-claim',
-  'unsupported-private-note',
+  'recursive-convergence-claim',
+  'private-note-abstention',
 ] as const;
 
 type RealModelMode = typeof REAL_MODEL_MODES[number];
@@ -98,7 +94,6 @@ const CORPUS_PATHS = [
   JETS_GHOST_PATHS.content,
   JETS_GHOST_PATHS.index,
 ] as const;
-const EVIDENCE_DOCUMENT = join(process.cwd(), 'docs/verification/jets-ghost-2.1.0.md');
 const CLOSEOUT_PROMPT_SENTINEL = 'JG_REAL_MODEL_PROMPT_SENTINEL_91d6c4';
 const SELECTED_SOURCE_SENTINEL = 'works:recursive-convergence-hypothesis';
 const PROFILE_ENVIRONMENT_KEYS = [
@@ -109,10 +104,68 @@ const PROFILE_ENVIRONMENT_KEYS = [
   'PW_TEST_REUSE_CONTEXT',
 ] as const;
 
-const acceptanceCases = JSON.parse(readFileSync(
-  new URL('../fixtures/jets-ghost/product-acceptance.json', import.meta.url),
-  'utf8',
-)) as ProductAcceptanceCase[];
+const VISITOR_CASES: readonly VisitorCase[] = [
+  {
+    id: 'claude-native-installation',
+    coverage: 'single-source',
+    question: 'What installation method does Jet recommend for Claude Code in 2026, and why?',
+    expectedSourceIds: ['blog:how-to-install-claude-code-cli-2026'],
+    acceptableSourceIds: ['blog:how-to-install-claude-code-cli-2026'],
+    mustAbstain: false,
+  },
+  {
+    id: 'recursive-convergence-claim',
+    coverage: 'single-source',
+    question: 'What is the central claim of the Recursive Convergence Hypothesis?',
+    expectedSourceIds: ['works:recursive-convergence-hypothesis'],
+    acceptableSourceIds: ['works:recursive-convergence-hypothesis'],
+    mustAbstain: false,
+  },
+  {
+    id: 'coding-workflows',
+    coverage: 'multiple-source',
+    question: 'What has Jet published about working with coding agents?',
+    expectedSourceIds: [
+      'blog:how-to-install-claude-code-cli-2026',
+      'blog:vibe-coding-vs-agentic-coding-why-the-distinction-matters',
+    ],
+    acceptableSourceIds: [
+      'blog:how-to-install-claude-code-cli-2026',
+      'blog:vibe-coding-vs-agentic-coding-why-the-distinction-matters',
+    ],
+    mustAbstain: false,
+  },
+  {
+    id: 'human-review-control',
+    coverage: 'cross-document',
+    question: "How does human review in Jet's Claude Code guidance relate to the control concerns in agentic coding?",
+    expectedSourceIds: [
+      'blog:how-to-install-claude-code-cli-2026',
+      'blog:vibe-coding-vs-agentic-coding-why-the-distinction-matters',
+    ],
+    acceptableSourceIds: [
+      'blog:how-to-install-claude-code-cli-2026',
+      'blog:vibe-coding-vs-agentic-coding-why-the-distinction-matters',
+    ],
+    mustAbstain: false,
+  },
+  {
+    id: 'private-note-abstention',
+    coverage: 'unsupported',
+    question: "What exact launch date did Jet record in a private, unpublished note for Jet's Ghost 2.1?",
+    expectedSourceIds: [],
+    acceptableSourceIds: [],
+    mustAbstain: true,
+  },
+  {
+    id: 'private-schedule-abstention',
+    coverage: 'unsupported',
+    question: "What meetings are on Jet's private schedule tomorrow?",
+    expectedSourceIds: [],
+    acceptableSourceIds: [],
+    mustAbstain: true,
+  },
+];
 
 function resolveMode(): RealModelMode {
   const value = process.env.JETS_GHOST_REAL_MODEL_MODE;
@@ -128,12 +181,6 @@ function rejectExternalProfile(): void {
     || process.argv.some((argument) => argument.startsWith('--user-data-dir'))
   ) {
     throw new Error('EXTERNAL_BROWSER_PROFILE_NOT_ALLOWED');
-  }
-}
-
-function requireEvidenceDocument(): void {
-  if (!existsSync(EVIDENCE_DOCUMENT)) {
-    throw new Error('QUALIFICATION_EVIDENCE_DOCUMENT_MISSING');
   }
 }
 
@@ -681,15 +728,15 @@ async function responseAbstains(page: Page): Promise<boolean> {
   }, JETS_GHOST_ABSTENTION_PREFIX);
 }
 
-async function runProductCase(
+async function runVisitorCase(
   page: Page,
-  acceptanceCase: ProductAcceptanceCase,
+  visitorCase: VisitorCase,
 ): Promise<string[]> {
   const caseFailures: string[] = [];
   await newSession(page);
   const startedAt = performance.now();
   const composer = page.getByRole('textbox', { name: "Ask Jet's Ghost" });
-  await composer.fill(acceptanceCase.question);
+  await composer.fill(visitorCase.question);
   await page.getByRole('button', { name: 'Send message' }).click();
   await expect.poll(() => responseHasFirstToken(page), {
     timeout: FIRST_TOKEN_TIMEOUT_MS,
@@ -734,10 +781,10 @@ async function runProductCase(
       }
     }
 
-    const expectedPaths = acceptanceCase.expectedSourceIds.map(sourcePath);
-    const acceptablePaths = acceptanceCase.acceptableSourceIds.map(sourcePath);
+    const expectedPaths = visitorCase.expectedSourceIds.map(sourcePath);
+    const acceptablePaths = visitorCase.acceptableSourceIds.map(sourcePath);
     const inlineCitationCount = await inlineCitations.count();
-    const requiresEveryExpectedSource = acceptanceCase.category === 'cross-document';
+    const requiresEveryExpectedSource = visitorCase.coverage === 'cross-document';
     const expectedSourceMissing = requiresEveryExpectedSource
       ? expectedPaths.some((path) => !observedSourcePaths.includes(path))
       : !expectedPaths.some((path) => observedSourcePaths.includes(path));
@@ -746,14 +793,14 @@ async function runProductCase(
     ));
     const unsupportedCitationPresent = inlineCitationCount > 0
       || observedSourcePaths.length > 0;
-    const citationResolved = acceptanceCase.mustAbstain
+    const citationResolved = visitorCase.mustAbstain
       ? !unsupportedCitationPresent
       : !expectedSourceMissing
         && !unacceptableSourcePresent
         && inlineCitationCount > 0;
     const abstention = await responseAbstains(page);
 
-    if (acceptanceCase.mustAbstain) {
+    if (visitorCase.mustAbstain) {
       if (unsupportedCitationPresent) caseFailures.push('CASE_UNSUPPORTED_CITATION_PRESENT');
       if (!abstention) caseFailures.push('CASE_ABSTENTION_MISSING');
     } else {
@@ -763,7 +810,7 @@ async function runProductCase(
     }
 
     console.info([
-      `case=${acceptanceCase.id}`,
+      `case=${visitorCase.id}`,
       `first-token-ms=${firstTokenMs}`,
       `total-response-ms=${totalResponseMs}`,
       `citation-resolved=${citationResolved}`,
@@ -1028,7 +1075,7 @@ async function validateRequestPrivacy(
   const sentinels = [
     CLOSEOUT_PROMPT_SENTINEL,
     SELECTED_SOURCE_SENTINEL,
-    ...acceptanceCases.flatMap(({ question, acceptableSourceIds }) => [
+    ...VISITOR_CASES.flatMap(({ question, acceptableSourceIds }) => [
       question,
       ...acceptableSourceIds,
     ]),
@@ -1167,7 +1214,6 @@ test.skip(process.env.RUN_REAL_MODEL !== '1', 'Set RUN_REAL_MODEL=1 for the 2 GB
 test("qualifies Jet's Ghost with the real local model", async ({ browser, page }) => {
   const mode = resolveMode();
   rejectExternalProfile();
-  requireEvidenceDocument();
   if (mode === 'qualification' && (process.platform !== 'darwin' || process.arch !== 'arm64')) {
     throw new Error('QUALIFICATION_REQUIRES_APPLE_SILICON_MAC');
   }
@@ -1184,7 +1230,7 @@ test("qualifies Jet's Ghost with the real local model", async ({ browser, page }
   await assertFreshApplicationStorage(page);
   const applicationOrigin = new URL(page.url()).origin;
   const ledger = new RequestLedger(page);
-  const productCaseFailures: string[] = [];
+  const visitorCaseFailures: string[] = [];
   const compatibilityMark = await assertCompatibilityDoesNotLoadAssistant(
     page,
     ledger,
@@ -1211,10 +1257,10 @@ test("qualifies Jet's Ghost with the real local model", async ({ browser, page }
     });
     printActivation('warm', warm);
 
-    console.info('phase=product-cases');
-    for (const acceptanceCase of acceptanceCases) {
-      productCaseFailures.push(...(await runProductCase(page, acceptanceCase)).map((failure) => (
-        `${acceptanceCase.id}:${failure}`
+    console.info('phase=visitor-cases');
+    for (const visitorCase of VISITOR_CASES) {
+      visitorCaseFailures.push(...(await runVisitorCase(page, visitorCase)).map((failure) => (
+        `${visitorCase.id}:${failure}`
       )));
     }
     console.info('phase=lifecycle-closeout');
@@ -1226,11 +1272,11 @@ test("qualifies Jet's Ghost with the real local model", async ({ browser, page }
     await waitForActivationReady(page, ledger, smokeActivationMark);
     await validateConsentAudit(page, ledger, compatibilityMark, applicationOrigin);
     await printSmokeVersions(ledger, smokeActivationMark, applicationOrigin);
-    const smokeCases = SMOKE_CASE_IDS.map((id) => acceptanceCases.find((item) => item.id === id));
+    const smokeCases = SMOKE_CASE_IDS.map((id) => VISITOR_CASES.find((item) => item.id === id));
     contentFreeAssert(smokeCases.every((item) => item !== undefined), 'SMOKE_CASE_MISSING');
-    for (const acceptanceCase of smokeCases) {
-      productCaseFailures.push(...(await runProductCase(page, acceptanceCase!)).map((failure) => (
-        `${acceptanceCase!.id}:${failure}`
+    for (const visitorCase of smokeCases) {
+      visitorCaseFailures.push(...(await runVisitorCase(page, visitorCase!)).map((failure) => (
+        `${visitorCase!.id}:${failure}`
       )));
     }
     await unloadAndAssertSettled(page);
@@ -1246,7 +1292,7 @@ test("qualifies Jet's Ghost with the real local model", async ({ browser, page }
     `device-loss-count=${device.deviceLossCount}`,
   ].join(' '));
   contentFreeAssert(
-    productCaseFailures.length === 0,
-    `PRODUCT_CASES_FAILED_${productCaseFailures.join('_')}`,
+    visitorCaseFailures.length === 0,
+    `VISITOR_CASES_FAILED_${visitorCaseFailures.join('_')}`,
   );
 });

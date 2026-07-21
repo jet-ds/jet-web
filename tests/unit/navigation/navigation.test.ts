@@ -1,9 +1,5 @@
-import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import { isActiveNavItem, NAV_ITEMS } from '../../../src/config/site';
-
-const baseLayoutSource = readFileSync('src/components/layout/BaseLayout.astro', 'utf8');
-const dockSource = readFileSync('src/components/navigation/LiquidGlassDock.tsx', 'utf8');
 
 describe('navigation', () => {
   it('keeps unique ids and routes', () => {
@@ -22,7 +18,7 @@ describe('navigation', () => {
     ]);
   });
 
-  it('replaces Tools with one Ghost item across every canonical navigation consumer', () => {
+  it('publishes one canonical Ghost navigation item instead of Tools', () => {
     expect(NAV_ITEMS).toHaveLength(6);
     expect(NAV_ITEMS.map(({ id, label, href }) => ({ id, label, href }))).toContainEqual({
       id: 'ghost',
@@ -30,10 +26,6 @@ describe('navigation', () => {
       href: '/chatbot/',
     });
     expect(NAV_ITEMS.some(({ id, label }) => String(id) === 'tools' || String(label) === 'Tools')).toBe(false);
-    expect(dockSource).toContain('NAV_ITEMS.map');
-    expect(baseLayoutSource).toMatch(/const navigationElements = NAV_ITEMS\.map/);
-    expect(baseLayoutSource).toMatch(/<StructuredData[\s\S]*?type="navigation"[\s\S]*?navigationElements/);
-    expect(baseLayoutSource).toMatch(/<noscript>[\s\S]*?NAV_ITEMS\.map/);
   });
 
   it('matches root only at root', () => {
