@@ -4,7 +4,10 @@ import tailwindConfig from '../../tailwind.config.mjs';
 
 const globalStyles = readFileSync('src/styles/global.css', 'utf8');
 
-function requireObjectRecord(value: unknown, label: string): Record<string, unknown> {
+function requireObjectRecord(
+  value: unknown,
+  label: string,
+): Record<string, unknown> {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw new TypeError(`${label} must be an object record.`);
   }
@@ -13,23 +16,42 @@ function requireObjectRecord(value: unknown, label: string): Record<string, unkn
 }
 
 function tokenBlock(selector: ':root' | '.dark'): string {
-  return globalStyles.match(new RegExp(`${selector.replace('.', '\\.')}\\s*\\{([^}]*)\\}`, 'u'))?.[1] ?? '';
+  return (
+    globalStyles.match(
+      new RegExp(`${selector.replace('.', '\\.')}\\s*\\{([^}]*)\\}`, 'u'),
+    )?.[1] ?? ''
+  );
 }
 
 function tokenValue(block: string, name: string): string {
-  return block.match(new RegExp(`--color-${name}:\\s*([^;]+);`, 'u'))?.[1].trim() ?? '';
+  const value =
+    block.match(new RegExp(`--color-${name}:\\s*([^;]+);`, 'u'))?.[1] ?? '';
+
+  return value
+    .replace(/\s+/gu, ' ')
+    .replace(/\(\s+/gu, '(')
+    .replace(/\s+\)/gu, ')')
+    .trim();
 }
 
 function ruleBody(selector: string): string {
-  return globalStyles.match(new RegExp(`\\.${selector}\\s*\\{([^}]*)\\}`, 'u'))?.[1] ?? '';
+  return (
+    globalStyles.match(
+      new RegExp(`\\.${selector}\\s*\\{([^}]*)\\}`, 'u'),
+    )?.[1] ?? ''
+  );
 }
 
 describe('machine-readable design-system contracts', () => {
   it('maps semantic foreground and interactive roles to the established scale', () => {
     const light = tokenBlock(':root');
 
-    expect(tokenValue(light, 'text-secondary')).toBe('oklch(0.4521 0.022 250.82)');
-    expect(tokenValue(light, 'text-tertiary')).toBe('oklch(0.5122 0.03 253.72)');
+    expect(tokenValue(light, 'text-secondary')).toBe(
+      'oklch(0.4521 0.022 250.82)',
+    );
+    expect(tokenValue(light, 'text-tertiary')).toBe(
+      'oklch(0.5122 0.03 253.72)',
+    );
     expect(tokenValue(light, 'brand-base')).toBe('oklch(0.4956 0.0566 248.16)');
   });
 
@@ -37,15 +59,28 @@ describe('machine-readable design-system contracts', () => {
     const light = tokenBlock(':root');
     const dark = tokenBlock('.dark');
     const theme = requireObjectRecord(tailwindConfig.theme, 'Tailwind theme');
-    const extensions = requireObjectRecord(theme['extend'], 'Tailwind theme extensions');
-    const colors = requireObjectRecord(extensions['colors'], 'Tailwind extended colors');
+    const extensions = requireObjectRecord(
+      theme['extend'],
+      'Tailwind theme extensions',
+    );
+    const colors = requireObjectRecord(
+      extensions['colors'],
+      'Tailwind extended colors',
+    );
 
-    expect(tokenValue(light, 'section-brand')).toBe('oklch(0.9502 0.0069 247.9)');
-    expect(tokenValue(dark, 'section-brand')).toBe('oklch(0.3536 0.0306 248.71)');
-    expect(tokenValue(light, 'section-brand')).not.toBe(tokenValue(light, 'brand-subtle'));
-    expect(tokenValue(dark, 'section-brand')).not.toBe(tokenValue(dark, 'brand-subtle'));
-    expect(colors['section-brand'])
-      .toBe('var(--color-section-brand)');
+    expect(tokenValue(light, 'section-brand')).toBe(
+      'oklch(0.9502 0.0069 247.9)',
+    );
+    expect(tokenValue(dark, 'section-brand')).toBe(
+      'oklch(0.3536 0.0306 248.71)',
+    );
+    expect(tokenValue(light, 'section-brand')).not.toBe(
+      tokenValue(light, 'brand-subtle'),
+    );
+    expect(tokenValue(dark, 'section-brand')).not.toBe(
+      tokenValue(dark, 'brand-subtle'),
+    );
+    expect(colors['section-brand']).toBe('var(--color-section-brand)');
   });
 
   it('defines every shared action density with the minimum touch target', () => {
@@ -62,6 +97,8 @@ describe('machine-readable design-system contracts', () => {
 
   it('expresses filter state through the shared recipe and aria-pressed', () => {
     expect(ruleBody('action--filter')).not.toBe('');
-    expect(globalStyles).toMatch(/\.action--filter\[aria-pressed=['"]true['"]\]/u);
+    expect(globalStyles).toMatch(
+      /\.action--filter\[aria-pressed=['"]true['"]\]/u,
+    );
   });
 });
