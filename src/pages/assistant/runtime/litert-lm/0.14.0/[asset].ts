@@ -4,7 +4,7 @@ import {
   getLiteRtAssetContentType,
   isLiteRtAsset,
   resolveLiteRtAssetPath,
-} from '../../../../../features/jets-ghost/runtime/liteRtAssets.server';
+} from '../../../../../features/egregore/runtime/liteRtAssets.server';
 
 export const prerender = true;
 

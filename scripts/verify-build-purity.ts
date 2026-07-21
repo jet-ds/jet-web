@@ -86,7 +86,7 @@ function changedPaths(before: Snapshot, after: Snapshot): string[] {
 
 function runBuild(): void {
   const environment = { ...process.env };
-  delete environment.PUBLIC_JETS_GHOST_E2E;
+  delete environment.PUBLIC_EGREGORE_E2E;
   const result = spawnSync('npm', ['run', 'build'], {
     cwd: process.cwd(),
     env: environment,

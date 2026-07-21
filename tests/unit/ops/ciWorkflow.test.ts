@@ -55,7 +55,7 @@ describe('durable verification workflow', () => {
   });
 
   it('keeps the approximately 2 GB real-model gate out of routine and nightly CI', () => {
-    expect(workflowSource).not.toContain('qualify:jets-ghost');
+    expect(workflowSource).not.toContain('qualify:egregore');
     expect(workflowSource).not.toContain('RUN_REAL_MODEL');
     expect(workflowSource).not.toContain('REAL_MODEL_BASE_URL');
   });

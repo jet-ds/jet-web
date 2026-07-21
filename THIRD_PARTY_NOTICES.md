@@ -1,6 +1,6 @@
-# Jet's Ghost third-party notices
+# Egregore third-party notices
 
-This index covers the exact browser model, runtime, runtime assets, and retrieval libraries used by Jet's Ghost 2.1.0. Complete license texts are stored in [`LICENSES/`](./LICENSES/Apache-2.0.txt) and exposed through the public [Model and open-source licenses](https://jetsanchez.com/licenses/jets-ghost/) surface.
+This index covers the exact browser model, runtime, runtime assets, and retrieval libraries currently used by Egregore. The component pins and license bytes remain unchanged from the 2.1.0 release record. Complete license texts are stored in [`LICENSES/`](./LICENSES/Apache-2.0.txt) and exposed through the public [Model and open-source licenses](https://jetsanchez.com/licenses/egregore/) surface.
 
 ## Apache License 2.0 artifacts
 

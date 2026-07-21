@@ -11,7 +11,7 @@ interface StubState {
   calls: string[];
 }
 
-const stateKey = '__jetsGhostAstroContentStub__';
+const stateKey = '__egregoreAstroContentStub__';
 const globalState = globalThis as typeof globalThis & { [stateKey]?: StubState };
 
 function state(): StubState {

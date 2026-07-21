@@ -6,7 +6,7 @@
 
 jetsanchez.com is Jet Sanchez's personal website, writing archive, research portfolio, and home for local-first AI experiments. It uses Astro 5, MDX, React 19 islands, Tailwind CSS 3, strict TypeScript, and Vercel static hosting.
 
-Primary routes are Home, About, Blog, Works, Jet's Ghost, and Contact. Jet's Ghost is released at canonical `/chatbot/`; its local runtime remains behind explicit visitor actions. `/tools/` remains a dormant, noindexed route outside primary navigation.
+Primary routes are Home, About, Blog, Works, Egregore, and Contact. Egregore is released at canonical `/chatbot/`; its local runtime remains behind explicit visitor actions. `/tools/` remains a dormant, noindexed route outside primary navigation.
 
 ## Runtime and commands
 
@@ -57,7 +57,7 @@ The production build is pure. `npm run build` may validate repository inputs and
 - Use `section-brand` for broad blue section surfaces. Keep that role distinct from `brand-subtle`, which remains the `soft` action fill in both themes.
 - Use the framework-neutral `.text-link` recipe for inline prose destinations: branded medium-weight text, no resting underline, and the shared hover, focus-visible, and reduced-motion behavior. `Link.astro` primary links and Blog/Works `.prose` links consume it. Do not apply it to cards, navigation/footer, actions, the dock, citation markers, or source-disclosure controls.
 - Use the framework-neutral `.action` recipes for button-like controls in Astro, React, or plain HTML. Variants are `brand`, `accent`, `soft`, `neutral`, `outline`, `ghost`, `filter`, `stop`, and `disabled`; `filter` state is expressed with `aria-pressed`, never color alone.
-- Action densities are `compact` (44×44px minimum target, 8px radius), `default` (44×44px minimum target, 8px radius), and `immersive` (48×48px minimum target, 12px radius). Jet's Ghost primary lifecycle actions use `immersive`; small labels do not justify targets below 44×44px. `Button.astro` exposes the same taxonomy through `variant` and `density`.
+- Action densities are `compact` (44×44px minimum target, 8px radius), `default` (44×44px minimum target, 8px radius), and `immersive` (48×48px minimum target, 12px radius). Egregore primary lifecycle actions use `immersive`; small labels do not justify targets below 44×44px. `Button.astro` exposes the same taxonomy through `variant` and `density`.
 - Write visible action copy in sentence case while preserving product names, platform names, personal names, and acronyms.
 - Preserve the shared action focus, disabled, reduced-motion, and forced-colors behavior. Add only role-specific layout or typography utilities; do not recreate a second React-only visual taxonomy.
 - Use Utopia fluid type and spacing tokens. Prefer `px-gutter`, `py-section`, `py-section-lg`, `p-card`, and fluid gap/type tokens over breakpoint-based spacing.
@@ -75,7 +75,7 @@ assistant: false
 ```
 
 - Public content requires `status: published`.
-- Jet's Ghost inclusion requires both `status: published` and `assistant: true`.
+- Egregore inclusion requires both `status: published` and `assistant: true`.
 - Draft, untracked, malformed, or implicitly configured content must never enter the production site or assistant corpus.
 - Blog fields include title, optional short display title, description, optional card summary, optional search title and description overrides, publication date, author, tags, publication state, assistant eligibility, and optional image metadata.
 - Work fields include title, optional short display title, description, optional card summary, optional search title and description overrides, type, date, tags, publication state, assistant eligibility, optional featured/image/link fields, and type-specific research or project fields.
@@ -134,17 +134,17 @@ The About portrait is not content frontmatter. Update the direct `OptimizedImage
 
 The default social image is the committed `public/images/og-default.jpg`. Recreate it only through `npm run capture:og -- --overwrite`, visually inspect the result, and retain the exact shared metadata contract in `src/config/site.ts`.
 
-## Jet's Ghost
+## Egregore
 
-Jet's Ghost is a local-first technical showcase and experimental personal assistant, not a general website-support widget.
+Egregore is a local-first technical showcase and experimental personal assistant, not a general website-support widget.
 
-Released `2.1.0` boundaries:
+The released `2.1.0` runtime and interaction boundaries remain in force during `2.2.0` work:
 
 - The semantic route is the canonical `200` document at `/chatbot/`; platform normalization owns slashless variants, and one explicit legacy `/tools/chatbot/` rule redirects to `/chatbot/`.
 - Vercel Production serves `/chatbot/` as index-follow and includes it once in the sitemap. Local and Preview builds keep it noindex and outside the sitemap.
-- Ghost occupies the former Tools navigation slot; `/tools/` stays dormant, noindexed, and out of primary navigation.
+- Egregore occupies the former Tools navigation slot; `/tools/` stays dormant, noindexed, and out of primary navigation.
 - Use the pinned Gemma 4 E2B LiteRT-LM browser runtime only. Do not add E4B switching or a hosted fallback.
-- Preserve the explicit boundary: route rendering and compatibility checks do not authorize model/corpus download or GPU allocation. Only “Load Jet's Ghost” may start those operations; prompt assembly begins only when the visitor sends a message.
+- Preserve the explicit boundary: route rendering and compatibility checks do not authorize model/corpus download or GPU allocation. Only “Load Egregore” may start those operations; prompt assembly begins only when the visitor sends a message.
 - Use the immutable, versioned eligible corpus and one deterministic MiniSearch rank-and-pack pipeline with provenance and citations. Embeddings, Gemma reranking, PGlite, pgvector, EntityDB, and the legacy multi-stage RAG implementation are not part of the approved production path.
 - The fake runtime is permanent deterministic development and test architecture. Preserve its lifecycle, failure, privacy, responsive, and interaction scenarios; it must remain unavailable and absent from Production artifacts.
 - `/api/chat`, hosted generation, and the OpenRouter production credential remain removed.

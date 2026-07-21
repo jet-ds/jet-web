@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { Ghost } from 'lucide-react';
 import { isActiveNavItem, NAV_ITEMS } from '../../../src/config/site';
 
 describe('navigation', () => {
@@ -13,18 +14,19 @@ describe('navigation', () => {
       { id: 'about', href: '/about/', gradient: 'from-purple-600 to-purple-400' },
       { id: 'blog', href: '/blog/', gradient: 'from-green-600 to-green-400' },
       { id: 'works', href: '/works/', gradient: 'from-orange-600 to-orange-400' },
-      { id: 'ghost', href: '/chatbot/', gradient: 'from-indigo-600 to-indigo-400' },
+      { id: 'egregore', href: '/chatbot/', gradient: 'from-indigo-600 to-indigo-400' },
       { id: 'contact', href: '/contact/', gradient: 'from-red-600 to-red-400' },
     ]);
   });
 
-  it('publishes one canonical Ghost navigation item instead of Tools', () => {
+  it('publishes one canonical Egregore navigation item with the approved ghost icon', () => {
     expect(NAV_ITEMS).toHaveLength(6);
     expect(NAV_ITEMS.map(({ id, label, href }) => ({ id, label, href }))).toContainEqual({
-      id: 'ghost',
-      label: "Jet's Ghost",
+      id: 'egregore',
+      label: 'Egregore',
       href: '/chatbot/',
     });
+    expect(NAV_ITEMS.find(({ id }) => id === 'egregore')?.icon).toBe(Ghost);
     expect(NAV_ITEMS.some(({ id, label }) => String(id) === 'tools' || String(label) === 'Tools')).toBe(false);
   });
 

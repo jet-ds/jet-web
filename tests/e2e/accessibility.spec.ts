@@ -239,26 +239,26 @@ for (const theme of ['light', 'dark'] as const) {
   });
 }
 
-test("Jet's Ghost introduction, ready, and response states remain accessible by keyboard", async ({
+test("Egregore introduction, ready, and response states remain accessible by keyboard", async ({
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium');
   await page.goto('/chatbot/?runtime=fake&stream=slow');
 
-  await expectLifecycleAccessibility(page, "Jet's Ghost is not running.");
+  await expectLifecycleAccessibility(page, "Egregore is not running.");
   await expectNoSeriousAxeViolations(page, 'introduction');
 
   const compatibility = page.getByRole('button', { name: 'Check compatibility' });
   await focusWithKeyboard(page, compatibility);
   await page.keyboard.press('Enter');
 
-  const load = page.getByRole('button', { name: /Load Jet's Ghost/ });
+  const load = page.getByRole('button', { name: /Load Egregore/ });
   await focusWithKeyboard(page, load);
   await page.keyboard.press('Enter');
 
-  const composer = page.getByRole('textbox', { name: "Ask Jet's Ghost" });
+  const composer = page.getByRole('textbox', { name: "Ask Egregore" });
   await expect(composer).toBeFocused();
-  await expectLifecycleAccessibility(page, "Jet's Ghost is ready.");
+  await expectLifecycleAccessibility(page, "Egregore is ready.");
   await expectNoSeriousAxeViolations(page, 'ready');
 
   const newSession = page.getByRole('button', { name: 'New session' });
@@ -278,7 +278,7 @@ test("Jet's Ghost introduction, ready, and response states remain accessible by 
   const send = page.getByRole('button', { name: 'Send message' });
   await focusWithKeyboard(page, send);
   await page.keyboard.press('Enter');
-  await expectLifecycleAccessibility(page, "Jet's Ghost is responding.");
+  await expectLifecycleAccessibility(page, "Egregore is responding.");
 
   const conversation = page.getByLabel('Conversation');
   const response = conversation.locator('article').filter({
@@ -304,7 +304,7 @@ test("Jet's Ghost introduction, ready, and response states remain accessible by 
   await expect(composer).toHaveValue('');
 });
 
-test("Jet's Ghost recoverable error is axe-clean and keyboard operable", async ({
+test("Egregore recoverable error is axe-clean and keyboard operable", async ({
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium');
@@ -320,7 +320,7 @@ test("Jet's Ghost recoverable error is axe-clean and keyboard operable", async (
   const compatibility = page.getByRole('button', { name: 'Check compatibility' });
   await focusWithKeyboard(page, compatibility);
   await page.keyboard.press('Enter');
-  const load = page.getByRole('button', { name: /Load Jet's Ghost/ });
+  const load = page.getByRole('button', { name: /Load Egregore/ });
   await focusWithKeyboard(page, load);
   await page.keyboard.press('Enter');
 
@@ -328,11 +328,11 @@ test("Jet's Ghost recoverable error is axe-clean and keyboard operable", async (
   await expect(returnToLoad).toBeFocused();
   await expect(returnToLoad).toHaveAttribute(
     'aria-describedby',
-    'jets-ghost-activation-status',
+    'egregore-activation-status',
   );
   await expectLifecycleAccessibility(
     page,
-    "Jet's Ghost did not finish loading. Review the recovery action.",
+    "Egregore did not finish loading. Review the recovery action.",
   );
   await expectNoSeriousAxeViolations(page, 'recoverable error');
 

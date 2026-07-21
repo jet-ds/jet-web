@@ -1,45 +1,49 @@
 ---
 import BaseLayout from '../components/layout/BaseLayout.astro';
 import StructuredData from '../components/seo/StructuredData.astro';
-import JetsGhostExperience from '../features/jets-ghost/JetsGhostExperience';
+import { EGREGORE_IDENTITY } from '../config/egregore';
+import { SITE } from '../config/site';
+import EgregoreExperience from '../features/egregore/EgregoreExperience';
 import packageJson from '../../package.json';
 
-const title = "Jet's Ghost: Local-First AI Assistant";
+const title = 'Egregore: Local-First AI Assistant';
 const description = "Chat with Jet's published writing, research, and projects using a local-first AI assistant in compatible WebGPU browsers.";
+const canonicalUrl = new URL(EGREGORE_IDENTITY.canonicalPath, SITE.siteUrl).toString();
+const softwareApplicationId = `${canonicalUrl}#softwareapplication`;
 const noindex = process.env.VERCEL_ENV !== 'production';
 ---
 
 <BaseLayout
   title={title}
   description={description}
-  canonicalURL="https://jetsanchez.com/chatbot/"
-  mainEntityId="https://jetsanchez.com/chatbot/#softwareapplication"
+  canonicalURL={canonicalUrl}
+  mainEntityId={softwareApplicationId}
   noindex={noindex}
   immersive
 >
   <StructuredData
     slot="structured-data"
     type="software"
-    id="https://jetsanchez.com/chatbot/#softwareapplication"
-    url="https://jetsanchez.com/chatbot/"
-    name="Jet's Ghost"
+    id={softwareApplicationId}
+    url={canonicalUrl}
+    name={EGREGORE_IDENTITY.name}
     applicationCategory="ChatApplication"
     operatingSystem="Web browser with WebGPU"
   />
 
-  <JetsGhostExperience client:load appVersion={packageJson.version} />
+  <EgregoreExperience client:load appVersion={packageJson.version} />
 
   <noscript>
     <section
       class="fixed inset-0 z-40 grid place-items-center bg-bg-base px-gutter text-text-primary"
-      aria-labelledby="jets-ghost-noscript-title"
+      aria-labelledby="egregore-noscript-title"
     >
       <div class="max-w-2xl text-center">
         <p class="mb-xs font-mono text-sm uppercase tracking-wider text-brand-text">
           Local-first AI
         </p>
-        <h1 id="jets-ghost-noscript-title" class="mb-s font-serif text-3xl font-bold">
-          Jet's Ghost needs JavaScript and WebGPU
+        <h1 id="egregore-noscript-title" class="mb-s font-serif text-3xl font-bold">
+          Egregore needs JavaScript and WebGPU
         </h1>
         <p class="mx-auto max-w-xl text-base leading-relaxed text-text-secondary">
           This assistant runs its model in a compatible browser. You can still explore Jet's published
@@ -52,20 +56,20 @@ const noindex = process.env.VERCEL_ENV !== 'production';
 </BaseLayout>
 
 <style is:global>
-  .jets-ghost-header {
+  .egregore-header {
     padding-top: max(var(--space-m), env(safe-area-inset-top));
   }
 
-  .jets-ghost-composer {
+  .egregore-composer {
     padding-bottom: calc(var(--space-2xl) + var(--space-xl) + env(safe-area-inset-bottom));
   }
 
   @media (min-width: 769px) {
-    .jets-ghost-header {
+    .egregore-header {
       padding-top: calc(var(--space-2xl) + var(--space-xl));
     }
 
-    .jets-ghost-composer {
+    .egregore-composer {
       padding-bottom: var(--space-m);
     }
   }

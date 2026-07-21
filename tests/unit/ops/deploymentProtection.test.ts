@@ -8,7 +8,7 @@ const deploymentSuite = readFileSync(
   'utf8',
 );
 const realModelSuite = readFileSync(
-  resolve(process.cwd(), 'tests/manual/jets-ghost-real-model.spec.ts'),
+  resolve(process.cwd(), 'tests/manual/egregore-real-model.spec.ts'),
   'utf8',
 );
 const productionConfig = readFileSync(

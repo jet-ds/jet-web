@@ -17,13 +17,14 @@ const routes = [
   '/works/recursive-convergence-hypothesis/',
   '/chatbot/',
   '/tools/',
-  '/licenses/jets-ghost/',
+  '/licenses/egregore/',
   '/contact/',
 ];
 
 type JsonLdSchema = {
   '@type'?: string;
   '@id'?: string;
+  name?: string;
   url?: string;
   mainEntity?: { '@id'?: string };
   mainEntityOfPage?: { '@id'?: string };
@@ -182,12 +183,12 @@ for (const route of routes) {
   });
 }
 
-test("Jet's Ghost exposes canonical qualification metadata", async ({ page }) => {
+test('Egregore exposes canonical qualification metadata', async ({ page }) => {
   const canonical = 'https://jetsanchez.com/chatbot/';
   const softwareId = `${canonical}#softwareapplication`;
 
   await page.goto('/chatbot/');
-  await expect(page).toHaveTitle("Jet's Ghost: Local-First AI Assistant | Jet Sanchez");
+  await expect(page).toHaveTitle('Egregore: Local-First AI Assistant | Jet Sanchez');
   await expect(page.locator('meta[name="description"]')).toHaveAttribute(
     'content',
     "Chat with Jet's published writing, research, and projects using a local-first AI assistant in compatible WebGPU browsers.",
@@ -202,6 +203,7 @@ test("Jet's Ghost exposes canonical qualification metadata", async ({ page }) =>
   });
   expect(schemas.find((schema) => schema['@type'] === 'SoftwareApplication')).toMatchObject({
     '@id': softwareId,
+    name: 'Egregore',
     url: canonical,
     applicationCategory: 'ChatApplication',
     operatingSystem: 'Web browser with WebGPU',
@@ -612,7 +614,7 @@ test('About and Contact expose the current social destinations through shared ac
 
 test('subtle information cards share one responsive surface in both themes', async ({ page }) => {
   const cases = [
-    ['/licenses/jets-ghost/', 'Gemma 4 E2B LiteRT-LM'],
+    ['/licenses/egregore/', 'Gemma 4 E2B LiteRT-LM'],
     ['/about/', 'Background'],
     ['/contact/', 'Email'],
   ] as const;
@@ -754,7 +756,7 @@ test('inline prose and article back links share one rendered interaction model',
 
   for (const [route, name] of [
     ['/works/recursive-convergence-hypothesis/', 'Back to works'],
-    ['/licenses/jets-ghost/', "Back to Jet's Ghost"],
+    ['/licenses/egregore/', 'Back to Egregore'],
   ] as const) {
     await page.goto(route);
     const backLink = page.getByRole('link', { name: new RegExp(`${name}$`, 'u') });
@@ -1125,7 +1127,7 @@ test('navigation representations use canonical route identities', async ({ page,
     ['About', '/about/'],
     ['Blog', '/blog/'],
     ['Works', '/works/'],
-    ["Jet's Ghost", '/chatbot/'],
+    ['Egregore', '/chatbot/'],
     ['Contact', '/contact/'],
   ] as const;
 
@@ -1178,7 +1180,8 @@ test('assistant corpus JSON stays out of the sitemap while the HTML license page
 
   const sitemap = await (await request.get('/sitemap-0.xml')).text();
   for (const path of paths) expect(sitemap).not.toContain(path);
-  expect(sitemap).toContain('https://jetsanchez.com/licenses/jets-ghost/');
+  expect(sitemap).toContain('https://jetsanchez.com/licenses/egregore/');
+  expect(sitemap).not.toContain('https://jetsanchez.com/licenses/jets-ghost/');
 });
 
 test('RSS emits only slashful public blog item URLs', async ({ request }) => {

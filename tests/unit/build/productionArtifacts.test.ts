@@ -2,6 +2,7 @@ import {
   cpSync,
   mkdirSync,
   mkdtempSync,
+  readFileSync,
   rmSync,
   writeFileSync,
 } from 'node:fs';
@@ -18,7 +19,7 @@ import {
 import {
   LITERT_LM_WASM_ASSETS,
   resolveLiteRtAssetPath,
-} from '../../../src/features/jets-ghost/runtime/liteRtAssets.server';
+} from '../../../src/features/egregore/runtime/liteRtAssets.server';
 
 const temporaryDirectories: string[] = [];
 
@@ -29,7 +30,7 @@ afterEach(() => {
 });
 
 function temporaryBuildDirectory(): string {
-  const directory = mkdtempSync(join(tmpdir(), 'jets-ghost-production-artifacts-'));
+  const directory = mkdtempSync(join(tmpdir(), 'egregore-production-artifacts-'));
   temporaryDirectories.push(directory);
   return directory;
 }
@@ -46,7 +47,7 @@ function runProductionArtifactVerifier(directory: string) {
 }
 
 function writeExactProductionSurface(directory: string): void {
-  const licensePageDirectory = join(directory, 'licenses', 'jets-ghost');
+  const licensePageDirectory = join(directory, 'licenses', 'egregore');
   const liteRtDirectory = join(
     directory,
     'assistant',
@@ -73,6 +74,7 @@ function writeExactProductionSurface(directory: string): void {
   writeFileSync(
     join(licensePageDirectory, 'index.html'),
     [
+      'Egregore model and open-source licenses',
       'Gemma 4 E2B',
       '/licenses/THIRD_PARTY_NOTICES.md',
       '/licenses/apache-2.0.txt',
@@ -101,11 +103,11 @@ describe('ordinary production artifact containment', () => {
     const markers = [
       'FakeRuntime',
       'runtime=fake',
-      '__JETS_GHOST_E2E__',
+      '__EGREGORE_E2E__',
       "Jet's published work connects local-first AI with systems thinking [S1].",
       'stop-recovery',
       'late-event',
-      'JG_SOURCE_SENTINEL_4a6c1b',
+      'EGREGORE_SOURCE_SENTINEL_4a6c1b',
     ];
     markers.forEach((marker, index) => {
       writeFileSync(join(nested, `chunk-${index}.js`), `/* ${marker} */`);
@@ -136,6 +138,26 @@ describe('ordinary production artifact containment', () => {
 
     expect(result.status).toBe(1);
     expect(result.stderr).toContain('PRODUCTION_LICENSE_ARTIFACT_MISMATCH');
+  });
+
+  it('rejects a canonical license page without the Egregore notice identity', () => {
+    const directory = temporaryBuildDirectory();
+    writeExactProductionSurface(directory);
+    const pagePath = join(directory, 'licenses', 'egregore', 'index.html');
+    writeFileSync(
+      pagePath,
+      readFileSync(pagePath, 'utf8').replace(
+        'Egregore model and open-source licenses',
+        'Local assistant model and open-source licenses',
+      ),
+    );
+
+    const result = runProductionArtifactVerifier(directory);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      'PRODUCTION_LICENSE_PAGE_INCOMPLETE:licenses/egregore/index.html:Egregore model and open-source licenses',
+    );
   });
 
   it('rejects a build that omits an emitted LiteRT runtime asset', () => {

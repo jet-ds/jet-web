@@ -44,6 +44,15 @@ describe('static production boundary', () => {
     expect(readFileSync('.gitignore', 'utf8')).not.toContain('src/config/chatbot-artifacts.json');
   });
 
+  it('publishes the maintained Egregore real-model qualification commands', () => {
+    expect(packageJson.scripts['qualify:egregore:mac']).toContain(
+      'EGREGORE_REAL_MODEL_MODE=qualification',
+    );
+    expect(packageJson.scripts['smoke:egregore']).toContain(
+      'EGREGORE_REAL_MODEL_MODE=smoke',
+    );
+  });
+
   it('uses exact trailing-slash normalization with the permanent legacy redirect', () => {
     const vercelConfig = existsSync('vercel.json')
       ? JSON.parse(readFileSync('vercel.json', 'utf8')) as unknown
@@ -75,6 +84,11 @@ describe('static production boundary', () => {
         {
           source: '/tools/chatbot/',
           destination: '/chatbot/',
+          permanent: true,
+        },
+        {
+          source: '/licenses/jets-ghost/',
+          destination: '/licenses/egregore/',
           permanent: true,
         },
       ],

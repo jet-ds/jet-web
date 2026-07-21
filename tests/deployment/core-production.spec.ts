@@ -1,9 +1,9 @@
 import { expect, test } from '@playwright/test';
 import { establishDeploymentProtectionBypass } from '../support/deploymentProtection';
 
-const expectedNoindexValue = process.env.EXPECTED_JETS_GHOST_NOINDEX;
+const expectedNoindexValue = process.env.EXPECTED_EGREGORE_NOINDEX;
 if (expectedNoindexValue !== '0' && expectedNoindexValue !== '1') {
-  throw new Error('EXPECTED_JETS_GHOST_NOINDEX must be exactly 0 or 1');
+  throw new Error('EXPECTED_EGREGORE_NOINDEX must be exactly 0 or 1');
 }
 const expectedNoindex = expectedNoindexValue === '1';
 const deploymentOrigin = new URL(
@@ -45,6 +45,22 @@ test('production preserves core containment and canonical redirects', async ({ c
   expect(legacySlashful.status()).toBe(308);
   expect(legacySlashful.headers().location).toBe('/chatbot/');
 
+  const canonicalLicenseSlashless = await request.get('/licenses/egregore', { maxRedirects: 0 });
+  expect(canonicalLicenseSlashless.status()).toBe(308);
+  expect(canonicalLicenseSlashless.headers().location).toBe('/licenses/egregore/');
+
+  const canonicalLicense = await request.get('/licenses/egregore/', { maxRedirects: 0 });
+  expect(canonicalLicense.status()).toBe(200);
+  expect(canonicalLicense.headers().location).toBeUndefined();
+
+  const legacyLicenseSlashless = await request.get('/licenses/jets-ghost', { maxRedirects: 0 });
+  expect(legacyLicenseSlashless.status()).toBe(308);
+  expect(legacyLicenseSlashless.headers().location).toBe('/licenses/jets-ghost/');
+
+  const legacyLicenseSlashful = await request.get('/licenses/jets-ghost/', { maxRedirects: 0 });
+  expect(legacyLicenseSlashful.status()).toBe(308);
+  expect(legacyLicenseSlashful.headers().location).toBe('/licenses/egregore/');
+
   const toolsSlashless = await request.get('/tools', { maxRedirects: 0 });
   expect(toolsSlashless.status()).toBe(308);
   expect(toolsSlashless.headers().location).toBe('/tools/');
@@ -72,7 +88,7 @@ test('production preserves core containment and canonical redirects', async ({ c
   expect(about.headers().location).toBe('/about/');
 });
 
-test('deployment exposes the target-gated canonical Ghost identity', async ({ page, context }) => {
+test('deployment exposes the target-gated canonical Egregore identity', async ({ page, context }) => {
   const request = context.request;
   const canonical = 'https://jetsanchez.com/chatbot/';
   const response = await page.goto('/chatbot/');
@@ -88,6 +104,7 @@ test('deployment exposes the target-gated canonical Ghost identity', async ({ pa
   const parsed = schemas.map((schema) => JSON.parse(schema) as {
     '@type'?: string;
     '@id'?: string;
+    name?: string;
     url?: string;
     hasPart?: Array<{ '@type'?: string; name?: string; url?: string }>;
   });
@@ -97,11 +114,12 @@ test('deployment exposes the target-gated canonical Ghost identity', async ({ pa
   });
   expect(parsed.find((schema) => schema['@type'] === 'SoftwareApplication')).toMatchObject({
     '@id': `${canonical}#softwareapplication`,
+    name: 'Egregore',
     url: canonical,
   });
 
   const dock = page.locator('#site-navigation-dock');
-  await expect(dock.getByRole('link', { name: "Jet's Ghost", exact: true }))
+  await expect(dock.getByRole('link', { name: 'Egregore', exact: true }))
     .toHaveAttribute('href', '/chatbot/');
   await expect(dock.getByRole('link', { name: 'Tools', exact: true })).toHaveCount(0);
 
@@ -110,7 +128,7 @@ test('deployment exposes the target-gated canonical Ghost identity', async ({ pa
   );
   expect(structuredNavigation?.hasPart).toContainEqual({
     '@type': 'WebPage',
-    name: "Jet's Ghost",
+    name: 'Egregore',
     url: canonical,
   });
   expect(structuredNavigation?.hasPart?.some(({ name }) => name === 'Tools')).toBe(false);
@@ -120,7 +138,7 @@ test('deployment exposes the target-gated canonical Ghost identity', async ({ pa
     .map((match) => match[1])
     .join('\n');
   expect(noscript).toContain('href="/chatbot/"');
-  expect(noscript).toContain("Jet&#39;s Ghost");
+  expect(noscript).toContain('Egregore');
   expect(noscript).not.toContain('href="/tools/"');
   expect(noscript).not.toContain('>Tools</a>');
 
@@ -128,6 +146,19 @@ test('deployment exposes the target-gated canonical Ghost identity', async ({ pa
   const memberships = sitemap.match(/https:\/\/jetsanchez\.com\/chatbot\//g) ?? [];
   expect(memberships).toHaveLength(expectedNoindex ? 0 : 1);
   expect(sitemap).not.toContain('https://jetsanchez.com/tools/');
+});
+
+test('deployment exposes one canonical Egregore license document', async ({ page, context }) => {
+  const canonical = 'https://jetsanchez.com/licenses/egregore/';
+  const response = await page.goto('/licenses/egregore/');
+  expect(response?.status()).toBe(200);
+  await expect(page).toHaveTitle(/Egregore model and open-source licenses/iu);
+  await expect(page.locator('meta[name="robots"]')).toHaveAttribute('content', 'index, follow');
+  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute('href', canonical);
+
+  const sitemap = await (await context.request.get('/sitemap-0.xml', { maxRedirects: 0 })).text();
+  expect(sitemap.match(/https:\/\/jetsanchez\.com\/licenses\/egregore\//gu) ?? []).toHaveLength(1);
+  expect(sitemap).not.toContain('https://jetsanchez.com/licenses/jets-ghost/');
 });
 
 test('production About has one canonical indexable identity', async ({ page, context }) => {
@@ -195,5 +226,6 @@ test('production HTTP-noindexes assistant corpus JSON only', async ({ context })
 
   const sitemap = await (await request.get('/sitemap-0.xml', { maxRedirects: 0 })).text();
   for (const path of corpusPaths) expect(sitemap).not.toContain(path);
-  expect(sitemap).toContain('https://jetsanchez.com/licenses/jets-ghost/');
+  expect(sitemap).toContain('https://jetsanchez.com/licenses/egregore/');
+  expect(sitemap).not.toContain('https://jetsanchez.com/licenses/jets-ghost/');
 });

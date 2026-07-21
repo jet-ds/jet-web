@@ -7,19 +7,20 @@ import {
 import { relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { EGREGORE_IDENTITY } from '../src/config/egregore';
 import {
   LITERT_LM_WASM_ASSETS,
   resolveLiteRtAssetPath,
-} from '../src/features/jets-ghost/runtime/liteRtAssets.server';
+} from '../src/features/egregore/runtime/liteRtAssets.server';
 
 export const FORBIDDEN_PRODUCTION_ARTIFACT_MARKERS = [
   'FakeRuntime',
   'runtime=fake',
-  '__JETS_GHOST_E2E__',
+  '__EGREGORE_E2E__',
   "Jet's published work connects local-first AI with systems thinking [S1].",
   'stop-recovery',
   'late-event',
-  'JG_SOURCE_SENTINEL_4a6c1b',
+  'EGREGORE_SOURCE_SENTINEL_4a6c1b',
 ] as const;
 
 export interface ForbiddenProductionArtifact {
@@ -95,6 +96,7 @@ const REQUIRED_LICENSE_ARTIFACTS = [
 ] as const;
 
 const REQUIRED_LICENSE_PAGE_FRAGMENTS = [
+  `${EGREGORE_IDENTITY.name} model and open-source licenses`,
   'Gemma 4 E2B',
   '/licenses/THIRD_PARTY_NOTICES.md',
   '/licenses/apache-2.0.txt',
@@ -102,6 +104,8 @@ const REQUIRED_LICENSE_PAGE_FRAGMENTS = [
   '/licenses/stemmer-2.0.1-MIT.txt',
   '/assistant/runtime/litert-lm/0.14.0/LICENSE.txt',
 ] as const;
+
+const LICENSE_PAGE_ARTIFACT = `${EGREGORE_IDENTITY.licensePath.slice(1)}index.html`;
 
 export function assertProductionLicenseArtifacts(
   directory = resolve('dist'),
@@ -120,16 +124,16 @@ export function assertProductionLicenseArtifacts(
     }
   }
 
-  const licensePagePath = resolve(root, 'licenses/jets-ghost/index.html');
+  const licensePagePath = resolve(root, LICENSE_PAGE_ARTIFACT);
   if (!existsSync(licensePagePath)) {
-    throw new Error('PRODUCTION_LICENSE_ARTIFACT_MISSING:licenses/jets-ghost/index.html');
+    throw new Error(`PRODUCTION_LICENSE_ARTIFACT_MISSING:${LICENSE_PAGE_ARTIFACT}`);
   }
 
   const licensePage = readFileSync(licensePagePath, 'utf8');
   for (const fragment of REQUIRED_LICENSE_PAGE_FRAGMENTS) {
     if (!licensePage.includes(fragment)) {
       throw new Error(
-        `PRODUCTION_LICENSE_PAGE_INCOMPLETE:licenses/jets-ghost/index.html:${fragment}`,
+        `PRODUCTION_LICENSE_PAGE_INCOMPLETE:${LICENSE_PAGE_ARTIFACT}:${fragment}`,
       );
     }
   }
@@ -161,7 +165,7 @@ if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.ur
     assertProductionLicenseArtifacts(directory);
     assertProductionRuntimeArtifacts(directory);
     process.stdout.write(
-      'Production artifacts contain no Jet\'s Ghost fake-runtime seam; the runtime and license surfaces are complete and byte-exact.\n',
+      `Production artifacts contain no ${EGREGORE_IDENTITY.name} fake-runtime seam; the runtime and license surfaces are complete and byte-exact.\n`,
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : 'UNEXPECTED_ERROR';

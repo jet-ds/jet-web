@@ -1,6 +1,6 @@
 # Jet Web 2.2.0 verification baseline
 
-**Baseline status:** Established 2026-07-21; product implementation has not begun.
+**Status:** Implementation in progress; Tasks 1 through 3 are recorded below.
 
 This record fixes the starting point for the approved `2.2.0` work. It records only release and device facts needed to evaluate the implementation; it contains no device serial, browsing history, raw logs, traces, screenshots, conversation content, or credentials.
 
@@ -33,6 +33,23 @@ The required Node 24 baseline ran with Node `v24.18.0` and npm `11.16.0`:
 ## GitHub Release record
 
 The annotated `v2.1.0` tag was read before release creation and remained at `0d59dc9210f38f5ab32dd8636604563bef8024a3` after it. The normal [jet-web 2.1.0 GitHub Release](https://github.com/jet-ds/jet-web/releases/tag/v2.1.0) was created from that existing tag at `2026-07-21T08:06:49Z`, marked Latest, and published without release assets. This records the existing deployed release bytes; it does not move the tag, alter the deployed commit, or trigger a deployment.
+
+## Egregore identity checkpoint
+
+Task 3 moved the complete maintained assistant identity to Egregore while preserving `/chatbot/`, `/chatbot/#softwareapplication`, the generic `/assistant/` artifacts, `/tools/chatbot/`, all model and runtime pins, and the released interaction behavior. `/licenses/egregore/` is now the canonical license document; the former name-bearing license route is redirect-only. Archived `2.1.0` files remain byte-identical, and no deployment or real-model download occurred during this checkpoint.
+
+The identity contracts were written before the namespace move. The focused pre-move unit command failed across all seven selected files with 19 failing expectations, including the missing identity owner and old prompt, navigation, rendered, license, and artifact identities. After implementation, the following Node 24 evidence passed:
+
+| Check | Result |
+| --- | --- |
+| Focused Egregore unit and component owners | 9 files and 126 tests passed. |
+| `npm run check` | Passed with 0 errors and 0 warnings; Astro emitted 2 existing inline-script hints. The separate prerequisite commit `030ffd3` repairs a type-only semantic-token test regression reproduced at the exact Task 3 starting commit. |
+| `npm test` | 46 test files and 548 tests passed. |
+| `npm run build` and `npm run verify:production-artifacts` | Passed; the generated license and runtime surfaces are complete and the fake-runtime seam is absent. |
+| Focused Egregore, site, and accessibility browser owners | 220 tests passed and 20 intentionally skipped. An earlier timing-sensitive lifecycle timeout passed in isolation before the complete command passed on rerun. |
+| Active documentation links | 8 documents and 94 relative links verified. |
+| Frozen `docs/archive/releases/2.1.0/` checksum | All 6 tracked files matched the pre-task SHA-1 checksum manifest. |
+| Standard `npm run verify` gate | Passed end to end after making the reload-escape unit owner independent of the intentionally rotating loading headline. |
 
 ## Physical-device baseline
 
