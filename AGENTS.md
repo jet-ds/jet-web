@@ -77,8 +77,8 @@ assistant: false
 - Public content requires `status: published`.
 - Jet's Ghost inclusion requires both `status: published` and `assistant: true`.
 - Draft, untracked, malformed, or implicitly configured content must never enter the production site or assistant corpus.
-- Blog fields include title, description, optional search title and description overrides, publication date, author, tags, publication state, assistant eligibility, and optional image metadata.
-- Work fields include title, description, optional search title and description overrides, type, date, tags, publication state, assistant eligibility, optional featured/image/link fields, and type-specific research or project fields.
+- Blog fields include title, optional short display title, description, optional card summary, optional search title and description overrides, publication date, author, tags, publication state, assistant eligibility, and optional image metadata.
+- Work fields include title, optional short display title, description, optional card summary, optional search title and description overrides, type, date, tags, publication state, assistant eligibility, optional featured/image/link fields, and type-specific research or project fields.
 - Every content image requires a stable URL and descriptive `alt` text. Blog images also record their verified intrinsic pixel `width` and `height` so custom OpenGraph metadata never borrows false default dimensions.
 - Run `npm run verify:content` after changing frontmatter or content-policy code.
 
@@ -119,7 +119,7 @@ image:
   height: 1080
 ```
 
-Work records continue to use the current works-schema image fields (`url` and `alt`) under `src/data/works/`.
+Work records use `url`, optional `darkUrl`, `alt`, and optional verified intrinsic `width` and `height` under `src/data/works/`.
 
 The About portrait is not content frontmatter. Update the direct `OptimizedImage` source in `src/pages/about.astro`, retaining the actual dimensions and descriptive alternative text.
 

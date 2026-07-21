@@ -153,6 +153,10 @@ function publishedUrls(data: Record<string, unknown>): ContentValidationRecord['
 
   if (typeof data.image === 'object' && data.image !== null && 'url' in data.image) {
     urls.push({ label: 'image.url', url: data.image.url });
+
+    if ('darkUrl' in data.image && data.image.darkUrl !== undefined) {
+      urls.push({ label: 'image.darkUrl', url: data.image.darkUrl });
+    }
   }
 
   for (const field of ['repository', 'demo'] as const) {

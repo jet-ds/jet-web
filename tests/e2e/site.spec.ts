@@ -198,7 +198,7 @@ test('homepage content cards use deliberate human-facing card copy', async ({ pa
     {
       href: '/blog/vibe-coding-vs-agentic-coding-why-the-distinction-matters/',
       title: 'Vibe Coding vs Agentic Coding',
-      description: 'Vibe coding explores ideas; agentic coding makes them survive. See how their workflows differ.',
+      description: 'Vibe coding explores ideas; agentic coding makes them survivable. Learn how these workflows differ.',
     },
     {
       href: '/works/digital-squad-timesheet/',

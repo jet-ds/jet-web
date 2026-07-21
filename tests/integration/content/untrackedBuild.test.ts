@@ -230,6 +230,10 @@ type: project
 date: 2026-07-11
 status: published
 assistant: false
+image:
+  url: https://example.com/light.png
+  darkUrl: http://example.com/dark.png
+  alt: Example theme-aware image
 links:
   - label: Reference
     url: /reference
@@ -243,6 +247,7 @@ demo: http://example.com/demo
 
       expect(result.status).toBe(1);
       expect(result.stderr).toContain('image.url must use an absolute HTTPS URL');
+      expect(result.stderr).toContain('image.darkUrl must use an absolute HTTPS URL');
       expect(result.stderr).toContain('Reference must use an absolute HTTPS URL');
       expect(result.stderr).toContain('repository must use an absolute HTTPS URL');
       expect(result.stderr).toContain('demo must use an absolute HTTPS URL');
