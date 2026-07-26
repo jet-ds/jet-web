@@ -1426,7 +1426,7 @@ describe('EgregoreExperience production composition', () => {
     if (!(form instanceof HTMLFormElement))
       throw new Error('Composer form is missing.');
 
-    expect(disclosure).toHaveClass('text-sm', 'text-text-tertiary', 'mb-2xs');
+    expect(disclosure).toBeVisible();
     expect(
       disclosure.compareDocumentPosition(form) &
         Node.DOCUMENT_POSITION_FOLLOWING,

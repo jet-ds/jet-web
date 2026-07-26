@@ -659,7 +659,7 @@ export default function EgregoreExperience({
 
   return (
     <section
-      className="egregore-shell relative flex h-[100svh] min-h-[40rem] flex-col overflow-hidden bg-bg-base text-text-primary"
+      className="egregore-shell relative flex h-[100svh] flex-col overflow-hidden bg-bg-base text-text-primary min-[48rem]:min-h-[40rem]"
       onPointerDownCapture={handlePointerDownCapture}
       onKeyDownCapture={handleInteractionKeyDownCapture}
     >
@@ -744,17 +744,17 @@ export default function EgregoreExperience({
         ].includes(status) && (
           <main
             data-testid="activation-main"
-            className="flex flex-1 items-center justify-center overflow-y-auto px-gutter py-m max-[369px]:pb-[calc(var(--space-5xl)+var(--space-s))]"
+            className="egregore-scroll-surface flex flex-1 items-center justify-center overflow-y-auto px-gutter py-m"
           >
             <div className="w-full max-w-[var(--container-3xl)] text-center">
               <AnimatedGhost
                 mode={ghostAnimationMode}
                 previousMode={previousVisibleLargeGhostMode}
               />
-              <h1 className="mx-auto max-w-[var(--container-2xl)] text-5xl font-bold leading-[1.04] text-text-primary">
+              <h1 className="mx-auto max-w-[var(--container-2xl)] text-3xl font-bold leading-[1.04] text-text-primary min-[48rem]:text-5xl">
                 Ask the part of the site that reads everything.
               </h1>
-              <p className="mx-auto mt-s max-w-[var(--container-2xl)] text-base leading-relaxed text-text-secondary">
+              <p className="mx-auto mt-xs max-w-[var(--container-2xl)] text-sm leading-relaxed text-text-secondary min-[48rem]:mt-s min-[48rem]:text-base">
                 Egregore runs frontier local AI in this browser, grounded in
                 Jet&apos;s published works. Starting it downloads about 2 GB and
                 may use substantial GPU memory.
@@ -762,7 +762,7 @@ export default function EgregoreExperience({
 
               <div
                 data-testid="activation-privacy-facts"
-                className="mx-auto mt-s flex max-w-[var(--container-xl)] flex-wrap items-center justify-center gap-x-s gap-y-2xs text-xs text-text-tertiary"
+                className="mx-auto mt-xs flex max-w-[var(--container-xl)] flex-wrap items-center justify-center gap-x-s gap-y-2xs text-xs text-text-tertiary min-[48rem]:mt-s"
               >
                 <span className="inline-flex items-center justify-center gap-3xs whitespace-nowrap">
                   <LockKeyhole aria-hidden="true" size={15} />
@@ -778,7 +778,7 @@ export default function EgregoreExperience({
                 </span>
               </div>
 
-              <div className="mt-l grid min-h-[calc(var(--space-xl)+var(--space-m)+var(--space-xs))] grid-rows-[auto_var(--space-xl)] place-items-center gap-xs">
+              <div className="mt-s grid min-h-[calc(var(--space-xl)+var(--space-m)+var(--space-xs))] grid-rows-[auto_var(--space-xl)] place-items-center gap-xs min-[48rem]:mt-l">
                 <p
                   id="egregore-activation-status"
                   data-testid="activation-status-message"
@@ -892,7 +892,7 @@ export default function EgregoreExperience({
         )}
 
         {status === 'unsupported' && (
-          <main className="flex flex-1 items-center justify-center overflow-y-auto px-gutter py-m">
+          <main className="egregore-scroll-surface flex flex-1 items-center justify-center overflow-y-auto px-gutter py-m">
             <div className="w-full max-w-[var(--container-2xl)] text-center">
               <AnimatedGhost
                 mode={ghostAnimationMode}
@@ -938,7 +938,7 @@ export default function EgregoreExperience({
         )}
 
         {(status === 'loading' || status === 'unloading') && (
-          <main className="flex flex-1 items-center justify-center px-gutter py-m">
+          <main className="egregore-scroll-surface flex flex-1 items-center justify-center overflow-y-auto px-gutter py-m">
             <div
               data-testid="loading-stack"
               className="w-full max-w-[var(--container-xl)] text-center"
@@ -998,7 +998,7 @@ export default function EgregoreExperience({
         ].includes(status) && (
           <main className="flex min-h-0 flex-1 flex-col">
             {showPreConversation ? (
-              <div className="flex flex-1 items-center justify-center overflow-y-auto px-gutter py-m">
+              <div className="egregore-scroll-surface flex flex-1 items-center justify-center overflow-y-auto px-gutter py-m">
                 <div className="w-full max-w-[var(--container-3xl)] text-center">
                   <AnimatedGhost
                     mode={ghostAnimationMode}
@@ -1010,7 +1010,7 @@ export default function EgregoreExperience({
                   <p className="mx-auto mt-xs max-w-[var(--container-xl)] text-xs text-text-tertiary min-[370px]:whitespace-nowrap">
                     Ask about Jet&apos;s writing, research, projects, or ideas.
                   </p>
-                  <div className="mx-auto mt-m grid max-w-[var(--container-2xl)] grid-cols-1 gap-xs sm:grid-cols-3">
+                  <div className="mx-auto mt-m hidden max-w-[var(--container-2xl)] grid-cols-1 gap-xs min-[48rem]:grid sm:grid-cols-3">
                     {suggestedQuestions.map((question) => (
                       <button
                         key={question}
@@ -1032,7 +1032,7 @@ export default function EgregoreExperience({
                 <div
                   ref={conversationScrollerRef}
                   data-testid="conversation-scroller"
-                  className="h-full min-h-0 overflow-y-auto px-gutter py-m"
+                  className="egregore-scroll-surface h-full min-h-0 overflow-y-auto px-gutter py-m"
                   aria-label="Conversation"
                   onScroll={handleConversationScroll}
                 >
@@ -1398,7 +1398,7 @@ function Composer({
       {showReliabilityDisclosure && (
         <p
           data-testid="composer-reliability-disclosure"
-          className="mx-auto mb-2xs max-w-[var(--container-3xl)] px-2xs text-center text-sm leading-relaxed text-text-tertiary"
+          className="mx-auto mb-2xs max-w-[var(--container-3xl)] px-2xs text-center text-xs leading-relaxed text-text-tertiary"
         >
           Egregore can make mistakes. Check cited sources.
         </p>
@@ -1766,7 +1766,7 @@ function AnimatedGhost({
     <div
       data-testid="animated-ghost-viewport"
       data-mode={mode}
-      className="relative mx-auto mb-s h-16 w-36 shrink-0 text-brand-base"
+      className="relative mx-auto mb-xs h-10 w-24 shrink-0 text-brand-base min-[48rem]:mb-s min-[48rem]:h-16 min-[48rem]:w-36"
       aria-hidden="true"
     >
       {reduceMotion ? (

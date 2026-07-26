@@ -156,6 +156,19 @@
     --space-stack-s: var(--space-2xs-xs); /* Small stacking: 6.88px → 12px */
     --space-stack-m: var(--space-xs-s); /* Medium stacking: 10.67px → 18px */
     --space-stack-l: var(--space-s-m); /* Large stacking: 16px → 27px */
+
+    /* Navigation owns the exclusion geometry consumed by immersive surfaces. */
+    --navigation-dock-offset: max(1rem, env(safe-area-inset-bottom));
+    --navigation-dock-height: 4.5rem;
+    --navigation-disclosure-height: 3rem;
+    --navigation-disclosure-raise: calc(
+      var(--navigation-dock-height) + var(--space-2xs)
+    );
+    --navigation-bottom-exclusion: calc(
+      var(--navigation-dock-offset) + var(--navigation-dock-height) +
+        var(--navigation-disclosure-height) + var(--space-s)
+    );
+    --navigation-top-clearance: 0px;
   }
 
   .dark {
@@ -514,6 +527,31 @@
 @media (prefers-reduced-motion: reduce) {
   .prose :where(a):not(:where([class~='not-prose'] *)) {
     transition: none;
+  }
+}
+
+/* One responsive owner for dock and immersive navigation clearance. */
+.site-navigation-disclosure {
+  bottom: var(--navigation-dock-offset);
+}
+
+@media (min-width: 48rem) {
+  :root {
+    --navigation-dock-height: 6.5rem;
+    --navigation-bottom-exclusion: calc(
+      var(--navigation-dock-offset) + var(--navigation-dock-height) +
+        var(--space-m)
+    );
+  }
+}
+
+@media (min-width: 64rem) {
+  :root {
+    --navigation-bottom-exclusion: 0px;
+    --navigation-top-clearance: calc(
+      var(--navigation-dock-offset) + var(--navigation-dock-height) +
+        var(--space-m)
+    );
   }
 }
 

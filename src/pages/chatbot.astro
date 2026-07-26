@@ -71,22 +71,18 @@ const noindex = process.env.VERCEL_ENV !== 'production';
 
 <style is:global>
   .egregore-header {
-    padding-top: max(var(--space-m), env(safe-area-inset-top));
-  }
-
-  .egregore-composer {
-    padding-bottom: calc(
-      var(--space-2xl) + var(--space-xl) + env(safe-area-inset-bottom)
+    padding-top: max(
+      var(--space-m),
+      var(--navigation-top-clearance),
+      env(safe-area-inset-top)
     );
   }
 
-  @media (min-width: 769px) {
-    .egregore-header {
-      padding-top: calc(var(--space-2xl) + var(--space-xl));
-    }
+  .egregore-composer {
+    padding-bottom: var(--navigation-bottom-exclusion);
+  }
 
-    .egregore-composer {
-      padding-bottom: var(--space-m);
-    }
+  .egregore-scroll-surface {
+    padding-bottom: var(--navigation-bottom-exclusion);
   }
 </style>

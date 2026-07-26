@@ -740,6 +740,99 @@ test.describe('Egregore consent and local privacy', () => {
   });
 });
 
+test.describe('Egregore compact navigation clearance', () => {
+  test('keeps activation actions visible and clear of the open dock at phone height', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 375, height: 680 });
+    await page.goto(fakePath());
+
+    const dock = page.locator('#site-navigation-dock');
+    const disclosure = page.getByRole('button', { name: 'Close navigation' });
+    const check = page.getByRole('button', { name: 'Check compatibility' });
+    await expect(disclosure).toHaveAttribute('aria-expanded', 'true');
+    await expect(check).toBeVisible();
+
+    const actionClearsNavigation = async (action: Locator) => {
+      const [actionBox, dockBox, disclosureBox] = await Promise.all([
+        boxOf(action),
+        boxOf(dock),
+        boxOf(disclosure),
+      ]);
+      expect(actionBox.y).toBeGreaterThanOrEqual(0);
+      expect(actionBox.y + actionBox.height).toBeLessThanOrEqual(680);
+      expect(actionBox.y + actionBox.height).toBeLessThanOrEqual(
+        Math.min(dockBox.y, disclosureBox.y) - 8,
+      );
+    };
+
+    await actionClearsNavigation(check);
+    await check.click();
+
+    const load = page.getByRole('button', { name: /Load Egregore/ });
+    await expect(load).toBeVisible();
+    await actionClearsNavigation(load);
+    await expect(
+      page.getByRole('button', {
+        name: 'What does Jet write about agentic work?',
+      }),
+    ).toHaveCount(0);
+  });
+
+  test('retains an explicit mobile dock choice through route, history, and breakpoint changes', async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== 'mobile-chromium');
+    await page.setViewportSize({ width: 375, height: 680 });
+    await page.goto(fakePath());
+
+    await page.getByRole('button', { name: 'Close navigation' }).click();
+    const disclosure = page.getByRole('button', { name: 'Open navigation' });
+    await expect(disclosure).toHaveAttribute('aria-expanded', 'false');
+
+    await page
+      .getByRole('link', {
+        name: 'Open Egregore model and open-source licenses',
+      })
+      .click();
+    await expect(page).toHaveURL(/\/licenses\/egregore\/$/);
+    await expect(disclosure).toHaveAttribute('aria-expanded', 'false');
+
+    await page.reload();
+    await expect(disclosure).toHaveAttribute('aria-expanded', 'false');
+    await page.goBack();
+    await expect(page).toHaveURL(/\/chatbot\//);
+    await expect(disclosure).toHaveAttribute('aria-expanded', 'false');
+    await page.goForward();
+    await expect(disclosure).toHaveAttribute('aria-expanded', 'false');
+
+    await page.setViewportSize({ width: 768, height: 680 });
+    await expect(page.getByRole('button', { name: /navigation/i })).toHaveCount(
+      0,
+    );
+    await expect(page.locator('#site-navigation-dock')).not.toHaveAttribute(
+      'inert',
+      '',
+    );
+
+    await page.setViewportSize({ width: 767, height: 680 });
+    await expect(disclosure).toHaveAttribute('aria-expanded', 'false');
+
+    await disclosure.click();
+    await expect(
+      page.getByRole('button', { name: 'Close navigation' }),
+    ).toHaveAttribute('aria-expanded', 'true');
+    await page
+      .locator('#site-navigation-dock')
+      .getByRole('link', { name: 'Home' })
+      .click();
+    await expect(page).toHaveURL(/\/$/);
+    await expect(
+      page.getByRole('button', { name: 'Close navigation' }),
+    ).toHaveAttribute('aria-expanded', 'true');
+  });
+});
+
 test.describe('Egregore supported lifecycle', () => {
   test('crossfades idle to scanning inside one fixed large-Ghost viewport', async ({
     page,
