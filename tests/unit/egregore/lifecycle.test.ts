@@ -368,7 +368,7 @@ describe('FakeRuntime', () => {
     const chunks: string[] = [];
 
     await runtime.checkCapabilities();
-    await runtime.load({});
+    await runtime.load({ modelSource: 'test-model' });
     await runtime.createSession([
       { role: 'system', content: 'PRIVATE_PREFACE' },
     ]);
@@ -556,7 +556,11 @@ describe('FakeRuntime', () => {
     });
 
     for (const [failure, invoke, code] of [
-      ['load', (runtime: FakeRuntime) => runtime.load({}), 'model-load-failed'],
+      [
+        'load',
+        (runtime: FakeRuntime) => runtime.load({ modelSource: 'test-model' }),
+        'model-load-failed',
+      ],
       [
         'generation',
         (runtime: FakeRuntime) =>

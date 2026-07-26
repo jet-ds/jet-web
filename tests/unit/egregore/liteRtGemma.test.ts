@@ -5,7 +5,10 @@ import {
 } from '../../../src/features/egregore/config';
 import { LiteRtGemmaRuntime } from '../../../src/features/egregore/runtime/liteRtGemma';
 import type { ModelSource } from '../../../src/features/egregore/runtime/modelArtifactStore';
-import type { LoadOptions } from '../../../src/features/egregore/runtime/types';
+import {
+  createRuntimeError,
+  type LoadOptions,
+} from '../../../src/features/egregore/runtime/types';
 
 interface StreamMessage {
   content?:
@@ -218,6 +221,30 @@ describe('LiteRT-LM Gemma runtime', () => {
 
     fetchSpy.mockRestore();
     digestSpy.mockRestore();
+  });
+
+  it('cleans the partial LiteRT runtime when engine creation throws a runtime error', async () => {
+    const unloadLiteRtLm = vi.fn();
+    const loadModule = vi.fn(async () => ({
+      Engine: {
+        create: vi.fn(async () => {
+          throw createRuntimeError(
+            'model-load-failed',
+            'The test engine rejected its model source.',
+            true,
+          );
+        }),
+      },
+      loadLiteRtLm: vi.fn(async () => undefined),
+      unloadLiteRtLm,
+    }));
+    const runtime = new LiteRtGemmaRuntime(loadModule as never);
+
+    await expect(
+      runtime.load({ modelSource: TEST_MODEL_SOURCE }),
+    ).rejects.toMatchObject({ code: 'model-load-failed' });
+
+    expect(unloadLiteRtLm).toHaveBeenCalledOnce();
   });
 
   it('caps sessions at the reserved output budget without consuming estimator headroom', async () => {

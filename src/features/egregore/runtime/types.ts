@@ -30,7 +30,7 @@ export type RuntimeLoadPhase = 'runtime' | 'model';
 
 export interface LoadOptions {
   onPhase?: (phase: RuntimeLoadPhase) => void;
-  modelSource?: ModelSource;
+  modelSource: ModelSource;
 }
 
 export interface ModelMessage {

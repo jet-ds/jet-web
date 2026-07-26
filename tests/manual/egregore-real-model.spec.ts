@@ -46,7 +46,10 @@ interface ActivationMeasurement {
   corpusMs: number;
   indexMs: number;
   modelTransferMs: number | null;
-  validationHydrationMs: number;
+  cacheCommitMs: number | null;
+  cacheRereadMs: number | null;
+  liteRtWasmMs: number | null;
+  engineReadyAfterWasmMs: number | null;
   corpusVersion: string;
   indexConfigVersion: string;
 }
@@ -55,6 +58,20 @@ interface DeviceObservation {
   adapterIdentifiers: string[];
   deviceLossCount: number;
   deviceRequestCount: number;
+  instrumentationFailed: boolean;
+  jsHeapUsedBytes: number | null;
+  deviceMemoryGiB: number | null;
+  thermalState: 'not-exposed-by-browser';
+}
+
+interface CacheOperationSpan {
+  startedAt: number;
+  finishedAt: number;
+}
+
+interface CacheObservation {
+  modelCacheMatches: CacheOperationSpan[];
+  modelCacheWrites: CacheOperationSpan[];
   instrumentationFailed: boolean;
 }
 
@@ -379,6 +396,9 @@ async function installDeviceObservation(page: Page): Promise<void> {
       deviceLossCount: 0,
       deviceRequestCount: 0,
       instrumentationFailed: false,
+      jsHeapUsedBytes: null,
+      deviceMemoryGiB: null,
+      thermalState: 'not-exposed-by-browser',
     };
     (window as ObservationWindow).__EGREGORE_DEVICE_OBSERVATION__ = state;
 
@@ -429,16 +449,129 @@ async function installDeviceObservation(page: Page): Promise<void> {
 }
 
 async function deviceObservation(page: Page): Promise<DeviceObservation> {
+  return page.evaluate(() => {
+    const state = (
+      window as typeof window & {
+        __EGREGORE_DEVICE_OBSERVATION__?: DeviceObservation;
+      }
+    ).__EGREGORE_DEVICE_OBSERVATION__ ?? {
+      adapterIdentifiers: [],
+      deviceLossCount: 0,
+      deviceRequestCount: 0,
+      instrumentationFailed: true,
+      jsHeapUsedBytes: null,
+      deviceMemoryGiB: null,
+      thermalState: 'not-exposed-by-browser' as const,
+    };
+    const memory = performance as Performance & {
+      memory?: { usedJSHeapSize?: unknown };
+    };
+    const navigatorWithMemory = navigator as Navigator & {
+      deviceMemory?: unknown;
+    };
+    return {
+      ...state,
+      jsHeapUsedBytes:
+        typeof memory.memory?.usedJSHeapSize === 'number'
+          ? memory.memory.usedJSHeapSize
+          : null,
+      deviceMemoryGiB:
+        typeof navigatorWithMemory.deviceMemory === 'number'
+          ? navigatorWithMemory.deviceMemory
+          : null,
+    };
+  });
+}
+
+async function installCacheObservation(page: Page): Promise<void> {
+  await page.addInitScript((cacheKeyPath) => {
+    type ObservationWindow = typeof window & {
+      __EGREGORE_CACHE_OBSERVATION__?: CacheObservation;
+    };
+    const state: CacheObservation = {
+      modelCacheMatches: [],
+      modelCacheWrites: [],
+      instrumentationFailed: false,
+    };
+    (window as ObservationWindow).__EGREGORE_CACHE_OBSERVATION__ = state;
+
+    const requestUrl = (input: RequestInfo | URL): string | null => {
+      if (typeof input === 'string' || input instanceof URL)
+        return input.toString();
+      return input.url;
+    };
+    const isModelRequest = (input: RequestInfo | URL): boolean => {
+      try {
+        return new URL(
+          requestUrl(input) ?? '',
+          location.href,
+        ).pathname.startsWith(cacheKeyPath);
+      } catch {
+        return false;
+      }
+    };
+    const observe = async <T>(
+      input: RequestInfo | URL,
+      spans: CacheOperationSpan[],
+      operation: () => Promise<T>,
+    ): Promise<T> => {
+      if (!isModelRequest(input)) return operation();
+      const startedAt = performance.now();
+      try {
+        return await operation();
+      } finally {
+        spans.push({ startedAt, finishedAt: performance.now() });
+      }
+    };
+
+    try {
+      const originalMatch = Cache.prototype.match;
+      Cache.prototype.match = function (
+        request: RequestInfo | URL,
+        options?: CacheQueryOptions,
+      ) {
+        return observe(request, state.modelCacheMatches, () =>
+          originalMatch.call(this, request, options),
+        );
+      };
+      const originalPut = Cache.prototype.put;
+      Cache.prototype.put = function (
+        request: RequestInfo | URL,
+        response: Response,
+      ) {
+        return observe(request, state.modelCacheWrites, () =>
+          originalPut.call(this, request, response),
+        );
+      };
+    } catch {
+      state.instrumentationFailed = true;
+    }
+  }, '/__egregore-model__/');
+}
+
+async function resetCacheObservation(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const state = (
+      window as typeof window & {
+        __EGREGORE_CACHE_OBSERVATION__?: CacheObservation;
+      }
+    ).__EGREGORE_CACHE_OBSERVATION__;
+    if (state === undefined) throw new Error('CACHE_OBSERVATION_MISSING');
+    state.modelCacheMatches = [];
+    state.modelCacheWrites = [];
+  });
+}
+
+async function cacheObservation(page: Page): Promise<CacheObservation> {
   return page.evaluate(
     () =>
       (
         window as typeof window & {
-          __EGREGORE_DEVICE_OBSERVATION__?: DeviceObservation;
+          __EGREGORE_CACHE_OBSERVATION__?: CacheObservation;
         }
-      ).__EGREGORE_DEVICE_OBSERVATION__ ?? {
-        adapterIdentifiers: [],
-        deviceLossCount: 0,
-        deviceRequestCount: 0,
+      ).__EGREGORE_CACHE_OBSERVATION__ ?? {
+        modelCacheMatches: [],
+        modelCacheWrites: [],
         instrumentationFailed: true,
       },
   );
@@ -737,6 +870,7 @@ async function activationMeasurement(
 ): Promise<ActivationMeasurement> {
   const mark = ledger.mark();
   const startedAt = performance.now();
+  await resetCacheObservation(page);
   await clickLoadAfterConsentAudit(
     page,
     ledger,
@@ -757,6 +891,8 @@ async function activationMeasurement(
   );
   const readyAt = performance.now();
   const observations = ledger.since(mark);
+  const cache = await cacheObservation(page);
+  contentFreeAssert(!cache.instrumentationFailed, 'CACHE_OBSERVATION_FAILED');
   const origin = new URL(page.url()).origin;
   const manifestObservation = observationForPath(
     observations,
@@ -811,6 +947,20 @@ async function activationMeasurement(
     applicationOrigin,
   );
 
+  const cacheCommit = cache.modelCacheWrites.at(-1) ?? null;
+  const cacheRereadCandidates = cache.modelCacheMatches.filter(
+    (span) => cacheCommit === null || span.startedAt >= cacheCommit.finishedAt,
+  );
+  const cacheReread = cacheRereadCandidates.at(-1) ?? null;
+  const wasmObservations = observations.filter(({ request }) =>
+    new URL(request.url()).pathname.startsWith(EGREGORE_PATHS.liteRtWasm),
+  );
+  const wasmFinishedAt = wasmObservations.length
+    ? Math.max(
+        ...wasmObservations.map(({ finishedAt }) => finishedAt ?? readyAt),
+      )
+    : null;
+
   return {
     engineReadyMs: roundMilliseconds(readyAt - startedAt),
     corpusMs: requestDuration(contentObservation),
@@ -822,9 +972,28 @@ async function activationMeasurement(
             modelTransfer.modelTransferFinishedAt -
               modelTransfer.modelTransferStartedAt,
           ),
-    validationHydrationMs: roundMilliseconds(
-      readyAt - (modelTransfer?.modelTransferFinishedAt ?? startedAt),
-    ),
+    cacheCommitMs:
+      cacheCommit === null
+        ? null
+        : roundMilliseconds(cacheCommit.finishedAt - cacheCommit.startedAt),
+    cacheRereadMs:
+      cacheReread === null
+        ? null
+        : roundMilliseconds(cacheReread.finishedAt - cacheReread.startedAt),
+    liteRtWasmMs:
+      wasmObservations.length === 0
+        ? null
+        : roundMilliseconds(
+            Math.max(
+              ...wasmObservations.map(
+                ({ finishedAt }) => finishedAt ?? readyAt,
+              ),
+            ) - Math.min(...wasmObservations.map(({ startedAt }) => startedAt)),
+          ),
+    engineReadyAfterWasmMs:
+      wasmFinishedAt === null
+        ? null
+        : roundMilliseconds(readyAt - wasmFinishedAt),
     corpusVersion: manifest.corpusVersion,
     indexConfigVersion: manifest.indexConfigVersion,
   };
@@ -836,12 +1005,16 @@ function printActivation(
 ): void {
   console.info(
     [
-      label,
+      'span=activation',
+      `phase=${label}`,
       `engine-ready-ms=${measurement.engineReadyMs}`,
       `model-transfer-ms=${measurement.modelTransferMs ?? 'cache-reuse'}`,
       `corpus-ms=${measurement.corpusMs}`,
       `index-ms=${measurement.indexMs}`,
-      `validation/hydration-ms=${measurement.validationHydrationMs}`,
+      `cache-commit-ms=${measurement.cacheCommitMs ?? 'not-observed'}`,
+      `cache-reread-ms=${measurement.cacheRereadMs ?? 'not-observed'}`,
+      `litert-wasm-ms=${measurement.liteRtWasmMs ?? 'not-observed'}`,
+      `engine-ready-after-wasm-ms=${measurement.engineReadyAfterWasmMs ?? 'not-observed'}`,
       `corpus-version=${measurement.corpusVersion}`,
       `index-config-version=${measurement.indexConfigVersion}`,
       `runtime-config-version=${EGREGORE_MODEL.packageVersion}`,
@@ -891,7 +1064,11 @@ async function runVisitorCase(
   visitorCase: VisitorCase,
 ): Promise<string[]> {
   const caseFailures: string[] = [];
+  const sessionStartedAt = performance.now();
   await newSession(page);
+  const sessionReadyMs = roundMilliseconds(
+    performance.now() - sessionStartedAt,
+  );
   const startedAt = performance.now();
   const composer = page.getByRole('textbox', { name: 'Ask Egregore' });
   await composer.fill(visitorCase.question);
@@ -980,8 +1157,11 @@ async function runVisitorCase(
 
     console.info(
       [
+        'span=visitor-case',
         `case=${visitorCase.id}`,
-        `first-token-ms=${firstTokenMs}`,
+        `session-ready-ms=${sessionReadyMs}`,
+        `retrieval-prompt-first-token-ms=${firstTokenMs}`,
+        `generation-after-first-token-ms=${Math.max(0, totalResponseMs - firstTokenMs)}`,
         `total-response-ms=${totalResponseMs}`,
         `citation-resolved=${citationResolved}`,
         `abstention=${abstention}`,
@@ -1002,6 +1182,17 @@ async function unloadAndAssertSettled(page: Page): Promise<void> {
     0,
   );
   await expect(page.getByTestId('conversation-scroller')).toHaveCount(0);
+}
+
+async function assertModelCacheStorageAbsent(page: Page): Promise<void> {
+  const modelCacheNames = await page.evaluate(async () => {
+    if (!('caches' in window)) throw new Error('CACHE_STORAGE_UNAVAILABLE');
+    return (await window.caches.keys()).filter((name) =>
+      name.startsWith('egregore-model-'),
+    );
+  });
+  contentFreeAssert(modelCacheNames.length === 0, 'MODEL_CACHE_STILL_PRESENT');
+  console.info('observation=cache-storage-removal result=absent');
 }
 
 async function assertCompatibilityDoesNotLoadAssistant(
@@ -1134,6 +1325,7 @@ async function qualificationCloseout(
   page.once('dialog', (dialog) => dialog.accept());
   await removeDownloadedModel.click();
   await expect(page.getByText('Downloaded model removed.')).toBeVisible();
+  await assertModelCacheStorageAbsent(page);
   await unloadAndAssertSettled(page);
 }
 
@@ -1497,6 +1689,17 @@ async function printEnvironment(
       `adapter=${adapters.join(',') || 'unavailable'}`,
     ].join(' '),
   );
+  console.info(
+    [
+      'observation=memory-thermal',
+      `js-heap-used-bytes=${device.jsHeapUsedBytes ?? 'not-exposed'}`,
+      `device-memory-gib=${device.deviceMemoryGiB ?? 'not-exposed'}`,
+      `thermal-state=${device.thermalState}`,
+      `renderer-termination=${
+        device.deviceLossCount === 0 ? 'not-observed' : 'device-loss-observed'
+      }`,
+    ].join(' '),
+  );
 }
 
 test.skip(
@@ -1525,6 +1728,7 @@ test('qualifies Egregore with the real local model', async ({
     process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
   );
   await installDeviceObservation(page);
+  await installCacheObservation(page);
   await installConsentAudit(page);
   await page.goto(EGREGORE_PATH);
   await assertFreshApplicationStorage(page);

@@ -498,18 +498,17 @@ describe('useEgregore activation boundary', () => {
     expect(result.current.state.lifecycle.status).toBe('awaiting-consent');
   });
 
-  it('retries with the uncached model URL only after a recoverable cache preflight failure', async () => {
+  it('surfaces an unavailable cache preflight before the visitor continues with an uncached URL', async () => {
     const useEgregore = await loadSubject();
     const modelArtifactStore: ModelArtifactStore = {
-      hasCurrent: vi.fn(async () => false),
-      resolveForLoad: vi
-        .fn()
-        .mockRejectedValueOnce(new ModelArtifactStoreUnavailableError())
-        .mockResolvedValueOnce({
-          kind: 'uncached-url',
-          source: 'https://models.example/fixture.litertlm',
-          reason: 'cache-unavailable',
-        }),
+      hasCurrent: vi.fn(async () => {
+        throw new ModelArtifactStoreUnavailableError();
+      }),
+      resolveForLoad: vi.fn(async () => ({
+        kind: 'uncached-url' as const,
+        source: 'https://models.example/fixture.litertlm',
+        reason: 'cache-unavailable' as const,
+      })),
       removeCurrent: vi.fn(async () => undefined),
     };
     const harness = createHarness({ modelArtifactStore });
@@ -517,22 +516,16 @@ describe('useEgregore activation boundary', () => {
 
     await act(async () => {
       await result.current.checkCompatibility();
-      await result.current.load();
     });
 
-    expect(result.current.state.lifecycle.status).toBe('load-error');
+    expect(result.current.state.lifecycle.status).toBe('awaiting-consent');
     expect(result.current.state.modelCache).toBe('unavailable');
-    expect(harness.repository.load).not.toHaveBeenCalled();
 
     await act(async () => {
-      result.current.recoverFromError();
       await result.current.load();
     });
 
-    expect(modelArtifactStore.resolveForLoad).toHaveBeenNthCalledWith(1, {
-      allowUncached: false,
-    });
-    expect(modelArtifactStore.resolveForLoad).toHaveBeenNthCalledWith(2, {
+    expect(modelArtifactStore.resolveForLoad).toHaveBeenCalledWith({
       allowUncached: true,
     });
     expect(result.current.state.lifecycle.status).toBe('ready');
@@ -572,6 +565,39 @@ describe('useEgregore activation boundary', () => {
     expect(harness.runtime.calls.map(({ method }) => method)).not.toContain(
       'unload',
     );
+  });
+
+  it('keeps a known downloaded model removable after unloading Egregore', async () => {
+    const useEgregore = await loadSubject();
+    const modelArtifactStore: ModelArtifactStore = {
+      hasCurrent: vi.fn(async () => true),
+      resolveForLoad: vi.fn(async () => ({
+        kind: 'cached' as const,
+        source: new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.close();
+          },
+        }),
+      })),
+      removeCurrent: vi.fn(async () => undefined),
+    };
+    const harness = createHarness({ modelArtifactStore });
+    const { result } = renderHook(() => useEgregore(harness.dependencies));
+    await makeReady(result);
+
+    await act(async () => {
+      await result.current.unload();
+    });
+
+    expect(result.current.state.lifecycle.status).toBe('idle');
+    expect(result.current.state.modelCache).toBe('available');
+
+    await act(async () => {
+      await result.current.removeDownloadedModel();
+    });
+
+    expect(modelArtifactStore.removeCurrent).toHaveBeenCalledOnce();
+    expect(result.current.state.modelCache).toBe('empty');
   });
 
   it('keeps supported warnings advisory while sanitizing capability messages', async () => {
@@ -1326,6 +1352,46 @@ describe('useEgregore activation boundary', () => {
 });
 
 describe('EgregoreExperience production composition', () => {
+  it('keeps a known downloaded model removable after a runtime load error', async () => {
+    const modelArtifactStore: ModelArtifactStore = {
+      hasCurrent: vi.fn(async () => true),
+      resolveForLoad: vi.fn(async () => ({
+        kind: 'cached' as const,
+        source: new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.close();
+          },
+        }),
+      })),
+      removeCurrent: vi.fn(async () => undefined),
+    };
+    const harness = createHarness({
+      modelArtifactStore,
+      runtimeFailures: { load: true },
+    });
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    render(<EgregoreExperience dependencies={harness.dependencies} />);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Check compatibility' }),
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Load Egregore/ }),
+    );
+
+    const remove = await screen.findByRole('button', {
+      name: 'Remove downloaded model',
+    });
+    fireEvent.click(remove);
+
+    await waitFor(() =>
+      expect(modelArtifactStore.removeCurrent).toHaveBeenCalledOnce(),
+    );
+    expect(confirm).toHaveBeenCalledWith(
+      'Remove the downloaded Egregore model from this browser?',
+    );
+  });
+
   it('confirms and announces explicit downloaded-model removal without unloading Egregore', async () => {
     const modelArtifactStore: ModelArtifactStore = {
       hasCurrent: vi.fn(async () => true),

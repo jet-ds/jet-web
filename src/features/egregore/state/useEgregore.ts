@@ -253,7 +253,7 @@ export function useEgregore(
           ? 'available'
           : 'empty';
       } catch {
-        // The visitor-controlled load action owns the uncached recovery path.
+        modelCache = 'unavailable';
       }
       const report = sanitizeCapabilityReport(
         await runtimeRef.current!.checkCapabilities(),
@@ -666,7 +666,12 @@ export function useEgregore(
         if (mountedRef.current) setLoading(null);
         if (failures.length === 0) {
           activationStartedRef.current = false;
-          if (!unmounted) commit(initialState());
+          if (!unmounted) {
+            commit({
+              ...initialState(),
+              modelCache: stateRef.current.modelCache,
+            });
+          }
           return;
         }
 

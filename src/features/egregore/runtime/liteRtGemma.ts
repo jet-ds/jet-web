@@ -79,6 +79,13 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
   }
 
   async load(options: LoadOptions): Promise<void> {
+    if (options.modelSource === undefined) {
+      throw createRuntimeError(
+        'model-load-failed',
+        'Egregore did not receive a local model source.',
+        true,
+      );
+    }
     if (
       this.activeLoad ||
       this.engine ||
@@ -128,13 +135,6 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
       }
 
       options.onPhase?.('model');
-      if (options.modelSource === undefined) {
-        throw createRuntimeError(
-          'model-load-failed',
-          'Egregore did not receive a local model source.',
-          true,
-        );
-      }
       engine = await liteRt.Engine.create({
         model: options.modelSource,
         mainExecutorSettings: {
@@ -151,13 +151,13 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
 
       this.engine = engine;
     } catch (cause) {
-      if (isRuntimeError(cause)) throw cause;
-
+      if (isCleanupRuntimeError(cause)) throw cause;
       this.engine = null;
       this.liteRt = null;
       this.adoptPendingCleanup(engine, liteRt);
       const failures = await this.cleanupPendingResources();
       if (failures.length > 0) throw cleanupRuntimeError(failures);
+      if (isRuntimeError(cause)) throw cause;
       throw createRuntimeError(
         'model-load-failed',
         'Egregore could not load the local model.',

@@ -368,8 +368,7 @@ export default function EgregoreExperience({
     (status === 'generation-error' &&
       egregore.state.error?.code === 'conversation-limit-reached');
   const canUnload = showHeaderActions && status !== 'unloading';
-  const canRemoveDownloadedModel =
-    showHeaderActions && egregore.state.modelCache === 'available';
+  const canRemoveDownloadedModel = egregore.state.modelCache === 'available';
   const ghostAnimationMode = getGhostAnimationMode(status);
   const visibleLargeGhostMode =
     [
@@ -736,6 +735,18 @@ export default function EgregoreExperience({
           data-testid="egregore-header-actions"
           className="flex items-center gap-3xs sm:gap-2xs"
         >
+          {canRemoveDownloadedModel && (
+            <button
+              type="button"
+              onClick={handleRemoveDownloadedModel}
+              data-action-variant="ghost"
+              data-action-density="compact"
+              className="action action--ghost action--compact text-sm text-text-secondary hover:text-text-primary"
+            >
+              <Trash2 aria-hidden="true" size={16} />
+              <span className="sr-only">Remove downloaded model</span>
+            </button>
+          )}
           {showHeaderActions && (
             <>
               <button
@@ -750,18 +761,6 @@ export default function EgregoreExperience({
                 <span className="hidden sm:inline">New session</span>
                 <span className="sr-only sm:hidden">Start a new session</span>
               </button>
-              {canRemoveDownloadedModel && (
-                <button
-                  type="button"
-                  onClick={handleRemoveDownloadedModel}
-                  data-action-variant="ghost"
-                  data-action-density="compact"
-                  className="action action--ghost action--compact text-sm text-text-secondary hover:text-text-primary"
-                >
-                  <Trash2 aria-hidden="true" size={16} />
-                  <span className="sr-only">Remove downloaded model</span>
-                </button>
-              )}
               <button
                 type="button"
                 onClick={handleUnload}

@@ -166,7 +166,7 @@ describe('Egregore fake browser scenarios', () => {
 
     await runtime.checkCapabilities();
     recorder.record('repository.load');
-    await runtime.load({});
+    await runtime.load({ modelSource: 'test-model' });
     await runtime.createSession([
       { role: 'system', content: 'PRIVATE_PREFACE' },
     ]);
@@ -240,7 +240,10 @@ describe('Egregore fake browser scenarios', () => {
     );
 
     await runtime.checkCapabilities();
-    await runtime.load({ onPhase: () => undefined });
+    await runtime.load({
+      modelSource: 'test-model',
+      onPhase: () => undefined,
+    });
     await runtime.createSession([
       { role: 'system', content: 'PRIVATE_PREFACE' },
     ]);
@@ -311,7 +314,7 @@ describe('Egregore fake browser scenarios', () => {
     });
 
     let loadSettled = false;
-    const loading = runtime.load({}).then(() => {
+    const loading = runtime.load({ modelSource: 'test-model' }).then(() => {
       loadSettled = true;
     });
     await Promise.resolve();

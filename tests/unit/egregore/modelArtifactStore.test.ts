@@ -269,6 +269,32 @@ describe('Egregore model artifact store', () => {
     expect(fetchModel).toHaveBeenCalledOnce();
   });
 
+  it('maps cache read failures to the same visitor-authorized uncached retry', async () => {
+    const model = modelFixture();
+    const cacheStorage = new MemoryCacheStorage();
+    const cache = await cacheStorage.open(cacheName(model));
+    cache.match = vi.fn(async () => {
+      throw new DOMException('Cache read failed.', 'InvalidStateError');
+    });
+    const fetchModel = vi.fn<typeof fetch>();
+    const store = makeStore(cacheStorage, model, { fetch: fetchModel });
+
+    await expect(store.hasCurrent()).rejects.toBeInstanceOf(
+      ModelArtifactStoreUnavailableError,
+    );
+    await expect(
+      store.resolveForLoad({ allowUncached: false }),
+    ).rejects.toBeInstanceOf(ModelArtifactStoreUnavailableError);
+    await expect(
+      store.resolveForLoad({ allowUncached: true }),
+    ).resolves.toEqual({
+      kind: 'uncached-url',
+      source: model.url,
+      reason: 'cache-unavailable',
+    });
+    expect(fetchModel).not.toHaveBeenCalled();
+  });
+
   it('removes the downloaded model only when explicitly requested', async () => {
     const model = modelFixture();
     const cacheStorage = new MemoryCacheStorage();
@@ -279,6 +305,7 @@ describe('Egregore model artifact store', () => {
     await expect(store.hasCurrent()).resolves.toBe(true);
     await store.removeCurrent();
 
+    expect(await cacheStorage.keys()).toEqual([]);
     await expect(store.hasCurrent()).resolves.toBe(false);
   });
 });

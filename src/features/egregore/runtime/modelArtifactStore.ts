@@ -103,10 +103,23 @@ export function createModelArtifactStore(
   const cacheKey = modelCacheKey(model);
   let mustUseUncachedUrl = false;
 
+  const cacheUnavailable = (): never => {
+    mustUseUncachedUrl = true;
+    throw new ModelArtifactStoreUnavailableError();
+  };
+
+  const useCache = async <T>(operation: () => Promise<T>): Promise<T> => {
+    try {
+      return await operation();
+    } catch {
+      return cacheUnavailable();
+    }
+  };
+
   const getCache = async (): Promise<Cache> => {
     if (cacheStorage === undefined)
       throw new ModelArtifactStoreUnavailableError();
-    try {
+    return useCache(async () => {
       const names = await cacheStorage.keys();
       await Promise.all(
         names
@@ -117,16 +130,13 @@ export function createModelArtifactStore(
           .map((name) => cacheStorage.delete(name)),
       );
       return await cacheStorage.open(currentCacheName);
-    } catch {
-      mustUseUncachedUrl = true;
-      throw new ModelArtifactStoreUnavailableError();
-    }
+    });
   };
 
   return {
     async hasCurrent(): Promise<boolean> {
       const cache = await getCache();
-      const response = await cache.match(cacheKey);
+      const response = await useCache(() => cache.match(cacheKey));
       return response?.body !== null && response !== undefined;
     },
 
@@ -159,7 +169,7 @@ export function createModelArtifactStore(
         throw cause;
       }
 
-      const cached = await cache.match(cacheKey);
+      const cached = await useCache(() => cache.match(cacheKey));
       if (cached?.body !== null && cached !== undefined) {
         return { kind: 'cached', source: cached.body };
       }
@@ -179,9 +189,8 @@ export function createModelArtifactStore(
       }
 
       try {
-        await cache.put(cacheKey, response);
+        await useCache(() => cache.put(cacheKey, response));
       } catch {
-        mustUseUncachedUrl = true;
         if (allowUncached) {
           return {
             kind: 'uncached-url',
@@ -192,7 +201,7 @@ export function createModelArtifactStore(
         throw new ModelArtifactStoreUnavailableError();
       }
 
-      const committed = await cache.match(cacheKey);
+      const committed = await useCache(() => cache.match(cacheKey));
       if (committed?.body === null || committed === undefined) {
         throw new Error('Egregore could not read the downloaded local model.');
       }
@@ -200,13 +209,9 @@ export function createModelArtifactStore(
     },
 
     async removeCurrent(): Promise<void> {
-      if (cacheStorage === undefined) return;
-      try {
-        const cache = await cacheStorage.open(currentCacheName);
-        await cache.delete(cacheKey);
-      } catch {
+      if (cacheStorage === undefined)
         throw new ModelArtifactStoreUnavailableError();
-      }
+      await useCache(() => cacheStorage.delete(currentCacheName));
     },
   };
 }
