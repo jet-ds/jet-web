@@ -11,6 +11,7 @@ export const FAKE_SCENARIOS = [
   'unload-failure',
   'loading',
   'unloading',
+  'cached',
   'crossfade',
   'long-stream',
   'stop-recovery',
@@ -47,6 +48,7 @@ export interface FakeScenarioConfiguration {
   chunkDelayMs?: number;
   exhaustAfterCompletedGenerations?: number;
   emitLateChunkAfterCancellation?: boolean;
+  modelCached?: boolean;
 }
 
 const DEFAULT_RESPONSE_CHUNKS = [
@@ -100,6 +102,8 @@ export function getFakeScenarioConfiguration(
       return { responseChunks: DEFAULT_RESPONSE_CHUNKS, loadDelayMs: 60_000 };
     case 'unloading':
       return { responseChunks: DEFAULT_RESPONSE_CHUNKS, unloadDelayMs: 5_000 };
+    case 'cached':
+      return { responseChunks: DEFAULT_RESPONSE_CHUNKS, modelCached: true };
     case 'crossfade':
       return {
         responseChunks: DEFAULT_RESPONSE_CHUNKS,

@@ -210,12 +210,18 @@ function createTestBuildDependencies(): EgregoreDependencies {
         configuration.emitLateChunkAfterCancellation,
     });
     const modelArtifactStore = {
-      hasCurrent: async () => false,
-      resolveForLoad: async () => ({
-        kind: 'uncached-url' as const,
-        source: 'https://example.invalid/egregore-fake-model.litertlm',
-        reason: 'cache-unavailable' as const,
-      }),
+      hasCurrent: async () => configuration.modelCached === true,
+      resolveForLoad: async () =>
+        configuration.modelCached === true
+          ? {
+              kind: 'cached' as const,
+              source: new Blob(['egregore-fake-model']).stream(),
+            }
+          : {
+              kind: 'uncached-url' as const,
+              source: 'https://example.invalid/egregore-fake-model.litertlm',
+              reason: 'cache-unavailable' as const,
+            },
       removeCurrent: async () => undefined,
     };
     const repository = new StaticKnowledgeRepository();
@@ -762,8 +768,8 @@ export default function EgregoreExperience({
       onPointerDownCapture={handlePointerDownCapture}
       onKeyDownCapture={handleInteractionKeyDownCapture}
     >
-      <header className="egregore-header relative z-10 flex items-center justify-between gap-s px-gutter">
-        <div className="flex min-w-0 items-start gap-xs">
+      <header className="egregore-header relative z-10 flex items-center justify-between gap-s px-gutter max-[399px]:gap-2xs">
+        <div className="flex min-w-0 items-start gap-xs max-[399px]:gap-3xs">
           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-border-default bg-surface-base text-brand-base shadow-xs">
             <Ghost aria-hidden="true" size={24} strokeWidth={1.8} />
           </span>

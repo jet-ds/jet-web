@@ -43,6 +43,7 @@ type FakeScenario =
   | 'unload-failure'
   | 'loading'
   | 'unloading'
+  | 'cached'
   | 'crossfade'
   | 'long-stream'
   | 'stop-recovery'
@@ -1709,6 +1710,103 @@ test.describe('Egregore supported lifecycle', () => {
         ),
       ).toBe(0);
     }
+  });
+
+  test('keeps cached-model controls and complete identity metadata visible at the narrow phone width', async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium');
+    await page.setViewportSize({ width: 375, height: 720 });
+    await startFakeAssistant(page, 'cached');
+
+    const header = page.locator('.egregore-header');
+    const identity = page.getByTestId('egregore-identity');
+    const metadata = identity.locator('p').nth(1);
+    const actionGroup = page.getByTestId('egregore-header-actions');
+    const version = metadata.locator('span').first();
+    const licenses = metadata.getByRole('link', { name: /licenses/i });
+
+    await expect(version).toHaveText(/^jet-web \d+\.\d+\.\d+$/);
+    await expect(licenses).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Remove downloaded model' }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Start a new session' }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('button', { name: 'Unload Egregore' }),
+    ).toBeVisible();
+
+    const [headerBox, metadataBox, versionBox, licensesBox, actionBox] =
+      await Promise.all([
+        boxOf(header),
+        boxOf(metadata),
+        boxOf(version),
+        boxOf(licenses),
+        boxOf(actionGroup),
+      ]);
+    const naturalVersionWidth = await version.evaluate((element) => {
+      const range = document.createRange();
+      range.selectNodeContents(element);
+      return range.getBoundingClientRect().width;
+    });
+    expect(versionBox.x).toBeGreaterThanOrEqual(metadataBox.x - 1);
+    expect(versionBox.width).toBeGreaterThanOrEqual(naturalVersionWidth - 1);
+    expect(licensesBox.x + licensesBox.width).toBeLessThanOrEqual(
+      metadataBox.x + metadataBox.width + 1,
+    );
+    expect(actionBox.x + actionBox.width).toBeLessThanOrEqual(
+      headerBox.x + headerBox.width + 1,
+    );
+    expect(
+      await page.evaluate(
+        () =>
+          document.documentElement.scrollWidth -
+          document.documentElement.clientWidth,
+      ),
+    ).toBe(0);
+  });
+
+  test('keeps the immersive document within the small viewport while browser chrome is visible', async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium');
+    await page.setViewportSize({ width: 375, height: 720 });
+    const session = await page.context().newCDPSession(page);
+    await session.send('Emulation.setSmallViewportHeightDifferenceOverride', {
+      difference: 56,
+    });
+    await page.goto(fakePath());
+
+    const dimensions = await page.evaluate(() => {
+      const measure = (height: string) => {
+        const element = document.createElement('div');
+        element.style.cssText = `position:fixed;height:${height};pointer-events:none`;
+        document.body.append(element);
+        const pixels = Math.round(element.getBoundingClientRect().height);
+        element.remove();
+        return pixels;
+      };
+
+      return {
+        documentHeight: document.documentElement.scrollHeight,
+        bodyHeight: document.body.scrollHeight,
+        shellHeight: Math.round(
+          document.querySelector('.egregore-shell')!.getBoundingClientRect()
+            .height,
+        ),
+        smallViewportHeight: measure('100svh'),
+        largeViewportHeight: measure('100lvh'),
+      };
+    });
+
+    expect(
+      dimensions.largeViewportHeight - dimensions.smallViewportHeight,
+    ).toBe(56);
+    expect(dimensions.shellHeight).toBe(dimensions.smallViewportHeight);
+    expect(dimensions.documentHeight).toBe(dimensions.shellHeight);
+    expect(dimensions.bodyHeight).toBe(dimensions.shellHeight);
   });
 
   test('contains every compact lifecycle label inside the status and header', async ({

@@ -88,6 +88,7 @@ describe('Egregore fake browser scenarios', () => {
       'unload-failure',
       'loading',
       'unloading',
+      'cached',
       'crossfade',
       'long-stream',
       'stop-recovery',
@@ -122,6 +123,9 @@ describe('Egregore fake browser scenarios', () => {
     });
     expect(getFakeScenarioConfiguration('unloading')).toMatchObject({
       unloadDelayMs: 5_000,
+    });
+    expect(getFakeScenarioConfiguration('cached')).toMatchObject({
+      modelCached: true,
     });
     expect(getFakeScenarioConfiguration('crossfade')).toMatchObject({
       capabilityDelayMs: 50,
