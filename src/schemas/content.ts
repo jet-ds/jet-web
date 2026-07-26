@@ -2,7 +2,7 @@
  * Shared Content Collection Schemas
  *
  * These schemas are used by both:
- * - Astro content collections (src/content/config.ts)
+ * - Astro content collections (src/content.config.ts)
  * - Build scripts (scripts/content-loader.ts)
  *
  * Using zod directly (not astro:content) so they can be imported

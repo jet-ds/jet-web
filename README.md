@@ -6,7 +6,7 @@ Production: [jetsanchez.com](https://jetsanchez.com)
 
 ## Architecture
 
-The site is a statically generated Astro application deployed on Vercel. MDX content lives in `src/data/`, Astro renders the public pages, and React is reserved for interactive islands. Tailwind CSS and the shared semantic token system provide the visual foundation.
+The site is a statically generated Astro 7 application deployed on Vercel. MDX content lives in `src/data/`, Astro renders the public pages, and React 19 is reserved for interactive islands. Tailwind CSS 4 and the shared semantic token system provide the visual foundation; the project uses strict TypeScript 6.
 
 The production build is pure: it validates repository content and writes the static `dist/` output without mutating external services. Vercel Blob uploads are a separate, explicit authoring operation.
 
@@ -14,6 +14,7 @@ The production build is pure: it validates repository content and writes the sta
 
 - Node.js 24.x
 - npm
+- Chrome 111+, Safari 16.4+, or Firefox 128+
 
 ## Development
 

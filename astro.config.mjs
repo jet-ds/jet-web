@@ -13,6 +13,7 @@ const isProduction = process.env.VERCEL_ENV === 'production';
 export default defineConfig({
   site: 'https://jetsanchez.com',
   trailingSlash: 'always',
+  compressHTML: true,
   integrations: [
     react(),
     mdx(),

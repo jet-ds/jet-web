@@ -4,13 +4,15 @@
 
 ## Project
 
-jetsanchez.com is Jet Sanchez's personal website, writing archive, research portfolio, and home for local-first AI experiments. It uses Astro 5, MDX, React 19 islands, Tailwind CSS 3, strict TypeScript, and Vercel static hosting.
+jetsanchez.com is Jet Sanchez's personal website, writing archive, research portfolio, and home for local-first AI experiments. It uses Astro 7, MDX, React 19 islands, Tailwind CSS 4, strict TypeScript 6, and Vercel static hosting.
 
 Primary routes are Home, About, Blog, Works, Egregore, and Contact. Egregore is released at canonical `/chatbot/`; its local runtime remains behind explicit visitor actions. `/tools/` remains a dormant, noindexed route outside primary navigation.
 
 ## Runtime and commands
 
 Use Node.js 24.x and npm. `package.json` is authoritative for executable commands.
+
+The supported browser floor is Chrome 111+, Safari 16.4+, and Firefox 128+.
 
 ```bash
 npm install
@@ -33,7 +35,7 @@ The production build is pure. `npm run build` may validate repository inputs and
 ## Architecture
 
 - Prefer Astro components for static presentation and React only for stateful browser interactions.
-- Content sources live in `src/data/blog/` and `src/data/works/`; loaders are defined in `src/content/config.ts`, with shared schemas in `src/schemas/content.ts`.
+- Content sources live in `src/data/blog/` and `src/data/works/`; loaders are defined in `src/content.config.ts`, with shared schemas in `src/schemas/content.ts`.
 - Use `getCollection()` and `getEntry()` for type-safe content access.
 - Shared site metadata and navigation live in `src/config/site.ts`.
 - `BaseLayout` owns the page-level WebPage schema. Content pages add their specific linked schema, such as BlogPosting, ScholarlyArticle, SoftwareApplication, or CreativeWork.

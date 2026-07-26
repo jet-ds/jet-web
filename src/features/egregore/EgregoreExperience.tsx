@@ -20,9 +20,9 @@ import {
   useRef,
   useState,
   type CSSProperties,
-  type FormEvent,
   type KeyboardEvent,
   type PointerEvent as ReactPointerEvent,
+  type SubmitEvent,
   type UIEvent,
 } from 'react';
 
@@ -587,7 +587,7 @@ export default function EgregoreExperience({
     scheduleSubmissionFollow(submissionModality);
   };
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = (event: SubmitEvent<HTMLFormElement>) => {
     event.preventDefault();
     if (isGenerating) {
       handleStop();
@@ -1369,7 +1369,7 @@ interface ComposerProps {
   onDraftChange: (value: string) => void;
   onFocus: () => void;
   onKeyDown: (event: KeyboardEvent<HTMLTextAreaElement>) => void;
-  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  onSubmit: (event: SubmitEvent<HTMLFormElement>) => void;
   showReliabilityDisclosure: boolean;
 }
 

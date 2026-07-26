@@ -39,8 +39,8 @@ if (shouldSkipAnalytics) {
 {measurementId && !shouldSkipAnalytics && (
   <>
     <!-- Analytics Tracking -->
-    <script type="text/partytown" async src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`}></script>
-    <script type="text/partytown" define:vars={{ measurementId }}>
+    <script is:inline type="text/partytown" async src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`}></script>
+    <script is:inline type="text/partytown" define:vars={{ measurementId }}>
       window.dataLayer = window.dataLayer || [];
       // eslint-disable-next-line prefer-rest-params -- Google's standard dataLayer shim deliberately forwards its arguments object.
       window.gtag = function() { dataLayer.push(arguments); };
