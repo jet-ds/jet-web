@@ -45,7 +45,7 @@ interface ActivationMeasurement {
   engineReadyMs: number;
   corpusMs: number;
   indexMs: number;
-  modelMs: number;
+  modelTransferMs: number | null;
   validationHydrationMs: number;
   corpusVersion: string;
   indexConfigVersion: string;
@@ -729,7 +729,11 @@ async function activationMeasurement(
   page: Page,
   ledger: RequestLedger,
   applicationOrigin: string,
-  options: { sampleLoading: boolean; compatibilityMark: number },
+  options: {
+    sampleLoading: boolean;
+    compatibilityMark: number;
+    expectModelNetwork: boolean;
+  },
 ): Promise<ActivationMeasurement> {
   const mark = ledger.mark();
   const startedAt = performance.now();
@@ -769,12 +773,23 @@ async function activationMeasurement(
     origin,
     EGREGORE_PATHS.index,
   );
-  const { modelTransferStartedAt, modelTransferFinishedAt } =
-    modelTransferWindow(observations, ledger);
-  contentFreeAssert(
-    readyAt >= modelTransferFinishedAt,
-    'MODEL_TRANSFER_FINISHED_AFTER_READY',
+  const modelNetworkRequests = observations.filter(({ request }) =>
+    isTrustedModelOrigin(request.url(), EGREGORE_MODEL.trustedOrigins),
   );
+  const modelTransfer = options.expectModelNetwork
+    ? modelTransferWindow(observations, ledger)
+    : null;
+  if (modelTransfer !== null) {
+    contentFreeAssert(
+      readyAt >= modelTransfer.modelTransferFinishedAt,
+      'MODEL_TRANSFER_FINISHED_AFTER_READY',
+    );
+  } else {
+    contentFreeAssert(
+      modelNetworkRequests.length === 0,
+      'WARM_MODEL_NETWORK_REQUEST',
+    );
+  }
   const manifestResponse = await manifestObservation.request.response();
   contentFreeAssert(
     manifestResponse !== null,
@@ -800,10 +815,16 @@ async function activationMeasurement(
     engineReadyMs: roundMilliseconds(readyAt - startedAt),
     corpusMs: requestDuration(contentObservation),
     indexMs: requestDuration(indexObservation),
-    modelMs: roundMilliseconds(
-      modelTransferFinishedAt - modelTransferStartedAt,
+    modelTransferMs:
+      modelTransfer === null
+        ? null
+        : roundMilliseconds(
+            modelTransfer.modelTransferFinishedAt -
+              modelTransfer.modelTransferStartedAt,
+          ),
+    validationHydrationMs: roundMilliseconds(
+      readyAt - (modelTransfer?.modelTransferFinishedAt ?? startedAt),
     ),
-    validationHydrationMs: roundMilliseconds(readyAt - modelTransferFinishedAt),
     corpusVersion: manifest.corpusVersion,
     indexConfigVersion: manifest.indexConfigVersion,
   };
@@ -817,7 +838,7 @@ function printActivation(
     [
       label,
       `engine-ready-ms=${measurement.engineReadyMs}`,
-      `model-ms=${measurement.modelMs}`,
+      `model-transfer-ms=${measurement.modelTransferMs ?? 'cache-reuse'}`,
       `corpus-ms=${measurement.corpusMs}`,
       `index-ms=${measurement.indexMs}`,
       `validation/hydration-ms=${measurement.validationHydrationMs}`,
@@ -1106,6 +1127,13 @@ async function qualificationCloseout(
     page.getByRole('button', { name: 'Check compatibility' }),
   ).toBeVisible();
   await activateWithoutBenchmark(page, ledger, applicationOrigin);
+  const removeDownloadedModel = page.getByRole('button', {
+    name: 'Remove downloaded model',
+  });
+  await expect(removeDownloadedModel).toBeVisible();
+  page.once('dialog', (dialog) => dialog.accept());
+  await removeDownloadedModel.click();
+  await expect(page.getByText('Downloaded model removed.')).toBeVisible();
   await unloadAndAssertSettled(page);
 }
 
@@ -1514,6 +1542,7 @@ test('qualifies Egregore with the real local model', async ({
     const cold = await activationMeasurement(page, ledger, applicationOrigin, {
       sampleLoading: true,
       compatibilityMark,
+      expectModelNetwork: true,
     });
     printActivation('cold', cold);
     await unloadAndAssertSettled(page);
@@ -1526,6 +1555,7 @@ test('qualifies Egregore with the real local model', async ({
     const warm = await activationMeasurement(page, ledger, applicationOrigin, {
       sampleLoading: false,
       compatibilityMark: warmCompatibilityMark,
+      expectModelNetwork: false,
     });
     printActivation('warm', warm);
 

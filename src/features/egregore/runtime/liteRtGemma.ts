@@ -1,4 +1,4 @@
-import { EGREGORE_CONTEXT, EGREGORE_MODEL, EGREGORE_PATHS } from '../config';
+import { EGREGORE_CONTEXT, EGREGORE_PATHS } from '../config';
 import { checkBrowserCapabilities } from './capabilities';
 import {
   createRuntimeError,
@@ -128,8 +128,15 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
       }
 
       options.onPhase?.('model');
+      if (options.modelSource === undefined) {
+        throw createRuntimeError(
+          'model-load-failed',
+          'Egregore did not receive a local model source.',
+          true,
+        );
+      }
       engine = await liteRt.Engine.create({
-        model: EGREGORE_MODEL.url,
+        model: options.modelSource,
         mainExecutorSettings: {
           maxNumTokens: EGREGORE_CONTEXT.maxContextTokens,
         },

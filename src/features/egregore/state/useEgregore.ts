@@ -12,6 +12,10 @@ import {
 } from '../runtime/lifecycle';
 import type { LocalModelRuntime } from '../runtime/types';
 import type { CapabilityReport } from '../runtime/types';
+import {
+  ModelArtifactStoreUnavailableError,
+  type ModelArtifactStore,
+} from '../runtime/modelArtifactStore';
 import type {
   ContextBudget,
   ConversationHistoryTurn,
@@ -29,6 +33,7 @@ export interface EgregoreKnowledgeRepository {
 export interface EgregoreDependencies {
   createRepository: () => EgregoreKnowledgeRepository;
   createRuntime: () => LocalModelRuntime;
+  createModelArtifactStore: () => ModelArtifactStore;
   rankAndPackContext: (input: SelectionInput) => SelectionResult;
   assemblePrompt: (
     query: string,
@@ -55,6 +60,7 @@ export interface UseEgregoreResult {
   startNewSession: () => Promise<void>;
   recoverFromError: () => void;
   unload: () => Promise<void>;
+  removeDownloadedModel: () => Promise<void>;
 }
 
 const ERROR_MESSAGES: Record<EgregoreErrorCode, string> = {
@@ -167,6 +173,8 @@ function initialState(): EgregoreState {
   return {
     lifecycle: createInitialLifecycleState(),
     capability: null,
+    modelCache: 'unknown',
+    modelCacheMessage: null,
     turns: [],
     error: null,
   };
@@ -187,11 +195,16 @@ export function useEgregore(
   const dependenciesRef = useRef(dependencies);
   const repositoryRef = useRef<EgregoreKnowledgeRepository | null>(null);
   const runtimeRef = useRef<LocalModelRuntime | null>(null);
+  const modelArtifactStoreRef = useRef<ModelArtifactStore | null>(null);
   if (repositoryRef.current === null) {
     repositoryRef.current = dependenciesRef.current.createRepository();
   }
   if (runtimeRef.current === null) {
     runtimeRef.current = dependenciesRef.current.createRuntime();
+  }
+  if (modelArtifactStoreRef.current === null) {
+    modelArtifactStoreRef.current =
+      dependenciesRef.current.createModelArtifactStore();
   }
 
   const [state, setState] = useState<EgregoreState>(initialState);
@@ -234,6 +247,14 @@ export function useEgregore(
     const operationId = ++operationRef.current;
     emit({ type: 'check-requested' });
     try {
+      let modelCache: EgregoreState['modelCache'] = 'empty';
+      try {
+        modelCache = (await modelArtifactStoreRef.current!.hasCurrent())
+          ? 'available'
+          : 'empty';
+      } catch {
+        // The visitor-controlled load action owns the uncached recovery path.
+      }
       const report = sanitizeCapabilityReport(
         await runtimeRef.current!.checkCapabilities(),
       );
@@ -242,6 +263,8 @@ export function useEgregore(
       commit({
         ...stateRef.current,
         capability: report,
+        modelCache,
+        modelCacheMessage: null,
         error,
         lifecycle: reduceEgregoreLifecycle(stateRef.current.lifecycle, {
           type: 'capabilities-resolved',
@@ -266,8 +289,40 @@ export function useEgregore(
     if (stateRef.current.lifecycle.status !== 'awaiting-consent') return;
 
     const operationId = ++operationRef.current;
-    activationStartedRef.current = true;
     emit({ type: 'load-requested' });
+    setLoading({ phase: 'model', startedAt: dependenciesRef.current.now() });
+    let modelSource: string | ReadableStream<Uint8Array>;
+    try {
+      const resolution = await modelArtifactStoreRef.current!.resolveForLoad({
+        allowUncached: stateRef.current.modelCache === 'unavailable',
+      });
+      modelSource = resolution.source;
+      if (!isCurrent(operationId)) return;
+      commit({
+        ...stateRef.current,
+        modelCache: resolution.kind === 'cached' ? 'available' : 'unavailable',
+        modelCacheMessage: null,
+      });
+    } catch (cause) {
+      if (!isCurrent(operationId)) return;
+      setLoading(null);
+      const error = safeError(cause, 'model-load-failed');
+      commit({
+        ...stateRef.current,
+        modelCache:
+          cause instanceof ModelArtifactStoreUnavailableError
+            ? 'unavailable'
+            : stateRef.current.modelCache,
+        error,
+        lifecycle: reduceEgregoreLifecycle(stateRef.current.lifecycle, {
+          type: 'load-failed',
+          error,
+        }),
+      });
+      return;
+    }
+
+    activationStartedRef.current = true;
     setLoading({ phase: 'corpus', startedAt: dependenciesRef.current.now() });
     const abortController = new AbortController();
     activationAbortRef.current = abortController;
@@ -280,6 +335,7 @@ export function useEgregore(
       if (!isCurrent(operationId)) return;
       knowledgeBaseRef.current = knowledgeBase;
       await runtimeRef.current!.load({
+        modelSource,
         onPhase: (phase) => {
           if (!isCurrent(operationId)) return;
           setLoading((current) => ({
@@ -638,6 +694,23 @@ export function useEgregore(
 
   const unload = useCallback(() => cleanupResources(false), [cleanupResources]);
 
+  const removeDownloadedModel = useCallback(async () => {
+    try {
+      await modelArtifactStoreRef.current!.removeCurrent();
+      commit({
+        ...stateRef.current,
+        modelCache: 'empty',
+        modelCacheMessage: 'Downloaded model removed.',
+      });
+    } catch {
+      commit({
+        ...stateRef.current,
+        modelCache: 'available',
+        modelCacheMessage: 'Egregore could not remove the downloaded model.',
+      });
+    }
+  }, [commit]);
+
   useEffect(() => {
     mountedRef.current = true;
     return () => {
@@ -657,5 +730,6 @@ export function useEgregore(
     startNewSession,
     recoverFromError,
     unload,
+    removeDownloadedModel,
   };
 }

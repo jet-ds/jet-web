@@ -20,6 +20,10 @@ import {
   FakeRuntime,
   type FakeRuntimeOptions,
 } from '../../../src/features/egregore/runtime/fakeRuntime';
+import {
+  ModelArtifactStoreUnavailableError,
+  type ModelArtifactStore,
+} from '../../../src/features/egregore/runtime/modelArtifactStore';
 import type {
   GenerationHandlers,
   GenerationResult,
@@ -49,6 +53,7 @@ interface WishedKnowledgeRepository {
 interface WishedDependencies {
   createRepository: () => WishedKnowledgeRepository;
   createRuntime: () => LocalModelRuntime;
+  createModelArtifactStore: () => ModelArtifactStore;
   rankAndPackContext: (input: SelectionInput) => SelectionResult;
   assemblePrompt: (
     query: string,
@@ -68,6 +73,8 @@ interface WishedHookResult {
   state: {
     lifecycle: { status: string };
     error: { code: string; diagnosticCause?: string } | null;
+    modelCache: 'unknown' | 'available' | 'empty' | 'unavailable';
+    modelCacheMessage: string | null;
     capability: CapabilityReport | null;
     turns: Array<{
       role: string;
@@ -83,6 +90,7 @@ interface WishedHookResult {
   startNewSession: () => Promise<void>;
   recoverFromError: () => void;
   unload: () => Promise<void>;
+  removeDownloadedModel: () => Promise<void>;
 }
 
 type UseEgregore = (dependencies: WishedDependencies) => WishedHookResult;
@@ -104,6 +112,7 @@ class OrderedFakeRuntime extends FakeRuntime {
   private failNextGenerationRequested = false;
   private readonly loadErrorCode: 'engine-cleanup-failed' | null;
   readonly generationMessages: string[] = [];
+  readonly loadOptions: LoadOptions[] = [];
 
   constructor(
     private readonly order: string[],
@@ -134,6 +143,7 @@ class OrderedFakeRuntime extends FakeRuntime {
 
   override async load(options: LoadOptions): Promise<void> {
     this.order.push('runtime.load');
+    this.loadOptions.push(options);
     await super.load(options);
     if (this.loadErrorCode !== null) {
       throw createRuntimeError(
@@ -303,6 +313,7 @@ function createHarness(
     runtimeUnloadWait?: Promise<void>;
     runtimeCreateSessionWait?: Promise<void>;
     runtimeCreateSessionError?: Error;
+    modelArtifactStore?: ModelArtifactStore;
   } = {},
 ) {
   const order: string[] = [];
@@ -322,6 +333,20 @@ function createHarness(
     options.runtimeCreateSessionError,
   );
   const knowledgeBase = {} as LoadedKnowledgeBase;
+  const modelArtifactStore =
+    options.modelArtifactStore ??
+    ({
+      hasCurrent: vi.fn(async () => false),
+      resolveForLoad: vi.fn(async () => ({
+        kind: 'cached' as const,
+        source: new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.close();
+          },
+        }),
+      })),
+      removeCurrent: vi.fn(async () => undefined),
+    } satisfies ModelArtifactStore);
   let repositoryFailuresRemaining =
     options.repositoryFailuresBeforeSuccess ?? 0;
   const repository: WishedKnowledgeRepository = {
@@ -382,6 +407,7 @@ function createHarness(
   const dependencies: WishedDependencies = {
     createRepository: () => repository,
     createRuntime: () => runtime,
+    createModelArtifactStore: () => modelArtifactStore,
     rankAndPackContext: rankAndPack,
     assemblePrompt: assemble,
     extractValidCitations: vi.fn(
@@ -411,6 +437,7 @@ function createHarness(
     rankAndPack,
     repository,
     runtime,
+    modelArtifactStore,
     selected,
     source,
   };
@@ -469,6 +496,82 @@ describe('useEgregore activation boundary', () => {
     expect(harness.repository.load).not.toHaveBeenCalled();
     expect(harness.rankAndPack).not.toHaveBeenCalled();
     expect(result.current.state.lifecycle.status).toBe('awaiting-consent');
+  });
+
+  it('retries with the uncached model URL only after a recoverable cache preflight failure', async () => {
+    const useEgregore = await loadSubject();
+    const modelArtifactStore: ModelArtifactStore = {
+      hasCurrent: vi.fn(async () => false),
+      resolveForLoad: vi
+        .fn()
+        .mockRejectedValueOnce(new ModelArtifactStoreUnavailableError())
+        .mockResolvedValueOnce({
+          kind: 'uncached-url',
+          source: 'https://models.example/fixture.litertlm',
+          reason: 'cache-unavailable',
+        }),
+      removeCurrent: vi.fn(async () => undefined),
+    };
+    const harness = createHarness({ modelArtifactStore });
+    const { result } = renderHook(() => useEgregore(harness.dependencies));
+
+    await act(async () => {
+      await result.current.checkCompatibility();
+      await result.current.load();
+    });
+
+    expect(result.current.state.lifecycle.status).toBe('load-error');
+    expect(result.current.state.modelCache).toBe('unavailable');
+    expect(harness.repository.load).not.toHaveBeenCalled();
+
+    await act(async () => {
+      result.current.recoverFromError();
+      await result.current.load();
+    });
+
+    expect(modelArtifactStore.resolveForLoad).toHaveBeenNthCalledWith(1, {
+      allowUncached: false,
+    });
+    expect(modelArtifactStore.resolveForLoad).toHaveBeenNthCalledWith(2, {
+      allowUncached: true,
+    });
+    expect(result.current.state.lifecycle.status).toBe('ready');
+    expect(harness.runtime.loadOptions[0]?.modelSource).toBe(
+      'https://models.example/fixture.litertlm',
+    );
+  });
+
+  it('removes a downloaded model without unloading the ready runtime', async () => {
+    const useEgregore = await loadSubject();
+    const modelArtifactStore: ModelArtifactStore = {
+      hasCurrent: vi.fn(async () => true),
+      resolveForLoad: vi.fn(async () => ({
+        kind: 'cached' as const,
+        source: new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.close();
+          },
+        }),
+      })),
+      removeCurrent: vi.fn(async () => undefined),
+    };
+    const harness = createHarness({ modelArtifactStore });
+    const { result } = renderHook(() => useEgregore(harness.dependencies));
+    await makeReady(result);
+
+    await act(async () => {
+      await result.current.removeDownloadedModel();
+    });
+
+    expect(modelArtifactStore.removeCurrent).toHaveBeenCalledOnce();
+    expect(result.current.state.lifecycle.status).toBe('ready');
+    expect(result.current.state.modelCache).toBe('empty');
+    expect(result.current.state.modelCacheMessage).toBe(
+      'Downloaded model removed.',
+    );
+    expect(harness.runtime.calls.map(({ method }) => method)).not.toContain(
+      'unload',
+    );
   });
 
   it('keeps supported warnings advisory while sanitizing capability messages', async () => {
@@ -1223,6 +1326,52 @@ describe('useEgregore activation boundary', () => {
 });
 
 describe('EgregoreExperience production composition', () => {
+  it('confirms and announces explicit downloaded-model removal without unloading Egregore', async () => {
+    const modelArtifactStore: ModelArtifactStore = {
+      hasCurrent: vi.fn(async () => true),
+      resolveForLoad: vi.fn(async () => ({
+        kind: 'cached' as const,
+        source: new ReadableStream<Uint8Array>({
+          start(controller) {
+            controller.close();
+          },
+        }),
+      })),
+      removeCurrent: vi.fn(async () => undefined),
+    };
+    const harness = createHarness({ modelArtifactStore });
+    const confirm = vi.spyOn(window, 'confirm').mockReturnValue(true);
+    render(<EgregoreExperience dependencies={harness.dependencies} />);
+
+    fireEvent.click(
+      screen.getByRole('button', { name: 'Check compatibility' }),
+    );
+    fireEvent.click(
+      await screen.findByRole('button', { name: /Load Egregore/ }),
+    );
+    const remove = await screen.findByRole('button', {
+      name: 'Remove downloaded model',
+    });
+    fireEvent.click(remove);
+
+    await waitFor(() =>
+      expect(modelArtifactStore.removeCurrent).toHaveBeenCalledOnce(),
+    );
+    expect(confirm).toHaveBeenCalledWith(
+      'Remove the downloaded Egregore model from this browser?',
+    );
+    expect(screen.getByText('Downloaded model removed.')).toHaveAttribute(
+      'role',
+      'status',
+    );
+    expect(screen.getByText('Downloaded model removed.')).toHaveTextContent(
+      'Downloaded model removed.',
+    );
+    expect(harness.runtime.calls.map(({ method }) => method)).not.toContain(
+      'unload',
+    );
+  });
+
   it('updates rendered header metadata when the package version prop changes', () => {
     const harness = createHarness();
     const view = render(

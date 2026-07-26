@@ -1,4 +1,5 @@
 import type { EgregoreError, EgregoreErrorCode } from '../errors';
+import type { ModelSource } from './modelArtifactStore';
 
 export interface CapabilityStorageEstimate {
   quotaBytes: number | null;
@@ -29,6 +30,7 @@ export type RuntimeLoadPhase = 'runtime' | 'model';
 
 export interface LoadOptions {
   onPhase?: (phase: RuntimeLoadPhase) => void;
+  modelSource?: ModelSource;
 }
 
 export interface ModelMessage {

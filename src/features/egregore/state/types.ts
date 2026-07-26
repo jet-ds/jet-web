@@ -14,6 +14,8 @@ export interface ConversationTurn {
 export interface EgregoreState {
   lifecycle: EgregoreLifecycleState;
   capability: CapabilityReport | null;
+  modelCache: 'unknown' | 'available' | 'empty' | 'unavailable';
+  modelCacheMessage: string | null;
   turns: ConversationTurn[];
   error: EgregoreError | null;
 }

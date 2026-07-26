@@ -9,6 +9,7 @@ import {
   LockKeyhole,
   MonitorCheck,
   RotateCcw,
+  Trash2,
   Unplug,
 } from 'lucide-react';
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion';
@@ -59,6 +60,7 @@ import {
   resolveFakeScenario,
 } from './runtime/fakeScenario';
 import { LiteRtGemmaRuntime } from './runtime/liteRtGemma';
+import { createModelArtifactStore } from './runtime/modelArtifactStore';
 import type { EgregoreLifecycleStatus } from './runtime/lifecycle';
 import { createRuntimeError } from './runtime/types';
 import { rankAndPackContext } from './selection/rankAndPack';
@@ -198,6 +200,15 @@ function createTestBuildDependencies(): EgregoreDependencies {
       emitLateChunkAfterCancellation:
         configuration.emitLateChunkAfterCancellation,
     });
+    const modelArtifactStore = {
+      hasCurrent: async () => false,
+      resolveForLoad: async () => ({
+        kind: 'uncached-url' as const,
+        source: 'https://example.invalid/egregore-fake-model.litertlm',
+        reason: 'cache-unavailable' as const,
+      }),
+      removeCurrent: async () => undefined,
+    };
     const repository = new StaticKnowledgeRepository();
     let completedAssemblies = 0;
 
@@ -215,6 +226,7 @@ function createTestBuildDependencies(): EgregoreDependencies {
         },
       }),
       createRuntime: () => runtime,
+      createModelArtifactStore: () => modelArtifactStore,
       rankAndPackContext: (input) => {
         const selection = rankAndPackContext(input);
         const scenarioSelection =
@@ -246,6 +258,7 @@ function createTestBuildDependencies(): EgregoreDependencies {
   }
 
   const productionRuntime = new LiteRtGemmaRuntime();
+  const modelArtifactStore = createModelArtifactStore();
   const recorder = new FakeRuntimeRecorder(allocateE2ERuntimeId());
   exposeE2EAudit(recorder);
   const runtime = createAuditedRuntime(productionRuntime, recorder);
@@ -253,6 +266,7 @@ function createTestBuildDependencies(): EgregoreDependencies {
   return {
     createRepository: () => new StaticKnowledgeRepository(),
     createRuntime: () => runtime,
+    createModelArtifactStore: () => modelArtifactStore,
     rankAndPackContext,
     assemblePrompt,
     extractValidCitations,
@@ -265,9 +279,11 @@ function createTestBuildDependencies(): EgregoreDependencies {
 function createProductionDependencies(): EgregoreDependencies {
   let nextTurnId = 0;
   const runtime = new LiteRtGemmaRuntime();
+  const modelArtifactStore = createModelArtifactStore();
   return {
     createRepository: () => new StaticKnowledgeRepository(),
     createRuntime: () => runtime,
+    createModelArtifactStore: () => modelArtifactStore,
     rankAndPackContext,
     assemblePrompt,
     extractValidCitations,
@@ -352,6 +368,8 @@ export default function EgregoreExperience({
     (status === 'generation-error' &&
       egregore.state.error?.code === 'conversation-limit-reached');
   const canUnload = showHeaderActions && status !== 'unloading';
+  const canRemoveDownloadedModel =
+    showHeaderActions && egregore.state.modelCache === 'available';
   const ghostAnimationMode = getGhostAnimationMode(status);
   const visibleLargeGhostMode =
     [
@@ -495,6 +513,15 @@ export default function EgregoreExperience({
   const handleUnload = () => {
     unloadRequestedRef.current = true;
     void egregore.unload();
+  };
+
+  const handleRemoveDownloadedModel = () => {
+    if (
+      !window.confirm('Remove the downloaded Egregore model from this browser?')
+    ) {
+      return;
+    }
+    void egregore.removeDownloadedModel();
   };
 
   const handleNewSession = () => {
@@ -695,6 +722,11 @@ export default function EgregoreExperience({
               >
                 {getLifecycleAnnouncement(status)}
               </span>
+              {egregore.state.modelCacheMessage !== null && (
+                <span className="sr-only" role="status" aria-live="polite">
+                  {egregore.state.modelCacheMessage}
+                </span>
+              )}
               <LifecycleStatus status={status} />
             </div>
           </div>
@@ -718,6 +750,18 @@ export default function EgregoreExperience({
                 <span className="hidden sm:inline">New session</span>
                 <span className="sr-only sm:hidden">Start a new session</span>
               </button>
+              {canRemoveDownloadedModel && (
+                <button
+                  type="button"
+                  onClick={handleRemoveDownloadedModel}
+                  data-action-variant="ghost"
+                  data-action-density="compact"
+                  className="action action--ghost action--compact text-sm text-text-secondary hover:text-text-primary"
+                >
+                  <Trash2 aria-hidden="true" size={16} />
+                  <span className="sr-only">Remove downloaded model</span>
+                </button>
+              )}
               <button
                 type="button"
                 onClick={handleUnload}
@@ -886,6 +930,13 @@ export default function EgregoreExperience({
                       ),
                     )}
                   </div>
+                )}
+              {status === 'awaiting-consent' &&
+                egregore.state.modelCache === 'unavailable' && (
+                  <p className="mx-auto mt-xs max-w-[var(--container-xl)] text-sm text-text-secondary">
+                    This browser cannot save the model download. Loading
+                    Egregore will be uncached.
+                  </p>
                 )}
             </div>
           </main>

@@ -641,6 +641,9 @@ test.describe('Egregore consent and local privacy', () => {
     await expect(
       page.getByRole('textbox', { name: 'Ask Egregore' }),
     ).toBeEnabled();
+    await expect(
+      page.getByRole('button', { name: 'Remove downloaded model' }),
+    ).toHaveCount(0);
 
     await submitQuestion(page, PROMPT_SENTINEL);
     await waitForCompletedResponse(page);

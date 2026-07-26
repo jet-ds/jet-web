@@ -1,10 +1,11 @@
 import { describe, expect, it, vi } from 'vitest';
 import {
   EGREGORE_CONTEXT,
-  EGREGORE_MODEL,
   EGREGORE_PATHS,
 } from '../../../src/features/egregore/config';
 import { LiteRtGemmaRuntime } from '../../../src/features/egregore/runtime/liteRtGemma';
+import type { ModelSource } from '../../../src/features/egregore/runtime/modelArtifactStore';
+import type { LoadOptions } from '../../../src/features/egregore/runtime/types';
 
 interface StreamMessage {
   content?:
@@ -30,6 +31,21 @@ interface Deferred<T> {
   promise: Promise<T>;
   resolve: (value: T) => void;
   reject: (reason?: unknown) => void;
+}
+
+const TEST_MODEL_SOURCE = 'https://models.example/test.litertlm';
+
+class TestLiteRtGemmaRuntime extends LiteRtGemmaRuntime {
+  override load(
+    options: Omit<LoadOptions, 'modelSource'> & {
+      modelSource?: ModelSource;
+    } = {},
+  ): Promise<void> {
+    return super.load({
+      ...options,
+      modelSource: options.modelSource ?? TEST_MODEL_SOURCE,
+    });
+  }
 }
 
 function deferred<T>(): Deferred<T> {
@@ -147,7 +163,7 @@ function runtimeHarness(
     loadLiteRtLm,
     unloadLiteRtLm,
     loadModule,
-    runtime: new LiteRtGemmaRuntime(loadModule as never),
+    runtime: new TestLiteRtGemmaRuntime(loadModule as never),
   };
 }
 
@@ -160,13 +176,22 @@ describe('LiteRT-LM Gemma runtime', () => {
     expect(loadModule).not.toHaveBeenCalled();
   });
 
-  it('loads the pinned same-origin WASM before creating the exact URL-backed engine', async () => {
+  it('passes the resolved model source to the engine after loading the pinned same-origin WASM', async () => {
     const { calls, create, loadLiteRtLm, runtime } = runtimeHarness();
     const phases: string[] = [];
     const fetchSpy = vi.spyOn(globalThis, 'fetch');
     const digestSpy = vi.spyOn(globalThis.crypto.subtle, 'digest');
+    const modelSource = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array([1]));
+        controller.close();
+      },
+    });
 
-    await runtime.load({ onPhase: (phase) => phases.push(phase) });
+    await runtime.load({
+      modelSource,
+      onPhase: (phase) => phases.push(phase),
+    });
 
     expect(calls.slice(0, 3)).toEqual([
       'loadModule',
@@ -178,13 +203,13 @@ describe('LiteRT-LM Gemma runtime', () => {
       expect.stringContaining('jsdelivr'),
     );
     expect(create).toHaveBeenCalledWith({
-      model: EGREGORE_MODEL.url,
+      model: modelSource,
       mainExecutorSettings: {
         maxNumTokens: 16_384,
       },
     });
     const engineSettings = create.mock.calls[0]?.[0] as { model: unknown };
-    expect(typeof engineSettings.model).toBe('string');
+    expect(engineSettings.model).toBe(modelSource);
     expect(fetchSpy).not.toHaveBeenCalled();
     expect(digestSpy).not.toHaveBeenCalled();
     expect(phases).toEqual(['runtime', 'model']);
@@ -790,7 +815,7 @@ describe('LiteRT-LM Gemma runtime', () => {
       loadLiteRtLm,
       unloadLiteRtLm,
     }));
-    const runtime = new LiteRtGemmaRuntime(loadModule as never);
+    const runtime = new TestLiteRtGemmaRuntime(loadModule as never);
 
     const loading = runtime.load({});
     await vi.waitFor(() => expect(create).toHaveBeenCalledTimes(1));

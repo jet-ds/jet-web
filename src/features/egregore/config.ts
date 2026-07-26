@@ -13,6 +13,10 @@ export const EGREGORE_MODEL = {
   ],
 } as const;
 
+export const EGREGORE_MODEL_CACHE = {
+  schemaVersion: 'v1',
+} as const;
+
 export const EGREGORE_CONTEXT = {
   maxContextTokens: 16_384,
   systemLimit: 640,
