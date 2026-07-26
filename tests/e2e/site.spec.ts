@@ -1493,7 +1493,7 @@ test('navigation representations use canonical route identities', async ({
   expect(normalizedNoscript).not.toContain('>Tools</a>');
 });
 
-test('third-party notice local license destinations resolve in the built site', async ({
+test('third-party notice local destinations resolve in the built site', async ({
   request,
 }) => {
   const response = await request.get('/licenses/THIRD_PARTY_NOTICES.md');
@@ -1513,10 +1513,13 @@ test('third-party notice local license destinations resolve in the built site', 
           destination,
           'https://jetsanchez.com/licenses/THIRD_PARTY_NOTICES.md',
         ).pathname,
-    )
-    .filter((pathname) => pathname.startsWith('/licenses/'));
+    );
 
-  expect(localDestinations).toEqual([
+  const licenseDestinations = localDestinations.filter((pathname) =>
+    pathname.startsWith('/licenses/'),
+  );
+
+  expect(licenseDestinations).toEqual([
     '/licenses/apache-2.0.txt',
     '/licenses/apache-2.0.txt',
     '/licenses/minisearch-7.2.0-MIT.txt',
@@ -1524,8 +1527,8 @@ test('third-party notice local license destinations resolve in the built site', 
   ]);
 
   for (const destination of localDestinations) {
-    const license = await request.get(destination);
-    expect(license.ok(), destination).toBe(true);
+    const destinationResponse = await request.get(destination);
+    expect(destinationResponse.ok(), destination).toBe(true);
   }
 });
 
