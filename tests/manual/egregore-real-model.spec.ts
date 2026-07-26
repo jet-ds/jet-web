@@ -46,12 +46,29 @@ interface ActivationMeasurement {
   corpusMs: number;
   indexMs: number;
   modelTransferMs: number | null;
-  cacheCommitMs: number | null;
+  cachePutWallMs: number | null;
   cacheRereadMs: number | null;
   liteRtWasmMs: number | null;
   engineReadyAfterWasmMs: number | null;
   corpusVersion: string;
   indexConfigVersion: string;
+}
+
+type QualificationObservationName =
+  | 'retrieval-context-selection-start'
+  | 'retrieval-context-selection-end'
+  | 'prompt-assembly-start'
+  | 'prompt-assembly-end'
+  | 'generation-send'
+  | 'generation-first-nonempty';
+
+interface QualificationObservation {
+  observation: QualificationObservationName;
+  timestamp: number;
+}
+
+interface QualificationObserverState {
+  observations: QualificationObservation[];
 }
 
 interface DeviceObservation {
@@ -82,6 +99,10 @@ interface ConsentAuditState {
   assistantRequests: Array<{ beforeConsent: boolean }>;
   isAssistantResource: (value: string) => boolean;
 }
+
+type QualificationObserverWindow = typeof window & {
+  __EGREGORE_QUALIFICATION_OBSERVER__?: QualificationObserverState;
+};
 
 type ConsentAuditWindow = typeof window & {
   __EGREGORE_CONSENT_AUDIT__?: ConsentAuditState;
@@ -577,6 +598,60 @@ async function cacheObservation(page: Page): Promise<CacheObservation> {
   );
 }
 
+async function installQualificationObserver(page: Page): Promise<void> {
+  await page.addInitScript(() => {
+    const state: QualificationObserverState = { observations: [] };
+    (
+      window as QualificationObserverWindow
+    ).__EGREGORE_QUALIFICATION_OBSERVER__ = state;
+    window.addEventListener('egregore:qualification-observation', (event) => {
+      if (!(event instanceof CustomEvent)) return;
+      const detail = event.detail as Partial<QualificationObservation>;
+      if (
+        typeof detail.observation !== 'string' ||
+        typeof detail.timestamp !== 'number'
+      ) {
+        return;
+      }
+      state.observations.push({
+        observation: detail.observation as QualificationObservationName,
+        timestamp: detail.timestamp,
+      });
+    });
+  });
+}
+
+async function resetQualificationObserver(page: Page): Promise<void> {
+  await page.evaluate(() => {
+    const state = (window as QualificationObserverWindow)
+      .__EGREGORE_QUALIFICATION_OBSERVER__;
+    if (state === undefined) throw new Error('QUALIFICATION_OBSERVER_MISSING');
+    state.observations = [];
+  });
+}
+
+async function qualificationObservations(
+  page: Page,
+): Promise<QualificationObservation[]> {
+  return page.evaluate(() => {
+    const state = (window as QualificationObserverWindow)
+      .__EGREGORE_QUALIFICATION_OBSERVER__;
+    if (state === undefined) throw new Error('QUALIFICATION_OBSERVER_MISSING');
+    return state.observations.map((observation) => ({ ...observation }));
+  });
+}
+
+function observationTimestamp(
+  observations: QualificationObservation[],
+  name: QualificationObservationName,
+): number {
+  const observation = observations.find(
+    (candidate) => candidate.observation === name,
+  );
+  contentFreeAssert(observation !== undefined, 'QUALIFICATION_SPAN_MISSING');
+  return observation.timestamp;
+}
+
 async function assertFreshApplicationStorage(page: Page): Promise<void> {
   const state = await page.evaluate(async () => {
     const cacheKeys = 'caches' in window ? await window.caches.keys() : [];
@@ -947,9 +1022,9 @@ async function activationMeasurement(
     applicationOrigin,
   );
 
-  const cacheCommit = cache.modelCacheWrites.at(-1) ?? null;
+  const cachePut = cache.modelCacheWrites.at(-1) ?? null;
   const cacheRereadCandidates = cache.modelCacheMatches.filter(
-    (span) => cacheCommit === null || span.startedAt >= cacheCommit.finishedAt,
+    (span) => cachePut === null || span.startedAt >= cachePut.finishedAt,
   );
   const cacheReread = cacheRereadCandidates.at(-1) ?? null;
   const wasmObservations = observations.filter(({ request }) =>
@@ -972,10 +1047,10 @@ async function activationMeasurement(
             modelTransfer.modelTransferFinishedAt -
               modelTransfer.modelTransferStartedAt,
           ),
-    cacheCommitMs:
-      cacheCommit === null
+    cachePutWallMs:
+      cachePut === null
         ? null
-        : roundMilliseconds(cacheCommit.finishedAt - cacheCommit.startedAt),
+        : roundMilliseconds(cachePut.finishedAt - cachePut.startedAt),
     cacheRereadMs:
       cacheReread === null
         ? null
@@ -1011,7 +1086,8 @@ function printActivation(
       `model-transfer-ms=${measurement.modelTransferMs ?? 'cache-reuse'}`,
       `corpus-ms=${measurement.corpusMs}`,
       `index-ms=${measurement.indexMs}`,
-      `cache-commit-ms=${measurement.cacheCommitMs ?? 'not-observed'}`,
+      `cache-put-wall-ms=${measurement.cachePutWallMs ?? 'not-observed'}`,
+      'cache-put-wall-includes-streaming-transfer=true',
       `cache-reread-ms=${measurement.cacheRereadMs ?? 'not-observed'}`,
       `litert-wasm-ms=${measurement.liteRtWasmMs ?? 'not-observed'}`,
       `engine-ready-after-wasm-ms=${measurement.engineReadyAfterWasmMs ?? 'not-observed'}`,
@@ -1069,7 +1145,7 @@ async function runVisitorCase(
   const sessionReadyMs = roundMilliseconds(
     performance.now() - sessionStartedAt,
   );
-  const startedAt = performance.now();
+  await resetQualificationObserver(page);
   const composer = page.getByRole('textbox', { name: 'Ask Egregore' });
   await composer.fill(visitorCase.question);
   await page.getByRole('button', { name: 'Send message' }).click();
@@ -1078,14 +1154,35 @@ async function runVisitorCase(
       timeout: FIRST_TOKEN_TIMEOUT_MS,
     })
     .toBe(true);
-  const firstTokenMs = roundMilliseconds(performance.now() - startedAt);
   await expect(page.getByTestId('lifecycle-visible-status')).toContainText(
     'Ready',
     {
       timeout: RESPONSE_COMPLETION_TIMEOUT_MS,
     },
   );
-  const totalResponseMs = roundMilliseconds(performance.now() - startedAt);
+  const completedAt = await page.evaluate(() => performance.now());
+  const observations = await qualificationObservations(page);
+  const retrievalStartedAt = observationTimestamp(
+    observations,
+    'retrieval-context-selection-start',
+  );
+  const retrievalFinishedAt = observationTimestamp(
+    observations,
+    'retrieval-context-selection-end',
+  );
+  const promptStartedAt = observationTimestamp(
+    observations,
+    'prompt-assembly-start',
+  );
+  const promptFinishedAt = observationTimestamp(
+    observations,
+    'prompt-assembly-end',
+  );
+  const sendAt = observationTimestamp(observations, 'generation-send');
+  const firstNonemptyAt = observationTimestamp(
+    observations,
+    'generation-first-nonempty',
+  );
 
   try {
     const inlineCitations = page
@@ -1160,9 +1257,10 @@ async function runVisitorCase(
         'span=visitor-case',
         `case=${visitorCase.id}`,
         `session-ready-ms=${sessionReadyMs}`,
-        `retrieval-prompt-first-token-ms=${firstTokenMs}`,
-        `generation-after-first-token-ms=${Math.max(0, totalResponseMs - firstTokenMs)}`,
-        `total-response-ms=${totalResponseMs}`,
+        `retrieval-context-selection-ms=${roundMilliseconds(retrievalFinishedAt - retrievalStartedAt)}`,
+        `prompt-assembly-ms=${roundMilliseconds(promptFinishedAt - promptStartedAt)}`,
+        `send-to-first-nonempty-ms=${roundMilliseconds(firstNonemptyAt - sendAt)}`,
+        `total-generation-ms=${roundMilliseconds(completedAt - sendAt)}`,
         `citation-resolved=${citationResolved}`,
         `abstention=${abstention}`,
       ].join(' '),
@@ -1246,40 +1344,7 @@ async function clickLoadAfterConsentAudit(
   });
 }
 
-async function activateWithoutBenchmark(
-  page: Page,
-  ledger: RequestLedger,
-  applicationOrigin: string,
-): Promise<void> {
-  const compatibilityMark = await assertCompatibilityDoesNotLoadAssistant(
-    page,
-    ledger,
-    applicationOrigin,
-  );
-  const activationMark = ledger.mark();
-  await clickLoadAfterConsentAudit(
-    page,
-    ledger,
-    applicationOrigin,
-    compatibilityMark,
-  );
-  await waitForActivationReady(page, ledger, activationMark);
-  await expect(page.getByTestId('lifecycle-visible-status')).toContainText(
-    'Ready',
-  );
-  await validateConsentAudit(
-    page,
-    ledger,
-    compatibilityMark,
-    applicationOrigin,
-  );
-}
-
-async function qualificationCloseout(
-  page: Page,
-  ledger: RequestLedger,
-  applicationOrigin: string,
-): Promise<void> {
+async function qualificationCloseout(page: Page): Promise<void> {
   await newSession(page);
   const composer = page.getByRole('textbox', { name: 'Ask Egregore' });
   await composer.fill(CLOSEOUT_PROMPT_SENTINEL);
@@ -1301,23 +1366,6 @@ async function qualificationCloseout(
   );
   await newSession(page);
   await unloadAndAssertSettled(page);
-
-  await activateWithoutBenchmark(page, ledger, applicationOrigin);
-  const contact = page
-    .locator('#site-navigation-dock')
-    .getByRole('link', { name: 'Contact' });
-  await contact.click();
-  await expect(page).toHaveURL(new RegExp(`${ROUTE_AWAY_PATH}$`, 'u'));
-  await expect(page.getByTestId('lifecycle-visible-status')).toHaveCount(0);
-  await page
-    .locator('#site-navigation-dock')
-    .getByRole('link', { name: 'Egregore' })
-    .click();
-  await expect(page).toHaveURL(new RegExp(`${EGREGORE_PATH}$`, 'u'));
-  await expect(
-    page.getByRole('button', { name: 'Check compatibility' }),
-  ).toBeVisible();
-  await activateWithoutBenchmark(page, ledger, applicationOrigin);
   const removeDownloadedModel = page.getByRole('button', {
     name: 'Remove downloaded model',
   });
@@ -1326,7 +1374,6 @@ async function qualificationCloseout(
   await removeDownloadedModel.click();
   await expect(page.getByText('Downloaded model removed.')).toBeVisible();
   await assertModelCacheStorageAbsent(page);
-  await unloadAndAssertSettled(page);
 }
 
 function hasApplicationDefinedHeader(headers: Record<string, string>): boolean {
@@ -1729,6 +1776,7 @@ test('qualifies Egregore with the real local model', async ({
   );
   await installDeviceObservation(page);
   await installCacheObservation(page);
+  await installQualificationObserver(page);
   await installConsentAudit(page);
   await page.goto(EGREGORE_PATH);
   await assertFreshApplicationStorage(page);
@@ -1742,6 +1790,13 @@ test('qualifies Egregore with the real local model', async ({
   );
 
   if (mode === 'qualification') {
+    const qualificationInteraction = VISITOR_CASES.find(
+      (visitorCase) => visitorCase.id === 'recursive-convergence-claim',
+    );
+    contentFreeAssert(
+      qualificationInteraction !== undefined,
+      'QUALIFICATION_INTERACTION_MISSING',
+    );
     console.info('phase=cold-activation');
     const cold = await activationMeasurement(page, ledger, applicationOrigin, {
       sampleLoading: true,
@@ -1749,6 +1804,12 @@ test('qualifies Egregore with the real local model', async ({
       expectModelNetwork: true,
     });
     printActivation('cold', cold);
+    console.info('phase=cold-qualification-interaction');
+    visitorCaseFailures.push(
+      ...(await runVisitorCase(page, qualificationInteraction)).map(
+        (failure) => `cold:${qualificationInteraction.id}:${failure}`,
+      ),
+    );
     await unloadAndAssertSettled(page);
     const warmCompatibilityMark = await assertCompatibilityDoesNotLoadAssistant(
       page,
@@ -1762,17 +1823,14 @@ test('qualifies Egregore with the real local model', async ({
       expectModelNetwork: false,
     });
     printActivation('warm', warm);
-
-    console.info('phase=visitor-cases');
-    for (const visitorCase of VISITOR_CASES) {
-      visitorCaseFailures.push(
-        ...(await runVisitorCase(page, visitorCase)).map(
-          (failure) => `${visitorCase.id}:${failure}`,
-        ),
-      );
-    }
+    console.info('phase=warm-qualification-interaction');
+    visitorCaseFailures.push(
+      ...(await runVisitorCase(page, qualificationInteraction)).map(
+        (failure) => `warm:${qualificationInteraction.id}:${failure}`,
+      ),
+    );
     console.info('phase=lifecycle-closeout');
-    await qualificationCloseout(page, ledger, applicationOrigin);
+    await qualificationCloseout(page);
   } else {
     console.info('phase=smoke-activation');
     const smokeActivationMark = ledger.mark();

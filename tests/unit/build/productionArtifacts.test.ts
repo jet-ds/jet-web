@@ -13,6 +13,7 @@ import { spawnSync } from 'node:child_process';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
+  FORBIDDEN_PRODUCTION_ARTIFACT_MARKERS,
   assertProductionArtifactsContainNoFakeRuntime,
   findForbiddenProductionArtifacts,
 } from '../../../scripts/verify-production-artifacts';
@@ -94,6 +95,12 @@ function writeExactProductionSurface(directory: string): void {
 }
 
 describe('ordinary production artifact containment', () => {
+  it('forbids qualification-only observation seams from production output', () => {
+    expect(FORBIDDEN_PRODUCTION_ARTIFACT_MARKERS).toContain(
+      'egregore:qualification-observation',
+    );
+  });
+
   it('accepts a clean emitted build tree', () => {
     const directory = temporaryBuildDirectory();
     mkdirSync(join(directory, '_astro'));

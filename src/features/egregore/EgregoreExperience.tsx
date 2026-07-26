@@ -65,7 +65,11 @@ import type { EgregoreLifecycleStatus } from './runtime/lifecycle';
 import { createRuntimeError } from './runtime/types';
 import { rankAndPackContext } from './selection/rankAndPack';
 import type { ConversationTurn } from './state/types';
-import { useEgregore, type EgregoreDependencies } from './state/useEgregore';
+import {
+  useEgregore,
+  type EgregoreDependencies,
+  type EgregoreQualificationObserver,
+} from './state/useEgregore';
 
 const suggestedQuestions = [
   'What does Jet write about agentic work?',
@@ -78,6 +82,10 @@ type EgregoreE2EWindow = Window & {
     readonly runtimeId: number;
     readonly calls: readonly FakeRuntimeCall[];
   };
+};
+
+type EgregoreQualificationWindow = Window & {
+  dispatchEvent(event: Event): boolean;
 };
 
 type InteractionModality = 'keyboard' | 'mouse' | 'touch' | 'pen';
@@ -276,7 +284,21 @@ function createTestBuildDependencies(): EgregoreDependencies {
   };
 }
 
-function createProductionDependencies(): EgregoreDependencies {
+function createQualificationObserver(): EgregoreQualificationObserver {
+  return {
+    mark(observation) {
+      (window as EgregoreQualificationWindow).dispatchEvent(
+        new CustomEvent('egregore:qualification-observation', {
+          detail: { observation, timestamp: performance.now() },
+        }),
+      );
+    },
+  };
+}
+
+function createProductionDependencies(
+  qualificationObserver?: EgregoreQualificationObserver,
+): EgregoreDependencies {
   let nextTurnId = 0;
   const runtime = new LiteRtGemmaRuntime();
   const modelArtifactStore = createModelArtifactStore();
@@ -287,6 +309,7 @@ function createProductionDependencies(): EgregoreDependencies {
     rankAndPackContext,
     assemblePrompt,
     extractValidCitations,
+    ...(qualificationObserver === undefined ? {} : { qualificationObserver }),
     contextBudget: EGREGORE_CONTEXT,
     createTurnId: () => `turn-${++nextTurnId}`,
     now: () => performance.now(),
@@ -300,6 +323,9 @@ function createDependencies(): EgregoreDependencies {
       window.location.hostname === 'localhost');
   if (import.meta.env.PUBLIC_EGREGORE_E2E === '1' && localHost)
     return createTestBuildDependencies();
+  if (import.meta.env.PUBLIC_EGREGORE_QUALIFICATION === '1' && localHost) {
+    return createProductionDependencies(createQualificationObserver());
+  }
   return createProductionDependencies();
 }
 

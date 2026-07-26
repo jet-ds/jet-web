@@ -12,6 +12,7 @@ export const FORBIDDEN_PRODUCTION_ARTIFACT_MARKERS = [
   'FakeRuntime',
   'runtime=fake',
   '__EGREGORE_E2E__',
+  'egregore:qualification-observation',
   "Jet's published work connects local-first AI with systems thinking [S1].",
   'stop-recovery',
   'late-event',
