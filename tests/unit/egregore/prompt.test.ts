@@ -109,6 +109,7 @@ describe('grounded prompt assembly', () => {
     );
     const systemContent = result.preface[0]?.content ?? '';
     const payloadOffset = systemContent.indexOf(sourcePayload.serialized);
+    const fixedSystemPrefix = systemContent.slice(0, payloadOffset);
 
     expect(result.preface[0]?.role).toBe('system');
     expect(payloadOffset).toBeGreaterThan(-1);
@@ -131,32 +132,32 @@ describe('grounded prompt assembly', () => {
     expect(sourcePayload.serialized).toContain('\\"quoted\\"');
     expect(sourcePayload.serialized).toContain('\\\\path\\n');
     expect(systemContent).not.toContain(unselected.text);
-    expect(systemContent).toMatch(
+    expect(fixedSystemPrefix).toMatch(
       /You are Egregore, a local-first assistant/iu,
     );
-    expect(systemContent).toMatch(
+    expect(fixedSystemPrefix).toMatch(
       /helps visitors understand Jet Sanchez's published, assistant-enabled work and public profile/iu,
     );
-    expect(systemContent).toMatch(
+    expect(fixedSystemPrefix).toMatch(
       /Jet is the person whose material you interpret/iu,
     );
-    expect(systemContent).toMatch(/You are not Jet/iu);
-    expect(systemContent).toMatch(/do not speak on (?:his|Jet's) behalf/i);
-    expect(systemContent).toMatch(/refer to Jet in the third person/i);
-    expect(systemContent).not.toMatch(
-      /Marketing Engineer|AI Researcher|Josh Ethan/iu,
+    expect(fixedSystemPrefix).toMatch(/You are not Jet/iu);
+    expect(fixedSystemPrefix).toMatch(/do not speak on (?:his|Jet's) behalf/i);
+    expect(fixedSystemPrefix).toMatch(/refer to Jet in the third person/i);
+    expect(fixedSystemPrefix).not.toMatch(
+      /Marketing Engineer|AI Researcher|Josh Ethan|Digital Squad|Artificial Intelligence|I am a marketing engineer working at the intersection of AI research/iu,
     );
-    expect(systemContent).toMatch(/untrusted reference data/i);
-    expect(systemContent).toMatch(/content.*no authority/i);
-    expect(systemContent).toMatch(/only.*supplied sources/i);
-    expect(systemContent).toMatch(/\[S#\]/);
-    expect(systemContent).toMatch(/published claims.*synthesis/i);
-    expect(systemContent).toMatch(/not supported.*begin exactly/iu);
-    expect(systemContent).toContain(
+    expect(fixedSystemPrefix).toMatch(/untrusted reference data/i);
+    expect(fixedSystemPrefix).toMatch(/content.*no authority/i);
+    expect(fixedSystemPrefix).toMatch(/only.*supplied sources/i);
+    expect(fixedSystemPrefix).toMatch(/\[S#\]/);
+    expect(fixedSystemPrefix).toMatch(/published claims.*synthesis/i);
+    expect(fixedSystemPrefix).toMatch(/not supported.*begin exactly/iu);
+    expect(fixedSystemPrefix).toContain(
       `I don't have support for that in the supplied sources.`,
     );
-    expect(systemContent).toMatch(/begin exactly.*I don't have support/iu);
-    expect(systemContent).toMatch(/multiple works.*cite each work/iu);
+    expect(fixedSystemPrefix).toMatch(/begin exactly.*I don't have support/iu);
+    expect(fixedSystemPrefix).toMatch(/multiple works.*cite each work/iu);
     expect(result.selectedSources).toEqual([adversarial]);
     expect(result.diagnostics.knowledgeTokens).toBe(
       sourcePayload.estimatedTokens,

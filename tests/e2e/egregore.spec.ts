@@ -1912,6 +1912,43 @@ test.describe('Egregore loading hierarchy and activation recovery', () => {
 });
 
 test.describe('Egregore responses, citations, and scrolling', () => {
+  test('grounds a profile question in the canonical About source without exposing uncited context', async ({
+    page,
+  }) => {
+    await startFakeAssistant(page);
+    await submitQuestion(page, 'Who is Jet?');
+    await waitForCompletedResponse(page);
+
+    const response = page.locator('[aria-label="Conversation"] article').last();
+    const citation = response.getByRole('link', {
+      name: '[S1] Jet Sanchez',
+      exact: true,
+    });
+    await expect(citation).toHaveAttribute(
+      'href',
+      'https://jetsanchez.com/about/',
+    );
+    await expect(
+      response.getByRole('link', { name: /^\[S\d+\]/u }),
+    ).toHaveCount(1);
+    await expect(response).not.toContainText(
+      'I am a marketing engineer working at the intersection of AI research',
+    );
+
+    const disclosure = response.getByTestId('response-source-disclosure');
+    await expect(
+      disclosure.getByRole('button', { name: '1 source' }),
+    ).toBeVisible();
+    await disclosure.getByRole('button', { name: '1 source' }).click();
+    await expect(
+      disclosure.getByRole('link', { name: '[S1] Jet Sanchez', exact: true }),
+    ).toHaveAttribute('href', 'https://jetsanchez.com/about/');
+    await expect(disclosure.getByRole('link')).toHaveCount(1);
+    await expect(disclosure).not.toContainText(
+      'At Digital Squad, I lead AI research & development',
+    );
+  });
+
   test('renders citation disclosure with responsive semantics and no overlay', async ({
     page,
   }, testInfo) => {
