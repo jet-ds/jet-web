@@ -18,7 +18,7 @@ const canonicalUrl = new URL(EGREGORE_IDENTITY.licensePath, SITE.siteUrl).toStri
   <PageWrapper spacing="default">
     <Container size="md">
       <article class="space-y-xl">
-        <header class="max-w-3xl">
+        <header class="max-w-[var(--container-3xl)]">
           <div class="mb-l">
             <Link href={EGREGORE_IDENTITY.canonicalPath} variant="primary" class="inline-flex items-center gap-1">
               <span class="text-accent-base">←</span> Back to Egregore
@@ -87,7 +87,7 @@ const canonicalUrl = new URL(EGREGORE_IDENTITY.licensePath, SITE.siteUrl).toStri
 
         <section aria-labelledby="notices" class="space-y-s">
           <h2 id="notices" class="text-3xl font-bold text-text-primary">Complete notices</h2>
-          <p class="max-w-3xl text-base leading-relaxed text-text-secondary">
+          <p class="max-w-[var(--container-3xl)] text-base leading-relaxed text-text-secondary">
             The complete notice index records the exact package pins, model and runtime asset hashes, observed copyright statements, and modification status.
           </p>
           <a
@@ -100,7 +100,7 @@ const canonicalUrl = new URL(EGREGORE_IDENTITY.licensePath, SITE.siteUrl).toStri
           </a>
         </section>
 
-        <p class="max-w-3xl border-t border-border-default pt-s text-sm leading-relaxed text-text-tertiary">
+        <p class="max-w-[var(--container-3xl)] border-t border-border-default pt-s text-sm leading-relaxed text-text-tertiary">
           These acknowledgements identify upstream work and do not imply endorsement of Egregore or this website by any named author, organization, or project.
         </p>
       </article>

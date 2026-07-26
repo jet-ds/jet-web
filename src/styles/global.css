@@ -1,6 +1,6 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+@config "../../tailwind.config.mjs";
+@custom-variant dark (&:where(.dark, .dark *));
 
 @layer base {
   /* OKLCH Color System - CSS Custom Properties */
@@ -226,8 +226,7 @@
 
 @layer components {
   /* Framework-neutral inline link recipe for Astro, React, and plain HTML. */
-  .text-link,
-  .prose :where(a):not(:where([class~='not-prose'] *)) {
+  .text-link {
     color: var(--color-brand-text);
     font-weight: 500;
     text-decoration: none;
@@ -238,15 +237,12 @@
   }
 
   .text-link:hover,
-  .text-link:focus-visible,
-  .prose :where(a):not(:where([class~='not-prose'] *)):hover,
-  .prose :where(a):not(:where([class~='not-prose'] *)):focus-visible {
+  .text-link:focus-visible {
     color: var(--color-brand-hover);
     text-decoration: underline;
   }
 
-  .text-link:focus-visible,
-  .prose :where(a):not(:where([class~='not-prose'] *)):focus-visible {
+  .text-link:focus-visible {
     outline: 2px solid var(--color-brand-base);
     outline-offset: 2px;
   }
@@ -404,7 +400,6 @@
 
   @media (prefers-reduced-motion: reduce) {
     .text-link,
-    .prose :where(a):not(:where([class~='not-prose'] *)),
     .action {
       transition: none;
     }
@@ -432,7 +427,7 @@
   }
 
   .prose :where(code):not(:where([class~='not-prose'] *)) {
-    @apply text-brand-text bg-bg-subtle px-3xs py-3xs rounded text-sm font-mono;
+    @apply text-brand-text bg-bg-subtle px-3xs py-3xs rounded-sm text-sm font-mono;
   }
 
   .prose :where(pre):not(:where([class~='not-prose'] *)) {
@@ -491,6 +486,34 @@
 
   .prose :where(tbody tr):not(:where([class~='not-prose'] *)) {
     @apply border-b border-border-default;
+  }
+}
+
+/* Keep prose links outside layers so they win over Typography v4 utilities. */
+.prose :where(a):not(:where([class~='not-prose'] *)) {
+  color: var(--color-brand-text);
+  font-weight: 500;
+  text-decoration: none;
+  text-underline-offset: 4px;
+  transition-property: color, text-decoration-color;
+  transition-duration: 150ms;
+  transition-timing-function: ease;
+}
+
+.prose :where(a):not(:where([class~='not-prose'] *)):hover,
+.prose :where(a):not(:where([class~='not-prose'] *)):focus-visible {
+  color: var(--color-brand-hover);
+  text-decoration: underline;
+}
+
+.prose :where(a):not(:where([class~='not-prose'] *)):focus-visible {
+  outline: 2px solid var(--color-brand-base);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prose :where(a):not(:where([class~='not-prose'] *)) {
+    transition: none;
   }
 }
 

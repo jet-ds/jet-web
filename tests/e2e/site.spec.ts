@@ -495,19 +495,24 @@ test('image-backed content cards clip media and expose a visible keyboard bounda
         const surfaceStyle = getComputedStyle(surface);
         return {
           borderRadius: Number.parseFloat(surfaceStyle.borderRadius),
+          imageWidth: imageElement.getBoundingClientRect().width,
           overflow: surfaceStyle.overflow,
-          transform: getComputedStyle(imageElement).transform,
         };
       });
       expect(rest.borderRadius).toBe(8);
       expect(rest.overflow).toBe('hidden');
 
-      await action.hover();
-      await expect
-        .poll(() =>
-          image.evaluate((element) => getComputedStyle(element).transform),
-        )
-        .not.toBe(rest.transform);
+      const supportsHover = await page.evaluate(
+        () => window.matchMedia('(hover: hover) and (pointer: fine)').matches,
+      );
+      if (supportsHover) {
+        await action.hover();
+        await expect
+          .poll(() =>
+            image.evaluate((element) => element.getBoundingClientRect().width),
+          )
+          .toBeGreaterThan(rest.imageWidth + 1);
+      }
 
       await page.reload();
       const keyboardAction = page.locator(`main a[href="${href}"]`).first();

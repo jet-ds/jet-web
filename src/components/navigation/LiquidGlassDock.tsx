@@ -153,10 +153,10 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
     <div
       className={`absolute ${isMobile ? 'bottom-20' : 'top-20'} left-1/2 -translate-x-1/2`}
     >
-      <div className="relative px-2.5 py-0.5 bg-white/90 dark:bg-[#1d1d1f]/80 backdrop-blur-sm text-gray-800 dark:text-white text-xs rounded-md whitespace-nowrap border border-gray-300 dark:border-gray-600">
+      <div className="relative px-2.5 py-0.5 bg-white/90 dark:bg-[#1d1d1f]/80 backdrop-blur-xs text-gray-800 dark:text-white text-xs rounded-md whitespace-nowrap border border-gray-300 dark:border-gray-600">
         {text}
         <div
-          className={`absolute left-1/2 -translate-x-1/2 ${isMobile ? '-bottom-[5px] rotate-[225deg]' : '-top-[5px] rotate-45'} w-2.5 h-2.5 bg-white/90 dark:bg-[#1d1d1f]/80 backdrop-blur-sm border-t border-l border-gray-300 dark:border-gray-600`}
+          className={`absolute left-1/2 -translate-x-1/2 ${isMobile ? '-bottom-[5px] rotate-[225deg]' : '-top-[5px] rotate-45'} w-2.5 h-2.5 bg-white/90 dark:bg-[#1d1d1f]/80 backdrop-blur-xs border-t border-l border-gray-300 dark:border-gray-600`}
         />
       </div>
     </div>
@@ -226,7 +226,7 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
                   tabIndex={isDockClosedOnMobile ? -1 : undefined}
                   onMouseEnter={() => !isMobile && setHoveredIcon(item.id)}
                   onMouseLeave={() => !isMobile && setHoveredIcon(null)}
-                  className="relative dock-icon-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-base focus-visible:ring-offset-2 focus-visible:ring-offset-bg-base rounded-xl"
+                  className="relative dock-icon-container focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-base focus-visible:ring-offset-2 focus-visible:ring-offset-bg-base rounded-xl"
                   style={{ transformOrigin: 'bottom center' }}
                 >
                   <div

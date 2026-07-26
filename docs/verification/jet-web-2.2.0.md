@@ -51,16 +51,16 @@ The identity contracts were written before the namespace move. The focused pre-m
 | Frozen `docs/archive/releases/2.1.0/` checksum            | All 6 tracked files matched the pre-task SHA-1 checksum manifest.                                                                                                                                                                |
 | Standard `npm run verify` gate                            | Passed end to end after making the reload-escape unit owner independent of the intentionally rotating loading headline.                                                                                                          |
 
-## Pending Task 6 platform modernization
+## Task 6 platform modernization
 
-The platform migration is approved and planned but has not run. The values below are targets, not installed-version or passing-test claims:
+The platform migration is approved and proceeds through reversible phases. The values below are targets unless a completed phase records its installed graph and verification:
 
 | Concern                 | Approved exact target                                                                                                                             | Evidence status                                                      |
 | ----------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------- | -------------------------------------------------------------------- |
 | Runtime                 | Node.js `24.x`                                                                                                                                    | Pending phase readback                                               |
 | Astro                   | `astro@7.1.3`                                                                                                                                     | Pending phase 2                                                      |
 | Astro integrations      | `@astrojs/mdx@7.0.3`, `@astrojs/react@6.0.1`, `@astrojs/partytown@2.1.7`, `@astrojs/check@0.9.9`, `@astrojs/rss@4.0.19`, `@astrojs/sitemap@3.7.3` | Pending phase 2                                                      |
-| Tailwind                | `tailwindcss@4.3.3`, `@tailwindcss/vite@4.3.3`, `@tailwindcss/typography@0.5.20`; remove `@astrojs/tailwind`                                      | Pending phase 1                                                      |
+| Tailwind                | `tailwindcss@4.3.3`, `@tailwindcss/vite@4.3.3`, `@tailwindcss/typography@0.5.20`; remove `@astrojs/tailwind`                                      | Phase 1 complete; Astro remains `5.18.2`                             |
 | TypeScript              | `typescript@6.0.3`; TypeScript 7 excluded                                                                                                         | Pending phase 2                                                      |
 | React                   | `react@19.2.7`, `react-dom@19.2.7`, `@types/react@19.2.17`, `@types/react-dom@19.2.3`; both type packages move to `devDependencies`               | Pending phase 2                                                      |
 | UI/runtime dependencies | `framer-motion@12.42.2`, `lucide-react@1.25.0`                                                                                                    | Pending phases 2 and 3                                               |
@@ -69,6 +69,14 @@ The platform migration is approved and planned but has not run. The values below
 | Local model runtime     | retain exact `@litert-lm/core@0.14.0`                                                                                                             | Pin must remain unchanged; real-model qualification stays in Task 12 |
 
 Task 6 first adopts Tailwind 4 through the supported JavaScript `@config` compatibility bridge. The later CSS-first `@theme` and semantic-token-owner rewrite is deliberately deferred because current semantic custom-property names collide with that model. It is a separately evaluated design-system migration, is not required for `2.2.0`, and must not be reported as silently completed by the Tailwind upgrade.
+
+### Phase 1 — Tailwind 4 bridge
+
+- Node `v24.18.0` and npm `11.12.1`; installed graph: Astro `5.18.2`, Tailwind CSS `4.3.3`, `@tailwindcss/vite` `4.3.3`, Typography `0.5.20`, and LiteRT-LM unchanged at `0.14.0`.
+- Replaced the Astro Tailwind integration with the Vite plugin and retained the JavaScript theme compatibility bridge; Preflight, the custom dark variant, semantic palette, and Utopia scales remain in their existing ownership model.
+- Corrected only observed v4 semantics: renamed changed utilities; used explicit container variables where Utopia `xl` through `4xl` spacing keys collide with v4 `max-w-*`; kept prose links unlayered so their shared interaction recipe outranks Typography v4's layered output; and asserted card hover only for fine-pointer hover devices while retaining keyboard coverage on both browser projects.
+- RED evidence: v4's individual `scale` property invalidated transform serialization; container collisions collapsed Egregore and shifted its Ghost viewport by `409px`; v4 Typography overrode prose-link styling; and the mobile hover assertion exercised an unavailable capability. The focused contracts passed after correction.
+- Node 24 gates passed: `npm run verify` (46 files / 548 tests, 0 Astro errors; 2 existing Partytown hints), `npx tsc --noEmit`, `npm run verify:build-purity`, and the complete `npm run verify:browser` matrix (260 tests; Playwright last-run status `passed`).
 
 Populate this section during Task 6 with the four phase commit SHAs, Node/npm readback, exact `npm ls` graph, clean-`npm ci` command results, compiler/type/test/docs/build/build-purity/production-artifact/browser results, representative light/dark and `320–369px`/desktop rendered disposition, and the reviewed production-only and full audit dispositions. Comparison artifacts remain ignored under `test-results/`; no screenshot or `Untracked/` evidence is committed. The Tailwind 4 support floor becomes Chrome 111+, Safari 16.4+, and Firefox 128+ only after the phase passes. Astro uses `compressHTML: true` and its Sätteri default unless rendered evidence requires a compatibility change. Enforcing CSP remains outside the matrix because of the current `ClientRouter` and Shiki constraint; no CSP setting is added in Task 6.
 

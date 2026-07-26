@@ -665,7 +665,7 @@ export default function EgregoreExperience({
     >
       <header className="egregore-header relative z-10 flex items-center justify-between gap-s px-gutter">
         <div className="flex min-w-0 items-start gap-xs">
-          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-border-default bg-surface-base text-brand-base shadow-sm">
+          <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-border-default bg-surface-base text-brand-base shadow-xs">
             <Ghost aria-hidden="true" size={24} strokeWidth={1.8} />
           </span>
           <div data-testid="egregore-identity" className="min-w-0">
@@ -746,15 +746,15 @@ export default function EgregoreExperience({
             data-testid="activation-main"
             className="flex flex-1 items-center justify-center overflow-y-auto px-gutter py-m max-[369px]:pb-[calc(var(--space-5xl)+var(--space-s))]"
           >
-            <div className="w-full max-w-3xl text-center">
+            <div className="w-full max-w-[var(--container-3xl)] text-center">
               <AnimatedGhost
                 mode={ghostAnimationMode}
                 previousMode={previousVisibleLargeGhostMode}
               />
-              <h1 className="mx-auto max-w-2xl text-5xl font-bold leading-[1.04] text-text-primary">
+              <h1 className="mx-auto max-w-[var(--container-2xl)] text-5xl font-bold leading-[1.04] text-text-primary">
                 Ask the part of the site that reads everything.
               </h1>
-              <p className="mx-auto mt-s max-w-2xl text-base leading-relaxed text-text-secondary">
+              <p className="mx-auto mt-s max-w-[var(--container-2xl)] text-base leading-relaxed text-text-secondary">
                 Egregore runs frontier local AI in this browser, grounded in
                 Jet&apos;s published works. Starting it downloads about 2 GB and
                 may use substantial GPU memory.
@@ -762,7 +762,7 @@ export default function EgregoreExperience({
 
               <div
                 data-testid="activation-privacy-facts"
-                className="mx-auto mt-s flex max-w-xl flex-wrap items-center justify-center gap-x-s gap-y-2xs text-xs text-text-tertiary"
+                className="mx-auto mt-s flex max-w-[var(--container-xl)] flex-wrap items-center justify-center gap-x-s gap-y-2xs text-xs text-text-tertiary"
               >
                 <span className="inline-flex items-center justify-center gap-3xs whitespace-nowrap">
                   <LockKeyhole aria-hidden="true" size={15} />
@@ -782,7 +782,7 @@ export default function EgregoreExperience({
                 <p
                   id="egregore-activation-status"
                   data-testid="activation-status-message"
-                  className={`inline-flex min-h-[2.75em] max-w-xl items-center justify-center gap-2xs text-xs font-medium leading-[1.375] min-[430px]:min-h-[1.375em] ${status === 'awaiting-consent' ? 'visible text-brand-text' : status === 'load-error' ? 'visible text-text-secondary' : 'invisible text-text-secondary'}`}
+                  className={`inline-flex min-h-[2.75em] max-w-[var(--container-xl)] items-center justify-center gap-2xs text-xs font-medium leading-[1.375] min-[430px]:min-h-[1.375em] ${status === 'awaiting-consent' ? 'visible text-brand-text' : status === 'load-error' ? 'visible text-text-secondary' : 'invisible text-text-secondary'}`}
                   aria-hidden={
                     status !== 'awaiting-consent' && status !== 'load-error'
                   }
@@ -875,7 +875,7 @@ export default function EgregoreExperience({
                 egregore.state.capability !== null &&
                 egregore.state.capability.warnings.length > 0 && (
                   <div
-                    className="mx-auto mt-xs max-w-xl text-sm text-text-secondary"
+                    className="mx-auto mt-xs max-w-[var(--container-xl)] text-sm text-text-secondary"
                     role="status"
                   >
                     {egregore.state.capability.warnings.map(
@@ -893,7 +893,7 @@ export default function EgregoreExperience({
 
         {status === 'unsupported' && (
           <main className="flex flex-1 items-center justify-center overflow-y-auto px-gutter py-m">
-            <div className="w-full max-w-2xl text-center">
+            <div className="w-full max-w-[var(--container-2xl)] text-center">
               <AnimatedGhost
                 mode={ghostAnimationMode}
                 previousMode={previousVisibleLargeGhostMode}
@@ -901,7 +901,7 @@ export default function EgregoreExperience({
               <h1 className="text-3xl font-bold text-text-primary">
                 This browser cannot run Egregore
               </h1>
-              <p className="mx-auto mt-s max-w-xl text-base text-text-secondary">
+              <p className="mx-auto mt-s max-w-[var(--container-xl)] text-base text-text-secondary">
                 {egregore.state.error?.message ??
                   'The required local AI capabilities are not available here.'}
               </p>
@@ -941,7 +941,7 @@ export default function EgregoreExperience({
           <main className="flex flex-1 items-center justify-center px-gutter py-m">
             <div
               data-testid="loading-stack"
-              className="w-full max-w-xl text-center"
+              className="w-full max-w-[var(--container-xl)] text-center"
             >
               <AnimatedGhost
                 mode={ghostAnimationMode}
@@ -999,7 +999,7 @@ export default function EgregoreExperience({
           <main className="flex min-h-0 flex-1 flex-col">
             {showPreConversation ? (
               <div className="flex flex-1 items-center justify-center overflow-y-auto px-gutter py-m">
-                <div className="w-full max-w-3xl text-center">
+                <div className="w-full max-w-[var(--container-3xl)] text-center">
                   <AnimatedGhost
                     mode={ghostAnimationMode}
                     previousMode={previousVisibleLargeGhostMode}
@@ -1007,10 +1007,10 @@ export default function EgregoreExperience({
                   <h1 className="text-2xl font-bold leading-tight tracking-tight min-[370px]:whitespace-nowrap">
                     What are you curious about?
                   </h1>
-                  <p className="mx-auto mt-xs max-w-xl text-xs text-text-tertiary min-[370px]:whitespace-nowrap">
+                  <p className="mx-auto mt-xs max-w-[var(--container-xl)] text-xs text-text-tertiary min-[370px]:whitespace-nowrap">
                     Ask about Jet&apos;s writing, research, projects, or ideas.
                   </p>
-                  <div className="mx-auto mt-m grid max-w-2xl grid-cols-1 gap-xs sm:grid-cols-3">
+                  <div className="mx-auto mt-m grid max-w-[var(--container-2xl)] grid-cols-1 gap-xs sm:grid-cols-3">
                     {suggestedQuestions.map((question) => (
                       <button
                         key={question}
@@ -1019,7 +1019,7 @@ export default function EgregoreExperience({
                           setDraft(question);
                           inputRef.current?.focus();
                         }}
-                        className="min-h-20 rounded-xl border border-border-default bg-surface-base p-xs text-left text-sm leading-snug text-text-secondary transition-colors hover:border-brand-base hover:bg-bg-subtle hover:text-text-primary focus:outline-none focus:ring-2 focus:ring-brand-base"
+                        className="min-h-20 rounded-xl border border-border-default bg-surface-base p-xs text-left text-sm leading-snug text-text-secondary transition-colors hover:border-brand-base hover:bg-bg-subtle hover:text-text-primary focus:outline-hidden focus:ring-2 focus:ring-brand-base"
                       >
                         {question}
                       </button>
@@ -1036,7 +1036,7 @@ export default function EgregoreExperience({
                   aria-label="Conversation"
                   onScroll={handleConversationScroll}
                 >
-                  <div className="mx-auto flex w-full max-w-3xl flex-col gap-l pb-l">
+                  <div className="mx-auto flex w-full max-w-[var(--container-3xl)] flex-col gap-l pb-l">
                     {egregore.state.turns.map((turn) => (
                       <article
                         key={turn.id}
@@ -1110,7 +1110,7 @@ export default function EgregoreExperience({
                       onClick={handleJumpToLatest}
                       data-action-variant="outline"
                       data-action-density="compact"
-                      className="action action--outline action--compact pointer-events-auto rounded-full border-border-strong bg-surface-base px-s text-sm shadow-sm"
+                      className="action action--outline action--compact pointer-events-auto rounded-full border-border-strong bg-surface-base px-s text-sm shadow-xs"
                     >
                       <ArrowDown aria-hidden="true" size={15} />
                       Jump to latest
@@ -1121,7 +1121,7 @@ export default function EgregoreExperience({
             )}
 
             {showPreConversation && egregore.state.error !== null && (
-              <div className="mx-auto w-full max-w-3xl px-gutter pb-s">
+              <div className="mx-auto w-full max-w-[var(--container-3xl)] px-gutter pb-s">
                 <ErrorRecovery
                   actionRef={errorActionRef}
                   errorCode={egregore.state.error.code}
@@ -1285,7 +1285,7 @@ function ResponseDetails({ turn }: { turn: ConversationTurn }) {
                       target="_blank"
                       rel="noopener noreferrer"
                       aria-label={`[${id}] ${source.title}`}
-                      className="grid min-w-0 max-w-full grid-cols-[auto_minmax(0,1fr)] items-start gap-2xs py-xs text-left text-text-secondary transition-colors hover:text-text-primary focus:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-base"
+                      className="grid min-w-0 max-w-full grid-cols-[auto_minmax(0,1fr)] items-start gap-2xs py-xs text-left text-text-secondary transition-colors hover:text-text-primary focus:outline-hidden focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-accent-base"
                     >
                       <span className="shrink-0 font-semibold text-accent-text">
                         [{id}]
@@ -1398,14 +1398,14 @@ function Composer({
       {showReliabilityDisclosure && (
         <p
           data-testid="composer-reliability-disclosure"
-          className="mx-auto mb-2xs max-w-3xl px-2xs text-center text-sm leading-relaxed text-text-tertiary"
+          className="mx-auto mb-2xs max-w-[var(--container-3xl)] px-2xs text-center text-sm leading-relaxed text-text-tertiary"
         >
           Egregore can make mistakes. Check cited sources.
         </p>
       )}
       <form
         onSubmit={onSubmit}
-        className="mx-auto flex w-full max-w-3xl items-end gap-xs rounded-2xl border border-border-default bg-surface-base p-2xs shadow-[0_16px_48px_rgba(31,39,50,0.12)] transition-colors focus-within:border-brand-base"
+        className="mx-auto flex w-full max-w-[var(--container-3xl)] items-end gap-xs rounded-2xl border border-border-default bg-surface-base p-2xs shadow-[0_16px_48px_rgba(31,39,50,0.12)] transition-colors focus-within:border-brand-base"
       >
         <label htmlFor="egregore-prompt" className="sr-only">
           Ask Egregore
@@ -1421,7 +1421,7 @@ function Composer({
           rows={1}
           maxLength={1200}
           placeholder="Ask Egregore…"
-          className="max-h-36 min-h-11 flex-1 resize-none bg-transparent px-xs py-xs text-base text-text-primary outline-none placeholder:text-text-tertiary disabled:cursor-not-allowed disabled:opacity-60"
+          className="max-h-36 min-h-11 flex-1 resize-none bg-transparent px-xs py-xs text-base text-text-primary outline-hidden placeholder:text-text-tertiary disabled:cursor-not-allowed disabled:opacity-60"
         />
         <button
           type="submit"
@@ -1440,7 +1440,7 @@ function Composer({
       </form>
       <div
         data-testid="composer-metadata"
-        className="mx-auto mt-2xs flex max-w-3xl flex-nowrap items-center justify-end gap-2xs px-2xs text-xs text-text-tertiary min-[768px]:[@media(pointer:fine)]:justify-between"
+        className="mx-auto mt-2xs flex max-w-[var(--container-3xl)] flex-nowrap items-center justify-end gap-2xs px-2xs text-xs text-text-tertiary min-[768px]:[@media(pointer:fine)]:justify-between"
       >
         <span
           data-testid="composer-keyboard-hint"

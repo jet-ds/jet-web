@@ -3,7 +3,7 @@ import { defineConfig } from 'astro/config';
 
 import react from '@astrojs/react';
 import mdx from '@astrojs/mdx';
-import tailwind from '@astrojs/tailwind';
+import tailwindcss from '@tailwindcss/vite';
 import sitemap from '@astrojs/sitemap';
 import partytown from '@astrojs/partytown';
 
@@ -16,9 +16,6 @@ export default defineConfig({
   integrations: [
     react(),
     mdx(),
-    tailwind({
-      applyBaseStyles: false, // We'll use our own global.css
-    }),
     sitemap({
       filter: (page) => {
         const pathname = new URL(page).pathname.replace(/\/$/, '') || '/';
@@ -35,6 +32,9 @@ export default defineConfig({
       },
     }),
   ],
+  vite: {
+    plugins: [tailwindcss()],
+  },
   image: {
     // Image optimization configuration
     domains: [],
