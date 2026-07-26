@@ -50,14 +50,6 @@ interface WishedKnowledgeRepository {
   unload(): void | Promise<void>;
 }
 
-type QualificationObservation =
-  | 'retrieval-context-selection-start'
-  | 'retrieval-context-selection-end'
-  | 'prompt-assembly-start'
-  | 'prompt-assembly-end'
-  | 'generation-send'
-  | 'generation-first-nonempty';
-
 interface WishedDependencies {
   createRepository: () => WishedKnowledgeRepository;
   createRuntime: () => LocalModelRuntime;
@@ -73,9 +65,6 @@ interface WishedDependencies {
     response: string,
     sources: SelectedSource[],
   ) => ValidCitation[];
-  qualificationObserver?: {
-    mark(observation: QualificationObservation): void;
-  };
   createTurnId: () => string;
   now: () => number;
 }
@@ -325,7 +314,6 @@ function createHarness(
     runtimeCreateSessionWait?: Promise<void>;
     runtimeCreateSessionError?: Error;
     modelArtifactStore?: ModelArtifactStore;
-    qualificationObserver?: WishedDependencies['qualificationObserver'];
   } = {},
 ) {
   const order: string[] = [];
@@ -438,9 +426,6 @@ function createHarness(
         return citations;
       },
     ),
-    ...(options.qualificationObserver === undefined
-      ? {}
-      : { qualificationObserver: options.qualificationObserver }),
     createTurnId: () => `turn-${++nextTurnId}`,
     now: () => 1_000,
   };
@@ -751,32 +736,6 @@ describe('useEgregore activation boundary', () => {
       result.current.state.turns.every((turn) => !('sources' in turn)),
     ).toBe(true);
     expect(result.current.state.lifecycle.status).toBe('ready');
-  });
-
-  it('marks distinct qualification-only retrieval, prompt, send, and first-content boundaries', async () => {
-    const useEgregore = await loadSubject();
-    const observations: QualificationObservation[] = [];
-    const harness = createHarness({
-      responseChunks: ['', 'Grounded answer [S1].'],
-      qualificationObserver: {
-        mark: (observation) => observations.push(observation),
-      },
-    });
-    const { result } = renderHook(() => useEgregore(harness.dependencies));
-    await makeReady(result);
-
-    await act(async () => {
-      await result.current.sendMessage('What did Jet publish?');
-    });
-
-    expect(observations).toEqual([
-      'retrieval-context-selection-start',
-      'retrieval-context-selection-end',
-      'prompt-assembly-start',
-      'prompt-assembly-end',
-      'generation-send',
-      'generation-first-nonempty',
-    ]);
   });
 
   it('unloads in safe order and suppresses chunks released after cleanup starts', async () => {

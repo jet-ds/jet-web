@@ -30,18 +30,6 @@ export interface EgregoreKnowledgeRepository {
   unload(): void | Promise<void>;
 }
 
-export type EgregoreQualificationObservation =
-  | 'retrieval-context-selection-start'
-  | 'retrieval-context-selection-end'
-  | 'prompt-assembly-start'
-  | 'prompt-assembly-end'
-  | 'generation-send'
-  | 'generation-first-nonempty';
-
-export interface EgregoreQualificationObserver {
-  mark(observation: EgregoreQualificationObservation): void;
-}
-
 export interface EgregoreDependencies {
   createRepository: () => EgregoreKnowledgeRepository;
   createRuntime: () => LocalModelRuntime;
@@ -57,7 +45,6 @@ export interface EgregoreDependencies {
     response: string,
     sources: SelectedSource[],
   ) => ValidCitation[];
-  qualificationObserver?: EgregoreQualificationObserver;
   contextBudget?: ContextBudget;
   createTurnId: () => string;
   now: () => number;
@@ -407,28 +394,16 @@ export function useEgregore(
       }));
       let assembled: AssembledPrompt;
       try {
-        dependenciesRef.current.qualificationObserver?.mark(
-          'retrieval-context-selection-start',
-        );
         const selection = dependenciesRef.current.rankAndPackContext({
           query: cleanQuestion,
           knowledgeBase,
           budget: dependenciesRef.current.contextBudget ?? EGREGORE_CONTEXT,
         });
-        dependenciesRef.current.qualificationObserver?.mark(
-          'retrieval-context-selection-end',
-        );
-        dependenciesRef.current.qualificationObserver?.mark(
-          'prompt-assembly-start',
-        );
         assembled = dependenciesRef.current.assemblePrompt(
           cleanQuestion,
           history,
           selection,
           dependenciesRef.current.contextBudget ?? EGREGORE_CONTEXT,
-        );
-        dependenciesRef.current.qualificationObserver?.mark(
-          'prompt-assembly-end',
         );
       } catch (cause) {
         if (!isCurrent(operationId)) return;
@@ -473,7 +448,6 @@ export function useEgregore(
       });
 
       let response = '';
-      let observedFirstNonemptyChunk = false;
       const completeStoppedResponse = (error: EgregoreError | null = null) => {
         if (!isCurrent(operationId)) return;
         const citations = dependenciesRef.current.extractValidCitations(
@@ -509,19 +483,12 @@ export function useEgregore(
           completeStoppedResponse();
           return;
         }
-        dependenciesRef.current.qualificationObserver?.mark('generation-send');
         const result = await runtimeRef.current!.generate(
           assembled.userMessage,
           {
             onText: (chunk) => {
               if (!isCurrent(operationId)) return;
               response += chunk;
-              if (!observedFirstNonemptyChunk && chunk !== '') {
-                observedFirstNonemptyChunk = true;
-                dependenciesRef.current.qualificationObserver?.mark(
-                  'generation-first-nonempty',
-                );
-              }
               commit({
                 ...stateRef.current,
                 turns: stateRef.current.turns.map((turn) =>

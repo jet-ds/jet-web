@@ -24,6 +24,10 @@ import {
   isPartytownBlobScript,
   isPartytownSandboxDocument,
 } from './requestPrivacy';
+import {
+  localQualificationSpansRequired,
+  splitQualificationCases,
+} from './qualificationContract';
 
 interface VisitorCase {
   id: string;
@@ -1138,6 +1142,7 @@ async function responseAbstains(page: Page): Promise<boolean> {
 async function runVisitorCase(
   page: Page,
   visitorCase: VisitorCase,
+  options: { requireDetailedSpans: boolean },
 ): Promise<string[]> {
   const caseFailures: string[] = [];
   const sessionStartedAt = performance.now();
@@ -1145,7 +1150,9 @@ async function runVisitorCase(
   const sessionReadyMs = roundMilliseconds(
     performance.now() - sessionStartedAt,
   );
-  await resetQualificationObserver(page);
+  if (options.requireDetailedSpans) {
+    await resetQualificationObserver(page);
+  }
   const composer = page.getByRole('textbox', { name: 'Ask Egregore' });
   await composer.fill(visitorCase.question);
   await page.getByRole('button', { name: 'Send message' }).click();
@@ -1160,29 +1167,43 @@ async function runVisitorCase(
       timeout: RESPONSE_COMPLETION_TIMEOUT_MS,
     },
   );
-  const completedAt = await page.evaluate(() => performance.now());
-  const observations = await qualificationObservations(page);
-  const retrievalStartedAt = observationTimestamp(
-    observations,
-    'retrieval-context-selection-start',
-  );
-  const retrievalFinishedAt = observationTimestamp(
-    observations,
-    'retrieval-context-selection-end',
-  );
-  const promptStartedAt = observationTimestamp(
-    observations,
-    'prompt-assembly-start',
-  );
-  const promptFinishedAt = observationTimestamp(
-    observations,
-    'prompt-assembly-end',
-  );
-  const sendAt = observationTimestamp(observations, 'generation-send');
-  const firstNonemptyAt = observationTimestamp(
-    observations,
-    'generation-first-nonempty',
-  );
+  const detailedSpans = options.requireDetailedSpans
+    ? await (async () => {
+        const completedAt = await page.evaluate(() => performance.now());
+        const observations = await qualificationObservations(page);
+        const retrievalStartedAt = observationTimestamp(
+          observations,
+          'retrieval-context-selection-start',
+        );
+        const retrievalFinishedAt = observationTimestamp(
+          observations,
+          'retrieval-context-selection-end',
+        );
+        const promptStartedAt = observationTimestamp(
+          observations,
+          'prompt-assembly-start',
+        );
+        const promptFinishedAt = observationTimestamp(
+          observations,
+          'prompt-assembly-end',
+        );
+        const sendAt = observationTimestamp(observations, 'generation-send');
+        const firstNonemptyAt = observationTimestamp(
+          observations,
+          'generation-first-nonempty',
+        );
+        return {
+          retrievalContextSelectionMs: roundMilliseconds(
+            retrievalFinishedAt - retrievalStartedAt,
+          ),
+          promptAssemblyMs: roundMilliseconds(
+            promptFinishedAt - promptStartedAt,
+          ),
+          sendToFirstNonemptyMs: roundMilliseconds(firstNonemptyAt - sendAt),
+          totalGenerationMs: roundMilliseconds(completedAt - sendAt),
+        };
+      })()
+    : null;
 
   try {
     const inlineCitations = page
@@ -1257,10 +1278,14 @@ async function runVisitorCase(
         'span=visitor-case',
         `case=${visitorCase.id}`,
         `session-ready-ms=${sessionReadyMs}`,
-        `retrieval-context-selection-ms=${roundMilliseconds(retrievalFinishedAt - retrievalStartedAt)}`,
-        `prompt-assembly-ms=${roundMilliseconds(promptFinishedAt - promptStartedAt)}`,
-        `send-to-first-nonempty-ms=${roundMilliseconds(firstNonemptyAt - sendAt)}`,
-        `total-generation-ms=${roundMilliseconds(completedAt - sendAt)}`,
+        ...(detailedSpans === null
+          ? ['qualification-spans=not-injected']
+          : [
+              `retrieval-context-selection-ms=${detailedSpans.retrievalContextSelectionMs}`,
+              `prompt-assembly-ms=${detailedSpans.promptAssemblyMs}`,
+              `send-to-first-nonempty-ms=${detailedSpans.sendToFirstNonemptyMs}`,
+              `total-generation-ms=${detailedSpans.totalGenerationMs}`,
+            ]),
         `citation-resolved=${citationResolved}`,
         `abstention=${abstention}`,
       ].join(' '),
@@ -1774,9 +1799,12 @@ test('qualifies Egregore with the real local model', async ({
     new URL(applicationBaseUrl).origin,
     process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
   );
+  const detailedSpansRequired = localQualificationSpansRequired(
+    process.env.REAL_MODEL_BASE_URL,
+  );
   await installDeviceObservation(page);
   await installCacheObservation(page);
-  await installQualificationObserver(page);
+  if (detailedSpansRequired) await installQualificationObserver(page);
   await installConsentAudit(page);
   await page.goto(EGREGORE_PATH);
   await assertFreshApplicationStorage(page);
@@ -1790,13 +1818,8 @@ test('qualifies Egregore with the real local model', async ({
   );
 
   if (mode === 'qualification') {
-    const qualificationInteraction = VISITOR_CASES.find(
-      (visitorCase) => visitorCase.id === 'recursive-convergence-claim',
-    );
-    contentFreeAssert(
-      qualificationInteraction !== undefined,
-      'QUALIFICATION_INTERACTION_MISSING',
-    );
+    const { frozen: qualificationInteraction, remainingWarm } =
+      splitQualificationCases(VISITOR_CASES, 'recursive-convergence-claim');
     console.info('phase=cold-activation');
     const cold = await activationMeasurement(page, ledger, applicationOrigin, {
       sampleLoading: true,
@@ -1806,9 +1829,11 @@ test('qualifies Egregore with the real local model', async ({
     printActivation('cold', cold);
     console.info('phase=cold-qualification-interaction');
     visitorCaseFailures.push(
-      ...(await runVisitorCase(page, qualificationInteraction)).map(
-        (failure) => `cold:${qualificationInteraction.id}:${failure}`,
-      ),
+      ...(
+        await runVisitorCase(page, qualificationInteraction, {
+          requireDetailedSpans: detailedSpansRequired,
+        })
+      ).map((failure) => `cold:${qualificationInteraction.id}:${failure}`),
     );
     await unloadAndAssertSettled(page);
     const warmCompatibilityMark = await assertCompatibilityDoesNotLoadAssistant(
@@ -1825,10 +1850,22 @@ test('qualifies Egregore with the real local model', async ({
     printActivation('warm', warm);
     console.info('phase=warm-qualification-interaction');
     visitorCaseFailures.push(
-      ...(await runVisitorCase(page, qualificationInteraction)).map(
-        (failure) => `warm:${qualificationInteraction.id}:${failure}`,
-      ),
+      ...(
+        await runVisitorCase(page, qualificationInteraction, {
+          requireDetailedSpans: detailedSpansRequired,
+        })
+      ).map((failure) => `warm:${qualificationInteraction.id}:${failure}`),
     );
+    console.info('phase=remaining-warm-qualification-cases');
+    for (const visitorCase of remainingWarm) {
+      visitorCaseFailures.push(
+        ...(
+          await runVisitorCase(page, visitorCase, {
+            requireDetailedSpans: detailedSpansRequired,
+          })
+        ).map((failure) => `warm:${visitorCase.id}:${failure}`),
+      );
+    }
     console.info('phase=lifecycle-closeout');
     await qualificationCloseout(page);
   } else {
@@ -1857,9 +1894,11 @@ test('qualifies Egregore with the real local model', async ({
     );
     for (const visitorCase of smokeCases) {
       visitorCaseFailures.push(
-        ...(await runVisitorCase(page, visitorCase!)).map(
-          (failure) => `${visitorCase!.id}:${failure}`,
-        ),
+        ...(
+          await runVisitorCase(page, visitorCase!, {
+            requireDetailedSpans: detailedSpansRequired,
+          })
+        ).map((failure) => `${visitorCase!.id}:${failure}`),
       );
     }
     await unloadAndAssertSettled(page);

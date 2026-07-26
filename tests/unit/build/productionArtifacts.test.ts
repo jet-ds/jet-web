@@ -96,8 +96,21 @@ function writeExactProductionSurface(directory: string): void {
 
 describe('ordinary production artifact containment', () => {
   it('forbids qualification-only observation seams from production output', () => {
-    expect(FORBIDDEN_PRODUCTION_ARTIFACT_MARKERS).toContain(
-      'egregore:qualification-observation',
+    expect(FORBIDDEN_PRODUCTION_ARTIFACT_MARKERS).toEqual(
+      expect.arrayContaining([
+        'egregore:qualification-observation',
+        'qualificationObserver',
+        'retrieval-context-selection-start',
+        'retrieval-context-selection-end',
+        'prompt-assembly-start',
+        'prompt-assembly-end',
+        'generation-send',
+        'generation-first-nonempty',
+        'retrieval-context-selection-ms',
+        'prompt-assembly-ms',
+        'send-to-first-nonempty-ms',
+        'total-generation-ms',
+      ]),
     );
   });
 

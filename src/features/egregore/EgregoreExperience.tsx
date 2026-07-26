@@ -62,14 +62,11 @@ import {
 import { LiteRtGemmaRuntime } from './runtime/liteRtGemma';
 import { createModelArtifactStore } from './runtime/modelArtifactStore';
 import type { EgregoreLifecycleStatus } from './runtime/lifecycle';
+import type { GenerationHandlers, LocalModelRuntime } from './runtime/types';
 import { createRuntimeError } from './runtime/types';
 import { rankAndPackContext } from './selection/rankAndPack';
 import type { ConversationTurn } from './state/types';
-import {
-  useEgregore,
-  type EgregoreDependencies,
-  type EgregoreQualificationObserver,
-} from './state/useEgregore';
+import { useEgregore, type EgregoreDependencies } from './state/useEgregore';
 
 const suggestedQuestions = [
   'What does Jet write about agentic work?',
@@ -84,9 +81,13 @@ type EgregoreE2EWindow = Window & {
   };
 };
 
-type EgregoreQualificationWindow = Window & {
-  dispatchEvent(event: Event): boolean;
-};
+type QualificationObservation =
+  | 'retrieval-context-selection-start'
+  | 'retrieval-context-selection-end'
+  | 'prompt-assembly-start'
+  | 'prompt-assembly-end'
+  | 'generation-send'
+  | 'generation-first-nonempty';
 
 type InteractionModality = 'keyboard' | 'mouse' | 'touch' | 'pen';
 
@@ -284,21 +285,41 @@ function createTestBuildDependencies(): EgregoreDependencies {
   };
 }
 
-function createQualificationObserver(): EgregoreQualificationObserver {
+function emitQualificationObservation(observation: QualificationObservation) {
+  window.dispatchEvent(
+    new CustomEvent('egregore:qualification-observation', {
+      detail: { observation, timestamp: performance.now() },
+    }),
+  );
+}
+
+function createQualificationRuntime(
+  runtime: LocalModelRuntime,
+): LocalModelRuntime {
   return {
-    mark(observation) {
-      (window as EgregoreQualificationWindow).dispatchEvent(
-        new CustomEvent('egregore:qualification-observation', {
-          detail: { observation, timestamp: performance.now() },
-        }),
-      );
+    checkCapabilities: () => runtime.checkCapabilities(),
+    load: (options) => runtime.load(options),
+    createSession: (preface) => runtime.createSession(preface),
+    generate: (message, handlers: GenerationHandlers) => {
+      emitQualificationObservation('generation-send');
+      let observedFirstNonemptyChunk = false;
+      return runtime.generate(message, {
+        onText: (chunk) => {
+          if (!observedFirstNonemptyChunk && chunk !== '') {
+            observedFirstNonemptyChunk = true;
+            emitQualificationObservation('generation-first-nonempty');
+          }
+          handlers.onText(chunk);
+        },
+      });
     },
+    cancel: () => runtime.cancel(),
+    reset: () => runtime.reset(),
+    unload: () => runtime.unload(),
   };
 }
 
-function createProductionDependencies(
-  qualificationObserver?: EgregoreQualificationObserver,
-): EgregoreDependencies {
+function createProductionDependencies(): EgregoreDependencies {
   let nextTurnId = 0;
   const runtime = new LiteRtGemmaRuntime();
   const modelArtifactStore = createModelArtifactStore();
@@ -309,7 +330,33 @@ function createProductionDependencies(
     rankAndPackContext,
     assemblePrompt,
     extractValidCitations,
-    ...(qualificationObserver === undefined ? {} : { qualificationObserver }),
+    contextBudget: EGREGORE_CONTEXT,
+    createTurnId: () => `turn-${++nextTurnId}`,
+    now: () => performance.now(),
+  };
+}
+
+function createQualificationDependencies(): EgregoreDependencies {
+  let nextTurnId = 0;
+  const runtime = createQualificationRuntime(new LiteRtGemmaRuntime());
+  const modelArtifactStore = createModelArtifactStore();
+  return {
+    createRepository: () => new StaticKnowledgeRepository(),
+    createRuntime: () => runtime,
+    createModelArtifactStore: () => modelArtifactStore,
+    rankAndPackContext: (input) => {
+      emitQualificationObservation('retrieval-context-selection-start');
+      const selection = rankAndPackContext(input);
+      emitQualificationObservation('retrieval-context-selection-end');
+      return selection;
+    },
+    assemblePrompt: (...args) => {
+      emitQualificationObservation('prompt-assembly-start');
+      const prompt = assemblePrompt(...args);
+      emitQualificationObservation('prompt-assembly-end');
+      return prompt;
+    },
+    extractValidCitations,
     contextBudget: EGREGORE_CONTEXT,
     createTurnId: () => `turn-${++nextTurnId}`,
     now: () => performance.now(),
@@ -324,7 +371,7 @@ function createDependencies(): EgregoreDependencies {
   if (import.meta.env.PUBLIC_EGREGORE_E2E === '1' && localHost)
     return createTestBuildDependencies();
   if (import.meta.env.PUBLIC_EGREGORE_QUALIFICATION === '1' && localHost) {
-    return createProductionDependencies(createQualificationObserver());
+    return createQualificationDependencies();
   }
   return createProductionDependencies();
 }
