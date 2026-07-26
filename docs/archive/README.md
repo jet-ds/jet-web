@@ -20,10 +20,10 @@ The [archive manifest](./archive-manifest.json) records each adopted or release-
 | --- | --- | --- | --- |
 | [Jet's Ghost local-assistant design](./releases/2.1.0/2026-07-11-jets-ghost-local-assistant-design.md) | `docs/superpowers/specs/2026-07-11-jets-ghost-local-assistant-design.md` | Historical completed-release design. | [2.2.0 design](../superpowers/specs/2026-07-18-jet-web-2.2.0-design.md) |
 | [Jet's Ghost implementation plan](./releases/2.1.0/2026-07-11-jets-ghost-local-assistant.md) | `docs/superpowers/plans/2026-07-11-jets-ghost-local-assistant.md` | Historical completed-release plan. | [2.2.0 plan](../superpowers/plans/2026-07-18-jet-web-2.2.0.md) |
-| [Approved prototype experience](./releases/2.1.0/jets-ghost-chat-experience.md) | `docs/jets-ghost-chat-experience.md` | Historical prototype-era interaction record. | [AGENTS.md](../../AGENTS.md#jets-ghost) and [2.2.0 design](../superpowers/specs/2026-07-18-jet-web-2.2.0-design.md) |
+| [Approved prototype experience](./releases/2.1.0/jets-ghost-chat-experience.md) | `docs/jets-ghost-chat-experience.md` | Historical prototype-era interaction record. | [Egregore contributor guidance](../../AGENTS.md#egregore) and [2.2.0 design](../superpowers/specs/2026-07-18-jet-web-2.2.0-design.md) |
 | [Qualification and post-release record](./releases/2.1.0/jets-ghost-2.1.0.md) | `docs/verification/jets-ghost-2.1.0.md` | Frozen historical release evidence. | [2.2.0 verification](../verification/jet-web-2.2.0.md) |
 | [Consolidation record](./releases/2.1.0/jets-ghost-2.1.0-consolidation.md) | `docs/verification/jets-ghost-2.1.0-consolidation.md` | Historical post-release evidence. | [2.2.0 verification](../verification/jet-web-2.2.0.md) |
-| [License review](./releases/2.1.0/jets-ghost-licenses.md) | `docs/verification/jets-ghost-licenses.md` | Historical legal-review evidence, no longer an executable test input. | [AGENTS.md](../../AGENTS.md#jets-ghost) and [third-party notices](../../THIRD_PARTY_NOTICES.md) |
+| [License review](./releases/2.1.0/jets-ghost-licenses.md) | `docs/verification/jets-ghost-licenses.md` | Historical legal-review evidence, no longer an executable test input. | [Third-party notices](../../THIRD_PARTY_NOTICES.md) |
 
 ## Earlier site history
 

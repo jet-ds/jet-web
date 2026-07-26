@@ -37,7 +37,7 @@ The production build is pure. `npm run build` may validate repository inputs and
 - Prefer Astro components for static presentation and React only for stateful browser interactions.
 - Content sources live in `src/data/blog/` and `src/data/works/`; loaders are defined in `src/content.config.ts`, with shared schemas in `src/schemas/content.ts`.
 - Use `getCollection()` and `getEntry()` for type-safe content access.
-- Shared site metadata and navigation live in `src/config/site.ts`.
+- Shared site metadata and navigation live in `src/config/site.ts`; `NAV_ITEMS` owns the shared route and label contract for the dock, no-script navigation, JSON-LD navigation, and Footer Quick Links.
 - `BaseLayout` owns the page-level WebPage schema. Content pages add their specific linked schema, such as BlogPosting, ScholarlyArticle, SoftwareApplication, or CreativeWork.
 - Use trailing-slash canonical URLs throughout page metadata, navigation, sitemap output, and structured data.
 - Vercel serves the static Astro output. Do not add a server adapter or hosted generation fallback without a newly approved architecture decision.

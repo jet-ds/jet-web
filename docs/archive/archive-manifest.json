@@ -195,7 +195,7 @@
       "sourcePath": "docs/verification/jets-ghost-licenses.md",
       "archivePath": "docs/archive/releases/2.1.0/jets-ghost-licenses.md",
       "status": "historical",
-      "successorPath": "AGENTS.md",
+      "successorPath": "THIRD_PARTY_NOTICES.md",
       "archivedAt": "2026-07-21",
       "sourceSha256": "73e658fbf3f14ac34d86d929e51b2f2d6d9b8c2cc608f673fa7665a8e300cf22",
       "archiveSha256": "73e658fbf3f14ac34d86d929e51b2f2d6d9b8c2cc608f673fa7665a8e300cf22"

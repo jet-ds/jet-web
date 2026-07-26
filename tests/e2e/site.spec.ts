@@ -1454,6 +1454,16 @@ test('navigation representations use canonical route identities', async ({
     dock.getByRole('link', { name: 'Tools', exact: true }),
   ).toHaveCount(0);
 
+  const footer = page.getByRole('contentinfo');
+  for (const [name, href] of navigation) {
+    await expect(
+      footer.getByRole('link', { name, exact: true }),
+    ).toHaveAttribute('href', href);
+  }
+  await expect(
+    footer.getByRole('link', { name: 'Tools', exact: true }),
+  ).toHaveCount(0);
+
   const schemas = await readSchemas(page);
   const structuredNavigation = schemas.find(
     (schema) => schema['@type'] === 'SiteNavigationElement',
@@ -1481,6 +1491,42 @@ test('navigation representations use canonical route identities', async ({
   }
   expect(normalizedNoscript).not.toContain('href="/tools/"');
   expect(normalizedNoscript).not.toContain('>Tools</a>');
+});
+
+test('third-party notice local license destinations resolve in the built site', async ({
+  request,
+}) => {
+  const response = await request.get('/licenses/THIRD_PARTY_NOTICES.md');
+  expect(response.ok()).toBe(true);
+  const notice = await response.text();
+  const localDestinations = [...notice.matchAll(/\]\(([^)]+)\)/gu)]
+    .map(([, destination]) => destination)
+    .filter(
+      (destination) =>
+        destination.startsWith('/') ||
+        destination.startsWith('./') ||
+        destination.startsWith('../'),
+    )
+    .map(
+      (destination) =>
+        new URL(
+          destination,
+          'https://jetsanchez.com/licenses/THIRD_PARTY_NOTICES.md',
+        ).pathname,
+    )
+    .filter((pathname) => pathname.startsWith('/licenses/'));
+
+  expect(localDestinations).toEqual([
+    '/licenses/apache-2.0.txt',
+    '/licenses/apache-2.0.txt',
+    '/licenses/minisearch-7.2.0-MIT.txt',
+    '/licenses/stemmer-2.0.1-MIT.txt',
+  ]);
+
+  for (const destination of localDestinations) {
+    const license = await request.get(destination);
+    expect(license.ok(), destination).toBe(true);
+  }
 });
 
 test('qualification and dormant routes stay out of the sitemap', async ({

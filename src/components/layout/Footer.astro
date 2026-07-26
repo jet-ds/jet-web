@@ -1,5 +1,5 @@
 ---
-import { SITE, SOCIAL_LINKS } from '../../config/site';
+import { NAV_ITEMS, SITE, SOCIAL_LINKS } from '../../config/site';
 import Container from '../ui/Container.astro';
 import Link from '../ui/Link.astro';
 
@@ -40,21 +40,15 @@ const socialLinksArray = Object.entries(SOCIAL_LINKS)
           Quick Links
         </h3>
         <ul class="space-y-2xs">
-          <li>
-            <Link href="/" variant="muted">Home</Link>
-          </li>
-          <li>
-            <Link href="/about/" variant="muted">About</Link>
-          </li>
-          <li>
-            <Link href="/blog/" variant="muted">Blog</Link>
-          </li>
-          <li>
-            <Link href="/works/" variant="muted">Works</Link>
-          </li>
-          <li>
-            <Link href="/contact/" variant="muted">Contact</Link>
-          </li>
+          {
+            NAV_ITEMS.map(({ href, label }) => (
+              <li>
+                <Link href={href} variant="muted">
+                  {label}
+                </Link>
+              </li>
+            ))
+          }
         </ul>
       </div>
 

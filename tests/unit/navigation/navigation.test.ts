@@ -12,28 +12,51 @@ describe('navigation', () => {
     );
   });
 
-  it('preserves the core routes and their dock gradients', () => {
+  it('preserves the core route labels, destinations, and dock gradients', () => {
     expect(
-      NAV_ITEMS.map(({ id, href, gradient }) => ({ id, href, gradient })),
+      NAV_ITEMS.map(({ id, label, href, gradient }) => ({
+        id,
+        label,
+        href,
+        gradient,
+      })),
     ).toEqual([
-      { id: 'home', href: '/', gradient: 'from-blue-600 to-blue-400' },
+      {
+        id: 'home',
+        label: 'Home',
+        href: '/',
+        gradient: 'from-blue-600 to-blue-400',
+      },
       {
         id: 'about',
+        label: 'About',
         href: '/about/',
         gradient: 'from-purple-600 to-purple-400',
       },
-      { id: 'blog', href: '/blog/', gradient: 'from-green-600 to-green-400' },
+      {
+        id: 'blog',
+        label: 'Blog',
+        href: '/blog/',
+        gradient: 'from-green-600 to-green-400',
+      },
       {
         id: 'works',
+        label: 'Works',
         href: '/works/',
         gradient: 'from-orange-600 to-orange-400',
       },
       {
         id: 'egregore',
+        label: 'Egregore',
         href: '/chatbot/',
         gradient: 'from-indigo-600 to-indigo-400',
       },
-      { id: 'contact', href: '/contact/', gradient: 'from-red-600 to-red-400' },
+      {
+        id: 'contact',
+        label: 'Contact',
+        href: '/contact/',
+        gradient: 'from-red-600 to-red-400',
+      },
     ]);
   });
 

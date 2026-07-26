@@ -1,12 +1,16 @@
 # jetsanchez.com
 
-Personal website, writing archive, research portfolio, and local-first AI experiments for Jet Sanchez.
+Jet Sanchez's professional website, writing archive, research portfolio, and home for local-first AI experiments.
 
 Production: [jetsanchez.com](https://jetsanchez.com)
 
+## Site
+
+The primary experience is Home (`/`), About (`/about/`), Blog (`/blog/`), Works (`/works/`), Egregore (`/chatbot/`), and Contact (`/contact/`). Canonical public routes use trailing slashes. `/tools/` remains a dormant, noindexed route outside primary navigation.
+
 ## Architecture
 
-The site is a statically generated Astro 7 application deployed on Vercel. MDX content lives in `src/data/`, Astro renders the public pages, and React 19 is reserved for interactive islands. Tailwind CSS 4 and the shared semantic token system provide the visual foundation; the project uses strict TypeScript 6.
+The site is a statically generated Astro 7 application deployed on Vercel. MDX content lives in `src/data/`, Astro renders public pages, and React 19 is reserved for interactive islands. Tailwind CSS 4 and shared semantic tokens provide the visual foundation; the project uses strict TypeScript 6.
 
 The production build is pure: it validates repository content and writes the static `dist/` output without mutating external services. Vercel Blob uploads are a separate, explicit authoring operation.
 

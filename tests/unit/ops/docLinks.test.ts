@@ -64,6 +64,7 @@ describe('documentation link verification', () => {
         '[External](https://example.com)',
         '[Email](mailto:jet@example.com)',
         '[Section](#content)',
+        '[Public license](/licenses/apache-2.0.txt)',
         '',
       ].join('\n'),
       'docs/archive/README.md': '# Archive\n',

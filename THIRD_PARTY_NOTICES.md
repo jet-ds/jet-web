@@ -1,10 +1,10 @@
 # Egregore third-party notices
 
-This index covers the exact browser model, runtime, runtime assets, and retrieval libraries currently used by Egregore. The component pins and license bytes remain unchanged from the 2.1.0 release record. Complete license texts are stored in [`LICENSES/`](./LICENSES/Apache-2.0.txt) and exposed through the public [Model and open-source licenses](https://jetsanchez.com/licenses/egregore/) surface.
+This index covers the exact browser model, runtime, runtime assets, and retrieval libraries currently used by Egregore. The component pins and license bytes remain unchanged from the 2.1.0 release record. Complete license texts are available from the public [Apache 2.0 license](/licenses/apache-2.0.txt) endpoint and the [Model and open-source licenses](https://jetsanchez.com/licenses/egregore/) surface.
 
 ## Apache License 2.0 artifacts
 
-The full [`LICENSES/Apache-2.0.txt`](./LICENSES/Apache-2.0.txt) text applies to all entries in this section.
+The full [Apache License 2.0](/licenses/apache-2.0.txt) text applies to all entries in this section.
 
 ### Gemma 4 E2B LiteRT-LM model
 
@@ -62,7 +62,7 @@ The site serves these exact, unmodified files under `/assistant/runtime/litert-l
 - Lock integrity: `sha512-dqT2XBYUOZOiC5t2HRnwADjhNS2cecp9u+TJRiJ1Qp/f5qjkeT5APcGPjHw+bz89Ms8Jp+cG4AlE+QZ/QnDglg==`
 - Exact npm tarball SHA-256: `cb3b8126a3ea65d6b387787294f0792b0ea4a40b70f8f37688066a5638e0218a`
 - Exact license SHA-256: `70d37354d6395629fb99edb28cb37a5d356ffa24a48cd02a5def5b83a300a899`
-- License: [`LICENSES/minisearch-7.2.0-MIT.txt`](./LICENSES/minisearch-7.2.0-MIT.txt)
+- License: [MIT license](/licenses/minisearch-7.2.0-MIT.txt)
 - `Copyright 2022 Luca Ongaro`
 
 ### `stemmer@2.0.1`
@@ -71,7 +71,7 @@ The site serves these exact, unmodified files under `/assistant/runtime/litert-l
 - Lock integrity: `sha512-bkWvSX2JR4nSZFfs113kd4C6X13bBBrg4fBKv2pVdzpdQI2LA5pZcWzTFNdkYsiUNl13E4EzymSRjZ0D55jBYg==`
 - Exact npm tarball SHA-256: `e94a3698cc7c6efcd2a9f29e94868c64c03416e86a1eea355bb3e5b059608900`
 - Exact license SHA-256: `9966260ba3ea9d6a5f839297dca80ddc99735a34b4ae82811cac7b956d2e3afd`
-- License: [`LICENSES/stemmer-2.0.1-MIT.txt`](./LICENSES/stemmer-2.0.1-MIT.txt)
+- License: [MIT license](/licenses/stemmer-2.0.1-MIT.txt)
 - `Copyright (c) 2014 Titus Wormer <tituswormer@gmail.com>`
 
 ## Notice and modification status
