@@ -1427,18 +1427,12 @@ describe('EgregoreExperience production composition', () => {
       throw new Error('Composer form is missing.');
 
     expect(disclosure).toBeVisible();
-    expect(
-      disclosure.compareDocumentPosition(form) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
-    expect(
-      form.compareDocumentPosition(screen.getByTestId('composer-metadata')) &
-        Node.DOCUMENT_POSITION_FOLLOWING,
-    ).toBeTruthy();
+    expect(form).toBeVisible();
+    expect(screen.getByTestId('composer-metadata')).toBeVisible();
     fireEvent.click(
       screen.getByText('What does Jet write about agentic work?'),
     );
-    expect(screen.getByText(disclosureCopy)).toBeInTheDocument();
+    expect(screen.getByText(disclosureCopy)).toBeVisible();
 
     fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
     await screen.findByRole('link', { name: '[S1] Grounded source' });

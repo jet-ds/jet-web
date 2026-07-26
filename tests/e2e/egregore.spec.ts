@@ -779,6 +779,60 @@ test.describe('Egregore compact navigation clearance', () => {
     ).toHaveCount(0);
   });
 
+  test('keeps the reliability disclosure readable and clear of visible compact navigation before submit', async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: 375, height: 680 });
+    const composer = await startFakeAssistant(page);
+    await page.evaluate(() => {
+      document.documentElement.style.fontSize = '20px';
+    });
+
+    const reliability = page.getByTestId('composer-reliability-disclosure');
+    const dock = page.locator('#site-navigation-dock');
+    const disclosure = page.getByRole('button', { name: 'Close navigation' });
+    await expect(reliability).toHaveText(
+      'Egregore can make mistakes. Check cited sources.',
+    );
+    await expect(reliability).toBeVisible();
+
+    const [reliabilityBox, composerBox, dockBox, disclosureBox] =
+      await Promise.all([
+        boxOf(reliability),
+        boxOf(composer),
+        boxOf(dock),
+        boxOf(disclosure),
+      ]);
+    const metrics = await reliability.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        clientWidth: element.clientWidth,
+        fontSize: Number.parseFloat(style.fontSize),
+        lineHeight: Number.parseFloat(style.lineHeight),
+        scrollHeight: element.scrollHeight,
+        scrollWidth: element.scrollWidth,
+        whiteSpace: style.whiteSpace,
+      };
+    });
+    const composerFontSize = await composer.evaluate((element) =>
+      Number.parseFloat(getComputedStyle(element).fontSize),
+    );
+
+    expect(metrics.whiteSpace).toBe('normal');
+    expect(metrics.fontSize).toBeLessThan(composerFontSize);
+    expect(metrics.scrollWidth).toBeLessThanOrEqual(metrics.clientWidth);
+    expect(metrics.scrollHeight).toBeGreaterThan(metrics.lineHeight);
+    expect(reliabilityBox.x).toBeGreaterThanOrEqual(0);
+    expect(reliabilityBox.x + reliabilityBox.width).toBeLessThanOrEqual(375);
+    expect(composerBox.y + composerBox.height).toBeLessThanOrEqual(
+      Math.min(dockBox.y, disclosureBox.y) - 8,
+    );
+
+    await composer.fill('What does Jet write about agentic work?');
+    await page.getByRole('button', { name: 'Send message' }).click();
+    await expect(reliability).toHaveCount(0);
+  });
+
   test('retains an explicit mobile dock choice through route, history, and breakpoint changes', async ({
     page,
   }, testInfo) => {
@@ -830,6 +884,74 @@ test.describe('Egregore compact navigation clearance', () => {
     await expect(
       page.getByRole('button', { name: 'Close navigation' }),
     ).toHaveAttribute('aria-expanded', 'true');
+  });
+
+  test('moves clearance from the bottom dock to the header across tablet landscape and desktop', async ({
+    page,
+  }, testInfo) => {
+    test.skip(testInfo.project.name !== 'chromium');
+    const viewportHeight = 768;
+
+    await page.setViewportSize({ width: 1023, height: viewportHeight });
+    await page.goto(fakePath());
+    const tabletDock = page.locator('#site-navigation-dock');
+    const tabletCheck = page.getByRole('button', {
+      name: 'Check compatibility',
+    });
+    await expect(tabletCheck).toBeVisible();
+    const [tabletDockBox, tabletCheckBox] = await Promise.all([
+      boxOf(tabletDock),
+      boxOf(tabletCheck),
+    ]);
+    expect(tabletDockBox.y).toBeGreaterThan(viewportHeight / 2);
+    expect(tabletCheckBox.y + tabletCheckBox.height).toBeLessThanOrEqual(
+      tabletDockBox.y - 8,
+    );
+
+    const tabletComposer = await startFakeAssistant(page);
+    await submitQuestion(page, 'What does Jet write about agentic work?');
+    await waitForCompletedResponse(page);
+    const [tabletComposerBox, tabletScrollerBox] = await Promise.all([
+      boxOf(tabletComposer),
+      boxOf(page.getByTestId('conversation-scroller')),
+    ]);
+    expect(tabletComposerBox.y + tabletComposerBox.height).toBeLessThanOrEqual(
+      tabletDockBox.y - 8,
+    );
+    expect(tabletScrollerBox.y + tabletScrollerBox.height).toBeLessThanOrEqual(
+      tabletComposerBox.y + 1,
+    );
+
+    await page.setViewportSize({ width: 1280, height: viewportHeight });
+    await page.goto(fakePath());
+    const desktopDock = page.locator('#site-navigation-dock');
+    const desktopHeaderContent = page.getByTestId('egregore-identity');
+    const desktopComposer = await startFakeAssistant(page);
+    await submitQuestion(page, 'What does Jet write about agentic work?');
+    await waitForCompletedResponse(page);
+    const [
+      desktopDockBox,
+      desktopHeaderBox,
+      desktopComposerBox,
+      desktopScrollerBox,
+    ] = await Promise.all([
+      boxOf(desktopDock),
+      boxOf(desktopHeaderContent),
+      boxOf(desktopComposer),
+      boxOf(page.getByTestId('conversation-scroller')),
+    ]);
+    expect(desktopDockBox.y + desktopDockBox.height).toBeLessThanOrEqual(
+      desktopHeaderBox.y - 8,
+    );
+    expect(
+      desktopComposerBox.y + desktopComposerBox.height,
+    ).toBeLessThanOrEqual(viewportHeight);
+    expect(desktopComposerBox.y + desktopComposerBox.height).toBeGreaterThan(
+      tabletComposerBox.y + tabletComposerBox.height,
+    );
+    expect(
+      desktopScrollerBox.y + desktopScrollerBox.height,
+    ).toBeLessThanOrEqual(desktopComposerBox.y + 1);
   });
 });
 
