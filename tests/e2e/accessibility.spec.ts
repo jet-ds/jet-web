@@ -341,6 +341,7 @@ test('Egregore recoverable error is axe-clean and keyboard operable', async ({
   page,
 }, testInfo) => {
   test.skip(testInfo.project.name !== 'chromium');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
   await page.route('**/assistant/corpus/manifest.json', async (route) => {
     await route.fulfill({
       status: 503,

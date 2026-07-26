@@ -252,6 +252,37 @@ test('Egregore exposes canonical qualification metadata', async ({ page }) => {
   });
 });
 
+test('compact immersive navigation keeps the disclosure visually separated from the dock', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile-chromium');
+  await page.setViewportSize({ width: 375, height: 720 });
+  await page.goto('/chatbot/');
+
+  const dock = page.locator('#site-navigation-dock');
+  const disclosure = page.getByRole('button', { name: 'Close navigation' });
+  await expect(dock).toBeVisible();
+  await expect(disclosure).toBeVisible();
+
+  const visualGap = await disclosure.evaluate((element) => {
+    if (!(element instanceof HTMLElement)) {
+      throw new Error('Navigation disclosure is not an HTML element');
+    }
+    const disclosureBounds = element.getBoundingClientRect();
+    const dockBounds = document
+      .querySelector('#site-navigation-dock')
+      ?.getBoundingClientRect();
+    if (!dockBounds) throw new Error('Navigation dock bounds unavailable');
+
+    const disclosureCenter = disclosureBounds.top + disclosureBounds.height / 2;
+    const disclosureRadius = element.offsetHeight / 2;
+    return dockBounds.top - (disclosureCenter + disclosureRadius);
+  });
+
+  expect(visualGap).toBeGreaterThanOrEqual(7);
+  expect(visualGap).toBeLessThanOrEqual(10);
+});
+
 test('content card covers navigate through their dominant action everywhere', async ({
   page,
 }) => {

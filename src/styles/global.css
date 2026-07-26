@@ -159,7 +159,7 @@
 
     /* Navigation owns the exclusion geometry consumed by immersive surfaces. */
     --navigation-dock-offset: max(1rem, env(safe-area-inset-bottom));
-    --navigation-dock-height: 4.5rem;
+    --navigation-dock-height: 5rem;
     --navigation-disclosure-height: 3rem;
     --navigation-disclosure-raise: calc(
       var(--navigation-dock-height) + var(--space-2xs)
