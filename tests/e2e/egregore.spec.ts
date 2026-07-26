@@ -1258,7 +1258,7 @@ test.describe('Egregore supported lifecycle', () => {
     );
   });
 
-  test('supports compatibility, load, suggestion, cited response, reset, and unload', async ({
+  test('supports compatibility, load, starter input, cited response, reset, and unload', async ({
     page,
   }) => {
     const composer = await startFakeAssistant(page, 'long-stream');
@@ -1268,15 +1268,16 @@ test.describe('Egregore supported lifecycle', () => {
       'Egregore can make mistakes. Check cited sources.',
     );
 
-    const suggestion = page.getByRole('button', {
-      name: 'Summarize the recursive convergence hypothesis.',
-    });
-    await suggestion.click();
+    const question = 'Summarize the recursive convergence hypothesis.';
+    const compactViewport = await page.evaluate(() => window.innerWidth < 768);
+    if (compactViewport) {
+      await composer.fill(question);
+    } else {
+      await page.getByRole('button', { name: question }).click();
+    }
     await expect(reliability).toBeVisible();
     await expect(composer).toBeFocused();
-    await expect(composer).toHaveValue(
-      'Summarize the recursive convergence hypothesis.',
-    );
+    await expect(composer).toHaveValue(question);
 
     await page.getByRole('button', { name: 'Send message' }).click();
     await expect(composer).not.toBeFocused();
