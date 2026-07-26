@@ -21,7 +21,6 @@ export const SITE = {
     'Josh Ethan Sanchez',
     'Jet (Josh Ethan) Sanchez',
   ],
-  jobTitle: 'Marketing Engineer & AI Researcher',
   email: 'jetsanchezzz@gmail.com',
   siteUrl: 'https://jetsanchez.com',
   ga4MeasurementId: 'G-71J4JTMLJE',

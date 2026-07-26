@@ -8,6 +8,7 @@ interface StubEntry {
 interface StubState {
   blog: StubEntry[];
   works: StubEntry[];
+  profile: StubEntry[];
   calls: string[];
 }
 
@@ -17,17 +18,19 @@ const globalState = globalThis as typeof globalThis & {
 };
 
 function state(): StubState {
-  globalState[stateKey] ??= { blog: [], works: [], calls: [] };
+  globalState[stateKey] ??= { blog: [], works: [], profile: [], calls: [] };
   return globalState[stateKey];
 }
 
 export function setAstroContentStub(collections: {
   blog: StubEntry[];
   works: StubEntry[];
+  profile?: StubEntry[];
 }): void {
   globalState[stateKey] = {
     blog: collections.blog,
     works: collections.works,
+    profile: collections.profile ?? [],
     calls: [],
   };
 }
@@ -37,7 +40,7 @@ export function getAstroContentCalls(): string[] {
 }
 
 export async function getCollection(
-  name: 'blog' | 'works',
+  name: 'blog' | 'works' | 'profile',
 ): Promise<StubEntry[]> {
   state().calls.push(name);
   return state()[name];

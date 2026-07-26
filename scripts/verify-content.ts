@@ -16,9 +16,9 @@ import {
   type ContentValidationRecord,
   validateContentRecords,
 } from '../src/content/validation';
-import { blogSchema, worksSchema } from '../src/schemas/content';
+import { blogSchema, profileSchema, worksSchema } from '../src/schemas/content';
 
-type CollectionName = 'blog' | 'works';
+type CollectionName = 'blog' | 'works' | 'profile';
 
 interface ParsedContentRecord {
   collection: CollectionName;
@@ -36,6 +36,7 @@ const repositoryRoot = resolve(fileURLToPath(import.meta.url), '../..');
 const contentCollections = [
   { collection: 'blog' as const, directory: 'src/data/blog' },
   { collection: 'works' as const, directory: 'src/data/works' },
+  { collection: 'profile' as const, directory: 'src/data/profile' },
 ];
 
 function isContained(root: string, target: string): boolean {
@@ -210,10 +211,13 @@ function parseContentRecord(
     -extname(relativeEntryPath).length,
   );
   const canonicalId = `${file.collection}:${canonicalSlug}`.normalize('NFC');
-  const canonicalUrl = new URL(
-    `/${file.collection}/${canonicalSlug}`,
-    SITE.siteUrl,
-  ).toString();
+  const canonicalUrl =
+    file.collection === 'profile'
+      ? new URL('/about/', SITE.siteUrl).toString()
+      : new URL(
+          `/${file.collection}/${canonicalSlug}`,
+          SITE.siteUrl,
+        ).toString();
   const data = parsed.data as Record<string, unknown>;
 
   return {
@@ -232,9 +236,13 @@ function parseContentRecord(
 }
 
 function schemaErrors(record: ParsedContentRecord): ContentPolicyError[] {
-  const result = (
-    record.collection === 'blog' ? blogSchema : worksSchema
-  ).safeParse(record.data);
+  const schema =
+    record.collection === 'blog'
+      ? blogSchema
+      : record.collection === 'works'
+        ? worksSchema
+        : profileSchema;
+  const result = schema.safeParse(record.data);
   if (result.success) return [];
 
   return result.error.issues.map((issue) => ({

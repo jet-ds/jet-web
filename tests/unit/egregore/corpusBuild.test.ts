@@ -83,6 +83,32 @@ function worksEntry(
   } as AssistantSourceEntry;
 }
 
+function profileEntry(
+  overrides: Partial<AssistantSourceEntry> = {},
+): AssistantSourceEntry {
+  return {
+    collection: 'profile',
+    slug: 'jet-sanchez',
+    sourcePath: 'src/data/profile/jet-sanchez.mdx',
+    tracked: true,
+    body: 'I work on applied AI.\n\n## Research\n\nAI systems and governance.',
+    data: {
+      title: 'Jet Sanchez',
+      description: 'Canonical public profile.',
+      date: new Date('2026-07-26T00:00:00.000Z'),
+      author: 'Jet Sanchez',
+      status: 'published',
+      assistant: true,
+      role: 'Marketing Engineer & AI Researcher',
+      organization: 'Digital Squad',
+      researchAreas: ['Artificial Intelligence'],
+      technicalFocus: ['Marketing Engineering'],
+      connectText: 'Connect about applied AI.',
+    },
+    ...overrides,
+  } as AssistantSourceEntry;
+}
+
 describe('knowledge-base generation', () => {
   it('includes only published assistant sources and emits a stable corpus digest', () => {
     const excluded = blogEntry({
@@ -100,6 +126,24 @@ describe('knowledge-base generation', () => {
     expect(buildKnowledgeBase(input, 'abc').manifest.corpusVersion).toBe(
       buildKnowledgeBase(input, 'abc').manifest.corpusVersion,
     );
+  });
+
+  it('includes the eligible canonical profile once at the About URL', () => {
+    const result = buildKnowledgeBase([blogEntry(), profileEntry()], 'abc');
+
+    expect(
+      result.content.documents.filter(
+        (document) => document.id === 'profile:jet-sanchez',
+      ),
+    ).toEqual([
+      expect.objectContaining({
+        canonicalUrl: 'https://jetsanchez.com/about/',
+        sourcePath: 'src/data/profile/jet-sanchez.mdx',
+      }),
+    ]);
+    expect(
+      result.content.documents.map((document) => document.canonicalUrl),
+    ).not.toContain('https://jetsanchez.com/profile/jet-sanchez/');
   });
 
   it('rejects assistant-enabled drafts before filtering', () => {

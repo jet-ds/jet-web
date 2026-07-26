@@ -69,6 +69,14 @@ function dependencies(
           body: entry.body,
           data: entry.data,
         })),
+      profile: entries
+        .filter((entry) => entry.collection === 'profile')
+        .map((entry) => ({
+          id: entry.slug,
+          filePath: `/repository/${entry.sourcePath}`,
+          body: entry.body,
+          data: entry.data,
+        })),
     })),
     loadTrackedPaths: vi.fn(
       () => new Set(entries.map((entry) => entry.sourcePath)),
@@ -152,6 +160,7 @@ describe('static corpus endpoint handlers', () => {
         },
       ],
       works: [],
+      profile: [],
     });
   });
 
@@ -174,7 +183,7 @@ describe('static corpus endpoint handlers', () => {
       indexResponse.text(),
     ]);
 
-    expect(getAstroContentCalls().sort()).toEqual(['blog', 'works']);
+    expect(getAstroContentCalls().sort()).toEqual(['blog', 'profile', 'works']);
     for (const response of [manifestResponse, contentResponse, indexResponse]) {
       expect(response.headers.get('Content-Type')).toBe(
         'application/json; charset=utf-8',

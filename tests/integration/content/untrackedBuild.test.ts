@@ -52,10 +52,30 @@ assistant: true
 Untracked body.
 `;
 
+const untrackedPublishedProfile = `---
+title: Jet Sanchez
+description: Canonical public profile.
+date: 2026-07-26
+author: Jet Sanchez
+status: published
+assistant: true
+role: Marketing Engineer & AI Researcher
+organization: Digital Squad
+researchAreas:
+  - Artificial Intelligence
+technicalFocus:
+  - Marketing Engineering
+connectText: Connect about applied AI.
+---
+
+Profile body.
+`;
+
 interface Fixture {
   root: string;
   blogDirectory: string;
   worksDirectory: string;
+  profileDirectory: string;
 }
 
 function fixtureGitEnvironment(root: string): NodeJS.ProcessEnv {
@@ -78,8 +98,10 @@ function createFixture(): Fixture {
   const root = mkdtempSync(resolve(tmpdir(), 'jet-web-content-'));
   const blogDirectory = resolve(root, 'src/data/blog');
   const worksDirectory = resolve(root, 'src/data/works');
+  const profileDirectory = resolve(root, 'src/data/profile');
   mkdirSync(blogDirectory, { recursive: true });
   mkdirSync(worksDirectory, { recursive: true });
+  mkdirSync(profileDirectory, { recursive: true });
 
   const initialized = spawnSync('git', ['init', '--quiet'], {
     cwd: root,
@@ -93,7 +115,7 @@ function createFixture(): Fixture {
     );
   }
 
-  return { root, blogDirectory, worksDirectory };
+  return { root, blogDirectory, worksDirectory, profileDirectory };
 }
 
 function stageBaseline(
@@ -159,6 +181,29 @@ describe('production content verification', () => {
       expect(result.status).toBe(1);
       expect(result.stderr).toContain(
         'src/data/blog/untracked-assistant.mdx [published-untracked]',
+      );
+      expect(existsSync(sentinel)).toBe(false);
+    } finally {
+      rmSync(fixture.root, { recursive: true, force: true });
+    }
+  });
+
+  it('stops before Astro when the published canonical profile is untracked', () => {
+    const fixture = createFixture();
+    const sentinel = resolve(fixture.root, 'astro-step-reached');
+
+    try {
+      stageBaseline(fixture);
+      writeFileSync(
+        resolve(fixture.profileDirectory, 'jet-sanchez.mdx'),
+        untrackedPublishedProfile,
+      );
+
+      const result = runBuildChain(fixture.root, sentinel);
+
+      expect(result.status).toBe(1);
+      expect(result.stderr).toContain(
+        'src/data/profile/jet-sanchez.mdx [published-untracked]',
       );
       expect(existsSync(sentinel)).toBe(false);
     } finally {

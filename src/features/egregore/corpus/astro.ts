@@ -15,6 +15,7 @@ import {
 } from './build';
 import type {
   BlogFrontmatter,
+  ProfileFrontmatter,
   WorksFrontmatter,
 } from '../../../schemas/content';
 
@@ -32,9 +33,17 @@ interface AstroWorksEntry {
   data: WorksFrontmatter;
 }
 
+interface AstroProfileEntry {
+  id: string;
+  filePath?: string;
+  body?: string;
+  data: ProfileFrontmatter;
+}
+
 interface AstroCorpusCollections {
   blog: AstroBlogEntry[];
   works: AstroWorksEntry[];
+  profile: AstroProfileEntry[];
 }
 
 export interface AstroCorpusDependencies {
@@ -45,7 +54,12 @@ export interface AstroCorpusDependencies {
   readHead(root: string): Promise<string>;
 }
 
-function canonicalUrl(collection: 'blog' | 'works', slug: string): string {
+function canonicalUrl(
+  collection: 'blog' | 'works' | 'profile',
+  slug: string,
+): string {
+  if (collection === 'profile')
+    return new URL('/about/', SITE.siteUrl).toString();
   return new URL(`/${collection}/${slug}/`, SITE.siteUrl).toString();
 }
 
@@ -90,7 +104,7 @@ function validationRecord(
 export async function buildFromAstroCollections(
   dependencies: AstroCorpusDependencies,
 ): Promise<KnowledgeBaseBuild> {
-  const { blog, works } = await dependencies.loadCollections();
+  const { blog, works, profile } = await dependencies.loadCollections();
   const trackedPaths = dependencies.loadTrackedPaths(dependencies.root);
   const entries: AssistantSourceEntry[] = [
     ...blog.map((entry) => {
@@ -114,6 +128,20 @@ export async function buildFromAstroCollections(
       );
       return {
         collection: 'works' as const,
+        slug: entry.id,
+        sourcePath,
+        tracked: sourcePath !== '' && trackedPaths.has(sourcePath),
+        body: entry.body ?? '',
+        data: entry.data,
+      };
+    }),
+    ...profile.map((entry) => {
+      const sourcePath = repositorySourcePath(
+        dependencies.root,
+        entry.filePath,
+      );
+      return {
+        collection: 'profile' as const,
         slug: entry.id,
         sourcePath,
         tracked: sourcePath !== '' && trackedPaths.has(sourcePath),
@@ -152,11 +180,12 @@ const productionDependencies: AstroCorpusDependencies = {
   root: process.cwd(),
   environment: process.env,
   loadCollections: async () => {
-    const [blog, works] = await Promise.all([
+    const [blog, works, profile] = await Promise.all([
       getCollection('blog'),
       getCollection('works'),
+      getCollection('profile'),
     ]);
-    return { blog, works };
+    return { blog, works, profile };
   },
   loadTrackedPaths: loadTrackedContentPaths,
   readHead: readGitHead,

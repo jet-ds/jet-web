@@ -1175,6 +1175,30 @@ test('about metadata and sitemap use one canonical URL', async ({
   expect(matches).toHaveLength(1);
 });
 
+test('About renders the approved public profile', async ({ page }) => {
+  await page.goto('/about/');
+
+  await expect(page.getByRole('heading', { name: 'Background' })).toBeVisible();
+  await expect(page.getByRole('main')).toContainText(
+    'I am a marketing engineer working at the intersection of AI research, applied AI, and systems design.',
+  );
+  await expect(page.getByRole('main')).toContainText(
+    'At Digital Squad, I lead AI research & development and drive content strategy and SEO',
+  );
+  await expect(
+    page.getByRole('heading', { name: 'Research Areas' }),
+  ).toBeVisible();
+  await expect(
+    page.getByRole('heading', { name: 'Technical Focus' }),
+  ).toBeVisible();
+});
+
+test('the canonical profile has no standalone profile route', async ({
+  request,
+}) => {
+  expect((await request.get('/profile/jet-sanchez/')).status()).toBe(404);
+});
+
 test('retired routes stay retired and out of feeds', async ({ request }) => {
   for (const route of [
     '/blog/the-future-of-ai/',

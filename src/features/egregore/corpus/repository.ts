@@ -123,7 +123,9 @@ function assertDocument(value: unknown): asserts value is KnowledgeDocument {
     !isRecord(value) ||
     typeof value.id !== 'string' ||
     !isNonnegativeInteger(value.order) ||
-    (value.collection !== 'blog' && value.collection !== 'works') ||
+    (value.collection !== 'blog' &&
+      value.collection !== 'works' &&
+      value.collection !== 'profile') ||
     typeof value.slug !== 'string' ||
     typeof value.title !== 'string' ||
     typeof value.description !== 'string' ||

@@ -1,4 +1,4 @@
-export type CollectionName = 'blog' | 'works';
+export type CollectionName = 'blog' | 'works' | 'profile';
 export type DocumentId = `${CollectionName}:${string}`;
 export type SectionId = `${DocumentId}#${string}`;
 export type ChunkId = `${SectionId}:${string}:${number}`;

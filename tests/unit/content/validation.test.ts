@@ -206,4 +206,34 @@ describe('content validation', () => {
       draft.path,
     );
   });
+
+  it.each([
+    {
+      name: 'requires explicit publication status',
+      overrides: { status: undefined },
+      code: 'missing-status',
+    },
+    {
+      name: 'rejects assistant-enabled drafts',
+      overrides: { status: 'draft', assistant: true },
+      code: 'assistant-not-published',
+    },
+  ] satisfies Array<{
+    name: string;
+    overrides: Partial<ContentValidationRecord>;
+    code: ContentPolicyError['code'];
+  }>)(
+    'applies $name to the canonical profile record',
+    ({ overrides, code }) => {
+      const profile = record({
+        path: 'src/data/profile/jet-sanchez.mdx',
+        canonicalId: 'profile:jet-sanchez',
+        canonicalUrl: 'https://jetsanchez.com/about/',
+        assistant: true,
+        ...overrides,
+      });
+
+      expectRule(validateContentRecords([profile]), code, profile.path);
+    },
+  );
 });

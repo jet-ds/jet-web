@@ -83,7 +83,25 @@ export const worksSchema = z.object({
 });
 
 /**
+ * Canonical public profile used by About, Person structured data, and Egregore.
+ */
+export const profileSchema = z.object({
+  title: z.string(),
+  description: z.string(),
+  date: z.coerce.date(),
+  updatedDate: z.coerce.date().optional(),
+  author: z.string(),
+  ...publicationFields,
+  role: z.string(),
+  organization: z.string(),
+  researchAreas: z.array(z.string()),
+  technicalFocus: z.array(z.string()),
+  connectText: z.string(),
+});
+
+/**
  * Type inference from schemas
  */
 export type BlogFrontmatter = z.infer<typeof blogSchema>;
 export type WorksFrontmatter = z.infer<typeof worksSchema>;
+export type ProfileFrontmatter = z.infer<typeof profileSchema>;

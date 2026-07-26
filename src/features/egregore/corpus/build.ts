@@ -5,8 +5,10 @@ import { SITE } from '../../../config/site';
 import { isAssistantEligible } from '../../../content/policy';
 import {
   blogSchema,
+  profileSchema,
   worksSchema,
   type BlogFrontmatter,
+  type ProfileFrontmatter,
   type WorksFrontmatter,
 } from '../../../schemas/content';
 import {
@@ -51,6 +53,10 @@ export type AssistantSourceEntry =
   | (AssistantSourceBase & {
       collection: 'works';
       data: WorksFrontmatter;
+    })
+  | (AssistantSourceBase & {
+      collection: 'profile';
+      data: ProfileFrontmatter;
     });
 
 export interface KnowledgeBaseBuild {
@@ -66,7 +72,7 @@ function sha256(value: string): string {
 }
 
 export function computeSourceHash(
-  data: BlogFrontmatter | WorksFrontmatter,
+  data: BlogFrontmatter | WorksFrontmatter | ProfileFrontmatter,
   body: string,
 ): string {
   return sha256(canonicalSerialize({ data, body }));
@@ -76,13 +82,24 @@ function compareText(left: string, right: string): number {
   return left < right ? -1 : left > right ? 1 : 0;
 }
 
-function canonicalUrl(collection: 'blog' | 'works', slug: string): string {
+function canonicalUrl(
+  collection: 'blog' | 'works' | 'profile',
+  slug: string,
+): string {
+  if (collection === 'profile')
+    return new URL('/about/', SITE.siteUrl).toString();
   return new URL(`/${collection}/${slug}/`, SITE.siteUrl).toString();
 }
 
 function validateBase(entry: AssistantSourceEntry): void {
-  if (entry.collection !== 'blog' && entry.collection !== 'works') {
-    throw new Error('Assistant source collection must be blog or works.');
+  if (
+    entry.collection !== 'blog' &&
+    entry.collection !== 'works' &&
+    entry.collection !== 'profile'
+  ) {
+    throw new Error(
+      'Assistant source collection must be blog, works, or profile.',
+    );
   }
   if (
     typeof entry.slug !== 'string' ||
@@ -114,7 +131,9 @@ function validateAndNormalizeEntry(
   const data =
     entry.collection === 'blog'
       ? blogSchema.parse(entry.data)
-      : worksSchema.parse(entry.data);
+      : entry.collection === 'works'
+        ? worksSchema.parse(entry.data)
+        : profileSchema.parse(entry.data);
 
   if (data.assistant === true && data.status !== 'published') {
     throw new Error(
@@ -160,8 +179,12 @@ function documentFromEntry(
 ): KnowledgeDocument {
   const id = `${entry.collection}:${entry.slug}` as DocumentId;
   const isBlog = entry.collection === 'blog';
+  const isProfile = entry.collection === 'profile';
   const publishedAt = isBlog ? entry.data.pubDate : entry.data.date;
-  const updatedAt = isBlog ? entry.data.updatedDate : undefined;
+  const updatedAt = isBlog || isProfile ? entry.data.updatedDate : undefined;
+  const tags = isProfile
+    ? [...entry.data.researchAreas, ...entry.data.technicalFocus]
+    : [...entry.data.tags];
 
   return {
     id,
@@ -171,8 +194,8 @@ function documentFromEntry(
     title: entry.data.title,
     description: entry.data.description,
     canonicalUrl: canonicalUrl(entry.collection, entry.slug),
-    tags: [...entry.data.tags],
-    author: isBlog ? entry.data.author : SITE.author,
+    tags,
+    author: isBlog || isProfile ? entry.data.author : SITE.author,
     publishedAt: publishedAt.toISOString(),
     ...(updatedAt === undefined ? {} : { updatedAt: updatedAt.toISOString() }),
     sourcePath: entry.sourcePath,

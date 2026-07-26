@@ -1,5 +1,5 @@
 ---
-import { getCollection } from 'astro:content';
+import { getCollection, getEntry } from 'astro:content';
 import BaseLayout from '../components/layout/BaseLayout.astro';
 import StructuredData from '../components/seo/StructuredData.astro';
 import Section from '../components/layout/Section.astro';
@@ -13,6 +13,12 @@ import { SITE, SOCIAL_LINKS } from '../config/site';
 import { isPublished } from '../content/policy';
 
 const homepageUrl = `${SITE.siteUrl}/`;
+const profile = await getEntry('profile', 'jet-sanchez');
+if (profile === undefined) {
+  throw new Error(
+    'Required canonical profile is missing: profile:jet-sanchez.',
+  );
+}
 
 // Fetch latest blog posts (limit to 3)
 const allBlogPosts = await getCollection('blog', ({ data }) =>
@@ -51,7 +57,7 @@ const featuredWorks = allWorks
     givenName={SITE.givenName}
     familyName={SITE.familyName}
     alternateName={SITE.alternateNames}
-    jobTitle={SITE.jobTitle}
+    jobTitle={profile.data.role}
     email={SITE.email}
     url={homepageUrl}
     sameAs={Object.values(SOCIAL_LINKS).filter((url) => url)}

@@ -1,7 +1,11 @@
 import { spawnSync } from 'node:child_process';
 import { dirname, isAbsolute, relative, resolve, sep } from 'node:path';
 
-const CONTENT_PATHS = ['src/data/blog', 'src/data/works'] as const;
+const CONTENT_PATHS = [
+  'src/data/blog',
+  'src/data/works',
+  'src/data/profile',
+] as const;
 
 function isContained(root: string, target: string): boolean {
   const pathFromRoot = relative(root, target);
