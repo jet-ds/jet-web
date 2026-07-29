@@ -53,12 +53,12 @@ export interface FakeScenarioConfiguration {
 
 const DEFAULT_RESPONSE_CHUNKS = [
   "Jet's published work connects local-first AI ",
-  'with systems thinking [S1].',
+  'with systems thinking {{SOURCE_1}}.',
 ] as const;
 
 const LONG_RESPONSE_CHUNKS = [
   "Jet's published work connects local-first AI ",
-  'with systems thinking [S1]. ',
+  'with systems thinking {{SOURCE_1}}. ',
   'Across the archive, practical implementation notes sit beside research questions, ',
   'with each response grounded in the published material available on this site. ',
   'That combination keeps the answer useful while preserving a clear path back ',
@@ -116,8 +116,8 @@ export function getFakeScenarioConfiguration(
     case 'citations':
       return {
         responseChunks: [
-          'The research develops a structural-attractor argument [S2] [S3], ',
-          'while related published work provides implementation context [S1] [S2].',
+          'The research develops a structural-attractor argument {{SOURCE_2}} {{SOURCE_3}}, ',
+          'while related published work provides implementation context {{SOURCE_1}} {{SOURCE_2}}.',
         ],
       };
     case 'zero-citation':

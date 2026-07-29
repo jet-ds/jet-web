@@ -22,6 +22,7 @@ export interface FakeRuntimeOptions {
   recorder?: FakeRuntimeRecorder;
   recordResourceLifecycle?: boolean;
   emitLateChunkAfterCancellation?: boolean;
+  onReset?: () => void;
 }
 
 export interface FakeRuntimeScheduler {
@@ -157,15 +158,36 @@ function resolveFakeResponseChunks(
   chunks: readonly string[],
   message: string,
 ): string[] {
-  const citationIds = citationIdsFromTurnMessage(message);
-  if (citationIds.length === 0) return [...chunks];
+  if (/\[S\d+\]/u.test(chunks.join(''))) {
+    throw createRuntimeError(
+      'generation-failed',
+      'The deterministic fake response contains a literal citation ID.',
+      false,
+    );
+  }
 
-  return chunks.map((chunk) =>
-    chunk.replace(/\[S(\d+)\]/gu, (placeholder, ordinal: string) => {
+  const citationIds = citationIdsFromTurnMessage(message);
+  const resolved = chunks.map((chunk) =>
+    chunk.replace(/\{\{SOURCE_(\d+)\}\}/gu, (_placeholder, ordinal: string) => {
       const citationId = citationIds[Number(ordinal) - 1];
-      return citationId === undefined ? placeholder : `[${citationId}]`;
+      if (citationId === undefined) {
+        throw createRuntimeError(
+          'generation-failed',
+          'The deterministic fake response references an unavailable source placeholder.',
+          false,
+        );
+      }
+      return `[${citationId}]`;
     }),
   );
+  if (/\{\{SOURCE_\d+\}\}/u.test(resolved.join(''))) {
+    throw createRuntimeError(
+      'generation-failed',
+      'The deterministic fake response contains a split source placeholder.',
+      false,
+    );
+  }
+  return resolved;
 }
 
 const DEFAULT_SCHEDULER: FakeRuntimeScheduler = {
@@ -209,6 +231,7 @@ export class FakeRuntime implements LocalModelRuntime {
   private readonly recorder: FakeRuntimeRecorder;
   private readonly recordResourceLifecycle: boolean;
   private readonly emitLateChunkAfterCancellation: boolean;
+  private readonly onReset: () => void;
   private activeGeneration: ActiveGeneration | null = null;
   private hasEngine = false;
   private hasConversation = false;
@@ -230,6 +253,7 @@ export class FakeRuntime implements LocalModelRuntime {
     this.recordResourceLifecycle = options.recordResourceLifecycle ?? false;
     this.emitLateChunkAfterCancellation =
       options.emitLateChunkAfterCancellation ?? false;
+    this.onReset = options.onReset ?? (() => undefined);
   }
 
   get calls(): readonly FakeRuntimeCall[] {
@@ -300,6 +324,13 @@ export class FakeRuntime implements LocalModelRuntime {
     this.record(
       this.recordResourceLifecycle ? 'conversation.create' : 'createSession',
     );
+    if (!this.hasEngine) {
+      throw createRuntimeError(
+        'generation-failed',
+        'The test runtime must be loaded before creating a conversation.',
+        true,
+      );
+    }
     if (this.hasConversation) {
       throw createRuntimeError(
         'generation-failed',
@@ -331,6 +362,13 @@ export class FakeRuntime implements LocalModelRuntime {
     handlers: GenerationHandlers,
   ): Promise<GenerationResult> {
     const operationId = this.record('generate');
+    if (!this.hasEngine || !this.hasConversation) {
+      throw createRuntimeError(
+        'generation-failed',
+        'The test runtime requires a loaded engine and active conversation before generation.',
+        true,
+      );
+    }
     if (this.activeGeneration) {
       throw createRuntimeError(
         'generation-failed',
@@ -397,6 +435,7 @@ export class FakeRuntime implements LocalModelRuntime {
     this.configuredFailure('reset');
     this.hasConversation = false;
     this.conversationTokenCount = 0;
+    this.onReset();
   }
 
   async unload(): Promise<void> {

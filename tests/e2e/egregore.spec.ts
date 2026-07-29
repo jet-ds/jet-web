@@ -2676,6 +2676,13 @@ test.describe('Egregore unsupported, failure, and exhaustion states', () => {
     await expect(
       page.locator('[aria-label="Conversation"] article'),
     ).toHaveCount(0);
+    await submitQuestion(page, 'Supported question after keyboard reset');
+    await waitForCompletedResponse(page);
+    await expect(
+      page.getByText('Supported question after keyboard reset', {
+        exact: true,
+      }),
+    ).toBeVisible();
 
     await page.goto(fakePath('exhaustion'));
     await page.getByRole('button', { name: 'Check compatibility' }).click();
@@ -2696,6 +2703,11 @@ test.describe('Egregore unsupported, failure, and exhaustion states', () => {
     await expect(pointerComposer).toBeEnabled();
     await expect(pointerComposer).toHaveValue('');
     await expect(pointerComposer).not.toBeFocused();
+    await submitQuestion(page, 'Supported question after pointer reset');
+    await waitForCompletedResponse(page);
+    await expect(
+      page.getByText('Supported question after pointer reset', { exact: true }),
+    ).toBeVisible();
   });
 
   for (const scenario of ['reset-failure', 'unload-failure'] as const) {

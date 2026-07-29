@@ -199,6 +199,7 @@ function createTestBuildDependencies(): EgregoreDependencies {
               waitForFakeDelay(configuration.unloadDelayMs!),
           }),
     };
+    let completedAssemblies = 0;
     const runtime = new FakeRuntime({
       testOnly: true,
       recorder,
@@ -208,6 +209,9 @@ function createTestBuildDependencies(): EgregoreDependencies {
       scheduler: scheduler,
       emitLateChunkAfterCancellation:
         configuration.emitLateChunkAfterCancellation,
+      onReset: () => {
+        completedAssemblies = 0;
+      },
     });
     const modelArtifactStore = {
       hasCurrent: async () => configuration.modelCached === true,
@@ -225,8 +229,6 @@ function createTestBuildDependencies(): EgregoreDependencies {
       removeCurrent: async () => undefined,
     };
     const repository = new StaticKnowledgeRepository();
-    let completedAssemblies = 0;
-
     exposeE2EAudit(recorder);
 
     return {

@@ -115,7 +115,7 @@ class OrderedFakeRuntime extends FakeRuntime {
 
   constructor(
     private readonly order: string[],
-    responseChunks: readonly string[] = ['Grounded answer [S1].'],
+    responseChunks: readonly string[] = ['Grounded answer {{SOURCE_1}}.'],
     scheduler?: {
       waitForChunk(operationId: number, chunkIndex: number): Promise<void>;
     },
@@ -170,7 +170,9 @@ class OrderedFakeRuntime extends FakeRuntime {
     handlers: GenerationHandlers,
   ): Promise<GenerationResult> {
     this.order.push('runtime.generate');
-    this.generationMessages.push(message);
+    this.generationMessages.push(
+      message.split('\n\nCurrent question:\n').at(-1) ?? message,
+    );
     if (
       this.failNextGenerationRequested ||
       this.remainingGenerationFailures > 0
@@ -387,7 +389,12 @@ function createHarness(
             content: 'Ground only in the supplied source.',
           },
         ],
-        userMessage: query,
+        userMessage:
+          'Current untrusted sources (JSON):\n' +
+          JSON.stringify(
+            selected.sources.map(({ citationId }) => ({ citationId })),
+          ) +
+          `\n\nCurrent question:\n${query}`,
         selectedSources: [...selected.sources],
         estimatedTokens: 24,
         diagnostics: {
@@ -704,7 +711,7 @@ describe('useEgregore activation boundary', () => {
   it('creates one conversation and reuses it for later grounded turns', async () => {
     const useEgregore = await loadSubject();
     const harness = createHarness({
-      responseChunks: ['Grounded ', 'answer [S1].'],
+      responseChunks: ['Grounded ', 'answer {{SOURCE_1}}.'],
     });
     const { result } = renderHook(() => useEgregore(harness.dependencies));
     await makeReady(result);
@@ -763,7 +770,7 @@ describe('useEgregore activation boundary', () => {
     const useEgregore = await loadSubject();
     const scheduler = new ManualScheduler();
     const harness = createHarness({
-      responseChunks: ['Keep this. ', 'DROP THIS [S1].'],
+      responseChunks: ['Keep this. ', 'DROP THIS {{SOURCE_1}}.'],
       scheduler,
     });
     const { result } = renderHook(() => useEgregore(harness.dependencies));
@@ -1059,7 +1066,9 @@ describe('useEgregore activation boundary', () => {
       const harness = createHarness({
         selection: selected,
         responseChunks: [
-          hasSource ? 'Answer [S1].' : 'I do not have a grounded source.',
+          hasSource
+            ? 'Answer {{SOURCE_1}}.'
+            : 'I do not have a grounded source.',
         ],
       });
       const { result } = renderHook(() => useEgregore(harness.dependencies));
@@ -1517,7 +1526,7 @@ describe('EgregoreExperience production composition', () => {
   it('keeps stable header actions after status while a response is generating', async () => {
     const scheduler = new ManualScheduler();
     const harness = createHarness({
-      responseChunks: ['Grounded answer [S1].'],
+      responseChunks: ['Grounded answer {{SOURCE_1}}.'],
       scheduler,
     });
     render(<EgregoreExperience dependencies={harness.dependencies} />);
@@ -1583,7 +1592,7 @@ describe('EgregoreExperience production composition', () => {
 
   it('keeps activation explicit and exposes cited documents only through a collapsed disclosure', async () => {
     const harness = createHarness({
-      responseChunks: ['Grounded answer [S1].'],
+      responseChunks: ['Grounded answer {{SOURCE_1}}.'],
     });
     render(<EgregoreExperience dependencies={harness.dependencies} />);
 
@@ -1648,7 +1657,7 @@ describe('EgregoreExperience production composition', () => {
   it('keeps the reliability disclosure through starter selection, removes it on submit, and restores it after reset', async () => {
     const disclosureCopy = 'Egregore can make mistakes. Check cited sources.';
     const harness = createHarness({
-      responseChunks: ['Grounded answer [S1].'],
+      responseChunks: ['Grounded answer {{SOURCE_1}}.'],
     });
     render(<EgregoreExperience dependencies={harness.dependencies} />);
     fireEvent.click(
@@ -1684,7 +1693,7 @@ describe('EgregoreExperience production composition', () => {
   it('keeps touch Load, pointer submit, response completion, and touch New session blurred', async () => {
     const scheduler = new ManualScheduler();
     const harness = createHarness({
-      responseChunks: ['Grounded answer [S1].'],
+      responseChunks: ['Grounded answer {{SOURCE_1}}.'],
       scheduler,
     });
     render(<EgregoreExperience dependencies={harness.dependencies} />);
@@ -1726,7 +1735,7 @@ describe('EgregoreExperience production composition', () => {
   it('preserves touch modality through virtual-keyboard character input and Enter', async () => {
     const scheduler = new ManualScheduler();
     const harness = createHarness({
-      responseChunks: ['Answer [S1].'],
+      responseChunks: ['Answer {{SOURCE_1}}.'],
       scheduler,
     });
     render(<EgregoreExperience dependencies={harness.dependencies} />);
@@ -1955,7 +1964,7 @@ describe('EgregoreExperience production composition', () => {
     try {
       const scheduler = new ManualScheduler();
       const harness = createHarness({
-        responseChunks: ['Settled response [S1].'],
+        responseChunks: ['Settled response {{SOURCE_1}}.'],
         scheduler,
       });
       render(<EgregoreExperience dependencies={harness.dependencies} />);
@@ -2011,7 +2020,7 @@ describe('EgregoreExperience production composition', () => {
   it('retains focus for desktop keyboard Load, hardware Enter, completion, and New session', async () => {
     const scheduler = new ManualScheduler();
     const harness = createHarness({
-      responseChunks: ['Answer [S1].'],
+      responseChunks: ['Answer {{SOURCE_1}}.'],
       scheduler,
     });
     render(<EgregoreExperience dependencies={harness.dependencies} />);
@@ -2050,7 +2059,7 @@ describe('EgregoreExperience production composition', () => {
   it('sticky-follows delayed streamed tokens through completion without stealing keyboard focus', async () => {
     const scheduler = new ManualScheduler();
     const harness = createHarness({
-      responseChunks: ['First late token. ', 'Final late token [S1].'],
+      responseChunks: ['First late token. ', 'Final late token {{SOURCE_1}}.'],
       scheduler,
     });
     render(<EgregoreExperience dependencies={harness.dependencies} />);
@@ -2100,7 +2109,7 @@ describe('EgregoreExperience production composition', () => {
         'First overflow chunk. ',
         'Second unseen chunk. ',
         'Third chunk after jump. ',
-        'Final chunk [S1].',
+        'Final chunk {{SOURCE_1}}.',
       ],
       scheduler,
     });
@@ -2191,7 +2200,7 @@ describe('EgregoreExperience production composition', () => {
       responseChunks: [
         'First overflow chunk. ',
         'Second unseen chunk. ',
-        'Third chunk after jump [S1].',
+        'Third chunk after jump {{SOURCE_1}}.',
       ],
       scheduler,
     });
@@ -2283,7 +2292,7 @@ describe('EgregoreExperience production composition', () => {
       canonicalUrl: 'https://jetsanchez.com/blog/uncited-third/',
     };
     const harness = createHarness({
-      responseChunks: ['Grounded answer [S1].'],
+      responseChunks: ['Grounded answer {{SOURCE_1}}.'],
       selection: selection([cited, uncitedSecond, uncitedThird]),
     });
     render(<EgregoreExperience dependencies={harness.dependencies} />);
@@ -2333,7 +2342,7 @@ describe('EgregoreExperience production composition', () => {
       title: longTitle,
     };
     const harness = createHarness({
-      responseChunks: ['Grounded answer [S1].'],
+      responseChunks: ['Grounded answer {{SOURCE_1}}.'],
       selection: selection([longTitleSource]),
     });
     render(<EgregoreExperience dependencies={harness.dependencies} />);
@@ -2402,7 +2411,7 @@ describe('EgregoreExperience production composition', () => {
     };
     const harness = createHarness({
       responseChunks: [
-        'Supported by the first chunk [S2], then another document [S3], and the same document again [S1].',
+        'Supported by the first chunk {{SOURCE_2}}, then another document {{SOURCE_3}}, and the same document again {{SOURCE_1}}.',
       ],
       selection: selection([
         laterSharedChunk,
@@ -2479,7 +2488,10 @@ describe('EgregoreExperience production composition', () => {
   it('waits for completion before showing sources and keeps a cited stopped response collapsed', async () => {
     const scheduler = new ManualScheduler();
     const harness = createHarness({
-      responseChunks: ['Partial cited response [S1]. ', 'Never emitted.'],
+      responseChunks: [
+        'Partial cited response {{SOURCE_1}}. ',
+        'Never emitted.',
+      ],
       scheduler,
     });
     render(<EgregoreExperience dependencies={harness.dependencies} />);
@@ -2519,7 +2531,7 @@ describe('EgregoreExperience production composition', () => {
 
   it('keeps expansion state local to each completed assistant response', async () => {
     const harness = createHarness({
-      responseChunks: ['Grounded answer [S1].'],
+      responseChunks: ['Grounded answer {{SOURCE_1}}.'],
     });
     render(<EgregoreExperience dependencies={harness.dependencies} />);
     fireEvent.click(

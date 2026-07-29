@@ -139,7 +139,7 @@ describe('Egregore fake browser scenarios', () => {
     });
     expect(
       getFakeScenarioConfiguration('citations').responseChunks.join(''),
-    ).toMatch(/\[S2\][\s\S]*\[S1\][\s\S]*\[S2\]/);
+    ).toMatch(/\{\{SOURCE_2\}\}[\s\S]*\{\{SOURCE_1\}\}[\s\S]*\{\{SOURCE_2\}\}/);
     expect(
       getFakeScenarioConfiguration('zero-citation').responseChunks.join(''),
     ).not.toMatch(/\[S\d+\]/);
@@ -323,6 +323,11 @@ describe('Egregore fake browser scenarios', () => {
       },
     });
 
+    await runtime.load({ modelSource: 'test-model' });
+    await runtime.createSession([
+      { role: 'system', content: 'Use the published corpus.' },
+    ]);
+
     await expect(
       runtime.generate('first', { onText: () => undefined }),
     ).rejects.toMatchObject({ code: 'generation-failed' });
@@ -431,6 +436,11 @@ describe('Egregore fake browser scenarios', () => {
       },
     });
 
+    await runtime.load({ modelSource: 'test-model' });
+    await runtime.createSession([
+      { role: 'system', content: 'Use the published corpus.' },
+    ]);
+
     const generation = runtime.generate('question', {
       onText: (chunk) => chunks.push(chunk),
     });
@@ -445,8 +455,13 @@ describe('Egregore fake browser scenarios', () => {
     const chunks: string[] = [];
     const runtime = new FakeRuntime({
       testOnly: true,
-      responseChunks: ['Second [S2], then first [S1].'],
+      responseChunks: ['Second {{SOURCE_2}}, then first {{SOURCE_1}}.'],
     });
+
+    await runtime.load({ modelSource: 'test-model' });
+    await runtime.createSession([
+      { role: 'system', content: 'Use the published corpus.' },
+    ]);
 
     await runtime.generate(
       'Current untrusted sources (JSON):\n' +
@@ -456,6 +471,64 @@ describe('Egregore fake browser scenarios', () => {
     );
 
     expect(chunks).toEqual(['Second [S3], then first [S17].']);
+  });
+
+  it('rejects an out-of-range fake citation placeholder before emitting text', async () => {
+    const chunks: string[] = [];
+    const runtime = new FakeRuntime({
+      testOnly: true,
+      responseChunks: ['Unsupported ordinal [S3].'],
+    });
+    await runtime.load({ modelSource: 'test-model' });
+    await runtime.createSession([
+      { role: 'system', content: 'Use the published corpus.' },
+    ]);
+
+    await expect(
+      runtime.generate(
+        'Current untrusted sources (JSON):\n' +
+          '[{"citationId":"S9"},{"citationId":"S3"}]\n\n' +
+          'Current question:\nCompare them.',
+        { onText: (chunk) => chunks.push(chunk) },
+      ),
+    ).rejects.toMatchObject({ code: 'generation-failed' });
+    expect(chunks).toEqual([]);
+  });
+
+  it('requires a loaded engine and active conversation before generation', async () => {
+    const runtime = new FakeRuntime({ testOnly: true });
+
+    await expect(runtime.getConversationTokenCount()).rejects.toMatchObject({
+      code: 'generation-failed',
+    });
+    await expect(
+      runtime.createSession([
+        { role: 'system', content: 'Use the published corpus.' },
+      ]),
+    ).rejects.toMatchObject({ code: 'generation-failed' });
+    await expect(
+      runtime.generate('Question before load', { onText: () => undefined }),
+    ).rejects.toMatchObject({ code: 'generation-failed' });
+
+    await runtime.load({ modelSource: 'test-model' });
+    await expect(runtime.getConversationTokenCount()).rejects.toMatchObject({
+      code: 'generation-failed',
+    });
+    await expect(
+      runtime.generate('Question before session', {
+        onText: () => undefined,
+      }),
+    ).rejects.toMatchObject({ code: 'generation-failed' });
+
+    await runtime.createSession([
+      { role: 'system', content: 'Use the published corpus.' },
+    ]);
+    await expect(runtime.getConversationTokenCount()).resolves.toBeGreaterThan(
+      0,
+    );
+    await expect(
+      runtime.generate('Grounded question', { onText: () => undefined }),
+    ).resolves.toEqual({ finishReason: 'completed' });
   });
 
   it('builds the citation fixture from packed sources without injecting source content', () => {
