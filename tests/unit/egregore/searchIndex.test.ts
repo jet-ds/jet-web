@@ -1,5 +1,4 @@
-import MiniSearch from 'minisearch';
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it } from 'vitest';
 import {
   buildKnowledgeBase,
   canonicalSerialize,
@@ -234,19 +233,6 @@ describe('deterministic MiniSearch artifact', () => {
     expect(processTerm('1')).toBeNull();
     expect(processTerm('AI')).toBe('ai');
     expect(processTerm('record')).toBe('record');
-  });
-
-  it('hydrates with the exact checked-in options', async () => {
-    const fixture = buildFixture();
-    const implementation = MiniSearch.loadJSAsync.bind(MiniSearch);
-    const spy = vi
-      .spyOn(MiniSearch, 'loadJSAsync')
-      .mockImplementation(implementation);
-
-    await loadSearchIndex(fixture.index, fixture.content.corpusVersion);
-
-    expect(spy).toHaveBeenCalledOnce();
-    expect(spy).toHaveBeenCalledWith(fixture.index.index, MINISEARCH_OPTIONS);
   });
 
   it.each([

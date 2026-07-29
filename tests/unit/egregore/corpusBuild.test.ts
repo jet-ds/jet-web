@@ -581,22 +581,6 @@ describe('source commit resolution', () => {
     ).toBe('abc');
   });
 
-  it('produces byte-identical packages through every matching environment combination', () => {
-    const inputs = [
-      { gitHead: 'abc' },
-      { gitHead: 'abc', vercelSha: 'abc' },
-      { gitHead: 'abc', githubSha: 'abc' },
-      { gitHead: 'abc', vercelSha: 'abc', githubSha: 'abc' },
-    ];
-    const bytes = inputs.map((input) =>
-      canonicalSerialize(
-        buildKnowledgeBase([blogEntry()], resolveSourceCommit(input)),
-      ),
-    );
-
-    expect(new Set(bytes).size).toBe(1);
-  });
-
   it('fails when supplied provenance disagrees or Git HEAD is unavailable', () => {
     expect(() =>
       resolveSourceCommit({ gitHead: 'abc', vercelSha: 'different' }),

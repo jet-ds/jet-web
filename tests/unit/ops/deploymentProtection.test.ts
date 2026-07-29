@@ -1,20 +1,6 @@
-import { readFileSync } from 'node:fs';
-import { resolve } from 'node:path';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import productionConfig from '../../../playwright.production.config';
 import { establishDeploymentProtectionBypass } from '../../support/deploymentProtection';
-
-const deploymentSuite = readFileSync(
-  resolve(process.cwd(), 'tests/deployment/core-production.spec.ts'),
-  'utf8',
-);
-const realModelSuite = readFileSync(
-  resolve(process.cwd(), 'tests/manual/egregore-real-model.spec.ts'),
-  'utf8',
-);
-const productionConfig = readFileSync(
-  resolve(process.cwd(), 'playwright.production.config.ts'),
-  'utf8',
-);
 
 describe('deployment protection test support', () => {
   afterEach(() => {
@@ -166,25 +152,12 @@ describe('deployment protection test support', () => {
     expect(addCookies).not.toHaveBeenCalled();
   });
 
-  it('uses the cookie-sharing browser context for protected deployment readback', () => {
-    expect(deploymentSuite).toContain('establishDeploymentProtectionBypass(');
-    expect(deploymentSuite).toContain(
-      'process.env.VERCEL_AUTOMATION_BYPASS_SECRET',
-    );
-    expect(deploymentSuite).toContain('const request = context.request;');
-  });
-
-  it('establishes the same protected-Preview boundary before real-model navigation', () => {
-    expect(realModelSuite).toContain('establishDeploymentProtectionBypass(');
-    expect(realModelSuite).toContain(
-      'process.env.VERCEL_AUTOMATION_BYPASS_SECRET',
-    );
-  });
-
   it('does not retain browser artifacts that could contain a bypass credential', () => {
-    expect(productionConfig).toContain("preserveOutput: 'never',");
-    expect(productionConfig).toContain("trace: 'off',");
-    expect(productionConfig).toContain("screenshot: 'off',");
-    expect(productionConfig).toContain("video: 'off',");
+    expect(productionConfig.preserveOutput).toBe('never');
+    expect(productionConfig.use).toMatchObject({
+      trace: 'off',
+      screenshot: 'off',
+      video: 'off',
+    });
   });
 });

@@ -13,7 +13,6 @@ import { spawnSync } from 'node:child_process';
 import { afterEach, describe, expect, it } from 'vitest';
 
 import {
-  FORBIDDEN_PRODUCTION_ARTIFACT_MARKERS,
   assertProductionArtifactsContainNoFakeRuntime,
   findForbiddenProductionArtifacts,
 } from '../../../scripts/verify-production-artifacts';
@@ -95,25 +94,6 @@ function writeExactProductionSurface(directory: string): void {
 }
 
 describe('ordinary production artifact containment', () => {
-  it('forbids qualification-only observation seams from production output', () => {
-    expect(FORBIDDEN_PRODUCTION_ARTIFACT_MARKERS).toEqual(
-      expect.arrayContaining([
-        'egregore:qualification-observation',
-        'qualificationObserver',
-        'retrieval-context-selection-start',
-        'retrieval-context-selection-end',
-        'prompt-assembly-start',
-        'prompt-assembly-end',
-        'generation-send',
-        'generation-first-nonempty',
-        'retrieval-context-selection-ms',
-        'prompt-assembly-ms',
-        'send-to-first-nonempty-ms',
-        'total-generation-ms',
-      ]),
-    );
-  });
-
   it('accepts a clean emitted build tree', () => {
     const directory = temporaryBuildDirectory();
     mkdirSync(join(directory, '_astro'));
@@ -132,7 +112,7 @@ describe('ordinary production artifact containment', () => {
     ).not.toThrow();
   });
 
-  it('rejects every fake-runtime marker in nested emitted artifacts', () => {
+  it('rejects test and qualification markers in nested emitted artifacts', () => {
     const directory = temporaryBuildDirectory();
     const nested = join(directory, '_astro');
     mkdirSync(nested);
@@ -144,6 +124,8 @@ describe('ordinary production artifact containment', () => {
       'stop-recovery',
       'late-event',
       'EGREGORE_SOURCE_SENTINEL_4a6c1b',
+      'egregore:qualification-observation',
+      'retrieval-context-selection-ms',
     ];
     markers.forEach((marker, index) => {
       writeFileSync(join(nested, `chunk-${index}.js`), `/* ${marker} */`);

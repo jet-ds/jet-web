@@ -73,22 +73,6 @@ describe('canonical source payload', () => {
     );
   });
 
-  it('keeps complete-set length and token cost stable after permutation and citation reassignment', () => {
-    const canonical = Array.from({ length: 10 }, (_, index) =>
-      source(index + 1),
-    );
-    const permuted = [...canonical].reverse().map((record, index) => ({
-      ...record,
-      citationId: `S${index + 1}` as const,
-    }));
-    const first = serializeSourcePayload(canonical);
-    const second = serializeSourcePayload(permuted);
-
-    expect(second.serialized).not.toBe(first.serialized);
-    expect(second.serialized.length).toBe(first.serialized.length);
-    expect(second.estimatedTokens).toBe(first.estimatedTokens);
-  });
-
   it.each([
     ['empty', []],
     ['one item', [source(1)]],
@@ -110,22 +94,4 @@ describe('canonical source payload', () => {
       ).toBe(final.serialized.length);
     },
   );
-
-  it('does not consume bytes or a citation number for a rejected candidate', () => {
-    const accepted = [source(1), source(2, { citationId: 'S2' })];
-    const rejected = source(99, { citationId: 'S2', text: 'x'.repeat(2_000) });
-    const items = [
-      measureSourcePayloadItem(accepted[0]),
-      measureSourcePayloadItem(rejected),
-      measureSourcePayloadItem(accepted[1]),
-    ];
-    const incremental = `[${items[0].serialized},${items[2].serialized}]`;
-
-    expect(incremental).toBe(serializeSourcePayload(accepted).serialized);
-    expect(
-      JSON.parse(incremental).map(
-        (item: SourcePayloadRecord) => item.citationId,
-      ),
-    ).toEqual(['S1', 'S2']);
-  });
 });

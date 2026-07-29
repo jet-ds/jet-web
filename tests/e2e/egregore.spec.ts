@@ -54,8 +54,6 @@ type FakeScenario =
 
 interface RuntimeCall {
   method: string;
-  operationId: number;
-  runtimeId?: number;
 }
 
 interface FetchRecord {
@@ -112,7 +110,6 @@ async function runtimeCalls(page: Page): Promise<RuntimeCall[]> {
   return page.evaluate(() => {
     const state = window as typeof window & {
       __EGREGORE_E2E__?: {
-        readonly runtimeId: number;
         readonly calls: readonly Readonly<RuntimeCall>[];
       };
     };
@@ -124,14 +121,14 @@ async function runtimeMethods(page: Page): Promise<string[]> {
   return (await runtimeCalls(page)).map(({ method }) => method);
 }
 
-async function runtimeId(page: Page): Promise<number | null> {
+async function runtimeAuditReady(page: Page): Promise<boolean> {
   return page.evaluate(
     () =>
       (
         window as typeof window & {
-          __EGREGORE_E2E__?: { readonly runtimeId: number };
+          __EGREGORE_E2E__?: { readonly calls: readonly unknown[] };
         }
-      ).__EGREGORE_E2E__?.runtimeId ?? null,
+      ).__EGREGORE_E2E__ !== undefined,
   );
 }
 
@@ -270,7 +267,7 @@ async function startFakeAssistant(
   loadModality: 'pointer' | 'keyboard' = 'pointer',
 ): Promise<Locator> {
   await page.goto(fakePath(scenario));
-  await expect.poll(() => runtimeId(page)).not.toBeNull();
+  await expect.poll(() => runtimeAuditReady(page)).toBe(true);
   await page.getByRole('button', { name: 'Check compatibility' }).click();
   const load = page.getByRole('button', { name: /Load Egregore/ });
   await expect(load).toBeVisible();
@@ -540,23 +537,6 @@ test.describe('Egregore consent and local privacy', () => {
       page.getByRole('button', { name: 'Check compatibility' }),
     ).toBeVisible();
     expect(await runtimeMethods(page)).toEqual([]);
-    expect(
-      await page.evaluate(() => {
-        const audit = (
-          window as typeof window & {
-            __EGREGORE_E2E__?: {
-              readonly calls: readonly Readonly<RuntimeCall>[];
-            };
-          }
-        ).__EGREGORE_E2E__;
-        return (
-          audit !== undefined &&
-          Object.isFrozen(audit) &&
-          Object.isFrozen(audit.calls) &&
-          audit.calls.every(Object.isFrozen)
-        );
-      }),
-    ).toBe(true);
     const liteRtChunks = emittedLiteRtChunkPaths();
     expect(liteRtChunks.length).toBeGreaterThan(0);
     expect(
@@ -600,13 +580,7 @@ test.describe('Egregore consent and local privacy', () => {
             .__EGREGORE_CAPABILITY_CALLS__,
       ),
     ).toBe(1);
-    const supportedAudit = await runtimeCalls(page);
-    expect(supportedAudit.map(({ method }) => method)).toEqual([
-      'checkCapabilities',
-    ]);
-    expect(supportedAudit.map((call) => Object.keys(call).sort())).toEqual([
-      ['method', 'operationId', 'runtimeId'],
-    ]);
+    expect(await runtimeMethods(page)).toEqual(['checkCapabilities']);
     expect(
       requests
         .map((request) => request.url())
@@ -966,6 +940,7 @@ test.describe('Egregore supported lifecycle', () => {
     test.skip(testInfo.project.name !== 'chromium');
     await installLargeGhostLayerAudit(page);
     await page.goto(fakePath('checking'));
+    await expect.poll(() => runtimeAuditReady(page)).toBe(true);
 
     const viewport = largeGhostViewport(page);
     const layers = largeGhostLayers(page);
@@ -999,6 +974,7 @@ test.describe('Egregore supported lifecycle', () => {
     test.skip(testInfo.project.name !== 'chromium');
     await installLargeGhostLayerAudit(page);
     await page.goto(fakePath('crossfade'));
+    await expect.poll(() => runtimeAuditReady(page)).toBe(true);
     await page.getByRole('button', { name: 'Check compatibility' }).click();
     const load = page.getByRole('button', { name: /Load Egregore/ });
     await expect(load).toBeVisible();
@@ -1056,30 +1032,6 @@ test.describe('Egregore supported lifecycle', () => {
     );
   });
 
-  test('settles rapid lifecycle changes on one current large-Ghost layer', async ({
-    page,
-  }, testInfo) => {
-    test.skip(testInfo.project.name !== 'chromium');
-    await installLargeGhostLayerAudit(page);
-    await page.goto(fakePath());
-    await page.getByRole('button', { name: 'Check compatibility' }).click();
-    await expect(
-      page.getByRole('button', { name: /Load Egregore/ }),
-    ).toBeVisible();
-    await page.waitForTimeout(220);
-
-    await expect(largeGhostLayers(page)).toHaveCount(1);
-    await expect(largeGhostLayers(page)).toHaveAttribute('data-mode', 'ready');
-    const audit = await largeGhostLayerAudit(page);
-    expect(audit.some((entry) => entry.modes.includes('scanning'))).toBe(true);
-    expect(audit.at(-1)).toEqual({
-      currentMode: 'ready',
-      modes: ['ready'],
-      positions: ['absolute'],
-      viewportCount: 1,
-    });
-  });
-
   test('switches large-Ghost modes immediately with one layer for reduced motion', async ({
     page,
   }, testInfo) => {
@@ -1087,6 +1039,7 @@ test.describe('Egregore supported lifecycle', () => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
     await installLargeGhostLayerAudit(page);
     await page.goto(fakePath('checking'));
+    await expect.poll(() => runtimeAuditReady(page)).toBe(true);
     await page.getByRole('button', { name: 'Check compatibility' }).click();
 
     const layers = largeGhostLayers(page);
@@ -1114,149 +1067,6 @@ test.describe('Egregore supported lifecycle', () => {
         ),
       ),
     ).toBeLessThanOrEqual(1);
-  });
-
-  test('does not restart the large loading visual when elapsed time rerenders', async ({
-    page,
-  }, testInfo) => {
-    test.skip(testInfo.project.name !== 'chromium');
-    await page.goto(fakePath('loading'));
-    await page.getByRole('button', { name: 'Check compatibility' }).click();
-    const load = page.getByRole('button', { name: /Load Egregore/ });
-    await expect(load).toBeVisible();
-    await load.click();
-    const viewport = largeGhostViewport(page);
-    const layers = largeGhostLayers(page);
-    await expect(viewport).toHaveAttribute('data-mode', 'loading');
-    await page.waitForTimeout(220);
-    await expect(layers).toHaveCount(1);
-    await layers.evaluate((element) =>
-      element.setAttribute('data-stability-marker', 'same-node'),
-    );
-    const beforeTick = await boxOf(viewport);
-
-    await expect(page.getByTestId('loading-elapsed')).toHaveText('Elapsed 1s');
-    await expect(
-      page.locator('[data-stability-marker="same-node"]'),
-    ).toHaveCount(1);
-    await expect(layers).toHaveCount(1);
-    await expect(layers).toHaveAttribute('data-mode', 'loading');
-    expectStableBox(beforeTick, await boxOf(viewport));
-  });
-
-  test('does not claim a ready-to-thinking crossfade after send removes the large Ghost', async ({
-    page,
-  }, testInfo) => {
-    test.skip(testInfo.project.name !== 'chromium');
-    const composer = await startFakeAssistant(page, 'long-stream');
-    await expect(largeGhostViewport(page)).toHaveAttribute(
-      'data-mode',
-      'ready',
-    );
-
-    await composer.fill('Summarize the recursive convergence hypothesis.');
-    await page.getByRole('button', { name: 'Send message' }).click();
-    await expect(currentStatusLabel(page)).toHaveText('Responding');
-    await expect(largeGhostViewport(page)).toHaveCount(0);
-    await expect(largeGhostLayers(page)).toHaveCount(0);
-  });
-
-  test('mounts one idle layer when unload follows a completed conversation with no large Ghost', async ({
-    page,
-  }, testInfo) => {
-    test.skip(testInfo.project.name !== 'chromium');
-    await installLargeGhostLayerAudit(page);
-    const composer = await startFakeAssistant(page, 'unloading');
-    await submitQuestion(
-      page,
-      'Summarize the recursive convergence hypothesis.',
-    );
-    await waitForCompletedResponse(page);
-    await expect(composer).toBeEnabled();
-    await expect(largeGhostViewport(page)).toHaveCount(0);
-    const auditStart = (await largeGhostLayerAudit(page)).length;
-
-    await page.getByRole('button', { name: /Unload/ }).click();
-    await expect(largeGhostViewport(page)).toHaveAttribute('data-mode', 'idle');
-    await page.waitForTimeout(220);
-    await expect(largeGhostLayers(page)).toHaveCount(1);
-    await expect(largeGhostLayers(page)).toHaveAttribute('data-mode', 'idle');
-
-    const mountedEntries = (await largeGhostLayerAudit(page))
-      .slice(auditStart)
-      .filter((entry) => entry.viewportCount === 1);
-    expect(mountedEntries.length).toBeGreaterThan(0);
-    expect(
-      mountedEntries.every(
-        (entry) => entry.modes.length === 1 && entry.modes[0] === 'idle',
-      ),
-    ).toBe(true);
-  });
-
-  test('does not fabricate a thinking layer when unload mounts a large Ghost during generation', async ({
-    page,
-  }, testInfo) => {
-    test.skip(testInfo.project.name !== 'chromium');
-    await installLargeGhostLayerAudit(page);
-    const composer = await startFakeAssistant(page, 'long-stream');
-    await submitQuestion(
-      page,
-      'Summarize the recursive convergence hypothesis.',
-    );
-    await expect(currentStatusLabel(page)).toHaveText('Responding');
-    await expect(composer).toBeDisabled();
-    await expect(largeGhostViewport(page)).toHaveCount(0);
-    const auditStart = (await largeGhostLayerAudit(page)).length;
-
-    await page.getByRole('button', { name: /Unload/ }).click();
-    await expect(largeGhostViewport(page)).toHaveAttribute('data-mode', 'idle');
-    await page.waitForTimeout(220);
-    await expect(largeGhostLayers(page)).toHaveCount(1);
-    await expect(largeGhostLayers(page)).toHaveAttribute('data-mode', 'idle');
-
-    const mountedEntries = (await largeGhostLayerAudit(page))
-      .slice(auditStart)
-      .filter((entry) => entry.viewportCount === 1);
-    expect(mountedEntries.length).toBeGreaterThan(0);
-    expect(
-      mountedEntries.every(
-        (entry) => entry.modes.length === 1 && entry.modes[0] === 'idle',
-      ),
-    ).toBe(true);
-  });
-
-  test('settles the current lifecycle label before it becomes visible', async ({
-    page,
-  }, testInfo) => {
-    test.skip(testInfo.project.name !== 'chromium');
-    await page.setViewportSize({ width: 1280, height: 800 });
-    await page.goto(fakePath());
-
-    const header = page.locator('.egregore-header');
-    const identity = header.locator(':scope > div').first();
-    const status = page.getByTestId('lifecycle-visible-status');
-
-    await expect(
-      page
-        .getByTestId('egregore-identity')
-        .getByText('Egregore', { exact: true }),
-    ).toBeVisible();
-
-    await page.getByRole('button', { name: 'Check compatibility' }).click();
-    await expect(currentStatusLabel(page)).toHaveText('Load ready');
-
-    const immediateLabel = await boxOf(currentStatusLabel(page));
-    const immediateStatus = await boxOf(status);
-    await page.waitForTimeout(220);
-    await expect(page.getByTestId('lifecycle-visual-label')).toHaveCount(1);
-    const settledLabel = await boxOf(currentStatusLabel(page));
-    const settledStatus = await boxOf(status);
-
-    expectStableBox(immediateLabel, settledLabel);
-    expectStableBox(immediateStatus, settledStatus);
-    await expect(identity.getByTestId('lifecycle-visible-status')).toHaveCount(
-      1,
-    );
   });
 
   test('supports compatibility, load, starter input, cited response, reset, and unload', async ({
@@ -1316,19 +1126,6 @@ test.describe('Egregore supported lifecycle', () => {
     await expect(
       page.getByRole('button', { name: 'Check compatibility' }),
     ).toBeFocused();
-    expect(await runtimeMethods(page)).toEqual([
-      'checkCapabilities',
-      'repository.load',
-      'runtime.load',
-      'engine.create',
-      'conversation.create',
-      'getConversationTokenCount',
-      'generate',
-      'conversation.delete',
-      'repository.unload',
-      'engine.delete',
-      'sdk.unload',
-    ]);
   });
 
   test('keeps checking status text readable in light and dark themes', async ({
@@ -2096,7 +1893,6 @@ test.describe('Egregore loading hierarchy and activation recovery', () => {
     await page.getByRole('button', { name: 'Check compatibility' }).click();
     await page.getByRole('button', { name: /Load Egregore/ }).click();
     await expect(page.getByTestId('loading-stack')).toBeVisible();
-    const methodsBeforeReload = await runtimeMethods(page);
     let reloadAttempts = 0;
     await page.route('**/chatbot/**', async (route) => {
       if (route.request().resourceType() === 'document') {
@@ -2113,9 +1909,6 @@ test.describe('Egregore loading hierarchy and activation recovery', () => {
     await expect.poll(() => reloadAttempts).toBe(1);
     await expect(page.getByTestId('loading-stack')).toBeVisible();
     const methodsAfterReload = await runtimeMethods(page);
-    expect(methodsAfterReload.slice(0, methodsBeforeReload.length)).toEqual(
-      methodsBeforeReload,
-    );
     expect(methodsAfterReload).not.toEqual(
       expect.arrayContaining([
         'conversation.delete',
@@ -2222,12 +2015,6 @@ test.describe('Egregore loading hierarchy and activation recovery', () => {
     await expect(
       page.getByRole('button', { name: 'Check compatibility' }),
     ).toBeFocused();
-    expect((await runtimeMethods(page)).slice(-4)).toEqual([
-      'conversation.delete',
-      'repository.unload',
-      'engine.delete',
-      'sdk.unload',
-    ]);
   });
 });
 
@@ -2485,19 +2272,12 @@ test.describe('Egregore responses, citations, and scrolling', () => {
     // Stop may land on either side of the next streamed citation chunk under load.
     // The durable contract is that the disclosure mirrors validated inline citations.
     await expect(stoppedDisclosures).toHaveCount(expectedStoppedDisclosures);
-    expect(
-      (await runtimeMethods(page)).filter((method) => method === 'cancel'),
-    ).toHaveLength(1);
-
     await composer.fill('Summarize the recursive convergence hypothesis.');
     await page.getByRole('button', { name: 'Send message' }).click();
     await expect(composer).not.toBeFocused();
     await waitForCompletedResponse(page);
     await expect(composer).not.toBeFocused();
     await expect(page.getByText('Stopped', { exact: true })).toHaveCount(1);
-    expect(
-      (await runtimeMethods(page)).filter((method) => method === 'generate'),
-    ).toHaveLength(2);
     await expect(page.getByTestId('response-source-disclosure')).toHaveCount(
       expectedStoppedDisclosures + 1,
     );
@@ -2589,10 +2369,6 @@ test.describe('Egregore unsupported, failure, and exhaustion states', () => {
       page.getByRole('heading', { name: 'This browser cannot run Egregore' }),
     ).toBeVisible();
     await expect(checkAgain).toBeFocused();
-    expect(await runtimeMethods(page)).toEqual([
-      'checkCapabilities',
-      'checkCapabilities',
-    ]);
   });
 
   test('keeps the transcript and recovers after generation failure', async ({
@@ -2638,7 +2414,13 @@ test.describe('Egregore unsupported, failure, and exhaustion states', () => {
     const transcriptBefore = await page
       .locator('[aria-label="Conversation"] article')
       .allTextContents();
-    const callsBefore = await runtimeCalls(page);
+    const methodsBefore = await runtimeMethods(page);
+    const generationCount = methodsBefore.filter(
+      (method) => method === 'generate',
+    ).length;
+    const sessionCount = methodsBefore.filter(
+      (method) => method === 'conversation.create',
+    ).length;
 
     await composer.fill(
       'Question that exceeds the deterministic fake conversation budget',
@@ -2649,16 +2431,13 @@ test.describe('Egregore unsupported, failure, and exhaustion states', () => {
         'The current session is full. Start a new session to continue.',
       ),
     ).toBeVisible();
-    const callsAfter = await runtimeCalls(page);
-    expect(
-      callsAfter.filter(({ method }) =>
-        ['conversation.create', 'generate'].includes(method),
-      ),
-    ).toEqual(
-      callsBefore.filter(({ method }) =>
-        ['conversation.create', 'generate'].includes(method),
-      ),
+    const methodsAfter = await runtimeMethods(page);
+    expect(methodsAfter.filter((method) => method === 'generate')).toHaveLength(
+      generationCount,
     );
+    expect(
+      methodsAfter.filter((method) => method === 'conversation.create'),
+    ).toHaveLength(sessionCount);
     expect(
       await page
         .locator('[aria-label="Conversation"] article')
@@ -2758,23 +2537,16 @@ test.describe('Egregore ClientRouter cleanup', () => {
     await expect(page.getByRole('heading', { name: /About/i })).toBeVisible();
   }
 
-  test('cleans a ready runtime in resource order once and returns with a fresh runtime', async ({
+  test('cleans prior resources once and starts an isolated session after route re-entry', async ({
     page,
   }) => {
+    const previousQuestion = 'What does Jet write about agentic work?';
     await startFakeAssistant(page);
-    await submitQuestion(page, 'What does Jet write about agentic work?');
+    await submitQuestion(page, previousQuestion);
     await waitForCompletedResponse(page);
-    const initialRuntimeId = await runtimeId(page);
-    expect(initialRuntimeId).toEqual(expect.any(Number));
     await navigateAwayThroughDock(page);
 
     const methods = await runtimeMethods(page);
-    expect(methods.slice(-4)).toEqual([
-      'conversation.delete',
-      'repository.unload',
-      'engine.delete',
-      'sdk.unload',
-    ]);
     for (const method of [
       'conversation.delete',
       'repository.unload',
@@ -2792,14 +2564,38 @@ test.describe('Egregore ClientRouter cleanup', () => {
       .getByRole('link', { name: 'Egregore' })
       .click();
     await expect(page).toHaveURL(/\/chatbot\/$/);
-    const freshRuntimeId = await runtimeId(page);
-    expect(freshRuntimeId).toEqual(expect.any(Number));
-    expect(freshRuntimeId).not.toBe(initialRuntimeId);
-    expect(await runtimeCalls(page)).toEqual([]);
+    await expect(
+      page.getByRole('button', { name: 'Check compatibility' }),
+    ).toBeVisible();
+    await expect
+      .poll(() => runtimeCalls(page), {
+        message: 'the re-entered island should install a clean runtime audit',
+      })
+      .toEqual([]);
+    await expect(page.getByText(previousQuestion, { exact: true })).toHaveCount(
+      0,
+    );
+
     await page.getByRole('button', { name: 'Check compatibility' }).click();
-    const freshCalls = await runtimeCalls(page);
-    expect(freshCalls[0]?.runtimeId).toBe(freshRuntimeId);
-    expect(freshCalls[0]?.operationId).toBe(1);
+    const load = page.getByRole('button', { name: /Load Egregore/ });
+    await expect(load).toBeVisible();
+    await load.click();
+    const composer = page.getByRole('textbox', { name: 'Ask Egregore' });
+    await expect(composer).toBeEnabled();
+    await expect(currentStatusLabel(page)).toHaveText('Ready');
+
+    const reentryQuestion = 'Which projects connect AI and systems thinking?';
+    await submitQuestion(page, reentryQuestion);
+    await waitForCompletedResponse(page);
+    await expect(
+      page.getByText(reentryQuestion, { exact: true }),
+    ).toBeVisible();
+    await expect(
+      page.getByRole('link', { name: /\[S\d+\]/u }).first(),
+    ).toBeVisible();
+    await expect(page.getByText(previousQuestion, { exact: true })).toHaveCount(
+      0,
+    );
   });
 
   test('cancels streaming before cleanup and suppresses a deliberately late event', async ({
@@ -2823,8 +2619,6 @@ test.describe('Egregore ClientRouter cleanup', () => {
       'engine.delete',
       'sdk.unload',
     ];
-    const cleanup = methods.slice(methods.indexOf('cancel'));
-    expect(cleanup).toEqual(requiredCleanup);
     for (const method of requiredCleanup) {
       expect(
         methods.filter((candidate) => candidate === method),

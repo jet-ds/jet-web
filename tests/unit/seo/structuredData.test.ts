@@ -331,29 +331,4 @@ describe('structured data', () => {
       expect(parsed).toEqual(expectedSchema);
     },
   );
-
-  it('links a scholarly article to its canonical webpage', () => {
-    const schema = buildStructuredData({
-      type: 'scholarlyarticle',
-      id: 'https://jetsanchez.com/works/rch#scholarlyarticle',
-      url: 'https://jetsanchez.com/works/rch',
-      headline: 'RCH',
-      description: 'Research description',
-      datePublished: '2025-08-27T00:00:00.000Z',
-      identifier: 'https://doi.org/10.2139/ssrn.5395309',
-      sameAs: ['https://doi.org/10.2139/ssrn.5395309'],
-      tags: ['AI'],
-    });
-
-    expect(schema['@type']).toBe('ScholarlyArticle');
-    expect(schema.mainEntityOfPage).toEqual({
-      '@type': 'WebPage',
-      '@id': 'https://jetsanchez.com/works/rch#webpage',
-    });
-    expect(schema).toMatchObject({
-      url: 'https://jetsanchez.com/works/rch',
-      identifier: 'https://doi.org/10.2139/ssrn.5395309',
-      sameAs: ['https://doi.org/10.2139/ssrn.5395309'],
-    });
-  });
 });

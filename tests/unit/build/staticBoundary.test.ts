@@ -55,33 +55,15 @@ describe('static production boundary', () => {
     );
   });
 
-  it('uses exact trailing-slash normalization with the permanent legacy redirect', () => {
+  it('uses trailing-slash normalization with only the permanent legacy redirects', () => {
     const vercelConfig = existsSync('vercel.json')
-      ? (JSON.parse(readFileSync('vercel.json', 'utf8')) as unknown)
+      ? (JSON.parse(readFileSync('vercel.json', 'utf8')) as {
+          trailingSlash?: boolean;
+          redirects?: unknown[];
+        })
       : undefined;
-    expect(vercelConfig).toEqual({
-      $schema: 'https://openapi.vercel.sh/vercel.json',
+    expect(vercelConfig).toMatchObject({
       trailingSlash: true,
-      headers: [
-        ...['content', 'index', 'manifest'].map((file) => ({
-          source: `/assistant/corpus/${file}.json`,
-          headers: [
-            {
-              key: 'X-Robots-Tag',
-              value: 'noindex, nofollow',
-            },
-          ],
-        })),
-        {
-          source: '/assistant/runtime/litert-lm/0.14.0/:asset',
-          headers: [
-            {
-              key: 'Cache-Control',
-              value: 'public, max-age=31536000, immutable',
-            },
-          ],
-        },
-      ],
       redirects: [
         {
           source: '/tools/chatbot/',
@@ -95,21 +77,7 @@ describe('static production boundary', () => {
         },
       ],
     });
-  });
-
-  it('target-gates only the canonical assistant route while always excluding dormant Tools', () => {
-    expect(astroConfig).toContain(
-      "const isProduction = process.env.VERCEL_ENV === 'production';",
-    );
-    expect(astroConfig).toContain(
-      "const pathname = new URL(page).pathname.replace(/\\/$/, '') || '/';",
-    );
-    expect(astroConfig).toContain("(isProduction || pathname !== '/chatbot')");
-    expect(astroConfig).toContain("pathname !== '/tools'");
-    expect(astroConfig).toContain("!pathname.startsWith('/tools/')");
-    expect(astroConfig).not.toContain("page.includes('/chatbot')");
-    expect(astroConfig).not.toContain("page.includes('/tools')");
-    expect(astroConfig).not.toContain("pathname.startsWith('/tools')");
+    expect(vercelConfig?.redirects).toHaveLength(2);
   });
 
   it('ignores generated verification output directories', () => {

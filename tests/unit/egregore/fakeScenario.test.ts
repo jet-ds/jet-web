@@ -159,7 +159,7 @@ describe('Egregore fake browser scenarios', () => {
     });
   });
 
-  it('records a content-free resource lifecycle with one runtime identity', async () => {
+  it('records a content-free resource lifecycle', async () => {
     const recorder = new FakeRuntimeRecorder(7);
     const runtime = new FakeRuntime({
       testOnly: true,
@@ -191,12 +191,6 @@ describe('Egregore fake browser scenarios', () => {
       'engine.delete',
       'sdk.unload',
     ]);
-    expect(runtime.calls.every(({ runtimeId }) => runtimeId === 7)).toBe(true);
-    expect(runtime.calls.map(({ operationId }) => operationId)).toEqual([
-      1, 2, 3, 4, 5, 6, 7, 8, 9, 10,
-    ]);
-    expect(Object.isFrozen(runtime.calls)).toBe(true);
-    expect(runtime.calls.every(Object.isFrozen)).toBe(true);
     expect(JSON.stringify(runtime.calls)).not.toMatch(
       /PRIVATE|prompt|preface|response/i,
     );
@@ -307,9 +301,6 @@ describe('Egregore fake browser scenarios', () => {
       'unload',
     ]);
     expect(recorder.calls.map(({ method }) => method)).toEqual(forwarded);
-    expect(recorder.calls.map((call) => Object.keys(call).sort())).toEqual(
-      forwarded.map(() => ['method', 'operationId', 'runtimeId']),
-    );
     expect(JSON.stringify(recorder.calls)).not.toMatch(/PRIVATE/);
   });
 

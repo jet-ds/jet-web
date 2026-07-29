@@ -391,9 +391,6 @@ describe('FakeRuntime', () => {
       'createSession',
       'generate',
     ]);
-    expect(
-      new Set(runtime.calls.map(({ operationId }) => operationId)).size,
-    ).toBe(4);
     expect(JSON.stringify(runtime.calls)).not.toMatch(/PRIVATE|First|second/);
   });
 

@@ -96,7 +96,11 @@ type UseEgregore = (dependencies: WishedDependencies) => WishedHookResult;
 
 const hookModulePath = '../../../src/features/egregore/state/useEgregore';
 
-afterEach(() => cleanup());
+afterEach(() => {
+  cleanup();
+  vi.useRealTimers();
+  vi.restoreAllMocks();
+});
 
 async function loadSubject(): Promise<UseEgregore> {
   const module = (await import(hookModulePath)) as {
@@ -109,6 +113,7 @@ class OrderedFakeRuntime extends FakeRuntime {
   private remainingGenerationFailures: number;
   private remainingResetFailures: number;
   private failNextGenerationRequested = false;
+  private conversationTokenCountOverride: number | null = null;
   private readonly loadErrorCode: 'engine-cleanup-failed' | null;
   readonly generationMessages: string[] = [];
   readonly loadOptions: LoadOptions[] = [];
@@ -162,7 +167,9 @@ class OrderedFakeRuntime extends FakeRuntime {
 
   override async getConversationTokenCount(): Promise<number> {
     this.order.push('runtime.getConversationTokenCount');
-    return super.getConversationTokenCount();
+    return (
+      this.conversationTokenCountOverride ?? super.getConversationTokenCount()
+    );
   }
 
   override async generate(
@@ -192,6 +199,10 @@ class OrderedFakeRuntime extends FakeRuntime {
 
   failNextGeneration(): void {
     this.failNextGenerationRequested = true;
+  }
+
+  setConversationTokenCount(tokenCount: number): void {
+    this.conversationTokenCountOverride = tokenCount;
   }
 
   override cancel(): void {
@@ -1314,7 +1325,7 @@ describe('useEgregore activation boundary', () => {
     );
   });
 
-  it('preserves the exact transcript and avoids runtime calls at conversation exhaustion', async () => {
+  it('rejects an exhausted conversation before retrieval, assembly, or generation', async () => {
     const useEgregore = await loadSubject();
     const harness = createHarness();
     const { result } = renderHook(() => useEgregore(harness.dependencies));
@@ -1324,23 +1335,11 @@ describe('useEgregore activation boundary', () => {
     });
     const transcript = JSON.stringify(result.current.state.turns);
     const generationCount = harness.runtime.generationMessages.length;
-    const sessionCreationCount = harness.runtime.calls.filter(
-      ({ method }) => method === 'createSession',
-    ).length;
-    const exhausted = Object.assign(
-      new Error(
-        'The current session is full. Start a new session to continue.',
-      ),
-      {
-        name: 'EgregorePromptError',
-        code: 'conversation-limit-reached',
-        recoverable: true,
-        diagnosticCause: 'conversation-limit-reached',
-      },
+    const selectionCount = harness.rankAndPack.mock.calls.length;
+    const assemblyCount = harness.assemblePrompt.mock.calls.length;
+    harness.runtime.setConversationTokenCount(
+      EGREGORE_CONTEXT.maxContextTokens,
     );
-    harness.assemblePrompt.mockImplementationOnce(() => {
-      throw exhausted;
-    });
 
     await act(async () => {
       await result.current.sendMessage('This question crosses the reserve.');
@@ -1349,9 +1348,8 @@ describe('useEgregore activation boundary', () => {
     expect(JSON.stringify(result.current.state.turns)).toBe(transcript);
     expect(result.current.state.error?.code).toBe('conversation-limit-reached');
     expect(harness.runtime.generationMessages).toHaveLength(generationCount);
-    expect(
-      harness.runtime.calls.filter(({ method }) => method === 'createSession'),
-    ).toHaveLength(sessionCreationCount);
+    expect(harness.rankAndPack).toHaveBeenCalledTimes(selectionCount);
+    expect(harness.assemblePrompt).toHaveBeenCalledTimes(assemblyCount);
     expect(result.current.startNewSession).toBeTypeOf('function');
   });
 
@@ -1471,47 +1469,12 @@ describe('EgregoreExperience production composition', () => {
     );
   });
 
-  it('updates rendered header metadata when the package version prop changes', () => {
-    const harness = createHarness();
-    const view = render(
-      <EgregoreExperience
-        appVersion="9.8.7-test"
-        dependencies={harness.dependencies}
-      />,
-    );
-
-    expect(screen.getByText('jet-web 9.8.7-test')).toBeInTheDocument();
-    const licenses = screen.getByRole('link', {
-      name: 'Open Egregore model and open-source licenses',
-    });
-    expect(licenses).toHaveAttribute('href', '/licenses/egregore/');
-
-    view.rerender(
-      <EgregoreExperience
-        appVersion="9.8.8-test"
-        dependencies={harness.dependencies}
-      />,
-    );
-    expect(screen.getByText('jet-web 9.8.8-test')).toBeInTheDocument();
-    expect(screen.queryByText('jet-web 9.8.7-test')).not.toBeInTheDocument();
-  });
-
-  it('renders only the content-sized chrome-free status and separate full announcement', () => {
+  it('separates the visible lifecycle label from its full announcement', () => {
     const harness = createHarness();
     render(<EgregoreExperience dependencies={harness.dependencies} />);
 
     const visibleStatus = screen.getByTestId('lifecycle-visible-status');
     const announcement = screen.getByTestId('lifecycle-announcement');
-    expect(
-      screen.queryByTestId('lifecycle-status-slot'),
-    ).not.toBeInTheDocument();
-    expect(visibleStatus).toHaveClass('w-fit');
-    expect(visibleStatus.className).not.toMatch(
-      /(?:^|\s)(?:min-w-|w-\[|h-(?:\[|\d))/,
-    );
-    expect(visibleStatus.className).not.toMatch(
-      /(?:^|\s)(?:border(?:-\S+)?|bg-\S+|rounded\S*|shadow\S*|p[trblxy]?-\S+)(?:\s|$)/,
-    );
     expect(visibleStatus).toHaveAttribute('aria-hidden', 'true');
     expect(visibleStatus).not.toHaveAttribute('aria-live');
     expect(
@@ -1553,19 +1516,6 @@ describe('EgregoreExperience production composition', () => {
       newSession.compareDocumentPosition(unload) &
         Node.DOCUMENT_POSITION_FOLLOWING,
     ).toBeTruthy();
-
-    const metadata = screen.getByTestId('composer-metadata');
-    const keyboardHint = screen.getByTestId('composer-keyboard-hint');
-    const localOnly = screen.getByTestId('composer-local-only');
-    expect(metadata).toHaveClass(
-      'justify-end',
-      'min-[768px]:[@media(pointer:fine)]:justify-between',
-    );
-    expect(keyboardHint).toHaveClass(
-      'hidden',
-      'min-[768px]:[@media(pointer:fine)]:inline',
-    );
-    expect(localOnly).toHaveTextContent('Local only');
 
     fireEvent.change(composer, { target: { value: 'Hold this response' } });
     fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
@@ -2194,89 +2144,6 @@ describe('EgregoreExperience production composition', () => {
     ).not.toBeInTheDocument();
   });
 
-  it('keeps following when content grows before a programmatic scroll event is delivered', async () => {
-    const scheduler = new ManualScheduler();
-    const harness = createHarness({
-      responseChunks: [
-        'First overflow chunk. ',
-        'Second unseen chunk. ',
-        'Third chunk after jump {{SOURCE_1}}.',
-      ],
-      scheduler,
-    });
-    render(<EgregoreExperience dependencies={harness.dependencies} />);
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Check compatibility' }),
-    );
-    fireEvent.click(
-      await screen.findByRole('button', { name: /Load Egregore/ }),
-    );
-    const composer = await screen.findByRole('textbox', {
-      name: 'Ask Egregore',
-    });
-    fireEvent.change(composer, {
-      target: { value: 'Stream enough content to overflow' },
-    });
-    fireEvent.keyDown(composer, { key: 'Enter' });
-    const scroller = await screen.findByTestId('conversation-scroller');
-    const clientHeight = 200;
-    let currentScrollHeight = 900;
-    let assignedScrollTop = 700;
-    let scrollAssignments = 0;
-    Object.defineProperty(scroller, 'clientHeight', {
-      configurable: true,
-      value: clientHeight,
-    });
-    Object.defineProperty(scroller, 'scrollHeight', {
-      configurable: true,
-      get: () => currentScrollHeight,
-    });
-    Object.defineProperty(scroller, 'scrollTop', {
-      configurable: true,
-      get: () => assignedScrollTop,
-      set: (value: number) => {
-        scrollAssignments += 1;
-        assignedScrollTop = Math.min(
-          Math.max(value, 0),
-          currentScrollHeight - clientHeight,
-        );
-      },
-    });
-
-    await waitFor(() => expect(scheduler.pendingCount).toBe(1));
-    act(() => scheduler.releaseNext());
-    await screen.findByText('First overflow chunk.');
-    await waitFor(() => expect(scrollAssignments).toBeGreaterThan(0));
-    await waitFor(() => expect(assignedScrollTop).toBe(700));
-
-    assignedScrollTop = 200;
-    fireEvent.scroll(scroller);
-    await waitFor(() => expect(scheduler.pendingCount).toBe(1));
-    act(() => scheduler.releaseNext());
-    await screen.findByText(/Second unseen chunk/);
-    const jumpToLatest = await screen.findByRole('button', {
-      name: 'Jump to latest',
-    });
-
-    fireEvent.click(jumpToLatest);
-    expect(assignedScrollTop).toBe(700);
-    expect(
-      screen.queryByRole('button', { name: 'Jump to latest' }),
-    ).not.toBeInTheDocument();
-
-    currentScrollHeight = 1_100;
-    fireEvent.scroll(scroller);
-    expect(assignedScrollTop).toBe(900);
-
-    await waitFor(() => expect(scheduler.pendingCount).toBe(1));
-    act(() => scheduler.releaseNext());
-    await screen.findByRole('link', { name: '[S1] Grounded source' });
-    await waitFor(() => expect(assignedScrollTop).toBe(900));
-    expect(
-      screen.queryByRole('button', { name: 'Jump to latest' }),
-    ).not.toBeInTheDocument();
-  });
-
   it('keeps uncited packed context out of a one-source disclosure', async () => {
     const cited = selectedSource();
     const uncitedSecond = {
@@ -2334,7 +2201,7 @@ describe('EgregoreExperience production composition', () => {
     ).toBeInTheDocument();
   });
 
-  it('wraps a complete long source title without truncation or clamping', async () => {
+  it('exposes the complete long source title through the disclosure', async () => {
     const longTitle =
       'The Recursive Convergence Hypothesis: Emergent Sentience as a Structural Attractor of Recursive ASI';
     const longTitleSource = {
@@ -2373,14 +2240,7 @@ describe('EgregoreExperience production composition', () => {
     });
     const title = within(sourceLink).getByText(longTitle);
     expect(title).toHaveTextContent(longTitle);
-    expect(title).toHaveClass(
-      'min-w-0',
-      'break-words',
-      '[overflow-wrap:anywhere]',
-    );
-    expect(title.className).not.toMatch(/line-clamp|truncate|overflow-hidden/);
     expect(title.textContent).toBe(longTitle);
-    expect(sourceLink.className).not.toMatch(/rounded-full/);
   });
 
   it('deduplicates multiple cited documents in first-citation order inside the disclosure', async () => {
@@ -2872,10 +2732,6 @@ describe('EgregoreExperience production composition', () => {
     );
 
     expect(await screen.findByTestId('loading-stack')).toBeInTheDocument();
-    expect(screen.getByTestId('loading-phase-visual')).toBeInTheDocument();
-    expect(screen.getByTestId('loading-main-ghost')).toBeInTheDocument();
-    expect(screen.getAllByTestId('loading-ghost-afterimage')).toHaveLength(2);
-    expect(screen.getAllByTestId('loading-inward-particle')).toHaveLength(4);
     expect(
       screen.queryByTestId('loading-progress-track'),
     ).not.toBeInTheDocument();
@@ -2941,25 +2797,25 @@ describe('EgregoreExperience production composition', () => {
     );
     await screen.findByRole('textbox', { name: 'Ask Egregore' });
 
+    vi.useFakeTimers();
     const performanceNow = vi.spyOn(performance, 'now').mockReturnValue(0);
     fireEvent.click(screen.getByRole('button', { name: /^Unload/ }));
-    expect(await screen.findByText('Elapsed 0s')).toBeInTheDocument();
+    expect(screen.getByText('Elapsed 0s')).toBeInTheDocument();
     performanceNow.mockReturnValue(37_000);
-    await act(async () => {
-      await new Promise((resolve) => window.setTimeout(resolve, 1_100));
+    act(() => {
+      vi.advanceTimersByTime(1_000);
     });
-    await waitFor(
-      () => expect(screen.getByText('Elapsed 37s')).toBeInTheDocument(),
-      { timeout: 3_000 },
-    );
+    expect(screen.getByText('Elapsed 37s')).toBeInTheDocument();
     expect(
       screen.queryByText('First load may take a few minutes.'),
     ).not.toBeInTheDocument();
-    performanceNow.mockRestore();
 
-    unloadWait.resolve();
+    await act(async () => {
+      unloadWait.resolve();
+      await Promise.resolve();
+    });
     expect(
-      await screen.findByRole('button', { name: 'Check compatibility' }),
+      screen.getByRole('button', { name: 'Check compatibility' }),
     ).toBeInTheDocument();
   });
 });

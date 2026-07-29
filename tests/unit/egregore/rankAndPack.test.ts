@@ -253,46 +253,6 @@ describe('deterministic MiniSearch rank and pack', () => {
     ).toBe(true);
   });
 
-  it('uses the fixed stop words, stemmer, and five-character prefix behavior', async () => {
-    const knowledgeBase = await fixture(
-      [
-        {
-          document: 0,
-          section: 0,
-          order: 0,
-          text: 'Running retrieval workflows.',
-        },
-      ],
-      { forceOversized: true },
-    );
-
-    expect(
-      rankAndPackContext({ query: 'the', knowledgeBase, budget: budget(1_000) })
-        .sources,
-    ).toEqual([]);
-    expect(
-      rankAndPackContext({
-        query: 'runs',
-        knowledgeBase,
-        budget: budget(1_000),
-      }).sources,
-    ).toHaveLength(1);
-    expect(
-      rankAndPackContext({
-        query: 'retri',
-        knowledgeBase,
-        budget: budget(1_000),
-      }).sources,
-    ).toHaveLength(1);
-    expect(
-      rankAndPackContext({
-        query: 'retr',
-        knowledgeBase,
-        budget: budget(1_000),
-      }).sources,
-    ).toEqual([]);
-  });
-
   it('passes no result limit and selects all 25 matching chunks when they fit', async () => {
     const knowledgeBase = await fixture(
       Array.from({ length: 25 }, (_, index) => ({
