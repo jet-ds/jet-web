@@ -473,11 +473,11 @@ describe('Egregore fake browser scenarios', () => {
     expect(chunks).toEqual(['Second [S3], then first [S17].']);
   });
 
-  it('rejects an out-of-range fake citation placeholder before emitting text', async () => {
+  it('rejects an unavailable source ordinal split across chunks before emitting text', async () => {
     const chunks: string[] = [];
     const runtime = new FakeRuntime({
       testOnly: true,
-      responseChunks: ['Unsupported ordinal [S3].'],
+      responseChunks: ['Unsupported {{SOURCE_', '3}} ordinal.'],
     });
     await runtime.load({ modelSource: 'test-model' });
     await runtime.createSession([

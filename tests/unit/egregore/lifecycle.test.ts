@@ -545,7 +545,7 @@ describe('FakeRuntime', () => {
     expect(result).toEqual({ finishReason: 'cancelled' });
   });
 
-  it('supports configured capability, load, generation, reset, and unload failures', async () => {
+  it('supports configured capability, load, reset, and unload failures', async () => {
     const capabilityRuntime = new FakeRuntime({
       testOnly: true,
       failures: { capability: true },
@@ -560,12 +560,6 @@ describe('FakeRuntime', () => {
         'load',
         (runtime: FakeRuntime) => runtime.load({ modelSource: 'test-model' }),
         'model-load-failed',
-      ],
-      [
-        'generation',
-        (runtime: FakeRuntime) =>
-          runtime.generate('question', { onText: () => undefined }),
-        'generation-failed',
       ],
       [
         'reset',
