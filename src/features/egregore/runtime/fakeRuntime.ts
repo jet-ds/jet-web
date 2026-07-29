@@ -127,6 +127,47 @@ const DEFAULT_CAPABILITY_REPORT: CapabilityReport = {
   storageEstimate: null,
 };
 
+const TURN_SOURCES_PREFIX = 'Current untrusted sources (JSON):\n';
+const TURN_QUESTION_PREFIX = '\n\nCurrent question:\n';
+
+function citationIdsFromTurnMessage(message: string): `S${number}`[] {
+  const sourceStart = message.indexOf(TURN_SOURCES_PREFIX);
+  const questionStart = message.indexOf(TURN_QUESTION_PREFIX);
+  if (sourceStart < 0 || questionStart <= sourceStart) return [];
+
+  try {
+    const payload: unknown = JSON.parse(
+      message.slice(sourceStart + TURN_SOURCES_PREFIX.length, questionStart),
+    );
+    if (!Array.isArray(payload)) return [];
+
+    return payload.flatMap((record) => {
+      if (typeof record !== 'object' || record === null) return [];
+      const citationId = Reflect.get(record, 'citationId');
+      return typeof citationId === 'string' && /^S\d+$/u.test(citationId)
+        ? [citationId as `S${number}`]
+        : [];
+    });
+  } catch {
+    return [];
+  }
+}
+
+function resolveFakeResponseChunks(
+  chunks: readonly string[],
+  message: string,
+): string[] {
+  const citationIds = citationIdsFromTurnMessage(message);
+  if (citationIds.length === 0) return [...chunks];
+
+  return chunks.map((chunk) =>
+    chunk.replace(/\[S(\d+)\]/gu, (placeholder, ordinal: string) => {
+      const citationId = citationIds[Number(ordinal) - 1];
+      return citationId === undefined ? placeholder : `[${citationId}]`;
+    }),
+  );
+}
+
 const DEFAULT_SCHEDULER: FakeRuntimeScheduler = {
   waitForChunk: async () => undefined,
 };
@@ -286,7 +327,7 @@ export class FakeRuntime implements LocalModelRuntime {
   }
 
   async generate(
-    _message: string,
+    message: string,
     handlers: GenerationHandlers,
   ): Promise<GenerationResult> {
     const operationId = this.record('generate');
@@ -306,8 +347,12 @@ export class FakeRuntime implements LocalModelRuntime {
 
     try {
       this.configuredFailure('generation');
+      const responseChunks = resolveFakeResponseChunks(
+        this.responseChunks,
+        message,
+      );
 
-      for (const [chunkIndex, chunk] of this.responseChunks.entries()) {
+      for (const [chunkIndex, chunk] of responseChunks.entries()) {
         await this.scheduler.waitForChunk(generation.operationId, chunkIndex);
         if (
           generation.cancelled ||
@@ -320,10 +365,8 @@ export class FakeRuntime implements LocalModelRuntime {
       }
 
       if (!generation.cancelled) {
-        this.conversationTokenCount += estimateTokens(_message);
-        this.conversationTokenCount += estimateTokens(
-          this.responseChunks.join(''),
-        );
+        this.conversationTokenCount += estimateTokens(message);
+        this.conversationTokenCount += estimateTokens(responseChunks.join(''));
       }
 
       return {

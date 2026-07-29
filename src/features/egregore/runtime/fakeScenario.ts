@@ -1,5 +1,5 @@
 import { EGREGORE_IDENTITY } from '../../../config/egregore';
-import type { SelectedSource, SelectionResult } from '../selection/types';
+import type { SelectionResult } from '../selection/types';
 
 export const FAKE_SCENARIOS = [
   'default',
@@ -142,13 +142,6 @@ export function getFakeScenarioConfiguration(
   }
 }
 
-function withCitationId(source: SelectedSource, index: number): SelectedSource {
-  return {
-    ...source,
-    citationId: `S${index + 1}`,
-  };
-}
-
 export function configureFakeCitationSelection(
   selection: SelectionResult,
 ): SelectionResult {
@@ -174,7 +167,7 @@ export function configureFakeCitationSelection(
 
   return {
     ...selection,
-    sources: [...fixtureSources, ...remaining].map(withCitationId),
+    sources: [...fixtureSources, ...remaining],
   };
 }
 

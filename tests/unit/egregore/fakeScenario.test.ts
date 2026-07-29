@@ -441,12 +441,29 @@ describe('Egregore fake browser scenarios', () => {
     expect(chunks).toEqual(['late']);
   });
 
+  it('resolves fake citation placeholders to the current turn stable source IDs', async () => {
+    const chunks: string[] = [];
+    const runtime = new FakeRuntime({
+      testOnly: true,
+      responseChunks: ['Second [S2], then first [S1].'],
+    });
+
+    await runtime.generate(
+      'Current untrusted sources (JSON):\n' +
+        '[{"citationId":"S17"},{"citationId":"S3"}]\n\n' +
+        'Current question:\nCompare them.',
+      { onText: (chunk) => chunks.push(chunk) },
+    );
+
+    expect(chunks).toEqual(['Second [S3], then first [S17].']);
+  });
+
   it('builds the citation fixture from packed sources without injecting source content', () => {
     const packed = {
       sources: [
-        { citationId: 'S1', canonicalUrl: '/long/', title: 'Long research' },
-        { citationId: 'S2', canonicalUrl: '/long/', title: 'Long research' },
-        { citationId: 'S3', canonicalUrl: '/other/', title: 'Other writing' },
+        { citationId: 'S17', canonicalUrl: '/long/', title: 'Long research' },
+        { citationId: 'S3', canonicalUrl: '/long/', title: 'Long research' },
+        { citationId: 'S28', canonicalUrl: '/other/', title: 'Other writing' },
       ],
     } as unknown as SelectionResult;
 
@@ -458,15 +475,15 @@ describe('Egregore fake browser scenarios', () => {
         canonicalUrl,
       })),
     ).toEqual([
-      { citationId: 'S1', canonicalUrl: '/other/' },
-      { citationId: 'S2', canonicalUrl: '/long/' },
+      { citationId: 'S28', canonicalUrl: '/other/' },
+      { citationId: 'S17', canonicalUrl: '/long/' },
       { citationId: 'S3', canonicalUrl: '/long/' },
     ]);
     expect(configured).not.toBe(packed);
     expect(packed.sources.map(({ citationId }) => citationId)).toEqual([
-      'S1',
-      'S2',
+      'S17',
       'S3',
+      'S28',
     ]);
   });
 

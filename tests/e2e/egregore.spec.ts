@@ -1288,7 +1288,9 @@ test.describe('Egregore supported lifecycle', () => {
     ).toBeVisible();
     await waitForCompletedResponse(page);
 
-    const inlineCitation = page.getByRole('link', { name: /\[S1\]/ }).first();
+    const inlineCitation = page
+      .getByRole('link', { name: /\[S\d+\]/u })
+      .first();
     await expect(inlineCitation).toHaveAttribute(
       'href',
       /\/works\/recursive-convergence-hypothesis\/$/,
@@ -1320,6 +1322,7 @@ test.describe('Egregore supported lifecycle', () => {
       'runtime.load',
       'engine.create',
       'conversation.create',
+      'getConversationTokenCount',
       'generate',
       'conversation.delete',
       'repository.unload',
@@ -2238,8 +2241,7 @@ test.describe('Egregore responses, citations, and scrolling', () => {
 
     const response = page.locator('[aria-label="Conversation"] article').last();
     const citation = response.getByRole('link', {
-      name: '[S1] Jet Sanchez',
-      exact: true,
+      name: /^\[S\d+\] Jet Sanchez$/u,
     });
     await expect(citation).toHaveAttribute(
       'href',
@@ -2258,7 +2260,9 @@ test.describe('Egregore responses, citations, and scrolling', () => {
     ).toBeVisible();
     await disclosure.getByRole('button', { name: '1 source' }).click();
     await expect(
-      disclosure.getByRole('link', { name: '[S1] Jet Sanchez', exact: true }),
+      disclosure.getByRole('link', {
+        name: /^\[S\d+\] Jet Sanchez$/u,
+      }),
     ).toHaveAttribute('href', 'https://jetsanchez.com/about/');
     await expect(disclosure.getByRole('link')).toHaveCount(1);
     await expect(disclosure).not.toContainText(
@@ -2315,10 +2319,10 @@ test.describe('Egregore responses, citations, and scrolling', () => {
       });
       await expect(region).toBeVisible();
       await expect(region.locator('ul')).toHaveCount(1);
-      const source = region.getByRole('link', {
-        name: `[S1] ${LONG_SOURCE_TITLE}`,
-        exact: true,
+      const source = region.getByRole('link').filter({
+        hasText: LONG_SOURCE_TITLE,
       });
+      await expect(source).toHaveAccessibleName(/^\[S\d+\] /u);
       await expect(source).toHaveAttribute(
         'href',
         /\/works\/recursive-convergence-hypothesis\/$/,
@@ -2382,7 +2386,7 @@ test.describe('Egregore responses, citations, and scrolling', () => {
     await waitForCompletedResponse(page);
 
     const response = page.locator('[aria-label="Conversation"] article').last();
-    const citation = response.getByRole('link', { name: /^\[S1\] /u });
+    const citation = response.getByRole('link', { name: /^\[S\d+\] /u });
     await expectOutsideTextLinkRecipe(citation);
     await expect(citation).toHaveCSS('text-decoration-line', 'underline');
 
@@ -2393,7 +2397,7 @@ test.describe('Egregore responses, citations, and scrolling', () => {
 
     const source = response
       .getByRole('region', { name: 'Sources for this response' })
-      .getByRole('link', { name: /^\[S1\] /u });
+      .getByRole('link', { name: /^\[S\d+\] /u });
     await expectOutsideTextLinkRecipe(source);
     await expect(source).toHaveAttribute('target', '_blank');
     await expect(source).toHaveAttribute('rel', 'noopener noreferrer');
@@ -2421,9 +2425,8 @@ test.describe('Egregore responses, citations, and scrolling', () => {
       links.map((link) => link.getAttribute('href')),
     );
     expect(new Set(firstHrefs).size).toBe(2);
-    await expect(firstLinks.first()).toHaveAccessibleName(
-      `[S2] ${LONG_SOURCE_TITLE}`,
-    );
+    await expect(firstLinks.first()).toHaveAccessibleName(/^\[S\d+\] /u);
+    await expect(firstLinks.first()).toContainText(LONG_SOURCE_TITLE);
     expect(await firstDisclosure.textContent()).not.toContain(SOURCE_SENTINEL);
 
     await submitQuestion(page, 'What does Jet write about agentic work?');
@@ -2503,15 +2506,8 @@ test.describe('Egregore responses, citations, and scrolling', () => {
   test('stops sticky follow after manual scroll-away and restores it through Jump to latest', async ({
     page,
   }) => {
-    await page.setViewportSize({ width: 430, height: 720 });
+    await page.setViewportSize({ width: 430, height: 480 });
     const composer = await startFakeAssistant(page, 'long-stream');
-    for (let index = 0; index < 4; index += 1) {
-      await submitQuestion(
-        page,
-        `What does Jet write about agentic work? ${index}`,
-      );
-      await waitForCompletedResponse(page);
-    }
     await page.clock.install();
     const pageNow = await page.evaluate(() => Date.now());
     await page.clock.pauseAt(pageNow + 1_000);
@@ -2824,7 +2820,7 @@ test.describe('Egregore ClientRouter cleanup', () => {
       ).toHaveLength(1);
     }
     await expect(
-      page.getByText('with systems thinking [S1].', { exact: false }),
+      page.getByText(/with systems thinking \[S\d+\]\./u),
     ).toHaveCount(0);
     await expect(page.getByTestId('lifecycle-visible-status')).toHaveCount(0);
     await expect(page.getByRole('heading', { name: /About/i })).toBeVisible();
