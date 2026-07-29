@@ -50,6 +50,9 @@ describe('static production boundary', () => {
     expect(packageJson.scripts['qualify:egregore:mac']).toContain(
       'EGREGORE_REAL_MODEL_MODE=qualification',
     );
+    expect(packageJson.scripts['qualify:egregore:warm']).toContain(
+      'EGREGORE_REAL_MODEL_MODE=warm-resume',
+    );
     expect(packageJson.scripts['smoke:egregore']).toContain(
       'EGREGORE_REAL_MODEL_MODE=smoke',
     );

@@ -9,6 +9,7 @@ import {
 } from '@playwright/test';
 import {
   EGREGORE_MODEL,
+  EGREGORE_MODEL_CACHE,
   EGREGORE_PATHS,
 } from '../../src/features/egregore/config';
 import { LITERT_LM_WASM_ASSETS } from '../../src/features/egregore/runtime/liteRtAssets.server';
@@ -26,7 +27,12 @@ import {
 } from './requestPrivacy';
 import {
   localQualificationSpansRequired,
-  splitQualificationCases,
+  orderQualificationCases,
+  resolveQualificationRunContract,
+  validateAccumulatingConversationEvidence,
+  validateUnloadLifecycleEvidence,
+  type QualificationRunContract,
+  type RealModelMode,
 } from './qualificationContract';
 
 interface VisitorCase {
@@ -37,6 +43,11 @@ interface VisitorCase {
   expectedSourceIds: string[];
   acceptableSourceIds: string[];
   mustAbstain: boolean;
+}
+
+interface VisitorCaseResult {
+  failures: string[];
+  completedTokenCount: number | null;
 }
 
 interface RequestObservation {
@@ -64,11 +75,18 @@ type QualificationObservationName =
   | 'prompt-assembly-start'
   | 'prompt-assembly-end'
   | 'generation-send'
-  | 'generation-first-nonempty';
+  | 'generation-first-nonempty'
+  | 'conversation-created'
+  | 'conversation-token-count'
+  | 'conversation-reset'
+  | 'device-destroyed'
+  | 'device-reference-cleared'
+  | 'runtime-unloaded';
 
 interface QualificationObservation {
   observation: QualificationObservationName;
   timestamp: number;
+  value?: number;
 }
 
 interface QualificationObserverState {
@@ -77,6 +95,7 @@ interface QualificationObserverState {
 
 interface DeviceObservation {
   adapterIdentifiers: string[];
+  deviceDestroyCount: number;
   deviceLossCount: number;
   deviceRequestCount: number;
   instrumentationFailed: boolean;
@@ -112,14 +131,10 @@ type ConsentAuditWindow = typeof window & {
   __EGREGORE_CONSENT_AUDIT__?: ConsentAuditState;
 };
 
-const REAL_MODEL_MODES = ['qualification', 'smoke'] as const;
-
 const SMOKE_CASE_IDS = [
   'recursive-convergence-claim',
   'private-note-abstention',
 ] as const;
-
-type RealModelMode = (typeof REAL_MODEL_MODES)[number];
 
 const EGREGORE_PATH = '/chatbot/';
 const ROUTE_AWAY_PATH = '/contact/';
@@ -146,15 +161,6 @@ const PROFILE_ENVIRONMENT_KEYS = [
 
 const VISITOR_CASES: readonly VisitorCase[] = [
   {
-    id: 'claude-native-installation',
-    coverage: 'single-source',
-    question:
-      'What installation method does Jet recommend for Claude Code in 2026, and why?',
-    expectedSourceIds: ['blog:how-to-install-claude-code-cli-2026'],
-    acceptableSourceIds: ['blog:how-to-install-claude-code-cli-2026'],
-    mustAbstain: false,
-  },
-  {
     id: 'recursive-convergence-claim',
     coverage: 'single-source',
     question:
@@ -164,32 +170,40 @@ const VISITOR_CASES: readonly VisitorCase[] = [
     mustAbstain: false,
   },
   {
-    id: 'coding-workflows',
-    coverage: 'multiple-source',
-    question: 'What has Jet published about working with coding agents?',
-    expectedSourceIds: [
-      'blog:how-to-install-claude-code-cli-2026',
-      'blog:vibe-coding-vs-agentic-coding-why-the-distinction-matters',
-    ],
+    id: 'who-is-jet',
+    coverage: 'single-source',
+    question: 'Who is Jet?',
+    expectedSourceIds: ['profile:jet-sanchez'],
+    acceptableSourceIds: ['profile:jet-sanchez'],
+    mustAbstain: false,
+  },
+  {
+    id: 'what-does-jet-do',
+    coverage: 'single-source',
+    question: 'What does Jet do?',
+    expectedSourceIds: ['profile:jet-sanchez'],
+    acceptableSourceIds: ['profile:jet-sanchez'],
+    mustAbstain: false,
+  },
+  {
+    id: 'digital-squad-timesheet',
+    coverage: 'single-source',
+    question:
+      'What problem does the Digital Squad Timesheet solve, and how does it structure weekly work?',
+    expectedSourceIds: ['works:digital-squad-timesheet'],
     acceptableSourceIds: [
-      'blog:how-to-install-claude-code-cli-2026',
-      'blog:vibe-coding-vs-agentic-coding-why-the-distinction-matters',
+      'works:digital-squad-timesheet',
+      'profile:jet-sanchez',
     ],
     mustAbstain: false,
   },
   {
-    id: 'human-review-control',
-    coverage: 'cross-document',
+    id: 'claude-native-installation',
+    coverage: 'single-source',
     question:
-      "How does human review in Jet's Claude Code guidance relate to the control concerns in agentic coding?",
-    expectedSourceIds: [
-      'blog:how-to-install-claude-code-cli-2026',
-      'blog:vibe-coding-vs-agentic-coding-why-the-distinction-matters',
-    ],
-    acceptableSourceIds: [
-      'blog:how-to-install-claude-code-cli-2026',
-      'blog:vibe-coding-vs-agentic-coding-why-the-distinction-matters',
-    ],
+      'What installation method does Jet recommend for Claude Code in 2026, and why?',
+    expectedSourceIds: ['blog:how-to-install-claude-code-cli-2026'],
+    acceptableSourceIds: ['blog:how-to-install-claude-code-cli-2026'],
     mustAbstain: false,
   },
   {
@@ -201,23 +215,7 @@ const VISITOR_CASES: readonly VisitorCase[] = [
     acceptableSourceIds: [],
     mustAbstain: true,
   },
-  {
-    id: 'private-schedule-abstention',
-    coverage: 'unsupported',
-    question: "What meetings are on Jet's private schedule tomorrow?",
-    expectedSourceIds: [],
-    acceptableSourceIds: [],
-    mustAbstain: true,
-  },
 ];
-
-function resolveMode(): RealModelMode {
-  const value = process.env.EGREGORE_REAL_MODEL_MODE;
-  if (!REAL_MODEL_MODES.includes(value as RealModelMode)) {
-    throw new Error('UNKNOWN_REAL_MODEL_MODE');
-  }
-  return value as RealModelMode;
-}
 
 function rejectExternalProfile(): void {
   if (
@@ -296,6 +294,21 @@ class RequestLedger {
   observationFor(request: Request): RequestObservation | undefined {
     return this.byRequest.get(request);
   }
+}
+
+function assertNoModelNetworkRequestsSince(
+  ledger: RequestLedger,
+  mark: number,
+): void {
+  contentFreeAssert(
+    ledger
+      .since(mark)
+      .every(
+        ({ request }) =>
+          !isTrustedModelOrigin(request.url(), EGREGORE_MODEL.trustedOrigins),
+      ),
+    'WARM_MODEL_NETWORK_REQUEST',
+  );
 }
 
 async function installConsentAudit(page: Page): Promise<void> {
@@ -418,6 +431,7 @@ async function installDeviceObservation(page: Page): Promise<void> {
     };
     const state: DeviceObservation = {
       adapterIdentifiers: [],
+      deviceDestroyCount: 0,
       deviceLossCount: 0,
       deviceRequestCount: 0,
       instrumentationFailed: false,
@@ -430,6 +444,8 @@ async function installDeviceObservation(page: Page): Promise<void> {
     const gpu = navigator.gpu;
     if (gpu === undefined) return;
     const requestAdapter = gpu.requestAdapter.bind(gpu);
+    const observedAdapters = new WeakSet<GPUAdapter>();
+    const observedDevices = new WeakSet<GPUDevice>();
 
     try {
       Object.defineProperty(gpu, 'requestAdapter', {
@@ -450,6 +466,9 @@ async function installDeviceObservation(page: Page): Promise<void> {
               typeof value === 'string' && value !== '',
           );
 
+          if (observedAdapters.has(adapter)) return adapter;
+          observedAdapters.add(adapter);
+
           const requestDevice = adapter.requestDevice.bind(adapter);
           Object.defineProperty(adapter, 'requestDevice', {
             configurable: true,
@@ -458,8 +477,30 @@ async function installDeviceObservation(page: Page): Promise<void> {
             ) => {
               state.deviceRequestCount += 1;
               const device = await requestDevice(...deviceArgs);
-              void device.lost.then(() => {
-                state.deviceLossCount += 1;
+              if (observedDevices.has(device)) return device;
+              observedDevices.add(device);
+              const destroy = device.destroy.bind(device);
+              try {
+                Object.defineProperty(device, 'destroy', {
+                  configurable: true,
+                  value: () => {
+                    state.deviceDestroyCount += 1;
+                    destroy();
+                    window.dispatchEvent(
+                      new CustomEvent('egregore:qualification-observation', {
+                        detail: {
+                          observation: 'device-destroyed',
+                          timestamp: performance.now(),
+                        },
+                      }),
+                    );
+                  },
+                });
+              } catch {
+                state.instrumentationFailed = true;
+              }
+              void device.lost.then((info) => {
+                if (info.reason !== 'destroyed') state.deviceLossCount += 1;
               });
               return device;
             },
@@ -481,6 +522,7 @@ async function deviceObservation(page: Page): Promise<DeviceObservation> {
       }
     ).__EGREGORE_DEVICE_OBSERVATION__ ?? {
       adapterIdentifiers: [],
+      deviceDestroyCount: 0,
       deviceLossCount: 0,
       deviceRequestCount: 0,
       instrumentationFailed: true,
@@ -506,6 +548,28 @@ async function deviceObservation(page: Page): Promise<DeviceObservation> {
           : null,
     };
   });
+}
+
+async function printQualificationCheckpoint(
+  page: Page,
+  checkpoint: string,
+  conversationTokenCount: number | null,
+): Promise<void> {
+  const device = await deviceObservation(page);
+  console.info(
+    [
+      'observation=qualification-checkpoint',
+      `checkpoint=${sanitizeIdentifier(checkpoint) ?? 'unavailable'}`,
+      `conversation-token-count=${conversationTokenCount ?? 'not-created'}`,
+      `webgpu-device-requests=${device.deviceRequestCount}`,
+      `webgpu-device-destroys=${device.deviceDestroyCount}`,
+      `unexpected-device-losses=${device.deviceLossCount}`,
+      `js-heap-used-bytes=${device.jsHeapUsedBytes ?? 'not-exposed'}`,
+      `device-memory-gib=${device.deviceMemoryGiB ?? 'not-exposed'}`,
+      `thermal-state=${device.thermalState}`,
+      'external-process-snapshot=required',
+    ].join(' '),
+  );
 }
 
 async function installCacheObservation(page: Page): Promise<void> {
@@ -620,29 +684,34 @@ async function installQualificationObserver(page: Page): Promise<void> {
       state.observations.push({
         observation: detail.observation as QualificationObservationName,
         timestamp: detail.timestamp,
+        ...(typeof detail.value === 'number' ? { value: detail.value } : {}),
       });
     });
   });
 }
 
-async function resetQualificationObserver(page: Page): Promise<void> {
-  await page.evaluate(() => {
+async function qualificationObservationMark(page: Page): Promise<number> {
+  return page.evaluate(() => {
     const state = (window as QualificationObserverWindow)
       .__EGREGORE_QUALIFICATION_OBSERVER__;
     if (state === undefined) throw new Error('QUALIFICATION_OBSERVER_MISSING');
-    state.observations = [];
+    return state.observations.length;
   });
 }
 
 async function qualificationObservations(
   page: Page,
+  mark = 0,
 ): Promise<QualificationObservation[]> {
-  return page.evaluate(() => {
-    const state = (window as QualificationObserverWindow)
-      .__EGREGORE_QUALIFICATION_OBSERVER__;
-    if (state === undefined) throw new Error('QUALIFICATION_OBSERVER_MISSING');
-    return state.observations.map((observation) => ({ ...observation }));
-  });
+  return page
+    .evaluate(() => {
+      const state = (window as QualificationObserverWindow)
+        .__EGREGORE_QUALIFICATION_OBSERVER__;
+      if (state === undefined)
+        throw new Error('QUALIFICATION_OBSERVER_MISSING');
+      return state.observations.map((observation) => ({ ...observation }));
+    })
+    .then((observations) => observations.slice(mark));
 }
 
 function observationTimestamp(
@@ -654,6 +723,27 @@ function observationTimestamp(
   );
   contentFreeAssert(observation !== undefined, 'QUALIFICATION_SPAN_MISSING');
   return observation.timestamp;
+}
+
+function observationCount(
+  observations: readonly QualificationObservation[],
+  name: QualificationObservationName,
+): number {
+  return observations.filter(({ observation }) => observation === name).length;
+}
+
+function observedTokenCounts(
+  observations: readonly QualificationObservation[],
+): number[] {
+  return observations.flatMap(({ observation, value }) =>
+    observation === 'conversation-token-count' && typeof value === 'number'
+      ? [value]
+      : [],
+  );
+}
+
+function assertNoContractFailures(failures: readonly string[]): void {
+  contentFreeAssert(failures.length === 0, failures.join('_'));
 }
 
 async function assertFreshApplicationStorage(page: Page): Promise<void> {
@@ -681,6 +771,70 @@ async function assertFreshApplicationStorage(page: Page): Promise<void> {
       .flat()
       .every((value) => !applicationStatePattern.test(value)),
     'COLD_PROFILE_CONTAINS_APPLICATION_STATE',
+  );
+}
+
+function currentModelCacheName(): string {
+  return `egregore-model-${EGREGORE_MODEL_CACHE.schemaVersion}-${EGREGORE_MODEL.sha256}`;
+}
+
+function currentModelCacheKey(): string {
+  return `https://jetsanchez.com/__egregore-model__/${EGREGORE_MODEL.repositoryRevision}/${EGREGORE_MODEL.filename}`;
+}
+
+async function assertReadableCommittedModelCache(page: Page): Promise<void> {
+  const evidence = await page.evaluate(
+    async ({ cacheName, cacheKey, expectedBytes }) => {
+      if (!('caches' in window)) throw new Error('CACHE_STORAGE_UNAVAILABLE');
+      const cacheNames = await window.caches.keys();
+      if (!cacheNames.includes(cacheName)) {
+        throw new Error('CURRENT_MODEL_CACHE_MISSING');
+      }
+
+      const cache = await window.caches.open(cacheName);
+      const response = await cache.match(cacheKey);
+      if (response === undefined || response.body === null) {
+        throw new Error('CURRENT_MODEL_CACHE_ENTRY_UNREADABLE');
+      }
+      const declaredLength = Number(
+        response.headers.get('content-length') ??
+          response.headers.get('x-linked-size'),
+      );
+      if (response.status !== 200 || declaredLength !== expectedBytes) {
+        throw new Error('CURRENT_MODEL_CACHE_ENTRY_INCOMPLETE');
+      }
+
+      const reader = response.clone().body!.getReader();
+      const firstChunk = await reader.read();
+      await reader.cancel();
+      if (firstChunk.done || firstChunk.value.byteLength === 0) {
+        throw new Error('CURRENT_MODEL_CACHE_ENTRY_UNREADABLE');
+      }
+
+      return {
+        status: response.status,
+        declaredLength,
+        responseUrl: response.url,
+      };
+    },
+    {
+      cacheName: currentModelCacheName(),
+      cacheKey: currentModelCacheKey(),
+      expectedBytes: EGREGORE_MODEL.bytes,
+    },
+  );
+  contentFreeAssert(
+    evidence.responseUrl === '' ||
+      isTrustedModelOrigin(evidence.responseUrl, EGREGORE_MODEL.trustedOrigins),
+    'CURRENT_MODEL_CACHE_ORIGIN_INVALID',
+  );
+  console.info(
+    [
+      'observation=committed-model-cache',
+      `status=${evidence.status}`,
+      `declared-bytes=${evidence.declaredLength}`,
+      'readable=true',
+    ].join(' '),
   );
 }
 
@@ -1004,6 +1158,14 @@ async function activationMeasurement(
       modelNetworkRequests.length === 0,
       'WARM_MODEL_NETWORK_REQUEST',
     );
+    contentFreeAssert(
+      cache.modelCacheWrites.length === 0,
+      'WARM_MODEL_CACHE_WRITE',
+    );
+    contentFreeAssert(
+      cache.modelCacheMatches.length > 0,
+      'WARM_MODEL_CACHE_READ_MISSING',
+    );
   }
   const manifestResponse = await manifestObservation.request.response();
   contentFreeAssert(
@@ -1113,6 +1275,7 @@ async function newSession(page: Page): Promise<void> {
 }
 
 function sourcePath(sourceId: string): string {
+  if (sourceId === 'profile:jet-sanchez') return '/about/';
   const separator = sourceId.indexOf(':');
   return `/${sourceId.slice(0, separator)}/${sourceId.slice(separator + 1)}/`;
 }
@@ -1142,17 +1305,17 @@ async function responseAbstains(page: Page): Promise<boolean> {
 async function runVisitorCase(
   page: Page,
   visitorCase: VisitorCase,
-  options: { requireDetailedSpans: boolean },
-): Promise<string[]> {
+  options: {
+    requireDetailedSpans: boolean;
+    requireLifecycleEvidence: boolean;
+  },
+): Promise<VisitorCaseResult> {
   const caseFailures: string[] = [];
-  const sessionStartedAt = performance.now();
-  await newSession(page);
-  const sessionReadyMs = roundMilliseconds(
-    performance.now() - sessionStartedAt,
-  );
-  if (options.requireDetailedSpans) {
-    await resetQualificationObserver(page);
-  }
+  const observesQualificationEvents =
+    options.requireDetailedSpans || options.requireLifecycleEvidence;
+  const observationMark = observesQualificationEvents
+    ? await qualificationObservationMark(page)
+    : 0;
   const composer = page.getByRole('textbox', { name: 'Ask Egregore' });
   await composer.fill(visitorCase.question);
   await page.getByRole('button', { name: 'Send message' }).click();
@@ -1167,10 +1330,36 @@ async function runVisitorCase(
       timeout: RESPONSE_COMPLETION_TIMEOUT_MS,
     },
   );
+  const observations = observesQualificationEvents
+    ? await qualificationObservations(page, observationMark)
+    : [];
+  const tokenCounts = observations
+    .filter(
+      (
+        observation,
+      ): observation is QualificationObservation & { value: number } =>
+        observation.observation === 'conversation-token-count' &&
+        typeof observation.value === 'number',
+    )
+    .map(({ value }) => value);
+  const createdConversation = observations.some(
+    ({ observation }) => observation === 'conversation-created',
+  );
+  if (options.requireLifecycleEvidence) {
+    contentFreeAssert(
+      tokenCounts.length === (createdConversation ? 2 : 1),
+      'CONVERSATION_TOKEN_CHECKPOINT_MISSING',
+    );
+    if (createdConversation) {
+      console.info(
+        `observation=conversation-token-count checkpoint=session-created tokens=${tokenCounts[0]}`,
+      );
+    }
+  }
+  const completedTokenCount = tokenCounts.at(-1) ?? null;
   const detailedSpans = options.requireDetailedSpans
     ? await (async () => {
         const completedAt = await page.evaluate(() => performance.now());
-        const observations = await qualificationObservations(page);
         const retrievalStartedAt = observationTimestamp(
           observations,
           'retrieval-context-selection-start',
@@ -1206,10 +1395,16 @@ async function runVisitorCase(
     : null;
 
   try {
-    const inlineCitations = page
+    const latestAssistant = page
       .getByTestId('conversation-scroller')
-      .getByRole('link', { name: /^\[S\d+\]/u });
-    const disclosure = page.getByTestId('response-source-disclosure');
+      .locator('article')
+      .last();
+    const inlineCitations = latestAssistant.getByRole('link', {
+      name: /^\[S\d+\]/u,
+    });
+    const disclosure = latestAssistant.getByTestId(
+      'response-source-disclosure',
+    );
     const observedSourcePaths: string[] = [];
     if ((await disclosure.count()) > 0) {
       await disclosure.getByRole('button', { name: /sources?$/u }).click();
@@ -1277,7 +1472,7 @@ async function runVisitorCase(
       [
         'span=visitor-case',
         `case=${visitorCase.id}`,
-        `session-ready-ms=${sessionReadyMs}`,
+        `conversation-token-count=${completedTokenCount ?? 'not-observed'}`,
         ...(detailedSpans === null
           ? ['qualification-spans=not-injected']
           : [
@@ -1290,13 +1485,27 @@ async function runVisitorCase(
         `abstention=${abstention}`,
       ].join(' '),
     );
+    await printQualificationCheckpoint(
+      page,
+      `turn-completed:${visitorCase.id}`,
+      completedTokenCount,
+    );
   } finally {
     await page.pause();
   }
-  return caseFailures;
+  return { failures: caseFailures, completedTokenCount };
 }
 
-async function unloadAndAssertSettled(page: Page): Promise<void> {
+async function unloadAndAssertSettled(
+  page: Page,
+  requireLifecycleEvidence: boolean,
+): Promise<void> {
+  const observationMark = requireLifecycleEvidence
+    ? await qualificationObservationMark(page)
+    : 0;
+  const deviceBefore = requireLifecycleEvidence
+    ? await deviceObservation(page)
+    : null;
   await page.getByRole('button', { name: /Unload/ }).click();
   await expect(
     page.getByRole('button', { name: 'Check compatibility' }),
@@ -1305,6 +1514,33 @@ async function unloadAndAssertSettled(page: Page): Promise<void> {
     0,
   );
   await expect(page.getByTestId('conversation-scroller')).toHaveCount(0);
+
+  if (requireLifecycleEvidence) {
+    const observations = await qualificationObservations(page, observationMark);
+    const evidence = {
+      deviceDestroyCount: observationCount(observations, 'device-destroyed'),
+      deviceReferenceClearCount: observationCount(
+        observations,
+        'device-reference-cleared',
+      ),
+      runtimeUnloadCount: observationCount(observations, 'runtime-unloaded'),
+    };
+    assertNoContractFailures(validateUnloadLifecycleEvidence(evidence));
+    const deviceAfter = await deviceObservation(page);
+    contentFreeAssert(
+      deviceAfter.deviceDestroyCount - deviceBefore!.deviceDestroyCount === 1,
+      'WEBGPU_DEVICE_DESTROY_CALL_COUNT_INVALID',
+    );
+    console.info(
+      [
+        'observation=runtime-unload',
+        `device-destroyed=${evidence.deviceDestroyCount}`,
+        `device-reference-cleared=${evidence.deviceReferenceClearCount}`,
+        `runtime-unloaded=${evidence.runtimeUnloadCount}`,
+        'browser-coherent=true',
+      ].join(' '),
+    );
+  }
 }
 
 async function assertModelCacheStorageAbsent(page: Page): Promise<void> {
@@ -1369,8 +1605,38 @@ async function clickLoadAfterConsentAudit(
   });
 }
 
-async function qualificationCloseout(page: Page): Promise<void> {
-  await newSession(page);
+async function runAccumulatingQualificationSequence(
+  page: Page,
+  visitorCases: readonly VisitorCase[],
+  options: {
+    requireDetailedSpans: boolean;
+    requireLifecycleEvidence: boolean;
+  },
+): Promise<string[]> {
+  const failures: string[] = [];
+  const sequenceMark = await qualificationObservationMark(page);
+  await printQualificationCheckpoint(page, 'before-first-generation', null);
+
+  for (const visitorCase of visitorCases) {
+    const result = await runVisitorCase(page, visitorCase, options);
+    failures.push(
+      ...result.failures.map((failure) => `${visitorCase.id}:${failure}`),
+    );
+  }
+
+  const initialSequence = await qualificationObservations(page, sequenceMark);
+  assertNoContractFailures(
+    validateAccumulatingConversationEvidence({
+      conversationCreateCount: observationCount(
+        initialSequence,
+        'conversation-created',
+      ),
+      completedTurnCount: visitorCases.length,
+      tokenCounts: observedTokenCounts(initialSequence),
+    }),
+  );
+
+  const stopRecoveryMark = await qualificationObservationMark(page);
   const composer = page.getByRole('textbox', { name: 'Ask Egregore' });
   await composer.fill(CLOSEOUT_PROMPT_SENTINEL);
   await page.getByRole('button', { name: 'Send message' }).click();
@@ -1389,8 +1655,91 @@ async function qualificationCloseout(page: Page): Promise<void> {
       timeout: RESPONSE_COMPLETION_TIMEOUT_MS,
     },
   );
+  await printQualificationCheckpoint(page, 'stop-completed', null);
+  await page.pause();
+
+  const recoveryCase = visitorCases[0];
+  contentFreeAssert(recoveryCase !== undefined, 'RECOVERY_CASE_MISSING');
+  const recoveryResult = await runVisitorCase(page, recoveryCase, options);
+  failures.push(
+    ...recoveryResult.failures.map((failure) => `recovery:${failure}`),
+  );
+  const stopRecoveryObservations = await qualificationObservations(
+    page,
+    stopRecoveryMark,
+  );
+  contentFreeAssert(
+    observationCount(stopRecoveryObservations, 'conversation-created') === 0 &&
+      observationCount(stopRecoveryObservations, 'conversation-reset') === 0,
+    'STOP_RECOVERY_REPLACED_CONVERSATION',
+  );
+  const accumulatedWithRecovery = await qualificationObservations(
+    page,
+    sequenceMark,
+  );
+  assertNoContractFailures(
+    validateAccumulatingConversationEvidence({
+      conversationCreateCount: observationCount(
+        accumulatedWithRecovery,
+        'conversation-created',
+      ),
+      completedTurnCount: visitorCases.length + 1,
+      tokenCounts: observedTokenCounts(accumulatedWithRecovery),
+    }),
+  );
+  console.info(
+    'observation=stop-recovery conversation-replaced=false recovery-completed=true',
+  );
+
+  const resetMark = await qualificationObservationMark(page);
   await newSession(page);
-  await unloadAndAssertSettled(page);
+  const resetObservations = await qualificationObservations(page, resetMark);
+  contentFreeAssert(
+    observationCount(resetObservations, 'conversation-reset') === 1 &&
+      observationCount(resetObservations, 'conversation-created') === 0,
+    'NEW_SESSION_RESET_EVIDENCE_INVALID',
+  );
+
+  const replacementMark = await qualificationObservationMark(page);
+  const replacementResult = await runVisitorCase(page, recoveryCase, options);
+  failures.push(
+    ...replacementResult.failures.map((failure) => `replacement:${failure}`),
+  );
+  const replacementObservations = await qualificationObservations(
+    page,
+    replacementMark,
+  );
+  assertNoContractFailures(
+    validateAccumulatingConversationEvidence({
+      conversationCreateCount: observationCount(
+        replacementObservations,
+        'conversation-created',
+      ),
+      completedTurnCount: 1,
+      tokenCounts: observedTokenCounts(replacementObservations),
+    }),
+  );
+  contentFreeAssert(
+    observationCount(replacementObservations, 'conversation-reset') === 0,
+    'REPLACEMENT_CONVERSATION_RESET_UNEXPECTED',
+  );
+  console.info(
+    'observation=new-session replacement-created-on-first-send=true replacement-count=1',
+  );
+
+  return failures;
+}
+
+async function applyFinalCacheDisposition(
+  page: Page,
+  contract: QualificationRunContract,
+): Promise<void> {
+  await assertReadableCommittedModelCache(page);
+  if (contract.cacheDisposition === 'preserve') {
+    console.info('observation=final-cache-disposition result=preserved');
+    return;
+  }
+
   const removeDownloadedModel = page.getByRole('button', {
     name: 'Remove downloaded model',
   });
@@ -1574,6 +1923,7 @@ async function validateModelChains(
 async function validateRequestPrivacy(
   ledger: RequestLedger,
   applicationOrigin: string,
+  requireModelDeliveryChain: boolean,
 ): Promise<void> {
   const deploymentProtectionSecret =
     process.env.VERCEL_AUTOMATION_BYPASS_SECRET;
@@ -1703,7 +2053,17 @@ async function validateRequestPrivacy(
     }
   }
 
-  await validateModelChains(ledger.observations);
+  if (requireModelDeliveryChain) {
+    await validateModelChains(ledger.observations);
+  } else {
+    contentFreeAssert(
+      ledger.observations.every(
+        ({ request }) =>
+          !isTrustedModelOrigin(request.url(), EGREGORE_MODEL.trustedOrigins),
+      ),
+      'WARM_MODEL_NETWORK_REQUEST',
+    );
+  }
 }
 
 async function printSmokeVersions(
@@ -1767,6 +2127,7 @@ async function printEnvironment(
       `js-heap-used-bytes=${device.jsHeapUsedBytes ?? 'not-exposed'}`,
       `device-memory-gib=${device.deviceMemoryGiB ?? 'not-exposed'}`,
       `thermal-state=${device.thermalState}`,
+      `device-destroy-count=${device.deviceDestroyCount}`,
       `renderer-termination=${
         device.deviceLossCount === 0 ? 'not-observed' : 'device-loss-observed'
       }`,
@@ -1779,14 +2140,21 @@ test.skip(
   'Set RUN_REAL_MODEL=1 for the 2 GB WebGPU qualification',
 );
 
-test('qualifies Egregore with the real local model', async ({
-  browser,
-  page,
-}) => {
-  const mode = resolveMode();
+test('qualifies Egregore with the real local model', async ({ playwright }) => {
   rejectExternalProfile();
+  const removalValue = process.env.EGREGORE_REMOVE_MODEL_AFTER_QUALIFICATION;
+  contentFreeAssert(
+    removalValue === undefined || removalValue === '1',
+    'REMOVE_MODEL_FLAG_INVALID',
+  );
+  const contract = resolveQualificationRunContract({
+    mode: process.env.EGREGORE_REAL_MODEL_MODE,
+    cdpEndpoint: process.env.EGREGORE_CDP_ENDPOINT,
+    removeDownloadedModel: removalValue === '1',
+  });
+  const mode = contract.mode;
   if (
-    mode === 'qualification' &&
+    mode !== 'smoke' &&
     (process.platform !== 'darwin' || process.arch !== 'arm64')
   ) {
     throw new Error('QUALIFICATION_REQUIRES_APPLE_SILICON_MAC');
@@ -1794,129 +2162,210 @@ test('qualifies Egregore with the real local model', async ({
 
   const applicationBaseUrl =
     process.env.REAL_MODEL_BASE_URL ?? 'http://127.0.0.1:4322';
-  await establishDeploymentProtectionBypass(
-    page.context(),
-    new URL(applicationBaseUrl).origin,
-    process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
-  );
   const detailedSpansRequired = localQualificationSpansRequired(
     process.env.REAL_MODEL_BASE_URL,
   );
-  await installDeviceObservation(page);
-  await installCacheObservation(page);
-  if (detailedSpansRequired) await installQualificationObserver(page);
-  await installConsentAudit(page);
-  await page.goto(EGREGORE_PATH);
-  await assertFreshApplicationStorage(page);
-  const applicationOrigin = new URL(page.url()).origin;
-  const ledger = new RequestLedger(page);
-  const visitorCaseFailures: string[] = [];
-  const compatibilityMark = await assertCompatibilityDoesNotLoadAssistant(
-    page,
-    ledger,
-    applicationOrigin,
-  );
-
-  if (mode === 'qualification') {
-    const { frozen: qualificationInteraction, remainingWarm } =
-      splitQualificationCases(VISITOR_CASES, 'recursive-convergence-claim');
-    console.info('phase=cold-activation');
-    const cold = await activationMeasurement(page, ledger, applicationOrigin, {
-      sampleLoading: true,
-      compatibilityMark,
-      expectModelNetwork: true,
-    });
-    printActivation('cold', cold);
-    console.info('phase=cold-qualification-interaction');
-    visitorCaseFailures.push(
-      ...(
-        await runVisitorCase(page, qualificationInteraction, {
-          requireDetailedSpans: detailedSpansRequired,
-        })
-      ).map((failure) => `cold:${qualificationInteraction.id}:${failure}`),
-    );
-    await unloadAndAssertSettled(page);
-    const warmCompatibilityMark = await assertCompatibilityDoesNotLoadAssistant(
-      page,
-      ledger,
-      applicationOrigin,
-    );
-    console.info('phase=warm-activation');
-    const warm = await activationMeasurement(page, ledger, applicationOrigin, {
-      sampleLoading: false,
-      compatibilityMark: warmCompatibilityMark,
-      expectModelNetwork: false,
-    });
-    printActivation('warm', warm);
-    console.info('phase=warm-qualification-interaction');
-    visitorCaseFailures.push(
-      ...(
-        await runVisitorCase(page, qualificationInteraction, {
-          requireDetailedSpans: detailedSpansRequired,
-        })
-      ).map((failure) => `warm:${qualificationInteraction.id}:${failure}`),
-    );
-    console.info('phase=remaining-warm-qualification-cases');
-    for (const visitorCase of remainingWarm) {
-      visitorCaseFailures.push(
-        ...(
-          await runVisitorCase(page, visitorCase, {
-            requireDetailedSpans: detailedSpansRequired,
-          })
-        ).map((failure) => `warm:${visitorCase.id}:${failure}`),
-      );
-    }
-    console.info('phase=lifecycle-closeout');
-    await qualificationCloseout(page);
-  } else {
-    console.info('phase=smoke-activation');
-    const smokeActivationMark = ledger.mark();
-    await clickLoadAfterConsentAudit(
-      page,
-      ledger,
-      applicationOrigin,
-      compatibilityMark,
-    );
-    await waitForActivationReady(page, ledger, smokeActivationMark);
-    await validateConsentAudit(
-      page,
-      ledger,
-      compatibilityMark,
-      applicationOrigin,
-    );
-    await printSmokeVersions(ledger, smokeActivationMark, applicationOrigin);
-    const smokeCases = SMOKE_CASE_IDS.map((id) =>
-      VISITOR_CASES.find((item) => item.id === id),
-    );
+  if (mode !== 'smoke') {
     contentFreeAssert(
-      smokeCases.every((item) => item !== undefined),
-      'SMOKE_CASE_MISSING',
+      detailedSpansRequired,
+      'QUALIFICATION_REQUIRES_LOCAL_INSTRUMENTED_BUILD',
     );
-    for (const visitorCase of smokeCases) {
-      visitorCaseFailures.push(
-        ...(
-          await runVisitorCase(page, visitorCase!, {
-            requireDetailedSpans: detailedSpansRequired,
-          })
-        ).map((failure) => `${visitorCase!.id}:${failure}`),
-      );
-    }
-    await unloadAndAssertSettled(page);
   }
 
-  await validateRequestPrivacy(ledger, applicationOrigin);
-  await printEnvironment(browser, page, mode);
-  const device = await deviceObservation(page);
-  console.info(
-    [
-      `mode=${mode}`,
-      'privacy=pass',
-      'lifecycle=pass',
-      `device-loss-count=${device.deviceLossCount}`,
-    ].join(' '),
-  );
-  contentFreeAssert(
-    visitorCaseFailures.length === 0,
-    `VISITOR_CASES_FAILED_${visitorCaseFailures.join('_')}`,
-  );
+  let activeBrowser: Browser;
+  let activePage: Page;
+  let closeLocalBrowser = false;
+  if (contract.cdpEndpoint !== undefined) {
+    activeBrowser = await playwright.chromium.connectOverCDP(
+      contract.cdpEndpoint,
+    );
+    const existingContext = activeBrowser.contexts()[0];
+    contentFreeAssert(
+      existingContext !== undefined,
+      'WARM_RESUME_BROWSER_CONTEXT_MISSING',
+    );
+    activePage = await existingContext.newPage();
+  } else {
+    activeBrowser = await playwright.chromium.launch({
+      channel: 'chrome',
+      headless: false,
+    });
+    closeLocalBrowser = true;
+    activePage = await (await activeBrowser.newContext()).newPage();
+  }
+
+  try {
+    await establishDeploymentProtectionBypass(
+      activePage.context(),
+      new URL(applicationBaseUrl).origin,
+      process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
+    );
+    await installDeviceObservation(activePage);
+    await installCacheObservation(activePage);
+    if (detailedSpansRequired) await installQualificationObserver(activePage);
+    await installConsentAudit(activePage);
+    await activePage.goto(new URL(EGREGORE_PATH, applicationBaseUrl).href);
+    if (contract.storagePrecondition === 'fresh') {
+      await assertFreshApplicationStorage(activePage);
+    } else {
+      await assertReadableCommittedModelCache(activePage);
+    }
+    const applicationOrigin = new URL(activePage.url()).origin;
+    const ledger = new RequestLedger(activePage);
+    const visitorCaseFailures: string[] = [];
+    let compatibilityMark = await assertCompatibilityDoesNotLoadAssistant(
+      activePage,
+      ledger,
+      applicationOrigin,
+    );
+    const lifecycleEvidenceRequired = mode !== 'smoke';
+
+    if (contract.activationPath !== 'smoke') {
+      const qualificationCases = orderQualificationCases(VISITOR_CASES);
+      if (contract.activationPath === 'cold-then-warm') {
+        console.info('phase=cold-activation');
+        const cold = await activationMeasurement(
+          activePage,
+          ledger,
+          applicationOrigin,
+          {
+            sampleLoading: true,
+            compatibilityMark,
+            expectModelNetwork: true,
+          },
+        );
+        printActivation('cold', cold);
+        console.info('phase=cold-qualification-interaction');
+        const coldSequenceMark = await qualificationObservationMark(activePage);
+        const coldResult = await runVisitorCase(
+          activePage,
+          qualificationCases[0]!,
+          {
+            requireDetailedSpans: detailedSpansRequired,
+            requireLifecycleEvidence: lifecycleEvidenceRequired,
+          },
+        );
+        visitorCaseFailures.push(
+          ...coldResult.failures.map(
+            (failure) => `cold:${qualificationCases[0]!.id}:${failure}`,
+          ),
+        );
+        const coldSequence = await qualificationObservations(
+          activePage,
+          coldSequenceMark,
+        );
+        assertNoContractFailures(
+          validateAccumulatingConversationEvidence({
+            conversationCreateCount: observationCount(
+              coldSequence,
+              'conversation-created',
+            ),
+            completedTurnCount: 1,
+            tokenCounts: observedTokenCounts(coldSequence),
+          }),
+        );
+        await unloadAndAssertSettled(activePage, lifecycleEvidenceRequired);
+        await assertReadableCommittedModelCache(activePage);
+        compatibilityMark = await assertCompatibilityDoesNotLoadAssistant(
+          activePage,
+          ledger,
+          applicationOrigin,
+        );
+      }
+
+      const warmRequestMark = ledger.mark();
+      console.info(
+        contract.activationPath === 'warm-only'
+          ? 'phase=warm-resume-activation'
+          : 'phase=warm-activation',
+      );
+      const warm = await activationMeasurement(
+        activePage,
+        ledger,
+        applicationOrigin,
+        {
+          sampleLoading: false,
+          compatibilityMark,
+          expectModelNetwork: false,
+        },
+      );
+      printActivation('warm', warm);
+      console.info('phase=accumulating-warm-qualification-sequence');
+      visitorCaseFailures.push(
+        ...(
+          await runAccumulatingQualificationSequence(
+            activePage,
+            qualificationCases,
+            {
+              requireDetailedSpans: detailedSpansRequired,
+              requireLifecycleEvidence: lifecycleEvidenceRequired,
+            },
+          )
+        ).map((failure) => `warm:${failure}`),
+      );
+      await unloadAndAssertSettled(activePage, lifecycleEvidenceRequired);
+      await applyFinalCacheDisposition(activePage, contract);
+      assertNoModelNetworkRequestsSince(ledger, warmRequestMark);
+    } else {
+      console.info('phase=smoke-activation');
+      const smokeActivationMark = ledger.mark();
+      await clickLoadAfterConsentAudit(
+        activePage,
+        ledger,
+        applicationOrigin,
+        compatibilityMark,
+      );
+      await waitForActivationReady(activePage, ledger, smokeActivationMark);
+      await validateConsentAudit(
+        activePage,
+        ledger,
+        compatibilityMark,
+        applicationOrigin,
+      );
+      await printSmokeVersions(ledger, smokeActivationMark, applicationOrigin);
+      const smokeCases = SMOKE_CASE_IDS.map((id) =>
+        VISITOR_CASES.find((item) => item.id === id),
+      );
+      contentFreeAssert(
+        smokeCases.every((item) => item !== undefined),
+        'SMOKE_CASE_MISSING',
+      );
+      for (const visitorCase of smokeCases) {
+        const result = await runVisitorCase(activePage, visitorCase!, {
+          requireDetailedSpans: detailedSpansRequired,
+          requireLifecycleEvidence: false,
+        });
+        visitorCaseFailures.push(
+          ...result.failures.map((failure) => `${visitorCase!.id}:${failure}`),
+        );
+      }
+      await unloadAndAssertSettled(activePage, false);
+    }
+
+    await validateRequestPrivacy(
+      ledger,
+      applicationOrigin,
+      contract.activationPath !== 'warm-only',
+    );
+    await printEnvironment(activeBrowser, activePage, mode);
+    const device = await deviceObservation(activePage);
+    console.info(
+      [
+        `mode=${mode}`,
+        'privacy=pass',
+        'lifecycle=pass',
+        `device-loss-count=${device.deviceLossCount}`,
+      ].join(' '),
+    );
+    contentFreeAssert(
+      visitorCaseFailures.length === 0,
+      `VISITOR_CASES_FAILED_${visitorCaseFailures.join('_')}`,
+    );
+  } finally {
+    if (closeLocalBrowser) {
+      await activeBrowser.close().catch(() => undefined);
+    } else {
+      await activePage.close().catch(() => undefined);
+    }
+  }
 });

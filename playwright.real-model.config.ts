@@ -1,6 +1,16 @@
 import { defineConfig, devices } from '@playwright/test';
+import { resolveQualificationRunContract } from './tests/manual/qualificationContract';
 
 const externalBaseUrl = process.env.REAL_MODEL_BASE_URL;
+
+if (process.env.RUN_REAL_MODEL === '1') {
+  resolveQualificationRunContract({
+    mode: process.env.EGREGORE_REAL_MODEL_MODE,
+    cdpEndpoint: process.env.EGREGORE_CDP_ENDPOINT,
+    removeDownloadedModel:
+      process.env.EGREGORE_REMOVE_MODEL_AFTER_QUALIFICATION === '1',
+  });
+}
 
 export default defineConfig({
   testDir: './tests/manual',

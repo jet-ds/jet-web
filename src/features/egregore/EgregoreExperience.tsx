@@ -87,7 +87,13 @@ type QualificationObservation =
   | 'prompt-assembly-start'
   | 'prompt-assembly-end'
   | 'generation-send'
-  | 'generation-first-nonempty';
+  | 'generation-first-nonempty'
+  | 'conversation-created'
+  | 'conversation-token-count'
+  | 'conversation-reset'
+  | 'device-destroyed'
+  | 'device-reference-cleared'
+  | 'runtime-unloaded';
 
 type InteractionModality = 'keyboard' | 'mouse' | 'touch' | 'pen';
 
@@ -293,26 +299,76 @@ function createTestBuildDependencies(): EgregoreDependencies {
   };
 }
 
-function emitQualificationObservation(observation: QualificationObservation) {
+function emitQualificationObservation(
+  observation: QualificationObservation,
+  value?: number,
+) {
   window.dispatchEvent(
     new CustomEvent('egregore:qualification-observation', {
-      detail: { observation, timestamp: performance.now() },
+      detail: {
+        observation,
+        timestamp: performance.now(),
+        ...(value === undefined ? {} : { value }),
+      },
     }),
   );
+}
+
+async function installQualificationDeviceReferenceObservation(): Promise<void> {
+  const liteRt = await import('@litert-lm/core');
+  const owner = liteRt.getGlobalLiteRtLm().liteRtLmWasm;
+  const retainedDevice = owner.preinitializedWebGPUDevice;
+  if (retainedDevice === undefined) {
+    throw new Error('QUALIFICATION_RETAINED_DEVICE_MISSING');
+  }
+
+  const descriptor = Object.getOwnPropertyDescriptor(
+    owner,
+    'preinitializedWebGPUDevice',
+  );
+  let currentDevice: GPUDevice | undefined = retainedDevice;
+  let clearObserved = false;
+  Object.defineProperty(owner, 'preinitializedWebGPUDevice', {
+    configurable: true,
+    enumerable: descriptor?.enumerable ?? true,
+    get: () => currentDevice,
+    set: (nextDevice: GPUDevice | undefined) => {
+      currentDevice = nextDevice;
+      if (!clearObserved && nextDevice === undefined) {
+        clearObserved = true;
+        emitQualificationObservation('device-reference-cleared');
+      }
+    },
+  });
 }
 
 function createQualificationRuntime(
   runtime: LocalModelRuntime,
 ): LocalModelRuntime {
+  let awaitingInitialTokenCount = false;
   return {
     checkCapabilities: () => runtime.checkCapabilities(),
-    load: (options) => runtime.load(options),
-    createSession: (preface) => runtime.createSession(preface),
-    getConversationTokenCount: () => runtime.getConversationTokenCount(),
-    generate: (message, handlers: GenerationHandlers) => {
+    load: async (options) => {
+      await runtime.load(options);
+      await installQualificationDeviceReferenceObservation();
+    },
+    createSession: async (preface) => {
+      await runtime.createSession(preface);
+      awaitingInitialTokenCount = true;
+      emitQualificationObservation('conversation-created');
+    },
+    getConversationTokenCount: async () => {
+      const count = await runtime.getConversationTokenCount();
+      if (awaitingInitialTokenCount) {
+        awaitingInitialTokenCount = false;
+        emitQualificationObservation('conversation-token-count', count);
+      }
+      return count;
+    },
+    generate: async (message, handlers: GenerationHandlers) => {
       emitQualificationObservation('generation-send');
       let observedFirstNonemptyChunk = false;
-      return runtime.generate(message, {
+      const result = await runtime.generate(message, {
         onText: (chunk) => {
           if (!observedFirstNonemptyChunk && chunk !== '') {
             observedFirstNonemptyChunk = true;
@@ -321,10 +377,28 @@ function createQualificationRuntime(
           handlers.onText(chunk);
         },
       });
+      if (result.finishReason === 'completed') {
+        try {
+          emitQualificationObservation(
+            'conversation-token-count',
+            await runtime.getConversationTokenCount(),
+          );
+        } catch {
+          // The manual contract treats a missing checkpoint as a failed run.
+        }
+      }
+      return result;
     },
     cancel: () => runtime.cancel(),
-    reset: () => runtime.reset(),
-    unload: () => runtime.unload(),
+    reset: async () => {
+      await runtime.reset();
+      awaitingInitialTokenCount = false;
+      emitQualificationObservation('conversation-reset');
+    },
+    unload: async () => {
+      await runtime.unload();
+      emitQualificationObservation('runtime-unloaded');
+    },
   };
 }
 

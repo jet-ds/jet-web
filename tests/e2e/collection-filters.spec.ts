@@ -100,8 +100,16 @@ for (const config of filters) {
       0,
     );
 
-    for (const button of await root.locator('button[data-filter-value]').all())
-      expect(countFromLabel(await button.innerText())).toBeGreaterThan(0);
+    const buttons = root.locator('button[data-filter-value]');
+    for (let index = 0; index < (await buttons.count()); index += 1) {
+      const button = buttons.nth(index);
+      const expectedVisibleCards = countFromLabel(await button.innerText());
+
+      await button.click();
+
+      await expect(button).toHaveAttribute('aria-pressed', 'true');
+      await expect(visibleFilterItems(root)).toHaveCount(expectedVisibleCards);
+    }
   });
 }
 
