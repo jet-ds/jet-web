@@ -160,6 +160,11 @@ class OrderedFakeRuntime extends FakeRuntime {
     if (this.createSessionError !== undefined) throw this.createSessionError;
   }
 
+  override async getConversationTokenCount(): Promise<number> {
+    this.order.push('runtime.getConversationTokenCount');
+    return super.getConversationTokenCount();
+  }
+
   override async generate(
     message: string,
     handlers: GenerationHandlers,
@@ -372,28 +377,30 @@ function createHarness(
     order.push('select');
     return selected;
   });
-  const assemble = vi.fn((query: string) => {
-    order.push('assemble');
-    return {
-      preface: [
-        {
-          role: 'system' as const,
-          content: 'Ground only in the supplied source.',
+  const assemble = vi.fn(
+    (query: string, _selection: SelectionResult, _budget: ContextBudget) => {
+      order.push('assemble');
+      return {
+        preface: [
+          {
+            role: 'system' as const,
+            content: 'Ground only in the supplied source.',
+          },
+        ],
+        userMessage: query,
+        selectedSources: [...selected.sources],
+        estimatedTokens: 24,
+        diagnostics: {
+          systemTokens: 8,
+          questionTokens: 4,
+          knowledgeTokens: 8,
+          responseReserve: EGREGORE_CONTEXT.responseReserve,
+          estimatorHeadroom: EGREGORE_CONTEXT.estimatorHeadroom,
+          totalContextTokens: EGREGORE_CONTEXT.maxContextTokens,
         },
-      ],
-      userMessage: query,
-      selectedSources: [...selected.sources],
-      estimatedTokens: 24,
-      diagnostics: {
-        systemTokens: 8,
-        questionTokens: 4,
-        knowledgeTokens: 8,
-        responseReserve: EGREGORE_CONTEXT.responseReserve,
-        estimatorHeadroom: EGREGORE_CONTEXT.estimatorHeadroom,
-        totalContextTokens: EGREGORE_CONTEXT.maxContextTokens,
-      },
-    };
-  });
+      };
+    },
+  );
 
   let nextTurnId = 0;
   const dependencies: WishedDependencies = {
@@ -694,7 +701,7 @@ describe('useEgregore activation boundary', () => {
     expect(result.current.state.lifecycle.status).toBe('ready');
   });
 
-  it('orders selection, prompt assembly, session creation, and streamed generation', async () => {
+  it('creates one conversation and reuses it for later grounded turns', async () => {
     const useEgregore = await loadSubject();
     const harness = createHarness({
       responseChunks: ['Grounded ', 'answer [S1].'],
@@ -708,9 +715,10 @@ describe('useEgregore activation boundary', () => {
     });
 
     expect(harness.order).toEqual([
+      'runtime.createSession',
+      'runtime.getConversationTokenCount',
       'select',
       'assemble',
-      'runtime.createSession',
       'runtime.generate',
     ]);
     expect(result.current.state.turns).toEqual([
@@ -728,6 +736,27 @@ describe('useEgregore activation boundary', () => {
       result.current.state.turns.every((turn) => !('sources' in turn)),
     ).toBe(true);
     expect(result.current.state.lifecycle.status).toBe('ready');
+
+    harness.order.length = 0;
+    await act(async () => {
+      await result.current.sendMessage('What else is grounded?');
+    });
+
+    expect(harness.order).toEqual([
+      'runtime.getConversationTokenCount',
+      'select',
+      'assemble',
+      'runtime.generate',
+    ]);
+    expect(
+      harness.runtime.calls.filter(({ method }) => method === 'createSession'),
+    ).toHaveLength(1);
+    const firstBudget = harness.rankAndPack.mock.calls[0]?.[0].budget;
+    const secondBudget = harness.rankAndPack.mock.calls[1]?.[0].budget;
+    expect(secondBudget?.knowledgeLimit).toBeLessThan(
+      firstBudget?.knowledgeLimit ?? 0,
+    );
+    expect(harness.assemblePrompt.mock.calls[1]?.[2]).toEqual(secondBudget);
   });
 
   it('unloads in safe order and suppresses chunks released after cleanup starts', async () => {
@@ -1178,6 +1207,18 @@ describe('useEgregore activation boundary', () => {
     expect(result.current.state.turns).toEqual([]);
     expect(result.current.state.lifecycle.status).toBe('ready');
     expect(harness.repository.unload).not.toHaveBeenCalled();
+
+    harness.order.length = 0;
+    await act(async () => {
+      await result.current.sendMessage('Begin the next session.');
+    });
+    expect(harness.order).toEqual([
+      'runtime.createSession',
+      'runtime.getConversationTokenCount',
+      'select',
+      'assemble',
+      'runtime.generate',
+    ]);
   });
 
   it('preserves the transcript when starting a new session cannot delete the conversation', async () => {
@@ -1273,7 +1314,10 @@ describe('useEgregore activation boundary', () => {
       await result.current.sendMessage('A complete prior question.');
     });
     const transcript = JSON.stringify(result.current.state.turns);
-    const runtimeCallCount = harness.runtime.calls.length;
+    const generationCount = harness.runtime.generationMessages.length;
+    const sessionCreationCount = harness.runtime.calls.filter(
+      ({ method }) => method === 'createSession',
+    ).length;
     const exhausted = Object.assign(
       new Error(
         'The current session is full. Start a new session to continue.',
@@ -1295,7 +1339,10 @@ describe('useEgregore activation boundary', () => {
 
     expect(JSON.stringify(result.current.state.turns)).toBe(transcript);
     expect(result.current.state.error?.code).toBe('conversation-limit-reached');
-    expect(harness.runtime.calls).toHaveLength(runtimeCallCount);
+    expect(harness.runtime.generationMessages).toHaveLength(generationCount);
+    expect(
+      harness.runtime.calls.filter(({ method }) => method === 'createSession'),
+    ).toHaveLength(sessionCreationCount);
     expect(result.current.startNewSession).toBeTypeOf('function');
   });
 

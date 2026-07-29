@@ -3,8 +3,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { EGREGORE_CONTEXT } from '../config';
 import type { LoadedKnowledgeBase } from '../corpus/repository';
 import type { EgregoreError, EgregoreErrorCode } from '../errors';
-import type { AssembledPrompt } from '../prompt/assemble';
+import {
+  createSystemPreface,
+  measureFixedTurnPrompt,
+  type AssembledPrompt,
+} from '../prompt/assemble';
 import type { ValidCitation } from '../prompt/citations';
+import { deriveTurnContextBudget } from '../prompt/contextBudget';
 import {
   createInitialLifecycleState,
   reduceEgregoreLifecycle,
@@ -216,6 +221,7 @@ export function useEgregore(
   const corpusActivationRef = useRef<Promise<LoadedKnowledgeBase> | null>(null);
   const cleanupRef = useRef<Promise<void> | null>(null);
   const stoppedOperationRef = useRef<number | null>(null);
+  const conversationActiveRef = useRef(false);
 
   const commit = useCallback((next: EgregoreState) => {
     stateRef.current = next;
@@ -386,35 +392,6 @@ export function useEgregore(
       const completeTurns = stateRef.current.turns;
       const operationId = ++operationRef.current;
       stoppedOperationRef.current = null;
-      let assembled: AssembledPrompt;
-      try {
-        const selection = dependenciesRef.current.rankAndPackContext({
-          query: cleanQuestion,
-          knowledgeBase,
-          budget: dependenciesRef.current.contextBudget ?? EGREGORE_CONTEXT,
-        });
-        assembled = dependenciesRef.current.assemblePrompt(
-          cleanQuestion,
-          selection,
-          dependenciesRef.current.contextBudget ?? EGREGORE_CONTEXT,
-        );
-      } catch (cause) {
-        if (!isCurrent(operationId)) return;
-        const error = safeError(cause, 'context-budget-exceeded');
-        const generating = reduceEgregoreLifecycle(stateRef.current.lifecycle, {
-          type: 'generation-requested',
-        });
-        commit({
-          ...stateRef.current,
-          error,
-          lifecycle: reduceEgregoreLifecycle(generating, {
-            type: 'generation-failed',
-            error,
-          }),
-        });
-        return;
-      }
-
       const userTurnId = dependenciesRef.current.createTurnId();
       const assistantTurnId = dependenciesRef.current.createTurnId();
       commit({
@@ -441,11 +418,12 @@ export function useEgregore(
       });
 
       let response = '';
+      let assembled: AssembledPrompt | null = null;
       const completeStoppedResponse = (error: EgregoreError | null = null) => {
         if (!isCurrent(operationId)) return;
         const citations = dependenciesRef.current.extractValidCitations(
           response,
-          assembled.selectedSources,
+          assembled?.selectedSources ?? [],
         );
         stoppedOperationRef.current = null;
         commit({
@@ -470,8 +448,49 @@ export function useEgregore(
         });
       };
       try {
-        await runtimeRef.current!.createSession(assembled.preface);
+        const baseBudget =
+          dependenciesRef.current.contextBudget ?? EGREGORE_CONTEXT;
+        const createdConversationThisOperation = !conversationActiveRef.current;
+        if (createdConversationThisOperation) {
+          await runtimeRef.current!.createSession(createSystemPreface());
+          if (!isCurrent(operationId)) return;
+          conversationActiveRef.current = true;
+        }
         if (!isCurrent(operationId)) return;
+        if (stoppedOperationRef.current === operationId) {
+          if (createdConversationThisOperation) {
+            try {
+              await runtimeRef.current!.reset();
+              conversationActiveRef.current = false;
+            } catch (cause) {
+              completeStoppedResponse(
+                safeError(cause, 'engine-cleanup-failed'),
+              );
+              return;
+            }
+          }
+          completeStoppedResponse();
+          return;
+        }
+
+        const conversationTokens =
+          await runtimeRef.current!.getConversationTokenCount();
+        if (!isCurrent(operationId)) return;
+        const turnBudget = deriveTurnContextBudget({
+          baseBudget,
+          conversationTokens,
+          measurement: measureFixedTurnPrompt(cleanQuestion),
+        });
+        const selection = dependenciesRef.current.rankAndPackContext({
+          query: cleanQuestion,
+          knowledgeBase,
+          budget: turnBudget,
+        });
+        assembled = dependenciesRef.current.assemblePrompt(
+          cleanQuestion,
+          selection,
+          turnBudget,
+        );
         if (stoppedOperationRef.current === operationId) {
           completeStoppedResponse();
           return;
@@ -580,6 +599,7 @@ export function useEgregore(
     try {
       await runtimeRef.current!.reset();
       if (!isCurrent(operationId)) return;
+      conversationActiveRef.current = false;
       commit({
         ...stateRef.current,
         turns: [],
@@ -633,6 +653,7 @@ export function useEgregore(
         }
         try {
           await runtimeRef.current!.reset();
+          conversationActiveRef.current = false;
         } catch {
           failures.push('reset');
         }

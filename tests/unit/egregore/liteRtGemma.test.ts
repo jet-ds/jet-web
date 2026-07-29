@@ -146,6 +146,7 @@ function fakeGpuDevice(calls: string[], name = 'device'): FakeDevice {
 
 function runtimeHarness(
   options: {
+    calls?: string[];
     engines?: FakeEngine[];
     loadLiteRtLm?: (path: string) => Promise<unknown>;
     unloadLiteRtLm?: () => void;
@@ -154,7 +155,7 @@ function runtimeHarness(
     onDeviceReferenceChange?: (device: FakeDevice | undefined) => void;
   } = {},
 ) {
-  const calls: string[] = [];
+  const calls = options.calls ?? [];
   const engines = [
     ...(options.engines ?? [fakeEngine([fakeConversation()], calls)]),
   ];
@@ -689,7 +690,8 @@ describe('LiteRT-LM Gemma runtime', () => {
     });
     const engine = fakeEngine([conversation], calls, 'engine');
     const device = fakeGpuDevice(calls);
-    const { runtime, unloadLiteRtLm } = runtimeHarness({
+    const { runtime } = runtimeHarness({
+      calls,
       engines: [engine],
       device,
       onDeviceReferenceChange: (nextDevice) => {
@@ -713,8 +715,8 @@ describe('LiteRT-LM Gemma runtime', () => {
       'device.queue.onSubmittedWorkDone',
       'device.destroy',
       'device.reference.clear',
+      'unloadLiteRtLm',
     ]);
-    expect(unloadLiteRtLm).toHaveBeenCalledOnce();
 
     calls.length = 0;
     await runtime.unload();
@@ -731,7 +733,8 @@ describe('LiteRT-LM Gemma runtime', () => {
       throw new Error('PRIVATE_ENGINE_SENTINEL');
     });
     const device = fakeGpuDevice(calls);
-    const { runtime, unloadLiteRtLm } = runtimeHarness({
+    const { runtime } = runtimeHarness({
+      calls,
       engines: [engine],
       device,
       onDeviceReferenceChange: (nextDevice) => {
@@ -754,8 +757,8 @@ describe('LiteRT-LM Gemma runtime', () => {
       'device.queue.onSubmittedWorkDone',
       'device.destroy',
       'device.reference.clear',
+      'unloadLiteRtLm',
     ]);
-    expect(unloadLiteRtLm).toHaveBeenCalledOnce();
 
     calls.length = 0;
     await runtime.unload();
@@ -772,7 +775,8 @@ describe('LiteRT-LM Gemma runtime', () => {
       calls.push('device.queue.onSubmittedWorkDone');
       throw new Error('PRIVATE_QUEUE_SENTINEL');
     });
-    const { runtime, unloadLiteRtLm } = runtimeHarness({
+    const { runtime } = runtimeHarness({
+      calls,
       engines: [engine],
       device,
       onDeviceReferenceChange: (nextDevice) => {
@@ -788,12 +792,12 @@ describe('LiteRT-LM Gemma runtime', () => {
       code: 'engine-cleanup-failed',
       cleanupFailures: ['device-queue'],
     });
-    expect(calls.slice(-3)).toEqual([
+    expect(calls.slice(-4)).toEqual([
       'device.queue.onSubmittedWorkDone',
       'device.destroy',
       'device.reference.clear',
+      'unloadLiteRtLm',
     ]);
-    expect(unloadLiteRtLm).toHaveBeenCalledOnce();
 
     calls.length = 0;
     await runtime.unload();
@@ -810,7 +814,8 @@ describe('LiteRT-LM Gemma runtime', () => {
       calls.push('device.destroy');
       throw new Error('PRIVATE_DEVICE_SENTINEL');
     });
-    const { runtime, unloadLiteRtLm } = runtimeHarness({
+    const { runtime } = runtimeHarness({
+      calls,
       engines: [engine],
       device,
       onDeviceReferenceChange: (nextDevice) => {
@@ -826,12 +831,12 @@ describe('LiteRT-LM Gemma runtime', () => {
       code: 'engine-cleanup-failed',
       cleanupFailures: ['device'],
     });
-    expect(calls.slice(-3)).toEqual([
+    expect(calls.slice(-4)).toEqual([
       'device.queue.onSubmittedWorkDone',
       'device.destroy',
       'device.reference.clear',
+      'unloadLiteRtLm',
     ]);
-    expect(unloadLiteRtLm).toHaveBeenCalledOnce();
 
     calls.length = 0;
     await runtime.unload();
@@ -1043,6 +1048,7 @@ describe('LiteRT-LM Gemma runtime', () => {
       'second-engine',
     );
     const { loadModule, runtime, unloadLiteRtLm } = runtimeHarness({
+      calls,
       engines: [firstEngine, secondEngine],
       devices: [firstDevice, secondDevice],
       onDeviceReferenceChange: (device) => {

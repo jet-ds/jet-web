@@ -259,6 +259,13 @@ export class FakeRuntime implements LocalModelRuntime {
     this.record(
       this.recordResourceLifecycle ? 'conversation.create' : 'createSession',
     );
+    if (this.hasConversation) {
+      throw createRuntimeError(
+        'generation-failed',
+        'Start a new Egregore session before creating another conversation.',
+        true,
+      );
+    }
     this.hasConversation = true;
     this.conversationTokenCount = preface.reduce(
       (total, message) => total + estimateTokens(message.content),

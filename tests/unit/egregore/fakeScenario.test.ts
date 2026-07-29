@@ -202,6 +202,41 @@ describe('Egregore fake browser scenarios', () => {
     );
   });
 
+  it('keeps one fake conversation active until the session is reset', async () => {
+    const runtime = new FakeRuntime({
+      testOnly: true,
+      responseChunks: ['A grounded answer.'],
+    });
+
+    await runtime.load({ modelSource: 'test-model' });
+    await runtime.createSession([
+      { role: 'system', content: 'Use the published corpus.' },
+    ]);
+    await runtime.generate('First question', { onText: () => undefined });
+    await runtime.generate('Second question', { onText: () => undefined });
+    const tokenCountBeforeRejectedReplacement =
+      await runtime.getConversationTokenCount();
+
+    await expect(
+      runtime.createSession([
+        { role: 'system', content: 'Replace the active conversation.' },
+      ]),
+    ).rejects.toMatchObject({ code: 'generation-failed' });
+    await expect(runtime.getConversationTokenCount()).resolves.toBe(
+      tokenCountBeforeRejectedReplacement,
+    );
+
+    await runtime.reset();
+    await expect(
+      runtime.createSession([
+        { role: 'system', content: 'Start a fresh conversation.' },
+      ]),
+    ).resolves.toBeUndefined();
+    await expect(runtime.getConversationTokenCount()).resolves.toBeGreaterThan(
+      0,
+    );
+  });
+
   it('audits every production-runtime method without recording method payloads', async () => {
     const forwarded: string[] = [];
     const recorder = new FakeRuntimeRecorder(11);
