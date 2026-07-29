@@ -210,6 +210,13 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
         true,
       );
     }
+    if (this.conversation || this.pendingConversationCleanup) {
+      throw createRuntimeError(
+        'generation-failed',
+        'Start a new Egregore session before creating another conversation.',
+        true,
+      );
+    }
 
     const epoch = ++this.sessionCreationEpoch;
     const creation = this.performSessionCreation(engine, preface, epoch);
@@ -230,13 +237,6 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
     epoch: number,
   ): Promise<void> {
     this.invalidateGeneration();
-    const previous = this.conversation;
-    this.conversation = null;
-    if (previous) this.pendingConversationCleanup = previous;
-    const cleanupFailures = await this.cleanupPendingConversation();
-    if (cleanupFailures.length > 0) {
-      throw cleanupRuntimeError(cleanupFailures);
-    }
     if (!this.isSessionCreationActive(epoch, engine)) return;
 
     let created: LiteRtConversation;
@@ -542,11 +542,19 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
   }
 
   private async cleanupPendingConversation(): Promise<CleanupFailure[]> {
+    return this.cleanupPendingConversationResource(false);
+  }
+
+  private async cleanupPendingConversationResource(
+    finalize: boolean,
+  ): Promise<CleanupFailure[]> {
     if (this.activeConversationCleanup) {
-      return this.activeConversationCleanup;
+      const failures = await this.activeConversationCleanup;
+      if (finalize) this.pendingConversationCleanup = null;
+      return failures;
     }
 
-    const cleanup = this.performPendingConversationCleanup();
+    const cleanup = this.performPendingConversationCleanup(finalize);
     this.activeConversationCleanup = cleanup;
     try {
       return await cleanup;
@@ -557,18 +565,24 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
     }
   }
 
-  private async performPendingConversationCleanup(): Promise<CleanupFailure[]> {
+  private async performPendingConversationCleanup(
+    finalize: boolean,
+  ): Promise<CleanupFailure[]> {
     const failures: CleanupFailure[] = [];
     const conversation = this.pendingConversationCleanup;
 
     if (conversation) {
       try {
         await conversation.delete();
-        if (this.pendingConversationCleanup === conversation) {
-          this.pendingConversationCleanup = null;
-        }
       } catch {
         failures.push('conversation');
+      } finally {
+        if (
+          (finalize || failures.length === 0) &&
+          this.pendingConversationCleanup === conversation
+        ) {
+          this.pendingConversationCleanup = null;
+        }
       }
     }
 
@@ -596,17 +610,26 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
   ): Promise<CleanupFailure[]> {
     const failures = skipConversation
       ? []
-      : await this.cleanupPendingConversation();
+      : await this.cleanupPendingConversationResource(true);
+    if (skipConversation) {
+      // An in-flight session cleanup already attempted this opaque child.
+      // Advancing to engine teardown makes a later retry unsafe.
+      this.pendingConversationCleanup = null;
+    }
     const engine = this.pendingEngineCleanup;
 
     if (engine) {
       try {
         await engine.delete();
+      } catch {
+        failures.push('engine');
+      } finally {
+        // LiteRT Engine.delete() runs Cleanup callbacks sequentially and may
+        // throw after partially releasing them. Once teardown advances to the
+        // device/module owners, retrying this opaque Engine is unsafe.
         if (this.pendingEngineCleanup === engine) {
           this.pendingEngineCleanup = null;
         }
-      } catch {
-        failures.push('engine');
       }
     }
 
@@ -662,10 +685,10 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
       }
     }
 
-    if (!resource.destroyPending && !resource.referencePending) {
-      if (this.pendingDeviceCleanup === resource) {
-        this.pendingDeviceCleanup = null;
-      }
+    if (this.pendingDeviceCleanup === resource) {
+      // Module unload is the next owner boundary. Do not retain a device for
+      // retry after that boundary, even when queue/destroy/reference failed.
+      this.pendingDeviceCleanup = null;
     }
 
     return failures;

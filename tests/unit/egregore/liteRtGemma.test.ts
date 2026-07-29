@@ -131,12 +131,26 @@ function fakeEngine(
   };
 }
 
+function fakeGpuDevice(calls: string[], name = 'device'): FakeDevice {
+  return {
+    queue: {
+      onSubmittedWorkDone: vi.fn(async () => {
+        calls.push(`${name}.queue.onSubmittedWorkDone`);
+      }),
+    },
+    destroy: vi.fn(() => {
+      calls.push(`${name}.destroy`);
+    }),
+  };
+}
+
 function runtimeHarness(
   options: {
     engines?: FakeEngine[];
     loadLiteRtLm?: (path: string) => Promise<unknown>;
     unloadLiteRtLm?: () => void;
     device?: FakeDevice;
+    devices?: FakeDevice[];
     onDeviceReferenceChange?: (device: FakeDevice | undefined) => void;
   } = {},
 ) {
@@ -156,13 +170,15 @@ function runtimeHarness(
         calls.push('unloadLiteRtLm');
       }),
   );
+  let retainedDevice = options.device;
+  const devices = [...(options.devices ?? [])];
   const create = vi.fn(async (_settings: unknown) => {
     calls.push('Engine.create');
     const engine = engines.shift();
     if (!engine) throw new Error('No fake engine remains.');
+    retainedDevice = devices.shift() ?? retainedDevice;
     return engine;
   });
-  let retainedDevice = options.device;
   const liteRtLmWasm = {} as {
     preinitializedWebGPUDevice?: FakeDevice;
   };
@@ -313,53 +329,60 @@ describe('LiteRT-LM Gemma runtime', () => {
     expect(conversation.getTokenCount).toHaveBeenCalledOnce();
   });
 
-  it('deletes an existing conversation before creating its replacement', async () => {
-    const calls: string[] = [];
-    const first = fakeConversation(streamFrom([]), calls, 'first');
-    const second = fakeConversation(streamFrom([]), calls, 'second');
-    const engine = fakeEngine([first, second], calls);
+  it('keeps consecutive generations on one conversation and requires reset before another', async () => {
+    const first = fakeConversation();
+    first.sendMessageStreaming
+      .mockImplementationOnce(() => streamFrom([{ content: 'First' }]))
+      .mockImplementationOnce(() => streamFrom([{ content: 'Second' }]));
+    const engine = fakeEngine([first]);
     const { runtime } = runtimeHarness({ engines: [engine] });
+    const fragments: string[] = [];
 
     await runtime.load({});
     await runtime.createSession([{ role: 'system', content: 'First' }]);
-    calls.length = 0;
-    await runtime.createSession([{ role: 'system', content: 'Second' }]);
+    await runtime.generate('Question one', {
+      onText: (text) => fragments.push(text),
+    });
+    await runtime.generate('Question two', {
+      onText: (text) => fragments.push(text),
+    });
 
-    expect(calls).toEqual(['first.delete', 'engine.createConversation']);
+    expect(fragments).toEqual(['First', 'Second']);
+    expect(engine.createConversation).toHaveBeenCalledTimes(1);
+    await expect(runtime.createSession([])).rejects.toMatchObject({
+      code: 'generation-failed',
+    });
+    expect(first.delete).not.toHaveBeenCalled();
   });
 
-  it('waits for a deferred replacement, deletes the stale result, then unloads the engine', async () => {
+  it('waits for deferred session creation, deletes the stale result, then unloads the engine', async () => {
     const calls: string[] = [];
-    const first = fakeConversation(streamFrom([]), calls, 'first');
     const stale = fakeConversation(streamFrom([]), calls, 'stale');
-    const replacement = deferred<FakeConversation>();
+    const creation = deferred<FakeConversation>();
     const engine = fakeEngine([], calls);
-    engine.createConversation
-      .mockResolvedValueOnce(first)
-      .mockImplementationOnce(async () => {
-        calls.push('replacement.start');
-        const conversation = await replacement.promise;
-        calls.push('replacement.end');
-        return conversation;
-      });
+    engine.createConversation.mockImplementationOnce(async () => {
+      calls.push('creation.start');
+      const conversation = await creation.promise;
+      calls.push('creation.end');
+      return conversation;
+    });
     const { runtime } = runtimeHarness({ engines: [engine] });
 
     await runtime.load({});
-    await runtime.createSession([{ role: 'system', content: 'First' }]);
-    const replacing = runtime.createSession([
-      { role: 'system', content: 'Replacement' },
+    const creating = runtime.createSession([
+      { role: 'system', content: 'First' },
     ]);
-    await vi.waitFor(() => expect(calls).toContain('replacement.start'));
+    await vi.waitFor(() => expect(calls).toContain('creation.start'));
     calls.length = 0;
 
     const unloading = runtime.unload();
     await Promise.resolve();
     expect(engine.delete).not.toHaveBeenCalled();
-    replacement.resolve(stale);
+    creation.resolve(stale);
 
-    await replacing;
+    await creating;
     await unloading;
-    expect(calls).toEqual(['replacement.end', 'stale.delete', 'engine.delete']);
+    expect(calls).toEqual(['creation.end', 'stale.delete', 'engine.delete']);
     await expect(
       runtime.generate('Question', { onText: () => undefined }),
     ).rejects.toMatchObject({ code: 'generation-failed' });
@@ -657,79 +680,31 @@ describe('LiteRT-LM Gemma runtime', () => {
     expect(fragments).toEqual([]);
   });
 
-  it('keeps failed unload resources pending, blocks load, and retries cleanup in order', async () => {
+  it('does not retry a failed conversation delete after destroying its engine owner', async () => {
     const calls: string[] = [];
     const conversation = fakeConversation(streamFrom([]), calls);
-    conversation.delete
-      .mockImplementationOnce(async () => {
-        calls.push('conversation.delete');
-        throw new Error('PRIVATE_PROMPT_SENTINEL');
-      })
-      .mockImplementationOnce(async () => {
-        calls.push('conversation.delete');
-      });
-    const firstEngine = fakeEngine([conversation], calls, 'engine');
-    firstEngine.delete
-      .mockImplementationOnce(async () => {
-        calls.push('engine.delete');
-        throw new Error('PRIVATE_RESPONSE_SENTINEL');
-      })
-      .mockImplementationOnce(async () => {
-        calls.push('engine.delete');
-      });
-    const secondEngine = fakeEngine(
-      [fakeConversation()],
-      calls,
-      'fresh-engine',
-    );
-    const device: FakeDevice = {
-      queue: {
-        onSubmittedWorkDone: vi
-          .fn()
-          .mockImplementationOnce(async () => {
-            calls.push('device.queue.onSubmittedWorkDone');
-            throw new Error('PRIVATE_QUEUE_SENTINEL');
-          })
-          .mockImplementation(async () => {
-            calls.push('device.queue.onSubmittedWorkDone');
-          }),
-      },
-      destroy: vi
-        .fn()
-        .mockImplementationOnce(() => {
-          calls.push('device.destroy');
-          throw new Error('PRIVATE_DEVICE_SENTINEL');
-        })
-        .mockImplementation(() => {
-          calls.push('device.destroy');
-        }),
-    };
-    const { loadModule, runtime, unloadLiteRtLm } = runtimeHarness({
-      engines: [firstEngine, secondEngine],
+    conversation.delete.mockImplementation(async () => {
+      calls.push('conversation.delete');
+      throw new Error('PRIVATE_CONVERSATION_SENTINEL');
+    });
+    const engine = fakeEngine([conversation], calls, 'engine');
+    const device = fakeGpuDevice(calls);
+    const { runtime, unloadLiteRtLm } = runtimeHarness({
+      engines: [engine],
       device,
       onDeviceReferenceChange: (nextDevice) => {
         if (nextDevice === undefined) calls.push('device.reference.clear');
       },
-      unloadLiteRtLm: vi
-        .fn()
-        .mockImplementationOnce(() => {
-          calls.push('unloadLiteRtLm');
-          throw new Error('PRIVATE_RUNTIME_SENTINEL');
-        })
-        .mockImplementation(() => {
-          calls.push('unloadLiteRtLm');
-        }),
     });
 
     await runtime.load({});
     await runtime.createSession([]);
     calls.length = 0;
-    let cleanupError: unknown;
-    try {
-      await runtime.unload();
-    } catch (error) {
-      cleanupError = error;
-    }
+
+    await expect(runtime.unload()).rejects.toMatchObject({
+      code: 'engine-cleanup-failed',
+      cleanupFailures: ['conversation'],
+    });
 
     expect(calls).toEqual([
       'conversation.cancel',
@@ -738,38 +713,130 @@ describe('LiteRT-LM Gemma runtime', () => {
       'device.queue.onSubmittedWorkDone',
       'device.destroy',
       'device.reference.clear',
-      'unloadLiteRtLm',
     ]);
-    expect(cleanupError).toMatchObject({
-      code: 'engine-cleanup-failed',
-      cleanupFailures: [
-        'conversation',
-        'engine',
-        'device-queue',
-        'device',
-        'runtime',
-      ],
-    });
-    expect(JSON.stringify(cleanupError)).not.toMatch(/PRIVATE|PROMPT|RESPONSE/);
-    expect(unloadLiteRtLm).toHaveBeenCalledTimes(1);
-
-    await expect(runtime.load({})).rejects.toMatchObject({
-      code: 'model-load-failed',
-    });
-    expect(loadModule).toHaveBeenCalledTimes(1);
+    expect(unloadLiteRtLm).toHaveBeenCalledOnce();
 
     calls.length = 0;
     await runtime.unload();
+    expect(calls).toEqual([]);
+    expect(conversation.delete).toHaveBeenCalledOnce();
+  });
+
+  it('does not retry an opaque engine delete after device and module teardown', async () => {
+    const calls: string[] = [];
+    const conversation = fakeConversation(streamFrom([]), calls);
+    const engine = fakeEngine([conversation], calls, 'engine');
+    engine.delete.mockImplementation(async () => {
+      calls.push('engine.delete');
+      throw new Error('PRIVATE_ENGINE_SENTINEL');
+    });
+    const device = fakeGpuDevice(calls);
+    const { runtime, unloadLiteRtLm } = runtimeHarness({
+      engines: [engine],
+      device,
+      onDeviceReferenceChange: (nextDevice) => {
+        if (nextDevice === undefined) calls.push('device.reference.clear');
+      },
+    });
+
+    await runtime.load({});
+    await runtime.createSession([]);
+    calls.length = 0;
+
+    await expect(runtime.unload()).rejects.toMatchObject({
+      code: 'engine-cleanup-failed',
+      cleanupFailures: ['engine'],
+    });
     expect(calls).toEqual([
+      'conversation.cancel',
       'conversation.delete',
       'engine.delete',
       'device.queue.onSubmittedWorkDone',
       'device.destroy',
-      'unloadLiteRtLm',
+      'device.reference.clear',
     ]);
+    expect(unloadLiteRtLm).toHaveBeenCalledOnce();
+
+    calls.length = 0;
+    await runtime.unload();
+    expect(calls).toEqual([]);
+    expect(engine.delete).toHaveBeenCalledOnce();
+  });
+
+  it('destroys the device after a queue-settlement failure without retrying it later', async () => {
+    const calls: string[] = [];
+    const conversation = fakeConversation(streamFrom([]), calls);
+    const engine = fakeEngine([conversation], calls, 'engine');
+    const device = fakeGpuDevice(calls);
+    device.queue.onSubmittedWorkDone.mockImplementation(async () => {
+      calls.push('device.queue.onSubmittedWorkDone');
+      throw new Error('PRIVATE_QUEUE_SENTINEL');
+    });
+    const { runtime, unloadLiteRtLm } = runtimeHarness({
+      engines: [engine],
+      device,
+      onDeviceReferenceChange: (nextDevice) => {
+        if (nextDevice === undefined) calls.push('device.reference.clear');
+      },
+    });
 
     await runtime.load({});
-    expect(loadModule).toHaveBeenCalledTimes(2);
+    await runtime.createSession([]);
+    calls.length = 0;
+
+    await expect(runtime.unload()).rejects.toMatchObject({
+      code: 'engine-cleanup-failed',
+      cleanupFailures: ['device-queue'],
+    });
+    expect(calls.slice(-3)).toEqual([
+      'device.queue.onSubmittedWorkDone',
+      'device.destroy',
+      'device.reference.clear',
+    ]);
+    expect(unloadLiteRtLm).toHaveBeenCalledOnce();
+
+    calls.length = 0;
+    await runtime.unload();
+    expect(calls).toEqual([]);
+    expect(device.queue.onSubmittedWorkDone).toHaveBeenCalledOnce();
+  });
+
+  it('does not retry device destruction after clearing its owner and unloading the module', async () => {
+    const calls: string[] = [];
+    const conversation = fakeConversation(streamFrom([]), calls);
+    const engine = fakeEngine([conversation], calls, 'engine');
+    const device = fakeGpuDevice(calls);
+    device.destroy.mockImplementation(() => {
+      calls.push('device.destroy');
+      throw new Error('PRIVATE_DEVICE_SENTINEL');
+    });
+    const { runtime, unloadLiteRtLm } = runtimeHarness({
+      engines: [engine],
+      device,
+      onDeviceReferenceChange: (nextDevice) => {
+        if (nextDevice === undefined) calls.push('device.reference.clear');
+      },
+    });
+
+    await runtime.load({});
+    await runtime.createSession([]);
+    calls.length = 0;
+
+    await expect(runtime.unload()).rejects.toMatchObject({
+      code: 'engine-cleanup-failed',
+      cleanupFailures: ['device'],
+    });
+    expect(calls.slice(-3)).toEqual([
+      'device.queue.onSubmittedWorkDone',
+      'device.destroy',
+      'device.reference.clear',
+    ]);
+    expect(unloadLiteRtLm).toHaveBeenCalledOnce();
+
+    calls.length = 0;
+    await runtime.unload();
+    expect(calls).toEqual([]);
+    expect(device.destroy).toHaveBeenCalledOnce();
   });
 
   it('keeps a failed reset deletion pending until an explicit retry succeeds', async () => {
@@ -793,36 +860,20 @@ describe('LiteRT-LM Gemma runtime', () => {
     expect(conversation.delete).toHaveBeenCalledTimes(2);
   });
 
-  it('maps replacement deletion failures safely and retries before creating a new session', async () => {
+  it('creates a new conversation only after reset releases the previous one', async () => {
     const first = fakeConversation();
     const second = fakeConversation();
-    first.delete
-      .mockRejectedValueOnce(new Error('PRIVATE_OLD_SESSION_SENTINEL'))
-      .mockResolvedValueOnce(undefined);
     const engine = fakeEngine([first, second]);
     const { runtime } = runtimeHarness({ engines: [engine] });
 
     await runtime.load({});
     await runtime.createSession([{ role: 'system', content: 'First' }]);
-    let replacementError: unknown;
-    try {
-      await runtime.createSession([{ role: 'system', content: 'Second' }]);
-    } catch (error) {
-      replacementError = error;
-    }
-
-    expect(replacementError).toMatchObject({
-      code: 'engine-cleanup-failed',
-      diagnosticCause: 'Error',
-    });
-    expect(JSON.stringify(replacementError)).not.toContain(
-      'PRIVATE_OLD_SESSION_SENTINEL',
-    );
-    expect(engine.createConversation).toHaveBeenCalledTimes(1);
-
+    await runtime.reset();
     await runtime.createSession([{ role: 'system', content: 'Second' }]);
-    expect(first.delete).toHaveBeenCalledTimes(2);
+
+    expect(first.delete).toHaveBeenCalledOnce();
     expect(engine.createConversation).toHaveBeenCalledTimes(2);
+    expect(second.delete).not.toHaveBeenCalled();
   });
 
   it('maps createConversation failures without retaining SDK cause text', async () => {
@@ -973,6 +1024,8 @@ describe('LiteRT-LM Gemma runtime', () => {
 
   it('creates fresh module, engine, and conversation state after unload and route re-entry', async () => {
     const calls: string[] = [];
+    const firstDevice = fakeGpuDevice(calls, 'first-device');
+    const secondDevice = fakeGpuDevice(calls, 'second-device');
     const firstConversation = fakeConversation(
       streamFrom([]),
       calls,
@@ -991,6 +1044,10 @@ describe('LiteRT-LM Gemma runtime', () => {
     );
     const { loadModule, runtime, unloadLiteRtLm } = runtimeHarness({
       engines: [firstEngine, secondEngine],
+      devices: [firstDevice, secondDevice],
+      onDeviceReferenceChange: (device) => {
+        if (device === undefined) calls.push('device.reference.clear');
+      },
     });
 
     await runtime.load({});
@@ -998,13 +1055,20 @@ describe('LiteRT-LM Gemma runtime', () => {
     await runtime.unload();
     await runtime.load({});
     await runtime.createSession([]);
+    await runtime.unload();
 
     expect(loadModule).toHaveBeenCalledTimes(2);
-    expect(unloadLiteRtLm).toHaveBeenCalledTimes(1);
+    expect(unloadLiteRtLm).toHaveBeenCalledTimes(2);
     expect(firstEngine.delete).toHaveBeenCalledTimes(1);
     expect(firstConversation.delete).toHaveBeenCalledTimes(1);
     expect(secondEngine.createConversation).toHaveBeenCalledTimes(1);
-    expect(secondConversation.delete).not.toHaveBeenCalled();
+    expect(secondConversation.delete).toHaveBeenCalledTimes(1);
+    expect(firstDevice.queue.onSubmittedWorkDone).toHaveBeenCalledOnce();
+    expect(firstDevice.destroy).toHaveBeenCalledOnce();
+    expect(secondDevice.queue.onSubmittedWorkDone).toHaveBeenCalledOnce();
+    expect(secondDevice.destroy).toHaveBeenCalledOnce();
+    expect(calls).toContain('first-device.destroy');
+    expect(calls).toContain('second-device.destroy');
   });
 
   it('ignores all stream events after unload begins', async () => {
