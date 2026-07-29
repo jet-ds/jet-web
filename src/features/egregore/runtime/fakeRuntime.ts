@@ -1,4 +1,5 @@
 import type { EgregoreErrorCode } from '../errors';
+import { estimateTokens } from '../tokenEstimate';
 import {
   createRuntimeError,
   type CapabilityReport,
@@ -35,6 +36,7 @@ export interface FakeRuntimeCall {
     | 'checkCapabilities'
     | 'load'
     | 'createSession'
+    | 'getConversationTokenCount'
     | 'generate'
     | 'cancel'
     | 'reset'
@@ -87,6 +89,10 @@ export function createAuditedRuntime(
     createSession: (preface) => {
       recorder.record('createSession');
       return runtime.createSession(preface);
+    },
+    getConversationTokenCount: () => {
+      recorder.record('getConversationTokenCount');
+      return runtime.getConversationTokenCount();
     },
     generate: (message, handlers) => {
       recorder.record('generate');
@@ -165,6 +171,7 @@ export class FakeRuntime implements LocalModelRuntime {
   private activeGeneration: ActiveGeneration | null = null;
   private hasEngine = false;
   private hasConversation = false;
+  private conversationTokenCount = 0;
 
   constructor(options: FakeRuntimeOptions) {
     if (options.testOnly !== true) {
@@ -248,11 +255,27 @@ export class FakeRuntime implements LocalModelRuntime {
     options.onPhase?.('model');
   }
 
-  async createSession(_preface: ModelMessage[]): Promise<void> {
+  async createSession(preface: ModelMessage[]): Promise<void> {
     this.record(
       this.recordResourceLifecycle ? 'conversation.create' : 'createSession',
     );
     this.hasConversation = true;
+    this.conversationTokenCount = preface.reduce(
+      (total, message) => total + estimateTokens(message.content),
+      0,
+    );
+  }
+
+  async getConversationTokenCount(): Promise<number> {
+    this.record('getConversationTokenCount');
+    if (!this.hasConversation) {
+      throw createRuntimeError(
+        'generation-failed',
+        'The test runtime does not have an active conversation.',
+        true,
+      );
+    }
+    return this.conversationTokenCount;
   }
 
   async generate(
@@ -289,6 +312,13 @@ export class FakeRuntime implements LocalModelRuntime {
         handlers.onText(chunk);
       }
 
+      if (!generation.cancelled) {
+        this.conversationTokenCount += estimateTokens(_message);
+        this.conversationTokenCount += estimateTokens(
+          this.responseChunks.join(''),
+        );
+      }
+
       return {
         finishReason: generation.cancelled ? 'cancelled' : 'completed',
       };
@@ -316,6 +346,7 @@ export class FakeRuntime implements LocalModelRuntime {
     this.invalidateActiveGeneration();
     this.configuredFailure('reset');
     this.hasConversation = false;
+    this.conversationTokenCount = 0;
   }
 
   async unload(): Promise<void> {
@@ -330,5 +361,6 @@ export class FakeRuntime implements LocalModelRuntime {
       this.record('sdk.unload');
     this.hasEngine = false;
     this.hasConversation = false;
+    this.conversationTokenCount = 0;
   }
 }

@@ -21,7 +21,6 @@ export const EGREGORE_CONTEXT = {
   maxContextTokens: 8_192,
   systemLimit: 640,
   questionLimit: 384,
-  conversationLimit: 8_192,
   responseReserve: 1_024,
   knowledgeLimit: 6_144,
   estimatorHeadroom: 1_024,

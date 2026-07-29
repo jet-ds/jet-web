@@ -5,7 +5,6 @@ export interface ContextBudget {
   maxContextTokens: number;
   systemLimit: number;
   questionLimit: number;
-  conversationLimit: number;
   responseReserve: number;
   knowledgeLimit: number;
   estimatorHeadroom: number;
@@ -61,9 +60,4 @@ export interface SelectionResult {
   sources: SelectedSource[];
   estimatedTokens: number;
   diagnostics: SelectionDiagnostics;
-}
-
-export interface ConversationHistoryTurn {
-  role: 'user' | 'assistant';
-  content: string;
 }

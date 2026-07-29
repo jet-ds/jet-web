@@ -12,7 +12,6 @@ import {
 } from '../../../src/features/egregore/prompt/assemble';
 import type {
   ContextBudget,
-  ConversationHistoryTurn,
   SelectedSource,
   SelectionResult,
 } from '../../../src/features/egregore/selection/types';
@@ -94,20 +93,13 @@ describe('grounded turn prompt', () => {
   it('uses one stable source-free system preface across turns', () => {
     const firstSource = selectedSource(1, { text: 'FIRST_SOURCE_SENTINEL' });
     const secondSource = selectedSource(2, { text: 'SECOND_SOURCE_SENTINEL' });
-    const history: ConversationHistoryTurn[] = [
-      { role: 'user', content: 'PRIOR_QUESTION_SENTINEL' },
-      { role: 'assistant', content: 'PRIOR_ANSWER_SENTINEL [S1]' },
-    ];
-
     const first = assemblePrompt(
       'First question',
-      [],
       selection([firstSource]),
       budget(),
     );
     const later = assemblePrompt(
       'Later question',
-      history,
       selection([secondSource]),
       budget(),
     );
@@ -137,11 +129,7 @@ describe('grounded turn prompt', () => {
     const selected = selection([adversarial]);
     const sourcePayload = serializeSourcePayload(selected.sources);
     const query = 'What did Jet publish?';
-    const history: ConversationHistoryTurn[] = [
-      { role: 'user', content: 'PRIOR_UI_TURN_SENTINEL' },
-    ];
-
-    const result = assemblePrompt(query, history, selected, budget());
+    const result = assemblePrompt(query, selected, budget());
     const payloadOffset = result.userMessage.indexOf(sourcePayload.serialized);
 
     expect(payloadOffset).toBeGreaterThan(-1);
@@ -152,7 +140,6 @@ describe('grounded turn prompt', () => {
     expect(result.userMessage).toContain('\\\\path\\n');
     expect(result.userMessage).toContain(query);
     expect(result.userMessage).not.toContain(unselected.text);
-    expect(result.userMessage).not.toContain('PRIOR_UI_TURN_SENTINEL');
     expect(result.selectedSources).toEqual([adversarial]);
   });
 
@@ -163,7 +150,7 @@ describe('grounded turn prompt', () => {
       selected.sources,
     ).estimatedTokens;
     const measurement = measureFixedTurnPrompt(query);
-    const result = assemblePrompt(query, [], selected, budget());
+    const result = assemblePrompt(query, selected, budget());
 
     expect(measurement.questionTokens).toBe(estimateTokens(query));
     expect(measurement.fixedTurnTokens).toBe(
@@ -189,7 +176,6 @@ describe('grounded turn prompt', () => {
       () =>
         assemblePrompt(
           'Question',
-          [],
           selected,
           budget({ knowledgeLimit: actualKnowledgeTokens - 1 }),
         ),
@@ -206,7 +192,6 @@ describe('grounded turn prompt', () => {
       () =>
         assemblePrompt(
           'Question',
-          [],
           selection([]),
           budget({ systemLimit: systemTokens - 1 }),
         ),

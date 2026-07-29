@@ -1,7 +1,6 @@
 import type { EgregoreError, EgregoreErrorCode } from '../errors';
 import type {
   ContextBudget,
-  ConversationHistoryTurn,
   SelectedSource,
   SelectionResult,
 } from '../selection/types';
@@ -37,7 +36,6 @@ export interface AssembledPrompt {
   diagnostics: {
     systemTokens: number;
     questionTokens: number;
-    historyTokens: number;
     knowledgeTokens: number;
     responseReserve: number;
     estimatorHeadroom: number;
@@ -68,7 +66,6 @@ export function measureFixedTurnPrompt(query: string): TurnPromptMeasurement {
 
 export function assemblePrompt(
   query: string,
-  _history: readonly ConversationHistoryTurn[],
   selection: SelectionResult,
   budget: ContextBudget,
 ): AssembledPrompt {
@@ -118,7 +115,6 @@ export function assemblePrompt(
     diagnostics: {
       systemTokens,
       questionTokens: measurement.questionTokens,
-      historyTokens: 0,
       knowledgeTokens,
       responseReserve: budget.responseReserve,
       estimatorHeadroom: budget.estimatorHeadroom,

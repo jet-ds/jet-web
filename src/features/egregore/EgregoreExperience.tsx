@@ -306,6 +306,7 @@ function createQualificationRuntime(
     checkCapabilities: () => runtime.checkCapabilities(),
     load: (options) => runtime.load(options),
     createSession: (preface) => runtime.createSession(preface),
+    getConversationTokenCount: () => runtime.getConversationTokenCount(),
     generate: (message, handlers: GenerationHandlers) => {
       emitQualificationObservation('generation-send');
       let observedFirstNonemptyChunk = false;

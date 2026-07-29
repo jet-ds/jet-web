@@ -57,7 +57,6 @@ interface WishedDependencies {
   rankAndPackContext: (input: SelectionInput) => SelectionResult;
   assemblePrompt: (
     query: string,
-    history: Array<{ role: 'user' | 'assistant'; content: string }>,
     selection: SelectionResult,
     budget: ContextBudget,
   ) => AssembledPrompt;
@@ -373,35 +372,28 @@ function createHarness(
     order.push('select');
     return selected;
   });
-  const assemble = vi.fn(
-    (
-      query: string,
-      history: Array<{ role: 'user' | 'assistant'; content: string }>,
-    ) => {
-      order.push('assemble');
-      return {
-        preface: [
-          {
-            role: 'system' as const,
-            content: 'Ground only in the supplied source.',
-          },
-          ...history,
-        ],
-        userMessage: query,
-        selectedSources: [...selected.sources],
-        estimatedTokens: 24,
-        diagnostics: {
-          systemTokens: 8,
-          questionTokens: 4,
-          historyTokens: 0,
-          knowledgeTokens: 8,
-          responseReserve: EGREGORE_CONTEXT.responseReserve,
-          estimatorHeadroom: EGREGORE_CONTEXT.estimatorHeadroom,
-          totalContextTokens: EGREGORE_CONTEXT.maxContextTokens,
+  const assemble = vi.fn((query: string) => {
+    order.push('assemble');
+    return {
+      preface: [
+        {
+          role: 'system' as const,
+          content: 'Ground only in the supplied source.',
         },
-      };
-    },
-  );
+      ],
+      userMessage: query,
+      selectedSources: [...selected.sources],
+      estimatedTokens: 24,
+      diagnostics: {
+        systemTokens: 8,
+        questionTokens: 4,
+        knowledgeTokens: 8,
+        responseReserve: EGREGORE_CONTEXT.responseReserve,
+        estimatorHeadroom: EGREGORE_CONTEXT.estimatorHeadroom,
+        totalContextTokens: EGREGORE_CONTEXT.maxContextTokens,
+      },
+    };
+  });
 
   let nextTurnId = 0;
   const dependencies: WishedDependencies = {
@@ -1027,7 +1019,7 @@ describe('useEgregore activation boundary', () => {
     ['ranked packing', false, true],
     ['empty selection', false, false],
   ] as const)(
-    'passes the %s selection through prompt assembly and response-local sources',
+    'keeps %s response citations scoped to the selected evidence',
     async (_label, completeCorpusIncluded, hasSource) => {
       const useEgregore = await loadSubject();
       const source = selectedSource();
@@ -1048,12 +1040,6 @@ describe('useEgregore activation boundary', () => {
         await result.current.sendMessage('Question');
       });
 
-      expect(harness.assemblePrompt).toHaveBeenCalledWith(
-        'Question',
-        [],
-        selected,
-        EGREGORE_CONTEXT,
-      );
       expect(result.current.state.turns.at(-1)?.citations).toHaveLength(
         hasSource ? 1 : 0,
       );
@@ -1267,15 +1253,6 @@ describe('useEgregore activation boundary', () => {
       await result.current.sendMessage('Retry this exact question');
     });
 
-    const retryAssemblies = harness.assemblePrompt.mock.calls.filter(
-      ([question]) => question === 'Retry this exact question',
-    );
-    expect(retryAssemblies).toHaveLength(2);
-    expect(retryAssemblies[0]?.[1]).toEqual(retryAssemblies[1]?.[1]);
-    expect(retryAssemblies[1]?.[1]).toEqual([
-      { role: 'user', content: 'Prior complete question' },
-      { role: 'assistant', content: 'Grounded answer [S1].' },
-    ]);
     expect(harness.runtime.generationMessages).toEqual([
       'Prior complete question',
       'Retry this exact question',
@@ -2549,10 +2526,6 @@ describe('EgregoreExperience production composition', () => {
     });
     fireEvent.click(screen.getByRole('button', { name: 'Send message' }));
     await screen.findByRole('link', { name: '[S1] Grounded source' });
-    const priorTranscript = [
-      { role: 'user', content: 'Prior complete question' },
-      { role: 'assistant', content: 'Grounded answer [S1].' },
-    ];
     harness.runtime.failNextGeneration();
 
     fireEvent.change(composer, {
@@ -2582,13 +2555,6 @@ describe('EgregoreExperience production composition', () => {
         'Retry this exact question',
       ]),
     );
-
-    const retryAssemblies = harness.assemblePrompt.mock.calls.filter(
-      ([question]) => question === 'Retry this exact question',
-    );
-    expect(retryAssemblies).toHaveLength(2);
-    expect(retryAssemblies[0]?.[1]).toEqual(priorTranscript);
-    expect(retryAssemblies[1]?.[1]).toEqual(priorTranscript);
   });
 
   it('keeps suggestions dismissed after a first-ever generation failure and recovery', async () => {

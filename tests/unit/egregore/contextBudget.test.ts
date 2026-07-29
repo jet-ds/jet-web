@@ -6,7 +6,6 @@ const BASE_BUDGET: ContextBudget = {
   maxContextTokens: 100,
   systemLimit: 20,
   questionLimit: 8,
-  conversationLimit: 100,
   responseReserve: 20,
   knowledgeLimit: 60,
   estimatorHeadroom: 10,

@@ -22,7 +22,15 @@ interface StreamMessage {
 interface FakeConversation {
   sendMessageStreaming: ReturnType<typeof vi.fn>;
   cancel: ReturnType<typeof vi.fn>;
+  getTokenCount: ReturnType<typeof vi.fn>;
   delete: ReturnType<typeof vi.fn>;
+}
+
+interface FakeDevice {
+  queue: {
+    onSubmittedWorkDone: ReturnType<typeof vi.fn>;
+  };
+  destroy: ReturnType<typeof vi.fn>;
 }
 
 interface FakeEngine {
@@ -93,10 +101,12 @@ function fakeConversation(
   stream: ReadableStream<StreamMessage> = streamFrom([]),
   calls: string[] = [],
   name = 'conversation',
+  tokenCount = 0,
 ): FakeConversation {
   return {
     sendMessageStreaming: vi.fn(() => stream),
     cancel: vi.fn(() => calls.push(`${name}.cancel`)),
+    getTokenCount: vi.fn(async () => tokenCount),
     delete: vi.fn(async () => {
       calls.push(`${name}.delete`);
     }),
@@ -126,6 +136,8 @@ function runtimeHarness(
     engines?: FakeEngine[];
     loadLiteRtLm?: (path: string) => Promise<unknown>;
     unloadLiteRtLm?: () => void;
+    device?: FakeDevice;
+    onDeviceReferenceChange?: (device: FakeDevice | undefined) => void;
   } = {},
 ) {
   const calls: string[] = [];
@@ -150,10 +162,25 @@ function runtimeHarness(
     if (!engine) throw new Error('No fake engine remains.');
     return engine;
   });
+  let retainedDevice = options.device;
+  const liteRtLmWasm = {} as {
+    preinitializedWebGPUDevice?: FakeDevice;
+  };
+  Object.defineProperty(liteRtLmWasm, 'preinitializedWebGPUDevice', {
+    configurable: true,
+    get: () => retainedDevice,
+    set: (device: FakeDevice | undefined) => {
+      retainedDevice = device;
+      options.onDeviceReferenceChange?.(device);
+    },
+  });
   const module = {
     Engine: { create },
     loadLiteRtLm,
     unloadLiteRtLm,
+    getGlobalLiteRtLm: vi.fn(() => ({
+      liteRtLmWasm,
+    })),
   };
   const loadModule = vi.fn(async () => {
     calls.push('loadModule');
@@ -208,7 +235,7 @@ describe('LiteRT-LM Gemma runtime', () => {
     expect(create).toHaveBeenCalledWith({
       model: modelSource,
       mainExecutorSettings: {
-        maxNumTokens: 16_384,
+        maxNumTokens: 8_192,
       },
     });
     const engineSettings = create.mock.calls[0]?.[0] as { model: unknown };
@@ -265,12 +292,25 @@ describe('LiteRT-LM Gemma runtime', () => {
       },
     });
     expect(EGREGORE_CONTEXT.responseReserve).toBe(1_024);
-    expect(
-      EGREGORE_CONTEXT.maxContextTokens -
-        EGREGORE_CONTEXT.responseReserve -
-        EGREGORE_CONTEXT.estimatorHeadroom,
-    ).toBe(12_083);
-    expect(EGREGORE_CONTEXT.estimatorHeadroom).toBe(3_277);
+    expect(EGREGORE_CONTEXT.maxContextTokens).toBe(8_192);
+    expect(EGREGORE_CONTEXT.estimatorHeadroom).toBe(1_024);
+  });
+
+  it('reports the token count of the active LiteRT conversation', async () => {
+    const conversation = fakeConversation(
+      streamFrom([]),
+      [],
+      'conversation',
+      73,
+    );
+    const engine = fakeEngine([conversation]);
+    const { runtime } = runtimeHarness({ engines: [engine] });
+
+    await runtime.load({});
+    await runtime.createSession([]);
+
+    await expect(runtime.getConversationTokenCount()).resolves.toBe(73);
+    expect(conversation.getTokenCount).toHaveBeenCalledOnce();
   });
 
   it('deletes an existing conversation before creating its replacement', async () => {
@@ -536,7 +576,10 @@ describe('LiteRT-LM Gemma runtime', () => {
 
     await expect(generation).resolves.toEqual({ finishReason: 'cancelled' });
     expect(fragments).toEqual(['keep']);
-    await runtime.unload();
+    await expect(runtime.unload()).rejects.toMatchObject({
+      code: 'engine-cleanup-failed',
+      cleanupFailures: ['generation'],
+    });
     expect(conversation.delete).toHaveBeenCalledTimes(1);
   });
 
@@ -639,8 +682,34 @@ describe('LiteRT-LM Gemma runtime', () => {
       calls,
       'fresh-engine',
     );
+    const device: FakeDevice = {
+      queue: {
+        onSubmittedWorkDone: vi
+          .fn()
+          .mockImplementationOnce(async () => {
+            calls.push('device.queue.onSubmittedWorkDone');
+            throw new Error('PRIVATE_QUEUE_SENTINEL');
+          })
+          .mockImplementation(async () => {
+            calls.push('device.queue.onSubmittedWorkDone');
+          }),
+      },
+      destroy: vi
+        .fn()
+        .mockImplementationOnce(() => {
+          calls.push('device.destroy');
+          throw new Error('PRIVATE_DEVICE_SENTINEL');
+        })
+        .mockImplementation(() => {
+          calls.push('device.destroy');
+        }),
+    };
     const { loadModule, runtime, unloadLiteRtLm } = runtimeHarness({
       engines: [firstEngine, secondEngine],
+      device,
+      onDeviceReferenceChange: (nextDevice) => {
+        if (nextDevice === undefined) calls.push('device.reference.clear');
+      },
       unloadLiteRtLm: vi
         .fn()
         .mockImplementationOnce(() => {
@@ -666,11 +735,20 @@ describe('LiteRT-LM Gemma runtime', () => {
       'conversation.cancel',
       'conversation.delete',
       'engine.delete',
+      'device.queue.onSubmittedWorkDone',
+      'device.destroy',
+      'device.reference.clear',
       'unloadLiteRtLm',
     ]);
     expect(cleanupError).toMatchObject({
       code: 'engine-cleanup-failed',
-      cleanupFailures: ['conversation', 'engine', 'runtime'],
+      cleanupFailures: [
+        'conversation',
+        'engine',
+        'device-queue',
+        'device',
+        'runtime',
+      ],
     });
     expect(JSON.stringify(cleanupError)).not.toMatch(/PRIVATE|PROMPT|RESPONSE/);
     expect(unloadLiteRtLm).toHaveBeenCalledTimes(1);
@@ -685,6 +763,8 @@ describe('LiteRT-LM Gemma runtime', () => {
     expect(calls).toEqual([
       'conversation.delete',
       'engine.delete',
+      'device.queue.onSubmittedWorkDone',
+      'device.destroy',
       'unloadLiteRtLm',
     ]);
 

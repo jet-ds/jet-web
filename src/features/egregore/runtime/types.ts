@@ -50,6 +50,7 @@ export interface LocalModelRuntime {
   checkCapabilities(): Promise<CapabilityReport>;
   load(options: LoadOptions): Promise<void>;
   createSession(preface: ModelMessage[]): Promise<void>;
+  getConversationTokenCount(): Promise<number>;
   generate(
     message: string,
     handlers: GenerationHandlers,

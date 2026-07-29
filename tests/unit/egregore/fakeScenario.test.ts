@@ -226,6 +226,10 @@ describe('Egregore fake browser scenarios', () => {
         createSession: async () => {
           forwarded.push('createSession');
         },
+        getConversationTokenCount: async () => {
+          forwarded.push('getConversationTokenCount');
+          return 17;
+        },
         generate: async () => {
           forwarded.push('generate');
           return { finishReason: 'completed' };
@@ -251,6 +255,7 @@ describe('Egregore fake browser scenarios', () => {
     await runtime.createSession([
       { role: 'system', content: 'PRIVATE_PREFACE' },
     ]);
+    await expect(runtime.getConversationTokenCount()).resolves.toBe(17);
     await runtime.generate('PRIVATE_PROMPT', { onText: () => undefined });
     runtime.cancel();
     await runtime.reset();
@@ -260,6 +265,7 @@ describe('Egregore fake browser scenarios', () => {
       'checkCapabilities',
       'load',
       'createSession',
+      'getConversationTokenCount',
       'generate',
       'cancel',
       'reset',

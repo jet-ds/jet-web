@@ -18,7 +18,6 @@ import {
 } from '../runtime/modelArtifactStore';
 import type {
   ContextBudget,
-  ConversationHistoryTurn,
   SelectionInput,
   SelectionResult,
   SelectedSource,
@@ -37,7 +36,6 @@ export interface EgregoreDependencies {
   rankAndPackContext: (input: SelectionInput) => SelectionResult;
   assemblePrompt: (
     query: string,
-    history: ConversationHistoryTurn[],
     selection: SelectionResult,
     budget: ContextBudget,
   ) => AssembledPrompt;
@@ -385,13 +383,9 @@ export function useEgregore(
       )
         return;
 
+      const completeTurns = stateRef.current.turns;
       const operationId = ++operationRef.current;
       stoppedOperationRef.current = null;
-      const completeTurns = stateRef.current.turns;
-      const history = completeTurns.map(({ role, content }) => ({
-        role,
-        content,
-      }));
       let assembled: AssembledPrompt;
       try {
         const selection = dependenciesRef.current.rankAndPackContext({
@@ -401,7 +395,6 @@ export function useEgregore(
         });
         assembled = dependenciesRef.current.assemblePrompt(
           cleanQuestion,
-          history,
           selection,
           dependenciesRef.current.contextBudget ?? EGREGORE_CONTEXT,
         );

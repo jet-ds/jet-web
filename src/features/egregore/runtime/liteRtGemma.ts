@@ -18,7 +18,25 @@ type LiteRtConversation = Awaited<
   ReturnType<LiteRtEngine['createConversation']>
 >;
 
-type CleanupFailure = 'conversation' | 'engine' | 'runtime';
+type CleanupFailure =
+  | 'generation'
+  | 'session'
+  | 'conversation'
+  | 'engine'
+  | 'device-queue'
+  | 'device'
+  | 'device-reference'
+  | 'runtime';
+
+interface PendingDeviceCleanup {
+  device: GPUDevice;
+  owner: {
+    preinitializedWebGPUDevice?: GPUDevice;
+  };
+  queuePending: boolean;
+  destroyPending: boolean;
+  referencePending: boolean;
+}
 
 type CleanupRuntimeError = RuntimeError & {
   cleanupFailures: readonly CleanupFailure[];
@@ -60,6 +78,8 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
   private pendingConversationCleanup: LiteRtConversation | null = null;
   private pendingEngineCleanup: LiteRtEngine | null = null;
   private pendingRuntimeCleanup: LiteRtModule | null = null;
+  private deviceResource: PendingDeviceCleanup | null = null;
+  private pendingDeviceCleanup: PendingDeviceCleanup | null = null;
   private activeConversationCleanup: Promise<CleanupFailure[]> | null = null;
   private activeResourceCleanup: Promise<CleanupFailure[]> | null = null;
   private loadOperation: LoadOperation | null = null;
@@ -118,6 +138,7 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
   ): Promise<void> {
     let liteRt: LiteRtModule | null = null;
     let engine: LiteRtEngine | null = null;
+    let deviceResource: PendingDeviceCleanup | null = null;
 
     try {
       liteRt = await this.loadModule();
@@ -141,20 +162,26 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
           maxNumTokens: EGREGORE_CONTEXT.maxContextTokens,
         },
       });
+      deviceResource = this.captureDeviceResource(liteRt);
       if (operation.stopRequested) {
         this.liteRt = null;
-        this.adoptPendingCleanup(engine, liteRt);
+        this.adoptPendingCleanup(engine, liteRt, deviceResource);
         const failures = await this.cleanupPendingResources();
         if (failures.length > 0) throw cleanupRuntimeError(failures);
         return;
       }
 
       this.engine = engine;
+      this.deviceResource = deviceResource;
     } catch (cause) {
       if (isCleanupRuntimeError(cause)) throw cause;
       this.engine = null;
       this.liteRt = null;
-      this.adoptPendingCleanup(engine, liteRt);
+      this.adoptPendingCleanup(
+        engine,
+        liteRt,
+        deviceResource ?? this.captureDeviceResource(liteRt),
+      );
       const failures = await this.cleanupPendingResources();
       if (failures.length > 0) throw cleanupRuntimeError(failures);
       if (isRuntimeError(cause)) throw cause;
@@ -313,6 +340,28 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
     }
   }
 
+  async getConversationTokenCount(): Promise<number> {
+    const conversation = this.conversation;
+    if (!conversation) {
+      throw createRuntimeError(
+        'generation-failed',
+        'Egregore does not have an active conversation.',
+        true,
+      );
+    }
+
+    try {
+      return await conversation.getTokenCount();
+    } catch (cause) {
+      throw createRuntimeError(
+        'generation-failed',
+        'Egregore could not measure the local conversation.',
+        true,
+        cause,
+      );
+    }
+  }
+
   cancel(): void {
     this.invalidateGeneration();
     this.invalidateSessionCreation();
@@ -321,27 +370,39 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
   }
 
   async reset(): Promise<void> {
+    const failures: CleanupFailure[] = [];
+    let sessionCleanupAttempted = false;
     this.invalidateGeneration();
     this.invalidateSessionCreation();
     const conversation = this.conversation;
     this.conversation = null;
-    this.cancelConversation(conversation);
+    if (!this.cancelConversation(conversation)) failures.push('generation');
     if (conversation) this.pendingConversationCleanup = conversation;
 
-    await this.waitForActiveSessionCreation();
+    try {
+      await this.waitForActiveSessionCreation();
+    } catch (cause) {
+      sessionCleanupAttempted = isCleanupRuntimeError(cause);
+      this.collectCleanupCause(failures, cause, 'session');
+    }
 
-    const failures = await this.cleanupPendingConversation();
+    if (!sessionCleanupAttempted) {
+      failures.push(...(await this.cleanupPendingConversation()));
+    }
     if (failures.length > 0) throw cleanupRuntimeError(failures);
   }
 
   async unload(): Promise<void> {
+    const failures: CleanupFailure[] = [];
+    let sessionCleanupAttempted = false;
+    let loadCleanupAttempted = false;
     this.invalidateGeneration();
     this.invalidateSessionCreation();
     if (this.loadOperation) this.loadOperation.stopRequested = true;
 
     const conversation = this.conversation;
     this.conversation = null;
-    this.cancelConversation(conversation);
+    if (!this.cancelConversation(conversation)) failures.push('generation');
     if (conversation) this.pendingConversationCleanup = conversation;
 
     const activeSessionCreation = this.activeSessionCreation;
@@ -352,7 +413,8 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
       try {
         await activeSessionCreation;
       } catch (cause) {
-        if (isCleanupRuntimeError(cause)) throw cause;
+        sessionCleanupAttempted = isCleanupRuntimeError(cause);
+        this.collectCleanupCause(failures, cause, 'session');
       }
     }
 
@@ -361,17 +423,26 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
       try {
         await activeLoad;
       } catch (cause) {
-        if (isCleanupRuntimeError(cause)) throw cause;
+        if (isCleanupRuntimeError(cause)) {
+          loadCleanupAttempted = true;
+          failures.push(...cause.cleanupFailures);
+        }
         // A model-load failure reports through load(); cleanup still continues here.
       }
     }
 
-    this.adoptPendingCleanup(this.engine, this.liteRt);
+    this.adoptPendingCleanup(this.engine, this.liteRt, this.deviceResource);
     this.engine = null;
     this.liteRt = null;
+    this.deviceResource = null;
 
-    const failures = await this.cleanupPendingResources();
-    if (failures.length > 0) throw cleanupRuntimeError(failures);
+    if (!loadCleanupAttempted) {
+      failures.push(
+        ...(await this.cleanupPendingResources(sessionCleanupAttempted)),
+      );
+    }
+    const uniqueFailures = [...new Set(failures)];
+    if (uniqueFailures.length > 0) throw cleanupRuntimeError(uniqueFailures);
   }
 
   private invalidateGeneration(): void {
@@ -390,12 +461,14 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
     return this.sessionCreationEpoch === epoch && this.engine === engine;
   }
 
-  private cancelConversation(conversation: LiteRtConversation | null): void {
-    if (!conversation) return;
+  private cancelConversation(conversation: LiteRtConversation | null): boolean {
+    if (!conversation) return true;
     try {
       conversation.cancel();
+      return true;
     } catch {
       // The public cancellation contract is synchronous and content-free.
+      return false;
     }
   }
 
@@ -421,16 +494,51 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
     return (
       this.pendingConversationCleanup !== null ||
       this.pendingEngineCleanup !== null ||
-      this.pendingRuntimeCleanup !== null
+      this.pendingRuntimeCleanup !== null ||
+      this.pendingDeviceCleanup !== null
     );
   }
 
   private adoptPendingCleanup(
     engine: LiteRtEngine | null,
     liteRt: LiteRtModule | null,
+    deviceResource: PendingDeviceCleanup | null = this.deviceResource,
   ): void {
     if (engine) this.pendingEngineCleanup = engine;
     if (liteRt) this.pendingRuntimeCleanup = liteRt;
+    if (deviceResource) this.pendingDeviceCleanup = deviceResource;
+  }
+
+  private captureDeviceResource(
+    liteRt: LiteRtModule | null,
+  ): PendingDeviceCleanup | null {
+    if (!liteRt) return null;
+    try {
+      const owner = liteRt.getGlobalLiteRtLm().liteRtLmWasm;
+      const device = owner.preinitializedWebGPUDevice;
+      if (!device) return null;
+      return {
+        device,
+        owner,
+        queuePending: true,
+        destroyPending: true,
+        referencePending: true,
+      };
+    } catch {
+      return null;
+    }
+  }
+
+  private collectCleanupCause(
+    failures: CleanupFailure[],
+    cause: unknown,
+    fallback: CleanupFailure,
+  ): void {
+    if (isCleanupRuntimeError(cause)) {
+      failures.push(...cause.cleanupFailures);
+      return;
+    }
+    failures.push(fallback);
   }
 
   private async cleanupPendingConversation(): Promise<CleanupFailure[]> {
@@ -467,10 +575,12 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
     return failures;
   }
 
-  private async cleanupPendingResources(): Promise<CleanupFailure[]> {
+  private async cleanupPendingResources(
+    skipConversation = false,
+  ): Promise<CleanupFailure[]> {
     if (this.activeResourceCleanup) return this.activeResourceCleanup;
 
-    const cleanup = this.performPendingResourceCleanup();
+    const cleanup = this.performPendingResourceCleanup(skipConversation);
     this.activeResourceCleanup = cleanup;
     try {
       return await cleanup;
@@ -481,8 +591,12 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
     }
   }
 
-  private async performPendingResourceCleanup(): Promise<CleanupFailure[]> {
-    const failures = await this.cleanupPendingConversation();
+  private async performPendingResourceCleanup(
+    skipConversation: boolean,
+  ): Promise<CleanupFailure[]> {
+    const failures = skipConversation
+      ? []
+      : await this.cleanupPendingConversation();
     const engine = this.pendingEngineCleanup;
 
     if (engine) {
@@ -496,6 +610,8 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
       }
     }
 
+    failures.push(...(await this.cleanupPendingDevice()));
+
     const liteRt = this.pendingRuntimeCleanup;
     if (liteRt) {
       try {
@@ -505,6 +621,50 @@ export class LiteRtGemmaRuntime implements LocalModelRuntime {
         }
       } catch {
         failures.push('runtime');
+      }
+    }
+
+    return failures;
+  }
+
+  private async cleanupPendingDevice(): Promise<CleanupFailure[]> {
+    const failures: CleanupFailure[] = [];
+    const resource = this.pendingDeviceCleanup;
+    if (!resource) return failures;
+
+    if (resource.queuePending) {
+      try {
+        await resource.device.queue.onSubmittedWorkDone();
+        resource.queuePending = false;
+      } catch {
+        failures.push('device-queue');
+      }
+    }
+
+    if (resource.destroyPending) {
+      try {
+        resource.device.destroy();
+        resource.destroyPending = false;
+        resource.queuePending = false;
+      } catch {
+        failures.push('device');
+      }
+    }
+
+    if (resource.referencePending) {
+      try {
+        if (resource.owner.preinitializedWebGPUDevice === resource.device) {
+          resource.owner.preinitializedWebGPUDevice = undefined;
+        }
+        resource.referencePending = false;
+      } catch {
+        failures.push('device-reference');
+      }
+    }
+
+    if (!resource.destroyPending && !resource.referencePending) {
+      if (this.pendingDeviceCleanup === resource) {
+        this.pendingDeviceCleanup = null;
       }
     }
 
