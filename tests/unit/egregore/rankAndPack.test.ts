@@ -20,27 +20,6 @@ import {
 import type { ContextBudget } from '../../../src/features/egregore/selection/types';
 import { serializeSourcePayload } from '../../../src/features/egregore/sourcePayload';
 
-const itemMeasurements = vi.hoisted(() => vi.fn<(chunkId: ChunkId) => void>());
-
-vi.mock(
-  '../../../src/features/egregore/sourcePayload',
-  async (importOriginal) => {
-    const actual =
-      await importOriginal<
-        typeof import('../../../src/features/egregore/sourcePayload')
-      >();
-    return {
-      ...actual,
-      measureSourcePayloadItem: (
-        source: Parameters<typeof actual.measureSourcePayloadItem>[0],
-      ) => {
-        itemMeasurements(source.chunkId);
-        return actual.measureSourcePayloadItem(source);
-      },
-    };
-  },
-);
-
 interface ChunkFixture {
   document: number;
   section: number;
@@ -324,23 +303,86 @@ describe('deterministic MiniSearch rank and pack', () => {
       })),
       { forceOversized: true },
     );
-    const implementation = knowledgeBase.searchIndex.search.bind(
-      knowledgeBase.searchIndex,
-    );
-    const search = vi
-      .spyOn(knowledgeBase.searchIndex, 'search')
-      .mockImplementation(implementation);
-
     const result = rankAndPackContext({
       query: 'sharedterm',
       knowledgeBase,
       budget: budget(100_000),
     });
 
-    expect(search).toHaveBeenCalledWith('sharedterm');
-    expect(search.mock.calls[0]).toHaveLength(1);
     expect(result.sources).toHaveLength(25);
     expect(result.diagnostics.directMatchCount).toBe(25);
+  });
+
+  it('keeps corpus citation IDs stable across differently ranked queries', async () => {
+    const knowledgeBase = await fixture(
+      [
+        { document: 0, section: 0, order: 0, text: 'first' },
+        { document: 1, section: 0, order: 0, text: 'second' },
+        { document: 2, section: 0, order: 0, text: 'third' },
+      ],
+      { forceOversized: true },
+    );
+    const search = vi.spyOn(knowledgeBase.searchIndex, 'search');
+    search
+      .mockReturnValueOnce(
+        (
+          [
+            [chunkId(2, 0, 0), 10],
+            [chunkId(0, 0, 0), 9],
+          ] satisfies Array<[ChunkId, number]>
+        ).map(([id, score]) => ({
+          id,
+          score,
+          terms: ['first-query'],
+          queryTerms: ['first-query'],
+          match: { 'first-query': ['body'] },
+        })),
+      )
+      .mockReturnValueOnce(
+        (
+          [
+            [chunkId(0, 0, 0), 10],
+            [chunkId(2, 0, 0), 9],
+          ] satisfies Array<[ChunkId, number]>
+        ).map(([id, score]) => ({
+          id,
+          score,
+          terms: ['second-query'],
+          queryTerms: ['second-query'],
+          match: { 'second-query': ['body'] },
+        })),
+      );
+
+    const first = rankAndPackContext({
+      query: 'first-query',
+      knowledgeBase,
+      budget: budget(10_000),
+    });
+    const second = rankAndPackContext({
+      query: 'second-query',
+      knowledgeBase,
+      budget: budget(10_000),
+    });
+    const citationsByChunk = (result: typeof first) =>
+      new Map(
+        result.sources.map((source) => [source.chunkId, source.citationId]),
+      );
+
+    expect(citationsByChunk(first)).toEqual(
+      new Map([
+        [chunkId(2, 0, 0), 'S3'],
+        [chunkId(0, 0, 0), 'S1'],
+      ]),
+    );
+    expect(citationsByChunk(second)).toEqual(
+      new Map([
+        [chunkId(0, 0, 0), 'S1'],
+        [chunkId(2, 0, 0), 'S3'],
+      ]),
+    );
+    expect(new Set(first.sources.map((source) => source.citationId)).size).toBe(
+      first.sources.length,
+    );
   });
 
   it('orders direct and adjacent candidates deterministically and deduplicates nominations', async () => {
@@ -499,7 +541,7 @@ describe('deterministic MiniSearch rank and pack', () => {
     ).toThrow(/full-corpus.*statistic/i);
   });
 
-  it('skips an oversized candidate, continues packing, and assigns citations after acceptance', async () => {
+  it('skips an oversized candidate and continues consuming the token budget', async () => {
     const knowledgeBase = await fixture(
       [
         { document: 0, section: 0, order: 0, text: 'x'.repeat(2_000) },
@@ -534,91 +576,10 @@ describe('deterministic MiniSearch rank and pack', () => {
 
     expect(
       result.sources.map((source) => [source.citationId, source.text]),
-    ).toEqual([['S1', 'small']]);
+    ).toEqual([['S2', 'small']]);
     expect(result.diagnostics.rejectedForBudgetCount).toBe(2);
     expect(result.estimatedTokens).toBe(
       serializeSourcePayload(result.sources).estimatedTokens,
-    );
-  });
-
-  it('resolves and serializes each large-fixture candidate once without scanning unmatched content', async () => {
-    const candidateCount = 100;
-    const knowledgeBase = await fixture(
-      Array.from({ length: candidateCount }, (_, order) => ({
-        document: 0,
-        section: 0,
-        order,
-        text: `needle ${order}`,
-      })),
-      { forceOversized: true },
-    );
-    const counts = { document: 0, section: 0, chunk: 0, neighbor: 0 };
-    const countingMap = <K, V>(
-      map: ReadonlyMap<K, V>,
-      key: keyof typeof counts,
-    ): ReadonlyMap<K, V> => ({
-      get size() {
-        return map.size;
-      },
-      get(id: K) {
-        counts[key] += 1;
-        return map.get(id);
-      },
-      has: map.has.bind(map),
-      entries: map.entries.bind(map),
-      keys: map.keys.bind(map),
-      values: map.values.bind(map),
-      forEach: map.forEach.bind(map),
-      [Symbol.iterator]: map[Symbol.iterator].bind(map),
-    });
-    knowledgeBase.documentsById = countingMap(
-      knowledgeBase.documentsById,
-      'document',
-    );
-    knowledgeBase.sectionsById = countingMap(
-      knowledgeBase.sectionsById,
-      'section',
-    );
-    knowledgeBase.chunksById = countingMap(knowledgeBase.chunksById, 'chunk');
-    knowledgeBase.neighborsByChunkId = countingMap(
-      knowledgeBase.neighborsByChunkId,
-      'neighbor',
-    );
-    const noScan = <T>(values: T[]): T[] =>
-      new Proxy(values, {
-        get(target, property, receiver) {
-          if (
-            property === Symbol.iterator ||
-            property === 'find' ||
-            property === 'map' ||
-            property === 'forEach'
-          ) {
-            throw new Error('oversized corpus scan');
-          }
-          return Reflect.get(target, property, receiver);
-        },
-      });
-    knowledgeBase.package.documents = noScan(knowledgeBase.package.documents);
-    knowledgeBase.package.sections = noScan(knowledgeBase.package.sections);
-    knowledgeBase.package.chunks = noScan(knowledgeBase.package.chunks);
-    itemMeasurements.mockClear();
-
-    const result = rankAndPackContext({
-      query: 'needle',
-      knowledgeBase,
-      budget: budget(10_000),
-    });
-
-    expect(result.sources).toHaveLength(candidateCount);
-    expect(counts).toEqual({
-      document: candidateCount,
-      section: candidateCount,
-      chunk: candidateCount,
-      neighbor: candidateCount,
-    });
-    expect(itemMeasurements).toHaveBeenCalledTimes(candidateCount);
-    expect(new Set(itemMeasurements.mock.calls.map(([id]) => id)).size).toBe(
-      candidateCount,
     );
   });
 

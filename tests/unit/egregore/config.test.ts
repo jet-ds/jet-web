@@ -23,14 +23,15 @@ describe('Egregore configuration', () => {
     ]);
   });
 
-  it('reserves context headroom', () => {
-    expect(EGREGORE_CONTEXT.knowledgeLimit).toBe(9_011);
-    expect(EGREGORE_CONTEXT.maxContextTokens).toBe(16_384);
+  it('bounds local context and reserves capacity outside retrieval', () => {
+    expect(EGREGORE_CONTEXT.maxContextTokens).toBe(8_192);
     expect(
-      Object.entries(EGREGORE_CONTEXT)
-        .filter(([key]) => key !== 'maxContextTokens')
-        .reduce((sum, [, value]) => sum + value, 0),
-    ).toBe(16_384);
+      EGREGORE_CONTEXT.knowledgeLimit +
+        EGREGORE_CONTEXT.responseReserve +
+        EGREGORE_CONTEXT.estimatorHeadroom,
+    ).toBe(EGREGORE_CONTEXT.maxContextTokens);
+    expect(EGREGORE_CONTEXT.responseReserve).toBeGreaterThan(0);
+    expect(EGREGORE_CONTEXT.estimatorHeadroom).toBeGreaterThan(0);
   });
 
   it('uses same-origin corpus and runtime paths without duplicating the public license route', () => {

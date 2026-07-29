@@ -18,13 +18,13 @@ export const EGREGORE_MODEL_CACHE = {
 } as const;
 
 export const EGREGORE_CONTEXT = {
-  maxContextTokens: 16_384,
+  maxContextTokens: 8_192,
   systemLimit: 640,
   questionLimit: 384,
-  conversationLimit: 2_048,
+  conversationLimit: 8_192,
   responseReserve: 1_024,
-  knowledgeLimit: 9_011,
-  estimatorHeadroom: 3_277,
+  knowledgeLimit: 6_144,
+  estimatorHeadroom: 1_024,
 } as const;
 
 export const EGREGORE_PATHS = {

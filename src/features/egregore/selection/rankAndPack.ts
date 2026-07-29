@@ -2,6 +2,7 @@ import type {
   ChunkId,
   KnowledgeChunk,
   KnowledgeDocument,
+  KnowledgePackage,
   KnowledgeSection,
   SectionId,
 } from '../corpus/types';
@@ -22,6 +23,26 @@ interface Candidate {
 interface ExpansionNomination {
   score: number;
   sectionId: SectionId;
+}
+
+const citationIdsByPackage = new WeakMap<
+  KnowledgePackage,
+  ReadonlyMap<ChunkId, `S${number}`>
+>();
+
+function canonicalCitationIds(
+  knowledgePackage: KnowledgePackage,
+): ReadonlyMap<ChunkId, `S${number}`> {
+  const cached = citationIdsByPackage.get(knowledgePackage);
+  if (cached !== undefined) {
+    return cached;
+  }
+  const ids = new Map<ChunkId, `S${number}`>();
+  knowledgePackage.chunks.forEach((chunk, index) => {
+    ids.set(chunk.id, `S${index + 1}`);
+  });
+  citationIdsByPackage.set(knowledgePackage, ids);
+  return ids;
 }
 
 function compareText(left: string, right: string): number {
@@ -122,6 +143,7 @@ function nominateExpansion(
 export function rankAndPackContext(input: SelectionInput): SelectionResult {
   const startedAt = performance.now();
   const { knowledgeBase } = input;
+  const citationIds = canonicalCitationIds(knowledgeBase.package);
   const rawResults = knowledgeBase.searchIndex
     .search(input.query)
     .sort(
@@ -207,7 +229,12 @@ export function rankAndPackContext(input: SelectionInput): SelectionResult {
   let serializedCharacters = 2;
   let rejectedForBudgetCount = 0;
   for (const candidate of candidates) {
-    const citationId = `S${sources.length + 1}` as const;
+    const citationId = citationIds.get(candidate.chunk.id);
+    if (citationId === undefined) {
+      throw new Error(
+        `Chunk is missing from the canonical corpus order: ${candidate.chunk.id}`,
+      );
+    }
     const source = selectedSource(candidate, citationId, input);
     const item = measureSourcePayloadItem(source);
     const nextCharacters =
