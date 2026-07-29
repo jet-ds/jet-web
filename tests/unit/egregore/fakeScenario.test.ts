@@ -473,27 +473,39 @@ describe('Egregore fake browser scenarios', () => {
     expect(chunks).toEqual(['Second [S3], then first [S17].']);
   });
 
-  it('rejects an unavailable source ordinal split across chunks before emitting text', async () => {
-    const chunks: string[] = [];
-    const runtime = new FakeRuntime({
-      testOnly: true,
+  it.each([
+    {
+      form: 'contiguous',
+      responseChunks: ['Unsupported {{SOURCE_3}} ordinal.'],
+    },
+    {
+      form: 'split across chunks',
       responseChunks: ['Unsupported {{SOURCE_', '3}} ordinal.'],
-    });
-    await runtime.load({ modelSource: 'test-model' });
-    await runtime.createSession([
-      { role: 'system', content: 'Use the published corpus.' },
-    ]);
+    },
+  ])(
+    'rejects an unavailable source ordinal when $form before emitting text',
+    async ({ responseChunks }) => {
+      const chunks: string[] = [];
+      const runtime = new FakeRuntime({
+        testOnly: true,
+        responseChunks,
+      });
+      await runtime.load({ modelSource: 'test-model' });
+      await runtime.createSession([
+        { role: 'system', content: 'Use the published corpus.' },
+      ]);
 
-    await expect(
-      runtime.generate(
-        'Current untrusted sources (JSON):\n' +
-          '[{"citationId":"S9"},{"citationId":"S3"}]\n\n' +
-          'Current question:\nCompare them.',
-        { onText: (chunk) => chunks.push(chunk) },
-      ),
-    ).rejects.toMatchObject({ code: 'generation-failed' });
-    expect(chunks).toEqual([]);
-  });
+      await expect(
+        runtime.generate(
+          'Current untrusted sources (JSON):\n' +
+            '[{"citationId":"S9"},{"citationId":"S3"}]\n\n' +
+            'Current question:\nCompare them.',
+          { onText: (chunk) => chunks.push(chunk) },
+        ),
+      ).rejects.toMatchObject({ code: 'generation-failed' });
+      expect(chunks).toEqual([]);
+    },
+  );
 
   it('requires a loaded engine and active conversation before generation', async () => {
     const runtime = new FakeRuntime({ testOnly: true });
