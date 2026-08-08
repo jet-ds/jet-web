@@ -1275,6 +1275,9 @@ test('the telemetry study is published across discovery, schema, and assistant s
 
   await page.goto(`/works/${slug}/`);
   await expect(
+    page.locator('time[datetime="2026-08-01T00:00:00.000Z"]'),
+  ).toHaveText('August 2026');
+  await expect(
     page.getByRole('link', { name: 'View on SSRN' }),
   ).toHaveAttribute('href', doi);
   await expect(page.getByRole('heading', { name: 'Citation' })).toBeVisible();
