@@ -845,7 +845,7 @@ export default function EgregoreExperience({
       onPointerDownCapture={handlePointerDownCapture}
       onKeyDownCapture={handleInteractionKeyDownCapture}
     >
-      <header className="egregore-header relative z-10 flex items-center justify-between gap-s px-gutter max-[399px]:gap-2xs">
+      <header className="egregore-header relative z-10 flex items-center justify-between gap-s px-gutter max-[399px]:gap-3xs">
         <div className="flex min-w-0 items-start gap-xs max-[399px]:gap-3xs">
           <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl border border-border-default bg-surface-base text-brand-base shadow-xs">
             <Ghost aria-hidden="true" size={24} strokeWidth={1.8} />
