@@ -329,17 +329,17 @@ test('homepage content cards include their padded perimeter in the dominant acti
 }) => {
   await page.goto('/');
 
-  const primaryAction = page.locator(
-    'main a[href="/works/digital-squad-timesheet/"]',
-  );
-  await primaryAction.scrollIntoViewIfNeeded();
-  const card = primaryAction.locator('..');
+  const card = page.locator('main [data-content-card="true"]').first();
+  const primaryAction = card.locator(':scope > a');
+  const destination = await primaryAction.getAttribute('href');
+  if (!destination) throw new Error('Missing homepage card destination');
+
+  await card.scrollIntoViewIfNeeded();
   const cardBounds = await card.boundingBox();
-  if (!cardBounds)
-    throw new Error('Missing Digital Squad Timesheet homepage card');
+  if (!cardBounds) throw new Error('Missing homepage content card');
 
   await page.mouse.click(cardBounds.x + 4, cardBounds.y + 4);
-  await expect(page).toHaveURL('/works/digital-squad-timesheet/');
+  await expect(page).toHaveURL(destination);
 });
 
 test('homepage content cards use deliberate human-facing card copy', async ({
@@ -1274,6 +1274,9 @@ test('the telemetry study is published across discovery, schema, and assistant s
   );
 
   await page.goto(`/works/${slug}/`);
+  await expect(
+    page.locator('time[datetime="2026-08-01T00:00:00.000Z"]'),
+  ).toHaveText('August 2026');
   await expect(
     page.getByRole('link', { name: 'View on SSRN' }),
   ).toHaveAttribute('href', doi);
