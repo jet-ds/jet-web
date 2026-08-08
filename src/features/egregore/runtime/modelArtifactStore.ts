@@ -54,7 +54,7 @@ function modelCacheKey(model: ModelArtifactConfig): Request {
 function responseHasExpectedDelivery(
   response: Response,
   model: ModelArtifactConfig,
-): boolean {
+): response is Response & { body: ReadableStream<Uint8Array> } {
   if (!response.ok || response.body === null) return false;
   if (
     response.url !== '' &&
@@ -133,11 +133,21 @@ export function createModelArtifactStore(
     });
   };
 
+  const getValidatedCurrent = async (
+    cache: Cache,
+  ): Promise<(Response & { body: ReadableStream<Uint8Array> }) | undefined> => {
+    const response = await useCache(() => cache.match(cacheKey));
+    if (response === undefined) return undefined;
+    if (responseHasExpectedDelivery(response, model)) return response;
+
+    await useCache(() => cache.delete(cacheKey));
+    return undefined;
+  };
+
   return {
     async hasCurrent(): Promise<boolean> {
       const cache = await getCache();
-      const response = await useCache(() => cache.match(cacheKey));
-      return response?.body !== null && response !== undefined;
+      return (await getValidatedCurrent(cache)) !== undefined;
     },
 
     async resolveForLoad({ allowUncached }): Promise<ModelSourceResolution> {
@@ -169,8 +179,8 @@ export function createModelArtifactStore(
         throw cause;
       }
 
-      const cached = await useCache(() => cache.match(cacheKey));
-      if (cached?.body !== null && cached !== undefined) {
+      const cached = await getValidatedCurrent(cache);
+      if (cached !== undefined) {
         return { kind: 'cached', source: cached.body };
       }
 
@@ -201,8 +211,8 @@ export function createModelArtifactStore(
         throw new ModelArtifactStoreUnavailableError();
       }
 
-      const committed = await useCache(() => cache.match(cacheKey));
-      if (committed?.body === null || committed === undefined) {
+      const committed = await getValidatedCurrent(cache);
+      if (committed === undefined) {
         throw new Error('Egregore could not read the downloaded local model.');
       }
       return { kind: 'cached', source: committed.body };

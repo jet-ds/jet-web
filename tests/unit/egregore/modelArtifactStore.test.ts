@@ -22,13 +22,20 @@ class MemoryCache {
   readonly puts: Array<{ request: Request; response: Response }> = [];
   private readonly responses = new Map<string, Response>();
 
+  private cloneResponse(response: Response): Response {
+    const clone = response.clone();
+    Object.defineProperty(clone, 'url', { value: response.url });
+    return clone;
+  }
+
   async match(request: Request): Promise<Response | undefined> {
-    return this.responses.get(request.url)?.clone();
+    const response = this.responses.get(request.url);
+    return response === undefined ? undefined : this.cloneResponse(response);
   }
 
   async put(request: Request, response: Response): Promise<void> {
     this.puts.push({ request, response });
-    this.responses.set(request.url, response.clone());
+    this.responses.set(request.url, this.cloneResponse(response));
   }
 
   async delete(request: Request): Promise<boolean> {
@@ -129,6 +136,66 @@ describe('Egregore model artifact store', () => {
     );
     expect(fetchModel).not.toHaveBeenCalled();
   });
+
+  it.each([
+    [
+      'failed status',
+      {
+        status: 500,
+        url: 'https://models.example/fixture.litertlm',
+        lengthOffset: 0,
+      },
+    ],
+    [
+      'untrusted origin',
+      {
+        status: 200,
+        url: 'https://untrusted.example/fixture.litertlm',
+        lengthOffset: 0,
+      },
+    ],
+    [
+      'wrong declared length',
+      {
+        status: 200,
+        url: 'https://models.example/fixture.litertlm',
+        lengthOffset: -1,
+      },
+    ],
+  ])(
+    'rejects a persisted model with %s at both availability and load boundaries',
+    async (_label, invalid) => {
+      const model = modelFixture();
+      const cacheStorage = new MemoryCacheStorage();
+      const cache = await cacheStorage.open(cacheName(model));
+      const invalidResponse = () => {
+        const response = new Response('pinned model', {
+          status: invalid.status,
+          headers: {
+            'content-length': String(model.bytes + invalid.lengthOffset),
+          },
+        });
+        Object.defineProperty(response, 'url', { value: invalid.url });
+        return response;
+      };
+      await cache.put(cacheKey(model), invalidResponse());
+      const fetchModel = vi.fn(async () => modelResponse(model));
+      const store = makeStore(cacheStorage, model, { fetch: fetchModel });
+
+      await expect(store.hasCurrent()).resolves.toBe(false);
+
+      await cache.put(cacheKey(model), invalidResponse());
+      const resolution = await store.resolveForLoad({ allowUncached: false });
+      expect(resolution.kind).toBe('cached');
+      if (resolution.kind !== 'cached')
+        throw new Error('Expected cached source.');
+      await expect(new Response(resolution.source).text()).resolves.toBe(
+        'pinned model',
+      );
+      expect(fetchModel).toHaveBeenCalledOnce();
+      await expect(store.hasCurrent()).resolves.toBe(true);
+    },
+  );
 
   it('validates and commits one transferred response before returning its cache stream', async () => {
     const model = modelFixture();
