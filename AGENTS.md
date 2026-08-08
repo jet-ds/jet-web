@@ -140,7 +140,7 @@ The default social image is the committed `public/images/og-default.jpg`. Recrea
 
 Egregore is a local-first technical showcase and experimental personal assistant, not a general website-support widget.
 
-The released `2.1.0` runtime and interaction boundaries remain in force during `2.2.0` work:
+The released `2.2.0` runtime and interaction boundaries are in force:
 
 - The semantic route is the canonical `200` document at `/chatbot/`; platform normalization owns slashless variants, and one explicit legacy `/tools/chatbot/` rule redirects to `/chatbot/`.
 - Vercel Production serves `/chatbot/` as index-follow and includes it once in the sitemap. Local and Preview builds keep it noindex and outside the sitemap.
@@ -152,7 +152,7 @@ The released `2.1.0` runtime and interaction boundaries remain in force during `
 - `/api/chat`, hosted generation, and the OpenRouter production credential remain removed.
 - The distributed license bundle, pinned package and runtime identities, public notice routes, and applicable notice text are current product contracts. Historical legal analysis is evidence, not an executable input.
 
-Preserve the released interaction model: a full-screen local-first experience, explicit compatibility and load actions, stable lifecycle controls, deterministic citations, keyboard-operable disclosures, responsive layouts, reduced-motion behavior, and the established semantic color roles. The active [2.2.0 design](./docs/superpowers/specs/2026-07-18-jet-web-2.2.0-design.md) governs subsequent product changes.
+Preserve the released interaction model: a full-screen local-first experience, explicit compatibility and load actions, stable lifecycle controls, deterministic citations, keyboard-operable disclosures, responsive layouts, reduced-motion behavior, and the established semantic color roles. The [2.2.0 design](./docs/superpowers/specs/2026-07-18-jet-web-2.2.0-design.md) is the current product authority.
 
 ## SEO and release behavior
 
