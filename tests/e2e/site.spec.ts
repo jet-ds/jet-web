@@ -1263,7 +1263,7 @@ test('the telemetry study is published across discovery, schema, and assistant s
   };
 
   expect(route.status()).toBe(200);
-  expect(home).not.toContain(slug);
+  expect(home).toContain(slug);
   expect(works).toContain(slug);
   expect(sitemap).toContain(canonical);
   expect(corpus.documents).toContainEqual(
