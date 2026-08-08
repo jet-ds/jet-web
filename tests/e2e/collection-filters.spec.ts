@@ -147,15 +147,14 @@ test('Works restores a direct type query and preserves the canonical collection 
 }) => {
   await page.goto('/works/?type=RESEARCH');
   const root = filterRoot(page, 'type');
+  const research = filterButton(root, 'research');
+  const expectedVisibleWorks = countFromLabel(await research.innerText());
 
-  await expect(filterButton(root, 'research')).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  await expect(research).toHaveAttribute('aria-pressed', 'true');
   await expect(filterButton(root, '')).toHaveAttribute('aria-pressed', 'false');
-  await expect(visibleFilterItems(root)).toHaveCount(1);
+  await expect(visibleFilterItems(root)).toHaveCount(expectedVisibleWorks);
   await expect(root.getByRole('status')).toHaveText(
-    '1 work in the research category',
+    `${expectedVisibleWorks} ${expectedVisibleWorks === 1 ? 'work' : 'works'} in the research category`,
   );
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
     'href',
