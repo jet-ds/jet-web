@@ -24,6 +24,7 @@ const { Content } = await render(work);
 <WorkLayout
   title={work.data.title}
   seoTitle={work.data.seoTitle}
+  seoDescription={work.data.seoDescription}
   description={work.data.description}
   type={work.data.type}
   date={work.data.date}
@@ -32,7 +33,6 @@ const { Content } = await render(work);
   links={work.data.links}
   venue={work.data.venue}
   abstract={work.data.abstract}
-  technologies={work.data.technologies}
   repository={work.data.repository}
   demo={work.data.demo}
 >

@@ -1,0 +1,49 @@
+---
+title: "Digital Squad Timesheet"
+seoTitle: "Digital Squad Timesheet: Operations Platform"
+seoDescription: "A task-based weekly operations platform for Digital Squad, combining time logging, project context, team visibility, and reporting in one focused workflow."
+description: "A task-based weekly operations platform for Digital Squad, combining time logging, project context, team visibility, and reporting in one focused workflow."
+summary: "A weekly operations platform for time logging, project context, team visibility, and reporting."
+type: "project"
+date: 2026-07-18
+tags: ["product-design", "operations", "Next.js", "TypeScript", "PostgreSQL", "Supabase", "Playwright"]
+status: published
+assistant: true
+featured: true
+image:
+  url: "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/works/digital-squad-timesheet-dashboard-light-6571cb6d.png"
+  darkUrl: "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/works/digital-squad-timesheet-dashboard-dark-3df8f1fd.png"
+  alt: "Digital Squad Timesheet weekly dashboard for Jet Sanchez showing a populated July work week"
+  width: 1920
+  height: 1080
+technologies: ["Next.js", "React", "TypeScript", "Tailwind CSS", "Base UI", "PostgreSQL", "Supabase", "Drizzle ORM", "PostHog", "Recharts", "Zod", "Vitest", "Playwright", "Vercel"]
+---
+
+## Overview
+
+Digital Squad Timesheet is an internal, task-based weekly timesheet and operations platform. It replaces disconnected time-entry habits with a single workspace where work is logged against real clients, projects, and tasks.
+
+The product is designed around the working week rather than a generic activity ledger. A quick-log surface makes common entries fast, while the structured grid keeps daily and weekly totals visible without hiding the context behind the hours.
+
+## Technology stack
+
+- **Application and interface:** Next.js, React, TypeScript, Tailwind CSS, Base UI
+- **Data and authentication:** PostgreSQL, Supabase, Drizzle ORM
+- **Analytics and reporting:** PostHog, Recharts
+- **Quality and delivery:** Zod, Vitest, Playwright, Vercel
+
+## Product design
+
+The interface is intentionally operational: dense enough to support real weekly work, but calm enough to remain readable throughout the day. It includes responsive light and dark themes, keyboard-accessible controls, explicit week lifecycle states, and focused loading and feedback patterns for frequent actions.
+
+The wider system connects the timesheet to client, project, task, team, analytics, account, and administrative surfaces. Role-aware access keeps member, administrator, and super-administrator responsibilities distinct.
+
+## Engineering
+
+The application uses Next.js and strict TypeScript, with PostgreSQL and Supabase providing the data and authentication layer. Drizzle ORM keeps database changes typed and migration-driven. The release path includes environment guards, row-level-security verification, authenticated Playwright coverage, and production checks designed to fail closed when the deployment state is not trustworthy.
+
+Performance work is measurement-led. Database-heavy routes are instrumented with sanitized operation timing, then improved by reducing query fan-out and consolidating read paths while preserving correctness and access boundaries.
+
+## Portfolio boundary
+
+Digital Squad Timesheet is a private operational product, so this page documents the product and engineering work without linking visitors to its authenticated production environment or source repository.

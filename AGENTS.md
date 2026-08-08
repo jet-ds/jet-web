@@ -4,13 +4,15 @@
 
 ## Project
 
-jetsanchez.com is Jet Sanchez's personal website, writing archive, research portfolio, and home for local-first AI experiments. It uses Astro 5, MDX, React 19 islands, Tailwind CSS 3, strict TypeScript, and Vercel static hosting.
+jetsanchez.com is Jet Sanchez's personal website, writing archive, research portfolio, and home for local-first AI experiments. It uses Astro 7, MDX, React 19 islands, Tailwind CSS 4, strict TypeScript 6, and Vercel static hosting.
 
-Primary routes are Home, About, Blog, Works, Jet's Ghost, and Contact. Jet's Ghost is integrated at canonical `/chatbot/` behind qualification; `/tools/` remains a dormant, noindexed route outside primary navigation.
+Primary routes are Home, About, Blog, Works, Egregore, and Contact. Egregore is released at canonical `/chatbot/`; its local runtime remains behind explicit visitor actions. `/tools/` remains a dormant, noindexed route outside primary navigation.
 
 ## Runtime and commands
 
 Use Node.js 24.x and npm. `package.json` is authoritative for executable commands.
+
+The supported browser floor is Chrome 111+, Safari 16.4+, and Firefox 128+.
 
 ```bash
 npm install
@@ -33,9 +35,9 @@ The production build is pure. `npm run build` may validate repository inputs and
 ## Architecture
 
 - Prefer Astro components for static presentation and React only for stateful browser interactions.
-- Content sources live in `src/data/blog/` and `src/data/works/`; loaders are defined in `src/content/config.ts`, with shared schemas in `src/schemas/content.ts`.
+- Content sources live in `src/data/blog/` and `src/data/works/`; loaders are defined in `src/content.config.ts`, with shared schemas in `src/schemas/content.ts`.
 - Use `getCollection()` and `getEntry()` for type-safe content access.
-- Shared site metadata and navigation live in `src/config/site.ts`.
+- Shared site metadata and navigation live in `src/config/site.ts`; `NAV_ITEMS` owns the shared route and label contract for the dock, no-script navigation, JSON-LD navigation, and Footer Quick Links.
 - `BaseLayout` owns the page-level WebPage schema. Content pages add their specific linked schema, such as BlogPosting, ScholarlyArticle, SoftwareApplication, or CreativeWork.
 - Use trailing-slash canonical URLs throughout page metadata, navigation, sitemap output, and structured data.
 - Vercel serves the static Astro output. Do not add a server adapter or hosted generation fallback without a newly approved architecture decision.
@@ -57,7 +59,7 @@ The production build is pure. `npm run build` may validate repository inputs and
 - Use `section-brand` for broad blue section surfaces. Keep that role distinct from `brand-subtle`, which remains the `soft` action fill in both themes.
 - Use the framework-neutral `.text-link` recipe for inline prose destinations: branded medium-weight text, no resting underline, and the shared hover, focus-visible, and reduced-motion behavior. `Link.astro` primary links and Blog/Works `.prose` links consume it. Do not apply it to cards, navigation/footer, actions, the dock, citation markers, or source-disclosure controls.
 - Use the framework-neutral `.action` recipes for button-like controls in Astro, React, or plain HTML. Variants are `brand`, `accent`, `soft`, `neutral`, `outline`, `ghost`, `filter`, `stop`, and `disabled`; `filter` state is expressed with `aria-pressed`, never color alone.
-- Action densities are `compact` (44×44px minimum target, 8px radius), `default` (44×44px minimum target, 8px radius), and `immersive` (48×48px minimum target, 12px radius). Jet's Ghost primary lifecycle actions use `immersive`; small labels do not justify targets below 44×44px. `Button.astro` exposes the same taxonomy through `variant` and `density`.
+- Action densities are `compact` (44×44px minimum target, 8px radius), `default` (44×44px minimum target, 8px radius), and `immersive` (48×48px minimum target, 12px radius). Egregore primary lifecycle actions use `immersive`; small labels do not justify targets below 44×44px. `Button.astro` exposes the same taxonomy through `variant` and `density`.
 - Write visible action copy in sentence case while preserving product names, platform names, personal names, and acronyms.
 - Preserve the shared action focus, disabled, reduced-motion, and forced-colors behavior. Add only role-specific layout or typography utilities; do not recreate a second React-only visual taxonomy.
 - Use Utopia fluid type and spacing tokens. Prefer `px-gutter`, `py-section`, `py-section-lg`, `p-card`, and fluid gap/type tokens over breakpoint-based spacing.
@@ -75,10 +77,10 @@ assistant: false
 ```
 
 - Public content requires `status: published`.
-- Jet's Ghost inclusion requires both `status: published` and `assistant: true`.
+- Egregore inclusion requires both `status: published` and `assistant: true`.
 - Draft, untracked, malformed, or implicitly configured content must never enter the production site or assistant corpus.
-- Blog fields include title, description, publication date, author, tags, publication state, assistant eligibility, and optional image metadata.
-- Work fields include title, description, type, date, tags, publication state, assistant eligibility, optional featured/image/link fields, and type-specific research or project fields.
+- Blog fields include title, optional short display title, description, optional card summary, optional search title and description overrides, publication date, author, tags, publication state, assistant eligibility, and optional image metadata.
+- Work fields include title, optional short display title, description, optional card summary, optional search title and description overrides, type, date, tags, publication state, assistant eligibility, optional featured/image/link fields, and type-specific research or project fields.
 - Every content image requires a stable URL and descriptive `alt` text. Blog images also record their verified intrinsic pixel `width` and `height` so custom OpenGraph metadata never borrows false default dimensions.
 - Run `npm run verify:content` after changing frontmatter or content-policy code.
 
@@ -113,13 +115,13 @@ For blog records, copy the returned URL and verified intrinsic dimensions into t
 
 ```yaml
 image:
-  url: "https://example.public.blob.vercel-storage.com/images/blog/example-12345678.jpg"
-  alt: "A descriptive account of the visible image"
+  url: 'https://example.public.blob.vercel-storage.com/images/blog/example-12345678.jpg'
+  alt: 'A descriptive account of the visible image'
   width: 1920
   height: 1080
 ```
 
-Work records continue to use the current works-schema image fields (`url` and `alt`) under `src/data/works/`.
+Work records use `url`, optional `darkUrl`, `alt`, and optional verified intrinsic `width` and `height` under `src/data/works/`.
 
 The About portrait is not content frontmatter. Update the direct `OptimizedImage` source in `src/pages/about.astro`, retaining the actual dimensions and descriptive alternative text.
 
@@ -134,27 +136,23 @@ The About portrait is not content frontmatter. Update the direct `OptimizedImage
 
 The default social image is the committed `public/images/og-default.jpg`. Recreate it only through `npm run capture:og -- --overwrite`, visually inspect the result, and retain the exact shared metadata contract in `src/config/site.ts`.
 
-## Jet's Ghost
+## Egregore
 
-Jet's Ghost is a local-first technical showcase and experimental personal assistant, not a general website-support widget.
+Egregore is a local-first technical showcase and experimental personal assistant, not a general website-support widget.
 
-Current `2.1.0` integration-branch qualification state (production remains `2.0.0` until Task 13 completes the release gate):
-
-- The approved interface is integrated at canonical `/chatbot/`, remains noindexed, and is excluded from the sitemap until every qualification gate passes.
-- Vercel normalizes `/chatbot` to `/chatbot/`; `/tools/chatbot` normalizes to `/tools/chatbot/`, and the sole explicit legacy rule permanently redirects `/tools/chatbot/` to `/chatbot/`.
-- The pinned Gemma 4 E2B LiteRT-LM runtime, immutable eligible corpus, and deterministic cited retrieval are integrated behind explicit compatibility and load actions. No hosted generation endpoint or fallback is active.
-- `/api/chat` and the OpenRouter production credential remain removed.
-
-Approved `2.1.0` integration boundaries:
+The released `2.2.0` runtime and interaction boundaries are in force:
 
 - The semantic route is the canonical `200` document at `/chatbot/`; platform normalization owns slashless variants, and one explicit legacy `/tools/chatbot/` rule redirects to `/chatbot/`.
-- Ghost occupies the former Tools navigation slot; `/tools/` stays dormant, noindexed, and out of primary navigation.
+- Vercel Production serves `/chatbot/` as index-follow and includes it once in the sitemap. Local and Preview builds keep it noindex and outside the sitemap.
+- Egregore occupies the former Tools navigation slot; `/tools/` stays dormant, noindexed, and out of primary navigation.
 - Use the pinned Gemma 4 E2B LiteRT-LM browser runtime only. Do not add E4B switching or a hosted fallback.
-- Preserve the explicit boundary: route rendering and compatibility checks do not authorize model/corpus download or GPU allocation. Only “Load Jet's Ghost” may start those operations; prompt assembly begins only when the visitor sends a message.
+- Preserve the explicit boundary: route rendering and compatibility checks do not authorize model/corpus download or GPU allocation. Only “Load Egregore” may start those operations; prompt assembly begins only when the visitor sends a message.
 - Use the immutable, versioned eligible corpus and one deterministic MiniSearch rank-and-pack pipeline with provenance and citations. Embeddings, Gemma reranking, PGlite, pgvector, EntityDB, and the legacy multi-stage RAG implementation are not part of the approved production path.
-- Keep `/chatbot/` noindexed until the model, quality, lifecycle, privacy, accessibility, browser, and deployment qualification gates pass.
+- The fake runtime is permanent deterministic development and test architecture. Preserve its lifecycle, failure, privacy, responsive, and interaction scenarios; it must remain unavailable and absent from Production artifacts.
+- `/api/chat`, hosted generation, and the OpenRouter production credential remain removed.
+- The distributed license bundle, pinned package and runtime identities, public notice routes, and applicable notice text are current product contracts. Historical legal analysis is evidence, not an executable input.
 
-Treat [the approved chat experience](./docs/jets-ghost-chat-experience.md) and prototype commit `d406ed46dfc7cccfa95d0003fcae30f5b9373690` as the UI and interaction source of truth. Integrate it; do not redesign it during runtime work.
+Preserve the released interaction model: a full-screen local-first experience, explicit compatibility and load actions, stable lifecycle controls, deterministic citations, keyboard-operable disclosures, responsive layouts, reduced-motion behavior, and the established semantic color roles. The [2.2.0 design](./docs/superpowers/specs/2026-07-18-jet-web-2.2.0-design.md) is the current product authority.
 
 ## SEO and release behavior
 
@@ -162,8 +160,8 @@ Treat [the approved chat experience](./docs/jets-ghost-chat-experience.md) and p
 - Canonical routes use trailing slashes. Slashless variants normalize with permanent redirects.
 - `/about/` remains index-follow, canonical, and present in the sitemap; `/about` redirects to it.
 - Retired `/blog/the-future-of-ai` and `/blog/building-with-astro/` routes remain intentional 404 responses and must not appear in internal links, RSS, or the sitemap.
-- The final Jet's Ghost release must verify route redirects, canonical/OpenGraph/JSON-LD agreement, navigation, robots, sitemap, RSS exclusions, and index state against the deployed site before Search Console follow-up.
-- Do not request indexing for a prototype, Preview deployment, or RSS feed. Search Console validation happens only after verified production deployment and recrawl.
+- Release verification must prove route redirects, canonical/OpenGraph/JSON-LD agreement, navigation, robots, sitemap, RSS exclusions, and index state against the deployed site before Search Console follow-up.
+- Do not request indexing for a Preview deployment or RSS feed. Search Console validation happens only after verified production deployment and recrawl.
 
 ## Testing and verification
 
@@ -172,7 +170,10 @@ Tests are organized by boundary:
 - `tests/unit/` covers utilities, content policy, components, and operational scripts.
 - `tests/e2e/` covers built-site behavior in Playwright.
 - `tests/deployment/` covers Vercel and production-only routing or header behavior.
-- `tests/jets-ghost-experience.test.ts` protects the approved interface contract.
+
+> **Contract-Coupling Principle:** Every test must derive its assertions from an observable, durable contract at the narrowest appropriate boundary. For components, this includes public APIs, rendered semantics, interaction, accessibility, and explicitly standardized visual behavior. For modules, scripts, builds, CI, and security controls, it includes declared inputs, outputs, failure modes, generated artifacts, and invariants. Private helpers, source layout, call graphs, intermediate representations, CSS classes, and implementation choices are not valid test targets unless explicitly designated as compatibility or artifact contracts. A behavior-preserving refactor should not ordinarily break a test.
+
+> **Test Contract Revalidation:** Developmental tests help discover and construct the implementation. Durable tests protect the accepted contract afterward. Within each task slice, follow RED → GREEN → refactor the implementation → revalidate the contract, retaining or consolidating durable tests and removing developmental tests that have served their purpose.
 
 GitHub Actions owns two stable routine jobs, `verify` and `browser`. They run for pull requests, pushes to `main`, manual dispatch, and nightly at `17 18 * * *` (`02:17` Asia/Manila). Configure both as strict required checks on `main`. Keep the approximately 2 GB real-model qualification outside routine and nightly CI; run it only through the explicit release workflow.
 
@@ -192,11 +193,9 @@ Before deployment, verify light and dark modes, keyboard/focus behavior, respons
 
 ## Canonical documentation
 
-- [Core modernization design](./docs/superpowers/specs/2026-07-11-v1-modernization-design.md)
-- [Core modernization implementation plan](./docs/superpowers/plans/2026-07-11-v1-modernization.md)
-- [Jet's Ghost local-assistant design](./docs/superpowers/specs/2026-07-11-jets-ghost-local-assistant-design.md)
-- [Jet's Ghost implementation plan](./docs/superpowers/plans/2026-07-11-jets-ghost-local-assistant.md)
-- [Approved Jet's Ghost chat experience](./docs/jets-ghost-chat-experience.md)
+- [Jet Web 2.2.0 design](./docs/superpowers/specs/2026-07-18-jet-web-2.2.0-design.md)
+- [Jet Web 2.2.0 implementation plan](./docs/superpowers/plans/2026-07-18-jet-web-2.2.0.md)
+- [Jet Web 2.2.0 verification record](./docs/verification/jet-web-2.2.0.md)
 - [Documentation archive](./docs/archive/README.md)
 
 Historical documents under `docs/archive/` are evidence, not current instructions. Do not cite an archived design as the active target when a canonical successor is listed.

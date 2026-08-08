@@ -43,8 +43,9 @@ describe('documentation link verification', () => {
     };
     const { dependencies, root } = fixture(files);
 
-    await expect(verifyTrackedMarkdownLinks({ repositoryRoot: root }, dependencies))
-      .resolves.toEqual({ checkedDocuments: 5, checkedLinks: 5 });
+    await expect(
+      verifyTrackedMarkdownLinks({ repositoryRoot: root }, dependencies),
+    ).resolves.toEqual({ checkedDocuments: 5, checkedLinks: 5 });
   });
 
   it('ignores fenced code, inline code, plain examples, external URLs, mailto, and fragments', async () => {
@@ -63,14 +64,16 @@ describe('documentation link verification', () => {
         '[External](https://example.com)',
         '[Email](mailto:jet@example.com)',
         '[Section](#content)',
+        '[Public license](/licenses/apache-2.0.txt)',
         '',
       ].join('\n'),
       'docs/archive/README.md': '# Archive\n',
     };
     const { dependencies, root } = fixture(files);
 
-    await expect(verifyTrackedMarkdownLinks({ repositoryRoot: root }, dependencies))
-      .resolves.toEqual({ checkedDocuments: 2, checkedLinks: 0 });
+    await expect(
+      verifyTrackedMarkdownLinks({ repositoryRoot: root }, dependencies),
+    ).resolves.toEqual({ checkedDocuments: 2, checkedLinks: 0 });
   });
 
   it('strips queries/fragments and safely decodes relative paths', async () => {
@@ -86,19 +89,22 @@ describe('documentation link verification', () => {
     };
     const { dependencies, root } = fixture(files);
 
-    await expect(verifyTrackedMarkdownLinks({ repositoryRoot: root }, dependencies))
-      .resolves.toEqual({ checkedDocuments: 3, checkedLinks: 2 });
+    await expect(
+      verifyTrackedMarkdownLinks({ repositoryRoot: root }, dependencies),
+    ).resolves.toEqual({ checkedDocuments: 3, checkedLinks: 2 });
   });
 
   it('reports missing real link and image nodes with their source document', async () => {
     const files = {
-      'README.md': '[Missing](docs/missing.md)\n![Missing image](public/missing.png)\n',
+      'README.md':
+        '[Missing](docs/missing.md)\n![Missing image](public/missing.png)\n',
       'docs/archive/README.md': '# Archive\n',
     };
     const { dependencies, root } = fixture(files);
 
-    await expect(verifyTrackedMarkdownLinks({ repositoryRoot: root }, dependencies))
-      .rejects.toThrow('README.md: docs/missing.md, public/missing.png');
+    await expect(
+      verifyTrackedMarkdownLinks({ repositoryRoot: root }, dependencies),
+    ).rejects.toThrow('README.md: docs/missing.md, public/missing.png');
   });
 
   it('rejects repository escape and malformed URL encoding', async () => {
@@ -106,19 +112,23 @@ describe('documentation link verification', () => {
       'docs/guide.md': '[Escape](../../outside.md)\n',
       'docs/archive/README.md': '# Archive\n',
     });
-    await expect(verifyTrackedMarkdownLinks(
-      { repositoryRoot: escaped.root },
-      escaped.dependencies,
-    )).rejects.toThrow('LINK_ESCAPES_REPOSITORY');
+    await expect(
+      verifyTrackedMarkdownLinks(
+        { repositoryRoot: escaped.root },
+        escaped.dependencies,
+      ),
+    ).rejects.toThrow('LINK_ESCAPES_REPOSITORY');
 
     const malformed = fixture({
       'README.md': '[Malformed](docs/%E0%A4%A.md)\n',
       'docs/archive/README.md': '# Archive\n',
     });
-    await expect(verifyTrackedMarkdownLinks(
-      { repositoryRoot: malformed.root },
-      malformed.dependencies,
-    )).rejects.toThrow('INVALID_LINK_ENCODING');
+    await expect(
+      verifyTrackedMarkdownLinks(
+        { repositoryRoot: malformed.root },
+        malformed.dependencies,
+      ),
+    ).rejects.toThrow('INVALID_LINK_ENCODING');
   });
 
   it('excludes archived bodies while still validating docs/archive/README.md', async () => {
@@ -129,8 +139,9 @@ describe('documentation link verification', () => {
     };
     const { dependencies, root } = fixture(files);
 
-    await expect(verifyTrackedMarkdownLinks({ repositoryRoot: root }, dependencies))
-      .resolves.toEqual({ checkedDocuments: 2, checkedLinks: 2 });
+    await expect(
+      verifyTrackedMarkdownLinks({ repositoryRoot: root }, dependencies),
+    ).resolves.toEqual({ checkedDocuments: 2, checkedLinks: 2 });
   });
 
   it('validates the new archive index before it has been staged', async () => {
@@ -140,7 +151,8 @@ describe('documentation link verification', () => {
     };
     const { dependencies, root } = fixture(files, ['README.md']);
 
-    await expect(verifyTrackedMarkdownLinks({ repositoryRoot: root }, dependencies))
-      .rejects.toThrow('docs/archive/README.md: docs/archive/site/missing.md');
+    await expect(
+      verifyTrackedMarkdownLinks({ repositoryRoot: root }, dependencies),
+    ).rejects.toThrow('docs/archive/README.md: docs/archive/site/missing.md');
   });
 });

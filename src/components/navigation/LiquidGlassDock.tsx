@@ -6,72 +6,107 @@ import { useTheme } from '../../hooks/useTheme';
 import { useMediaQuery } from '../../hooks/useMediaQuery';
 import { isActiveNavItem, NAV_ITEMS } from '../../config/site';
 
-const DOCK_SCROLLED_KEY = 'dockScrolled';
+const MOBILE_DOCK_STATE_KEY = 'mobileDockState';
+
+type MobileDockVisibility = 'open' | 'closed';
+
+interface MobileDockState {
+  discovered: boolean;
+  visibility: MobileDockVisibility;
+}
 
 interface LiquidGlassDockProps {
   currentPath: string;
+  immersive: boolean;
 }
 
-export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
+function freshMobileDockState(immersive: boolean): MobileDockState {
+  return { discovered: immersive, visibility: 'open' };
+}
+
+function normalizeMobileDockState(value: MobileDockState): MobileDockState {
+  return value.visibility === 'closed'
+    ? { discovered: true, visibility: 'closed' }
+    : { discovered: value.discovered, visibility: 'open' };
+}
+
+function readMobileDockState(immersive: boolean): MobileDockState {
+  const fallback = freshMobileDockState(immersive);
+
+  try {
+    const raw = window.sessionStorage.getItem(MOBILE_DOCK_STATE_KEY);
+    if (raw === null) return fallback;
+    const value: unknown = JSON.parse(raw);
+    if (
+      typeof value === 'object' &&
+      value !== null &&
+      'discovered' in value &&
+      'visibility' in value &&
+      typeof value.discovered === 'boolean' &&
+      (value.visibility === 'open' || value.visibility === 'closed')
+    ) {
+      return normalizeMobileDockState(value as MobileDockState);
+    }
+  } catch {
+    // Private browsing and restricted embeds retain an operable page-lifetime state.
+  }
+
+  return fallback;
+}
+
+function saveMobileDockState(state: MobileDockState): void {
+  try {
+    window.sessionStorage.setItem(MOBILE_DOCK_STATE_KEY, JSON.stringify(state));
+  } catch {
+    // State remains available for the current mounted page when storage is unavailable.
+  }
+}
+
+export default function LiquidGlassDock({
+  currentPath,
+  immersive,
+}: LiquidGlassDockProps) {
   const dockRef = useRef<HTMLDivElement>(null);
   const themeIconRef = useRef<HTMLButtonElement>(null);
   const disclosureButtonRef = useRef<HTMLButtonElement>(null);
 
-  // Tracks initial mount to prevent race condition with sessionStorage read
-  const isInitialMount = useRef(true);
-
   const [hoveredIcon, setHoveredIcon] = useState<string | null>(null);
-  const [dockVisible, setDockVisible] = useState(true);
+  const [mobileDockState, setMobileDockState] = useState<MobileDockState>(() =>
+    readMobileDockState(immersive),
+  );
 
-  // Page-level: Has user scrolled on THIS page? (resets per navigation)
-  const [hasScrolledOnPage, setHasScrolledOnPage] = useState(false);
-
-  // Session-level: Has user discovered button in this browsing session?
-  const [buttonDiscoveredInSession, setButtonDiscoveredInSession] = useState(false);
-
-  const [buttonLeftPosition, setButtonLeftPosition] = useState<number | null>(null);
+  const [buttonLeftPosition, setButtonLeftPosition] = useState<number | null>(
+    null,
+  );
 
   const { theme, toggleTheme } = useTheme();
-  const isMobile = useMediaQuery('(max-width: 768px)');
+  const isCompact = useMediaQuery('(max-width: 47.999rem)');
 
-  // Restore session state: Check if button was already discovered in this session
+  const updateMobileDockState = (next: MobileDockState) => {
+    const normalized = normalizeMobileDockState(next);
+    saveMobileDockState(normalized);
+    setMobileDockState(normalized);
+  };
+
+  // Immersive entry intentionally makes the disclosure available before any scroll.
   useEffect(() => {
-    const stored = sessionStorage.getItem(DOCK_SCROLLED_KEY);
-    if (stored === 'true') {
-      setButtonDiscoveredInSession(true);
+    if (immersive && !mobileDockState.discovered) {
+      updateMobileDockState({ discovered: true, visibility: 'open' });
     }
-  }, []);
+  }, [immersive, mobileDockState.discovered]);
 
-  // Handle breakpoint changes: Reset state when switching to desktop
   useEffect(() => {
-    // Skip cleanup on initial mount (prevent race condition with sessionStorage read)
-    if (isInitialMount.current) {
-      isInitialMount.current = false;
-      return;
-    }
+    if (immersive && mobileDockState.discovered)
+      saveMobileDockState(mobileDockState);
+  }, [immersive, mobileDockState]);
 
-    // Only cleanup when switching from mobile to desktop mid-session
-    if (!isMobile) {
-      setDockVisible(true);
-      setHasScrolledOnPage(false);
-      sessionStorage.removeItem(DOCK_SCROLLED_KEY);
-      setButtonDiscoveredInSession(false);
-    }
-  }, [isMobile]);
-
-  // One-time scroll detection: Tutorial animation only in State 0 (undiscovered)
+  // One-time scroll discovery only applies to a fresh ordinary compact route.
   useEffect(() => {
-    // Only attach scroll handler in State 0 (before discovery)
-    if (!isMobile || hasScrolledOnPage || buttonDiscoveredInSession) return;
+    if (!isCompact || mobileDockState.discovered) return;
 
     const handleFirstScroll = () => {
       if (window.scrollY > 100) {
-        setHasScrolledOnPage(true);
-
-        // Transition to State 1: persist discovery, hide dock, reveal button
-        sessionStorage.setItem(DOCK_SCROLLED_KEY, 'true');
-        setButtonDiscoveredInSession(true);
-        setDockVisible(false);
+        updateMobileDockState({ discovered: true, visibility: 'closed' });
 
         window.removeEventListener('scroll', handleFirstScroll);
       }
@@ -80,12 +115,12 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
     window.addEventListener('scroll', handleFirstScroll, { passive: true });
     handleFirstScroll();
     return () => window.removeEventListener('scroll', handleFirstScroll);
-  }, [isMobile, hasScrolledOnPage, buttonDiscoveredInSession]);
+  }, [isCompact, mobileDockState.discovered]);
 
   // Calculate Plus/X button horizontal position (aligned with theme icon)
   useEffect(() => {
-    const shouldShowButton = hasScrolledOnPage || buttonDiscoveredInSession;
-    if (!isMobile || !themeIconRef.current || !shouldShowButton) return;
+    if (!isCompact || !themeIconRef.current || !mobileDockState.discovered)
+      return;
 
     const calculatePosition = () => {
       if (!themeIconRef.current) return;
@@ -98,10 +133,10 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
 
     window.addEventListener('resize', calculatePosition);
     return () => window.removeEventListener('resize', calculatePosition);
-  }, [isMobile, hasScrolledOnPage, buttonDiscoveredInSession]);
+  }, [isCompact, mobileDockState.discovered]);
 
   useEffect(() => {
-    if (isMobile) return;
+    if (isCompact) return;
 
     const handleMouseMove = (e: MouseEvent) => {
       const icons = dockRef.current?.querySelectorAll('.dock-icon-container');
@@ -144,29 +179,34 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
         dock.removeEventListener('mouseleave', resetScales);
       }
     };
-  }, [isMobile]);
+  }, [isCompact]);
 
   const Tooltip = ({ text }: { text: string }) => (
-    <div className={`absolute ${isMobile ? 'bottom-20' : 'top-20'} left-1/2 -translate-x-1/2`}>
-      <div className='relative px-2.5 py-0.5 bg-white/90 dark:bg-[#1d1d1f]/80 backdrop-blur-sm text-gray-800 dark:text-white text-xs rounded-md whitespace-nowrap border border-gray-300 dark:border-gray-600'>
+    <div
+      className={`absolute ${isCompact ? 'bottom-20' : 'top-20'} left-1/2 -translate-x-1/2`}
+    >
+      <div className="relative px-2.5 py-0.5 bg-white/90 dark:bg-[#1d1d1f]/80 backdrop-blur-xs text-gray-800 dark:text-white text-xs rounded-md whitespace-nowrap border border-gray-300 dark:border-gray-600">
         {text}
-        <div className={`absolute left-1/2 -translate-x-1/2 ${isMobile ? '-bottom-[5px] rotate-[225deg]' : '-top-[5px] rotate-45'} w-2.5 h-2.5 bg-white/90 dark:bg-[#1d1d1f]/80 backdrop-blur-sm border-t border-l border-gray-300 dark:border-gray-600`} />
+        <div
+          className={`absolute left-1/2 -translate-x-1/2 ${isCompact ? '-bottom-[5px] rotate-[225deg]' : '-top-[5px] rotate-45'} w-2.5 h-2.5 bg-white/90 dark:bg-[#1d1d1f]/80 backdrop-blur-xs border-t border-l border-gray-300 dark:border-gray-600`}
+        />
       </div>
     </div>
   );
 
   // Determine if Plus/X button should show (pure derivation)
-  const shouldShowButton = hasScrolledOnPage || buttonDiscoveredInSession;
-  const isDockClosedOnMobile = isMobile && !dockVisible;
+  const dockVisible = !isCompact || mobileDockState.visibility === 'open';
+  const shouldShowButton = isCompact && mobileDockState.discovered;
+  const isDockClosedOnMobile = isCompact && !dockVisible;
 
   const handleDisclosureClick = () => {
     if (dockVisible) {
-      setDockVisible(false);
+      updateMobileDockState({ discovered: true, visibility: 'closed' });
       disclosureButtonRef.current?.focus();
       return;
     }
 
-    setDockVisible(true);
+    updateMobileDockState({ discovered: true, visibility: 'open' });
   };
 
   return (
@@ -175,17 +215,21 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
         id="site-navigation-dock"
         inert={isDockClosedOnMobile ? true : undefined}
         aria-hidden={isDockClosedOnMobile ? true : undefined}
-        className='fixed bottom-4 lg:bottom-auto lg:top-4 left-1/2 z-50'
+        className="site-navigation-dock fixed bottom-[var(--navigation-dock-offset)] left-1/2 z-50 lg:bottom-auto lg:top-[var(--navigation-dock-offset)]"
         initial={{ x: '-50%' }}
-        animate={isMobile ? {
-          opacity: dockVisible ? 1 : 0,
-          y: dockVisible ? 0 : 100,
-        } : {}}
+        animate={
+          isCompact
+            ? {
+                opacity: dockVisible ? 1 : 0,
+                y: dockVisible ? 0 : 100,
+              }
+            : {}
+        }
         transition={{ duration: 0.3, ease: 'easeInOut' }}
         style={{
           pointerEvents: 'none',
           x: '-50%',
-          willChange: isMobile ? 'transform' : 'auto',
+          willChange: isCompact ? 'transform' : 'auto',
         }}
       >
         <GlassSurface
@@ -198,7 +242,10 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
           opacity={0.9}
           className={`px-2 max-[359px]:px-0 py-3 md:px-3 md:py-6 !overflow-visible ${isDockClosedOnMobile ? 'pointer-events-none' : 'pointer-events-auto'}`}
         >
-          <div ref={dockRef} className='flex items-end space-x-2 max-[359px]:space-x-1 md:space-x-6 overflow-visible'>
+          <div
+            ref={dockRef}
+            className="flex items-end space-x-2 max-[359px]:space-x-1 md:space-x-6 overflow-visible"
+          >
             {NAV_ITEMS.map((item) => {
               const Icon = item.icon;
               const isActive = isActiveNavItem(currentPath, item.href);
@@ -210,58 +257,81 @@ export default function LiquidGlassDock({ currentPath }: LiquidGlassDockProps) {
                   aria-current={isActive ? 'page' : undefined}
                   aria-label={item.label}
                   tabIndex={isDockClosedOnMobile ? -1 : undefined}
-                  onMouseEnter={() => !isMobile && setHoveredIcon(item.id)}
-                  onMouseLeave={() => !isMobile && setHoveredIcon(null)}
-                  className='relative dock-icon-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-brand-base focus-visible:ring-offset-2 focus-visible:ring-offset-bg-base rounded-xl'
+                  onMouseEnter={() => !isCompact && setHoveredIcon(item.id)}
+                  onMouseLeave={() => !isCompact && setHoveredIcon(null)}
+                  className="relative dock-icon-container focus-visible:outline-hidden focus-visible:ring-2 focus-visible:ring-brand-base focus-visible:ring-offset-2 focus-visible:ring-offset-bg-base rounded-xl"
                   style={{ transformOrigin: 'bottom center' }}
                 >
-                  <div className={`w-10 h-10 max-[359px]:w-9 max-[359px]:h-9 md:w-14 md:h-14 bg-gradient-to-t ${item.gradient} rounded-lg md:rounded-xl flex items-center justify-center shadow-lg transition-transform ${isActive ? 'ring-2 ring-white/50' : ''}`}>
-                    <Icon size={isMobile ? 24 : 32} className='text-white' strokeWidth={2} />
+                  <div
+                    className={`w-10 h-10 max-[359px]:w-9 max-[359px]:h-9 md:w-14 md:h-14 bg-gradient-to-t ${item.gradient} rounded-lg md:rounded-xl flex items-center justify-center shadow-lg transition-transform ${isActive ? 'ring-2 ring-white/50' : ''}`}
+                  >
+                    <Icon
+                      size={isCompact ? 24 : 32}
+                      className="text-white"
+                      strokeWidth={2}
+                    />
                   </div>
-                  {hoveredIcon === item.id && !isMobile && <Tooltip text={item.label} />}
+                  {hoveredIcon === item.id && !isCompact && (
+                    <Tooltip text={item.label} />
+                  )}
                 </a>
               );
             })}
 
-            <div className='flex items-center'>
-              <div className='w-px h-10 md:h-14 bg-black/50 dark:bg-white/50' />
+            <div className="flex items-center">
+              <div className="w-px h-10 md:h-14 bg-black/50 dark:bg-white/50" />
             </div>
 
             <button
               ref={themeIconRef}
               onClick={toggleTheme}
-              onMouseEnter={() => !isMobile && setHoveredIcon('theme')}
-              onMouseLeave={() => !isMobile && setHoveredIcon(null)}
+              onMouseEnter={() => !isCompact && setHoveredIcon('theme')}
+              onMouseLeave={() => !isCompact && setHoveredIcon(null)}
               tabIndex={isDockClosedOnMobile ? -1 : undefined}
-              className='relative dock-icon-container'
+              className="relative dock-icon-container"
               style={{ transformOrigin: 'bottom center' }}
-              aria-label={theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode'}
+              aria-label={
+                theme === 'dark'
+                  ? 'Switch to light mode'
+                  : 'Switch to dark mode'
+              }
             >
-              <div className='w-10 h-10 max-[359px]:w-9 max-[359px]:h-9 md:w-14 md:h-14 bg-gradient-to-t from-gray-700 to-gray-500 rounded-lg md:rounded-xl flex items-center justify-center shadow-lg transition-transform'>
+              <div className="w-10 h-10 max-[359px]:w-9 max-[359px]:h-9 md:w-14 md:h-14 bg-gradient-to-t from-gray-700 to-gray-500 rounded-lg md:rounded-xl flex items-center justify-center shadow-lg transition-transform">
                 {theme === 'dark' ? (
-                  <Sun size={isMobile ? 24 : 32} className='text-yellow-300' strokeWidth={2} />
+                  <Sun
+                    size={isCompact ? 24 : 32}
+                    className="text-yellow-300"
+                    strokeWidth={2}
+                  />
                 ) : (
-                  <Moon size={isMobile ? 24 : 32} className='text-blue-200' strokeWidth={2} />
+                  <Moon
+                    size={isCompact ? 24 : 32}
+                    className="text-blue-200"
+                    strokeWidth={2}
+                  />
                 )}
               </div>
-              {hoveredIcon === 'theme' && <Tooltip text={theme === 'dark' ? 'Light Mode' : 'Dark Mode'} />}
+              {hoveredIcon === 'theme' && (
+                <Tooltip text={theme === 'dark' ? 'Light Mode' : 'Dark Mode'} />
+              )}
             </button>
           </div>
         </GlassSurface>
       </motion.div>
 
-      {isMobile && shouldShowButton && buttonLeftPosition !== null && (
+      {shouldShowButton && (
         <motion.button
           ref={disclosureButtonRef}
-          className='fixed z-50'
+          className="site-navigation-disclosure fixed z-50"
           style={{
-            left: buttonLeftPosition,
-            bottom: '1rem',
+            left: buttonLeftPosition ?? '50%',
             willChange: 'transform',
           }}
           initial={false}
           animate={{
-            y: dockVisible ? -88 : 0,
+            y: dockVisible
+              ? 'calc(-1 * var(--navigation-disclosure-raise))'
+              : 0,
             rotate: dockVisible ? 45 : 0,
             x: '-50%',
           }}

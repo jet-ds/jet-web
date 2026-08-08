@@ -26,7 +26,14 @@ if (!process.env.BLOB_READ_WRITE_TOKEN) {
 }
 
 // Supported image formats
-const SUPPORTED_EXTENSIONS = ['.jpg', '.jpeg', '.png', '.webp', '.avif', '.gif'];
+const SUPPORTED_EXTENSIONS = [
+  '.jpg',
+  '.jpeg',
+  '.png',
+  '.webp',
+  '.avif',
+  '.gif',
+];
 
 /**
  * Parse command line arguments
@@ -51,7 +58,11 @@ function parseArgs(): string {
 /**
  * Validate file path and extract metadata
  */
-function validatePath(relativePath: string): { type: string; slug: string; ext: string } {
+function validatePath(relativePath: string): {
+  type: string;
+  slug: string;
+  ext: string;
+} {
   const parts = relativePath.split('/');
 
   if (parts.length !== 2) {
@@ -99,7 +110,12 @@ async function main() {
   const { type, slug, ext } = validatePath(relativePath);
 
   // Construct file path
-  const stagingPath = path.join(process.cwd(), 'public', 'images-staging', relativePath);
+  const stagingPath = path.join(
+    process.cwd(),
+    'public',
+    'images-staging',
+    relativePath,
+  );
 
   console.log('📤 Vercel Blob Image Upload');
   console.log('');
@@ -115,7 +131,9 @@ async function main() {
   } catch (error) {
     console.error(`❌ Error: Could not read file at ${stagingPath}`);
     if ((error as NodeJS.ErrnoException).code === 'ENOENT') {
-      console.error('   File does not exist. Make sure the file is in public/images-staging/');
+      console.error(
+        '   File does not exist. Make sure the file is in public/images-staging/',
+      );
     }
     process.exit(1);
   }

@@ -1,0 +1,455 @@
+import type { EgregoreErrorCode } from '../errors';
+import { estimateTokens } from '../tokenEstimate';
+import {
+  createRuntimeError,
+  type CapabilityReport,
+  type GenerationHandlers,
+  type GenerationResult,
+  type LoadOptions,
+  type LocalModelRuntime,
+  type ModelMessage,
+} from './types';
+
+export type FakeRuntimeFailurePoint =
+  'capability' | 'load' | 'generation' | 'reset' | 'unload';
+
+export interface FakeRuntimeOptions {
+  testOnly: true;
+  responseChunks?: readonly string[];
+  capabilityReport?: CapabilityReport;
+  failures?: Partial<Record<FakeRuntimeFailurePoint, boolean | number>>;
+  scheduler?: FakeRuntimeScheduler;
+  recorder?: FakeRuntimeRecorder;
+  recordResourceLifecycle?: boolean;
+  emitLateChunkAfterCancellation?: boolean;
+  onReset?: () => void;
+}
+
+export interface FakeRuntimeScheduler {
+  waitForChunk(operationId: number, chunkIndex: number): Promise<void>;
+  waitForCapability?(operationId: number): Promise<void>;
+  waitForLoad?(operationId: number): Promise<void>;
+  waitForUnload?(operationId: number): Promise<void>;
+}
+
+export interface FakeRuntimeCall {
+  method:
+    | 'checkCapabilities'
+    | 'load'
+    | 'createSession'
+    | 'getConversationTokenCount'
+    | 'generate'
+    | 'cancel'
+    | 'reset'
+    | 'unload'
+    | 'repository.load'
+    | 'runtime.load'
+    | 'engine.create'
+    | 'conversation.create'
+    | 'conversation.delete'
+    | 'repository.unload'
+    | 'engine.delete'
+    | 'sdk.unload';
+  operationId: number;
+  runtimeId: number;
+}
+
+export class FakeRuntimeRecorder {
+  private readonly callLog: FakeRuntimeCall[] = [];
+  private nextOperationId = 1;
+
+  constructor(readonly runtimeId: number) {}
+
+  get calls(): readonly FakeRuntimeCall[] {
+    return Object.freeze(
+      this.callLog.map((call) => Object.freeze({ ...call })),
+    );
+  }
+
+  record(method: FakeRuntimeCall['method']): number {
+    const operationId = this.nextOperationId;
+    this.nextOperationId += 1;
+    this.callLog.push({ method, operationId, runtimeId: this.runtimeId });
+    return operationId;
+  }
+}
+
+export function createAuditedRuntime(
+  runtime: LocalModelRuntime,
+  recorder: FakeRuntimeRecorder,
+): LocalModelRuntime {
+  return {
+    checkCapabilities: () => {
+      recorder.record('checkCapabilities');
+      return runtime.checkCapabilities();
+    },
+    load: (options) => {
+      recorder.record('load');
+      return runtime.load(options);
+    },
+    createSession: (preface) => {
+      recorder.record('createSession');
+      return runtime.createSession(preface);
+    },
+    getConversationTokenCount: () => {
+      recorder.record('getConversationTokenCount');
+      return runtime.getConversationTokenCount();
+    },
+    generate: (message, handlers) => {
+      recorder.record('generate');
+      return runtime.generate(message, handlers);
+    },
+    cancel: () => {
+      recorder.record('cancel');
+      runtime.cancel();
+    },
+    reset: () => {
+      recorder.record('reset');
+      return runtime.reset();
+    },
+    unload: () => {
+      recorder.record('unload');
+      return runtime.unload();
+    },
+  };
+}
+
+const DEFAULT_CAPABILITY_REPORT: CapabilityReport = {
+  supported: true,
+  warnings: [],
+  failures: [],
+  secureContext: true,
+  webGpuAvailable: true,
+  adapterAvailable: true,
+  browser: {
+    family: 'unknown',
+    version: null,
+  },
+  storageEstimate: null,
+};
+
+const TURN_SOURCES_PREFIX = 'Current untrusted sources (JSON):\n';
+const TURN_QUESTION_PREFIX = '\n\nCurrent question:\n';
+
+function citationIdsFromTurnMessage(message: string): `S${number}`[] {
+  const sourceStart = message.indexOf(TURN_SOURCES_PREFIX);
+  const questionStart = message.indexOf(TURN_QUESTION_PREFIX);
+  if (sourceStart < 0 || questionStart <= sourceStart) return [];
+
+  try {
+    const payload: unknown = JSON.parse(
+      message.slice(sourceStart + TURN_SOURCES_PREFIX.length, questionStart),
+    );
+    if (!Array.isArray(payload)) return [];
+
+    return payload.flatMap((record) => {
+      if (typeof record !== 'object' || record === null) return [];
+      const citationId = Reflect.get(record, 'citationId');
+      return typeof citationId === 'string' && /^S\d+$/u.test(citationId)
+        ? [citationId as `S${number}`]
+        : [];
+    });
+  } catch {
+    return [];
+  }
+}
+
+function resolveFakeResponseChunks(
+  chunks: readonly string[],
+  message: string,
+): string[] {
+  if (/\[S\d+\]/u.test(chunks.join(''))) {
+    throw createRuntimeError(
+      'generation-failed',
+      'The deterministic fake response contains a literal citation ID.',
+      false,
+    );
+  }
+
+  const citationIds = citationIdsFromTurnMessage(message);
+  const resolved = chunks.map((chunk) =>
+    chunk.replace(/\{\{SOURCE_(\d+)\}\}/gu, (_placeholder, ordinal: string) => {
+      const citationId = citationIds[Number(ordinal) - 1];
+      if (citationId === undefined) {
+        throw createRuntimeError(
+          'generation-failed',
+          'The deterministic fake response references an unavailable source placeholder.',
+          false,
+        );
+      }
+      return `[${citationId}]`;
+    }),
+  );
+  if (/\{\{SOURCE_\d+\}\}/u.test(resolved.join(''))) {
+    throw createRuntimeError(
+      'generation-failed',
+      'The deterministic fake response contains a split source placeholder.',
+      false,
+    );
+  }
+  return resolved;
+}
+
+const DEFAULT_SCHEDULER: FakeRuntimeScheduler = {
+  waitForChunk: async () => undefined,
+};
+
+const FAILURE_DETAILS: Record<
+  Exclude<FakeRuntimeFailurePoint, 'capability'>,
+  { code: EgregoreErrorCode; message: string }
+> = {
+  load: {
+    code: 'model-load-failed',
+    message: 'The test runtime was configured to fail while loading.',
+  },
+  generation: {
+    code: 'generation-failed',
+    message: 'The test runtime was configured to fail during generation.',
+  },
+  reset: {
+    code: 'engine-cleanup-failed',
+    message: 'The test runtime was configured to fail while resetting.',
+  },
+  unload: {
+    code: 'engine-cleanup-failed',
+    message: 'The test runtime was configured to fail while unloading.',
+  },
+};
+
+interface ActiveGeneration {
+  operationId: number;
+  cancelled: boolean;
+}
+
+export class FakeRuntime implements LocalModelRuntime {
+  private readonly responseChunks: readonly string[];
+  private readonly capabilityReport: CapabilityReport;
+  private readonly failures: Partial<
+    Record<FakeRuntimeFailurePoint, boolean | number>
+  >;
+  private readonly scheduler: FakeRuntimeScheduler;
+  private readonly recorder: FakeRuntimeRecorder;
+  private readonly recordResourceLifecycle: boolean;
+  private readonly emitLateChunkAfterCancellation: boolean;
+  private readonly onReset: () => void;
+  private activeGeneration: ActiveGeneration | null = null;
+  private hasEngine = false;
+  private hasConversation = false;
+  private conversationTokenCount = 0;
+
+  constructor(options: FakeRuntimeOptions) {
+    if (options.testOnly !== true) {
+      throw new Error(
+        'FakeRuntime is test-only and requires explicit test authorization.',
+      );
+    }
+
+    this.responseChunks = [...(options.responseChunks ?? ['Test response.'])];
+    this.capabilityReport =
+      options.capabilityReport ?? DEFAULT_CAPABILITY_REPORT;
+    this.failures = { ...options.failures };
+    this.scheduler = options.scheduler ?? DEFAULT_SCHEDULER;
+    this.recorder = options.recorder ?? new FakeRuntimeRecorder(1);
+    this.recordResourceLifecycle = options.recordResourceLifecycle ?? false;
+    this.emitLateChunkAfterCancellation =
+      options.emitLateChunkAfterCancellation ?? false;
+    this.onReset = options.onReset ?? (() => undefined);
+  }
+
+  get calls(): readonly FakeRuntimeCall[] {
+    return this.recorder.calls;
+  }
+
+  private record(method: FakeRuntimeCall['method']): number {
+    return this.recorder.record(method);
+  }
+
+  private configuredFailure(
+    point: Exclude<FakeRuntimeFailurePoint, 'capability'>,
+  ): void {
+    const configured = this.failures[point];
+    if (!configured) return;
+
+    if (typeof configured === 'number') {
+      if (configured <= 0) return;
+      this.failures[point] = configured - 1;
+    }
+
+    const failure = FAILURE_DETAILS[point];
+    throw createRuntimeError(failure.code, failure.message, true);
+  }
+
+  private invalidateActiveGeneration(): void {
+    if (this.activeGeneration) {
+      this.activeGeneration.cancelled = true;
+      this.activeGeneration = null;
+    }
+  }
+
+  async checkCapabilities(): Promise<CapabilityReport> {
+    const operationId = this.record('checkCapabilities');
+    await this.scheduler.waitForCapability?.(operationId);
+
+    if (this.failures.capability) {
+      return {
+        ...DEFAULT_CAPABILITY_REPORT,
+        supported: false,
+        adapterAvailable: false,
+        failures: [
+          createRuntimeError(
+            'adapter-unavailable',
+            'The test runtime was configured without a WebGPU adapter.',
+            false,
+          ),
+        ],
+      };
+    }
+
+    return this.capabilityReport;
+  }
+
+  async load(options: LoadOptions): Promise<void> {
+    const operationId = this.record(
+      this.recordResourceLifecycle ? 'runtime.load' : 'load',
+    );
+    options.onPhase?.('runtime');
+    this.configuredFailure('load');
+    await this.scheduler.waitForLoad?.(operationId);
+    if (this.recordResourceLifecycle) this.record('engine.create');
+    this.hasEngine = true;
+    options.onPhase?.('model');
+  }
+
+  async createSession(preface: ModelMessage[]): Promise<void> {
+    this.record(
+      this.recordResourceLifecycle ? 'conversation.create' : 'createSession',
+    );
+    if (!this.hasEngine) {
+      throw createRuntimeError(
+        'generation-failed',
+        'The test runtime must be loaded before creating a conversation.',
+        true,
+      );
+    }
+    if (this.hasConversation) {
+      throw createRuntimeError(
+        'generation-failed',
+        'Start a new Egregore session before creating another conversation.',
+        true,
+      );
+    }
+    this.hasConversation = true;
+    this.conversationTokenCount = preface.reduce(
+      (total, message) => total + estimateTokens(message.content),
+      0,
+    );
+  }
+
+  async getConversationTokenCount(): Promise<number> {
+    this.record('getConversationTokenCount');
+    if (!this.hasConversation) {
+      throw createRuntimeError(
+        'generation-failed',
+        'The test runtime does not have an active conversation.',
+        true,
+      );
+    }
+    return this.conversationTokenCount;
+  }
+
+  async generate(
+    message: string,
+    handlers: GenerationHandlers,
+  ): Promise<GenerationResult> {
+    const operationId = this.record('generate');
+    if (!this.hasEngine || !this.hasConversation) {
+      throw createRuntimeError(
+        'generation-failed',
+        'The test runtime requires a loaded engine and active conversation before generation.',
+        true,
+      );
+    }
+    if (this.activeGeneration) {
+      throw createRuntimeError(
+        'generation-failed',
+        'The test runtime accepts only one active generation.',
+        true,
+      );
+    }
+
+    const generation: ActiveGeneration = {
+      operationId,
+      cancelled: false,
+    };
+    this.activeGeneration = generation;
+
+    try {
+      this.configuredFailure('generation');
+      const responseChunks = resolveFakeResponseChunks(
+        this.responseChunks,
+        message,
+      );
+
+      for (const [chunkIndex, chunk] of responseChunks.entries()) {
+        await this.scheduler.waitForChunk(generation.operationId, chunkIndex);
+        if (
+          generation.cancelled ||
+          this.activeGeneration?.operationId !== generation.operationId
+        ) {
+          if (this.emitLateChunkAfterCancellation) handlers.onText(chunk);
+          break;
+        }
+        handlers.onText(chunk);
+      }
+
+      if (!generation.cancelled) {
+        this.conversationTokenCount += estimateTokens(message);
+        this.conversationTokenCount += estimateTokens(responseChunks.join(''));
+      }
+
+      return {
+        finishReason: generation.cancelled ? 'cancelled' : 'completed',
+      };
+    } finally {
+      if (this.activeGeneration?.operationId === generation.operationId) {
+        this.activeGeneration = null;
+      }
+    }
+  }
+
+  cancel(): void {
+    if (this.recordResourceLifecycle && this.activeGeneration === null) return;
+    this.record('cancel');
+    if (this.activeGeneration) {
+      this.activeGeneration.cancelled = true;
+    }
+  }
+
+  async reset(): Promise<void> {
+    if (this.recordResourceLifecycle) {
+      if (this.hasConversation) this.record('conversation.delete');
+    } else {
+      this.record('reset');
+    }
+    this.invalidateActiveGeneration();
+    this.configuredFailure('reset');
+    this.hasConversation = false;
+    this.conversationTokenCount = 0;
+    this.onReset();
+  }
+
+  async unload(): Promise<void> {
+    if (!this.recordResourceLifecycle) this.record('unload');
+    this.invalidateActiveGeneration();
+    const operationId = this.calls.at(-1)?.operationId ?? 0;
+    await this.scheduler.waitForUnload?.(operationId);
+    if (this.recordResourceLifecycle && this.hasEngine)
+      this.record('engine.delete');
+    this.configuredFailure('unload');
+    if (this.recordResourceLifecycle && this.hasEngine)
+      this.record('sdk.unload');
+    this.hasEngine = false;
+    this.hasConversation = false;
+    this.conversationTokenCount = 0;
+  }
+}

@@ -44,6 +44,11 @@
       "source": "/tools/chatbot/",
       "destination": "/chatbot/",
       "permanent": true
+    },
+    {
+      "source": "/licenses/jets-ghost/",
+      "destination": "/licenses/egregore/",
+      "permanent": true
     }
   ]
 }

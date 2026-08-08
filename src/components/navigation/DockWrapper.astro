@@ -2,9 +2,11 @@
 import LiquidGlassDock from './LiquidGlassDock';
 
 const currentPath = Astro.url.pathname;
+const { immersive = false } = Astro.props;
 ---
 
 <LiquidGlassDock
   currentPath={currentPath}
+  immersive={immersive}
   client:only="react"
 />

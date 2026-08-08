@@ -1,98 +1,98 @@
 ---
 import { formatDate } from '../../utils/formatDate';
 import { getReadingTimeText } from '../../utils/readingTime';
-import Tag from '../ui/Tag.astro';
-import Card from '../ui/Card.astro';
-import OptimizedImage from '../ui/OptimizedImage.astro';
+import ContentCard from '../content/ContentCard.astro';
 
 interface Props {
   slug: string;
   title: string;
+  shortTitle?: string;
   description: string;
+  summary?: string;
   pubDate: Date;
-  author: string;
   tags: string[];
   image?: {
     url: string;
     alt: string;
   };
   content?: string; // For reading time calculation
+  variant?: 'collection' | 'compact';
 }
 
-const { slug, title, description, pubDate, author, tags, image, content } = Astro.props;
+const {
+  slug,
+  title,
+  shortTitle,
+  description,
+  summary,
+  pubDate,
+  tags,
+  image,
+  content,
+  variant = 'collection',
+} = Astro.props;
 
 const postUrl = `/blog/${slug}/`;
 const formattedDate = formatDate(pubDate);
 const readingTime = content ? getReadingTimeText(content) : null;
+const displayTitle = shortTitle ?? title;
+const displaySummary = summary ?? description;
 ---
 
-<Card
-  hover
-  clip
-  padding="none"
+<ContentCard
+  href={postUrl}
+  title={displayTitle}
+  description={displaySummary}
+  tags={tags}
+  image={image}
+  variant={variant}
+  headingLevel={variant === 'compact' ? 3 : 2}
   data-filter-item
   data-filter-values={JSON.stringify(tags)}
 >
-  <a href={postUrl} class="block group">
-    {image && (
-      <div class="aspect-video overflow-hidden">
-        <OptimizedImage
-          src={image.url}
-          alt={image.alt}
-          width={800}
-          height={450}
-          class="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
-          loading="lazy"
-          sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
-        />
-      </div>
-    )}
+  <div slot="metadata" class="space-y-2xs">
+    <time datetime={pubDate.toISOString()} class="flex items-center gap-1">
+      <svg
+        xmlns="http://www.w3.org/2000/svg"
+        class="h-4 w-4"
+        fill="none"
+        viewBox="0 0 24 24"
+        stroke="currentColor"
+        aria-hidden="true"
+      >
+        <path
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          stroke-width="2"
+          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
+        ></path>
+      </svg>
+      {formattedDate}
+    </time>
 
-    <div class="p-card">
-      {/* Title */}
-      <h2 class="text-2xl font-bold leading-tight mb-2xs text-text-primary group-hover:text-brand-text transition-colors">
-        {title}
-      </h2>
-
-      {/* Description */}
-      <p class="text-text-secondary mb-s line-clamp-3">
-        {description}
-      </p>
-
-      {/* Metadata */}
-      <div class="flex flex-wrap items-center gap-x-s gap-y-2xs text-sm text-text-tertiary mb-s">
-        <time datetime={pubDate.toISOString()} class="flex items-center gap-1">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-          </svg>
-          {formattedDate}
-        </time>
-
-        {readingTime && (
+    <div class="flex flex-wrap items-center gap-x-s gap-y-2xs">
+      {
+        readingTime && (
           <span class="flex items-center gap-1">
-            <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              class="h-4 w-4"
+              fill="none"
+              viewBox="0 0 24 24"
+              stroke="currentColor"
+              aria-hidden="true"
+            >
+              <path
+                stroke-linecap="round"
+                stroke-linejoin="round"
+                stroke-width="2"
+                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
+              />
             </svg>
             {readingTime}
           </span>
-        )}
-
-        <span class="flex items-center gap-1">
-          <svg xmlns="http://www.w3.org/2000/svg" class="h-4 w-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-          </svg>
-          {author}
-        </span>
-      </div>
-
-      {/* Tags */}
-      {tags.length > 0 && (
-        <div class="flex flex-wrap gap-2xs">
-          {tags.map((tag) => (
-            <Tag size="sm">{tag}</Tag>
-          ))}
-        </div>
-      )}
+        )
+      }
     </div>
-  </a>
-</Card>
+  </div>
+</ContentCard>

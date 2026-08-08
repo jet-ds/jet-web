@@ -49,13 +49,16 @@ const contactLinks = [
 
       <div class="space-y-m">
         <Card surface="subtle">
-          <div class="flex flex-col md:flex-row md:items-center md:justify-between gap-s">
+          <div
+            class="flex flex-col md:flex-row md:items-center md:justify-between gap-s"
+          >
             <div class="flex-1">
               <h2 class="text-xl font-semibold mb-2xs text-text-primary">
                 Email
               </h2>
               <p class="text-text-secondary mb-xs">
-                The best way to reach me for inquiries, collaborations, or just to say hello.
+                The best way to reach me for inquiries, collaborations, or just
+                to say hello.
               </p>
               <Link href={`mailto:${SITE.email}`} variant="primary">
                 {SITE.email}
@@ -71,39 +74,44 @@ const contactLinks = [
           </div>
         </Card>
 
-        {contactLinks.length > 0 && (
-          <Card surface="subtle">
-          <h2 class="text-xl font-semibold mb-s text-text-primary">
-            Links
-          </h2>
-          <p class="text-text-secondary mb-m">
-            Find my profiles, publications, and open-source work
-          </p>
-          <div class="space-y-s">
-            {contactLinks.map((link) => (
-              <a
-                href={link.url}
-                target="_blank"
-                rel="noopener noreferrer"
-                class="flex items-start justify-between p-s rounded-lg border border-border-default hover:border-brand-base hover:bg-bg-hover transition-all group"
-              >
-                <span>
-                  <span class="block font-medium text-text-primary group-hover:text-brand-text">
-                    {link.name}
-                  </span>
-                  <span class="block text-sm text-text-tertiary mt-3xs">
-                    {link.description}
-                  </span>
-                </span>
-                <span class="text-accent-base flex-shrink-0 ml-s" aria-hidden="true">
-                  ↗
-                </span>
-                <span class="sr-only">(opens in a new tab)</span>
-              </a>
-            ))}
-          </div>
-          </Card>
-        )}
+        {
+          contactLinks.length > 0 && (
+            <Card surface="subtle">
+              <h2 class="text-xl font-semibold mb-s text-text-primary">
+                Links
+              </h2>
+              <p class="text-text-secondary mb-m">
+                Find my profiles, publications, and open-source work
+              </p>
+              <div class="space-y-s">
+                {contactLinks.map((link) => (
+                  <a
+                    href={link.url}
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    class="flex items-start justify-between p-s rounded-lg border border-border-default hover:border-brand-base hover:bg-bg-hover transition-all group"
+                  >
+                    <span>
+                      <span class="block font-medium text-text-primary group-hover:text-brand-text">
+                        {link.name}
+                      </span>
+                      <span class="block text-sm text-text-tertiary mt-3xs">
+                        {link.description}
+                      </span>
+                    </span>
+                    <span
+                      class="text-accent-base shrink-0 ml-s"
+                      aria-hidden="true"
+                    >
+                      ↗
+                    </span>
+                    <span class="sr-only">(opens in a new tab)</span>
+                  </a>
+                ))}
+              </div>
+            </Card>
+          )
+        }
       </div>
     </Container>
   </PageWrapper>

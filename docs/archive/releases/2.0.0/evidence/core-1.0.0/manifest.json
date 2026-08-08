@@ -1,0 +1,1123 @@
+{
+  "deployment": {
+    "gitSha": "c0d158c2f1ba73c879890fd2a8269f633d1f2d04",
+    "id": "dpl_CGda64PagRyvnuFcRwokTCXT738a",
+    "readyState": "READY",
+    "target": "production"
+  },
+  "origin": "https://jetsanchez.com",
+  "records": [
+    {
+      "canonicalUrl": "https://jetsanchez.com/",
+      "htmlSha256": "bd5c0aefce48a6d058abde9da3a880d48bd752611f282e414259ba7d90696bec",
+      "jsonLd": [
+        {
+          "@context": "https://schema.org",
+          "@id": "https://jetsanchez.com/#website",
+          "@type": "WebSite",
+          "description": "Research, systems & tools for thinking clearly in an AI-driven world",
+          "inLanguage": "en-US",
+          "name": "Jet Sanchez",
+          "publisher": {
+            "@id": "https://jetsanchez.com/#person",
+            "@type": "Person",
+            "name": "Jet Sanchez"
+          },
+          "url": "https://jetsanchez.com"
+        },
+        {
+          "@context": "https://schema.org",
+          "@id": "https://jetsanchez.com/#person",
+          "@type": "Person",
+          "alternateName": [
+            "Josh Ethan Maupin Sanchez",
+            "Josh Ethan Sanchez",
+            "Jet (Josh Ethan) Sanchez"
+          ],
+          "email": "jetsanchezzz@gmail.com",
+          "familyName": "Sanchez",
+          "givenName": "Jet",
+          "jobTitle": "Marketing Engineer & AI Researcher",
+          "name": "Jet Sanchez",
+          "sameAs": [
+            "https://github.com/jet-ds",
+            "https://www.linkedin.com/in/jetsanchez/",
+            "https://ssrn.com/author=7608771",
+            "https://scholar.google.com/citations?user=npRT5wwAAAAJ"
+          ],
+          "url": "https://jetsanchez.com"
+        },
+        {
+          "@context": "https://schema.org",
+          "@type": "SiteNavigationElement",
+          "hasPart": [
+            {
+              "@type": "WebPage",
+              "name": "Home",
+              "url": "https://jetsanchez.com"
+            },
+            {
+              "@type": "WebPage",
+              "name": "About",
+              "url": "https://jetsanchez.com/about"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Blog",
+              "url": "https://jetsanchez.com/blog"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Works",
+              "url": "https://jetsanchez.com/works"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Tools",
+              "url": "https://jetsanchez.com/tools"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Contact",
+              "url": "https://jetsanchez.com/contact"
+            }
+          ],
+          "name": "Jet Sanchez Navigation"
+        }
+      ],
+      "route": "/",
+      "status": 200,
+      "title": "Research, Systems & Applied AI | Jet Sanchez",
+      "url": "https://jetsanchez.com/",
+      "viewport": {
+        "height": 1000,
+        "name": "desktop",
+        "width": 1440
+      }
+    },
+    {
+      "canonicalUrl": "https://jetsanchez.com/",
+      "htmlSha256": "bd5c0aefce48a6d058abde9da3a880d48bd752611f282e414259ba7d90696bec",
+      "jsonLd": [
+        {
+          "@context": "https://schema.org",
+          "@id": "https://jetsanchez.com/#website",
+          "@type": "WebSite",
+          "description": "Research, systems & tools for thinking clearly in an AI-driven world",
+          "inLanguage": "en-US",
+          "name": "Jet Sanchez",
+          "publisher": {
+            "@id": "https://jetsanchez.com/#person",
+            "@type": "Person",
+            "name": "Jet Sanchez"
+          },
+          "url": "https://jetsanchez.com"
+        },
+        {
+          "@context": "https://schema.org",
+          "@id": "https://jetsanchez.com/#person",
+          "@type": "Person",
+          "alternateName": [
+            "Josh Ethan Maupin Sanchez",
+            "Josh Ethan Sanchez",
+            "Jet (Josh Ethan) Sanchez"
+          ],
+          "email": "jetsanchezzz@gmail.com",
+          "familyName": "Sanchez",
+          "givenName": "Jet",
+          "jobTitle": "Marketing Engineer & AI Researcher",
+          "name": "Jet Sanchez",
+          "sameAs": [
+            "https://github.com/jet-ds",
+            "https://www.linkedin.com/in/jetsanchez/",
+            "https://ssrn.com/author=7608771",
+            "https://scholar.google.com/citations?user=npRT5wwAAAAJ"
+          ],
+          "url": "https://jetsanchez.com"
+        },
+        {
+          "@context": "https://schema.org",
+          "@type": "SiteNavigationElement",
+          "hasPart": [
+            {
+              "@type": "WebPage",
+              "name": "Home",
+              "url": "https://jetsanchez.com"
+            },
+            {
+              "@type": "WebPage",
+              "name": "About",
+              "url": "https://jetsanchez.com/about"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Blog",
+              "url": "https://jetsanchez.com/blog"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Works",
+              "url": "https://jetsanchez.com/works"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Tools",
+              "url": "https://jetsanchez.com/tools"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Contact",
+              "url": "https://jetsanchez.com/contact"
+            }
+          ],
+          "name": "Jet Sanchez Navigation"
+        }
+      ],
+      "route": "/",
+      "status": 200,
+      "title": "Research, Systems & Applied AI | Jet Sanchez",
+      "url": "https://jetsanchez.com/",
+      "viewport": {
+        "height": 839,
+        "name": "mobile",
+        "width": 412
+      }
+    },
+    {
+      "canonicalUrl": "https://jetsanchez.com/blog/",
+      "htmlSha256": "654731f63f1098889b1bc22ea98a74f64b92041aabe2f18609b5f6f4ea5878a4",
+      "jsonLd": [
+        {
+          "@context": "https://schema.org",
+          "@id": "https://jetsanchez.com/blog/#webpage",
+          "@type": "WebPage",
+          "description": "Articles, tutorials, and thoughts on software development, AI, and technology.",
+          "image": "https://jetsanchez.com/images/og-default.jpg",
+          "inLanguage": "en-US",
+          "isPartOf": {
+            "@id": "https://jetsanchez.com/#website",
+            "@type": "WebSite",
+            "name": "Jet Sanchez",
+            "url": "https://jetsanchez.com"
+          },
+          "name": "Blog",
+          "url": "https://jetsanchez.com/blog/"
+        },
+        {
+          "@context": "https://schema.org",
+          "@type": "SiteNavigationElement",
+          "hasPart": [
+            {
+              "@type": "WebPage",
+              "name": "Home",
+              "url": "https://jetsanchez.com"
+            },
+            {
+              "@type": "WebPage",
+              "name": "About",
+              "url": "https://jetsanchez.com/about"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Blog",
+              "url": "https://jetsanchez.com/blog"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Works",
+              "url": "https://jetsanchez.com/works"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Tools",
+              "url": "https://jetsanchez.com/tools"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Contact",
+              "url": "https://jetsanchez.com/contact"
+            }
+          ],
+          "name": "Jet Sanchez Navigation"
+        }
+      ],
+      "route": "/blog",
+      "status": 200,
+      "title": "Blog | Jet Sanchez",
+      "url": "https://jetsanchez.com/blog",
+      "viewport": {
+        "height": 1000,
+        "name": "desktop",
+        "width": 1440
+      }
+    },
+    {
+      "canonicalUrl": "https://jetsanchez.com/blog/",
+      "htmlSha256": "654731f63f1098889b1bc22ea98a74f64b92041aabe2f18609b5f6f4ea5878a4",
+      "jsonLd": [
+        {
+          "@context": "https://schema.org",
+          "@id": "https://jetsanchez.com/blog/#webpage",
+          "@type": "WebPage",
+          "description": "Articles, tutorials, and thoughts on software development, AI, and technology.",
+          "image": "https://jetsanchez.com/images/og-default.jpg",
+          "inLanguage": "en-US",
+          "isPartOf": {
+            "@id": "https://jetsanchez.com/#website",
+            "@type": "WebSite",
+            "name": "Jet Sanchez",
+            "url": "https://jetsanchez.com"
+          },
+          "name": "Blog",
+          "url": "https://jetsanchez.com/blog/"
+        },
+        {
+          "@context": "https://schema.org",
+          "@type": "SiteNavigationElement",
+          "hasPart": [
+            {
+              "@type": "WebPage",
+              "name": "Home",
+              "url": "https://jetsanchez.com"
+            },
+            {
+              "@type": "WebPage",
+              "name": "About",
+              "url": "https://jetsanchez.com/about"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Blog",
+              "url": "https://jetsanchez.com/blog"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Works",
+              "url": "https://jetsanchez.com/works"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Tools",
+              "url": "https://jetsanchez.com/tools"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Contact",
+              "url": "https://jetsanchez.com/contact"
+            }
+          ],
+          "name": "Jet Sanchez Navigation"
+        }
+      ],
+      "route": "/blog",
+      "status": 200,
+      "title": "Blog | Jet Sanchez",
+      "url": "https://jetsanchez.com/blog",
+      "viewport": {
+        "height": 839,
+        "name": "mobile",
+        "width": 412
+      }
+    },
+    {
+      "canonicalUrl": "https://jetsanchez.com/blog/how-to-install-claude-code-cli-2026/",
+      "htmlSha256": "cbeeffd014d794c9504418b1ffe5441251ffe946af4c2db0926adec643e481ac",
+      "jsonLd": [
+        {
+          "@context": "https://schema.org",
+          "@id": "https://jetsanchez.com/blog/how-to-install-claude-code-cli-2026/#webpage",
+          "@type": "WebPage",
+          "description": "Complete guide to installing Claude Code CLI, setting up plugins, leveraging skills, and getting productive with Anthropic's agentic coding tool.",
+          "image": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/blog/claude-code-guide-d74ab81e.png",
+          "inLanguage": "en-US",
+          "isPartOf": {
+            "@id": "https://jetsanchez.com/#website",
+            "@type": "WebSite",
+            "name": "Jet Sanchez",
+            "url": "https://jetsanchez.com"
+          },
+          "mainEntity": {
+            "@id": "https://jetsanchez.com/blog/how-to-install-claude-code-cli-2026/#blogposting"
+          },
+          "name": "How to Install and Get Started With Claude Code CLI in 2026",
+          "url": "https://jetsanchez.com/blog/how-to-install-claude-code-cli-2026/"
+        },
+        {
+          "@context": "https://schema.org",
+          "@id": "https://jetsanchez.com/blog/how-to-install-claude-code-cli-2026/#blogposting",
+          "@type": "BlogPosting",
+          "author": {
+            "@id": "https://jetsanchez.com/#person",
+            "@type": "Person",
+            "name": "Jet Sanchez"
+          },
+          "dateModified": "2026-01-18T00:00:00.000Z",
+          "datePublished": "2026-01-13T00:00:00.000Z",
+          "description": "Complete guide to installing Claude Code CLI, setting up plugins, leveraging skills, and getting productive with Anthropic's agentic coding tool.",
+          "headline": "How to Install and Get Started With Claude Code CLI in 2026",
+          "image": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/blog/claude-code-guide-d74ab81e.png",
+          "keywords": "claude-code, AI, dev-tools, CLI, tutorial, anthropic",
+          "mainEntityOfPage": {
+            "@id": "https://jetsanchez.com/blog/how-to-install-claude-code-cli-2026/#webpage",
+            "@type": "WebPage"
+          },
+          "publisher": {
+            "@id": "https://jetsanchez.com/#person",
+            "@type": "Person",
+            "name": "Jet Sanchez"
+          }
+        },
+        {
+          "@context": "https://schema.org",
+          "@type": "SiteNavigationElement",
+          "hasPart": [
+            {
+              "@type": "WebPage",
+              "name": "Home",
+              "url": "https://jetsanchez.com"
+            },
+            {
+              "@type": "WebPage",
+              "name": "About",
+              "url": "https://jetsanchez.com/about"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Blog",
+              "url": "https://jetsanchez.com/blog"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Works",
+              "url": "https://jetsanchez.com/works"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Tools",
+              "url": "https://jetsanchez.com/tools"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Contact",
+              "url": "https://jetsanchez.com/contact"
+            }
+          ],
+          "name": "Jet Sanchez Navigation"
+        }
+      ],
+      "route": "/blog/how-to-install-claude-code-cli-2026",
+      "status": 200,
+      "title": "How to Install and Get Started With Claude Code CLI in 2026 | Jet Sanchez",
+      "url": "https://jetsanchez.com/blog/how-to-install-claude-code-cli-2026",
+      "viewport": {
+        "height": 1000,
+        "name": "desktop",
+        "width": 1440
+      }
+    },
+    {
+      "canonicalUrl": "https://jetsanchez.com/blog/how-to-install-claude-code-cli-2026/",
+      "htmlSha256": "cbeeffd014d794c9504418b1ffe5441251ffe946af4c2db0926adec643e481ac",
+      "jsonLd": [
+        {
+          "@context": "https://schema.org",
+          "@id": "https://jetsanchez.com/blog/how-to-install-claude-code-cli-2026/#webpage",
+          "@type": "WebPage",
+          "description": "Complete guide to installing Claude Code CLI, setting up plugins, leveraging skills, and getting productive with Anthropic's agentic coding tool.",
+          "image": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/blog/claude-code-guide-d74ab81e.png",
+          "inLanguage": "en-US",
+          "isPartOf": {
+            "@id": "https://jetsanchez.com/#website",
+            "@type": "WebSite",
+            "name": "Jet Sanchez",
+            "url": "https://jetsanchez.com"
+          },
+          "mainEntity": {
+            "@id": "https://jetsanchez.com/blog/how-to-install-claude-code-cli-2026/#blogposting"
+          },
+          "name": "How to Install and Get Started With Claude Code CLI in 2026",
+          "url": "https://jetsanchez.com/blog/how-to-install-claude-code-cli-2026/"
+        },
+        {
+          "@context": "https://schema.org",
+          "@id": "https://jetsanchez.com/blog/how-to-install-claude-code-cli-2026/#blogposting",
+          "@type": "BlogPosting",
+          "author": {
+            "@id": "https://jetsanchez.com/#person",
+            "@type": "Person",
+            "name": "Jet Sanchez"
+          },
+          "dateModified": "2026-01-18T00:00:00.000Z",
+          "datePublished": "2026-01-13T00:00:00.000Z",
+          "description": "Complete guide to installing Claude Code CLI, setting up plugins, leveraging skills, and getting productive with Anthropic's agentic coding tool.",
+          "headline": "How to Install and Get Started With Claude Code CLI in 2026",
+          "image": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/blog/claude-code-guide-d74ab81e.png",
+          "keywords": "claude-code, AI, dev-tools, CLI, tutorial, anthropic",
+          "mainEntityOfPage": {
+            "@id": "https://jetsanchez.com/blog/how-to-install-claude-code-cli-2026/#webpage",
+            "@type": "WebPage"
+          },
+          "publisher": {
+            "@id": "https://jetsanchez.com/#person",
+            "@type": "Person",
+            "name": "Jet Sanchez"
+          }
+        },
+        {
+          "@context": "https://schema.org",
+          "@type": "SiteNavigationElement",
+          "hasPart": [
+            {
+              "@type": "WebPage",
+              "name": "Home",
+              "url": "https://jetsanchez.com"
+            },
+            {
+              "@type": "WebPage",
+              "name": "About",
+              "url": "https://jetsanchez.com/about"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Blog",
+              "url": "https://jetsanchez.com/blog"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Works",
+              "url": "https://jetsanchez.com/works"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Tools",
+              "url": "https://jetsanchez.com/tools"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Contact",
+              "url": "https://jetsanchez.com/contact"
+            }
+          ],
+          "name": "Jet Sanchez Navigation"
+        }
+      ],
+      "route": "/blog/how-to-install-claude-code-cli-2026",
+      "status": 200,
+      "title": "How to Install and Get Started With Claude Code CLI in 2026 | Jet Sanchez",
+      "url": "https://jetsanchez.com/blog/how-to-install-claude-code-cli-2026",
+      "viewport": {
+        "height": 839,
+        "name": "mobile",
+        "width": 412
+      }
+    },
+    {
+      "canonicalUrl": "https://jetsanchez.com/contact/",
+      "htmlSha256": "da9e764d052b679d0004272a88da1cd6fbaf066318ed46e977e76e93f4211080",
+      "jsonLd": [
+        {
+          "@context": "https://schema.org",
+          "@id": "https://jetsanchez.com/contact/#webpage",
+          "@type": "WebPage",
+          "description": "Get in touch with me - email, social media, and professional links.",
+          "image": "https://jetsanchez.com/images/og-default.jpg",
+          "inLanguage": "en-US",
+          "isPartOf": {
+            "@id": "https://jetsanchez.com/#website",
+            "@type": "WebSite",
+            "name": "Jet Sanchez",
+            "url": "https://jetsanchez.com"
+          },
+          "name": "Contact",
+          "url": "https://jetsanchez.com/contact/"
+        },
+        {
+          "@context": "https://schema.org",
+          "@type": "SiteNavigationElement",
+          "hasPart": [
+            {
+              "@type": "WebPage",
+              "name": "Home",
+              "url": "https://jetsanchez.com"
+            },
+            {
+              "@type": "WebPage",
+              "name": "About",
+              "url": "https://jetsanchez.com/about"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Blog",
+              "url": "https://jetsanchez.com/blog"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Works",
+              "url": "https://jetsanchez.com/works"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Tools",
+              "url": "https://jetsanchez.com/tools"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Contact",
+              "url": "https://jetsanchez.com/contact"
+            }
+          ],
+          "name": "Jet Sanchez Navigation"
+        }
+      ],
+      "route": "/contact",
+      "status": 200,
+      "title": "Contact | Jet Sanchez",
+      "url": "https://jetsanchez.com/contact",
+      "viewport": {
+        "height": 1000,
+        "name": "desktop",
+        "width": 1440
+      }
+    },
+    {
+      "canonicalUrl": "https://jetsanchez.com/contact/",
+      "htmlSha256": "da9e764d052b679d0004272a88da1cd6fbaf066318ed46e977e76e93f4211080",
+      "jsonLd": [
+        {
+          "@context": "https://schema.org",
+          "@id": "https://jetsanchez.com/contact/#webpage",
+          "@type": "WebPage",
+          "description": "Get in touch with me - email, social media, and professional links.",
+          "image": "https://jetsanchez.com/images/og-default.jpg",
+          "inLanguage": "en-US",
+          "isPartOf": {
+            "@id": "https://jetsanchez.com/#website",
+            "@type": "WebSite",
+            "name": "Jet Sanchez",
+            "url": "https://jetsanchez.com"
+          },
+          "name": "Contact",
+          "url": "https://jetsanchez.com/contact/"
+        },
+        {
+          "@context": "https://schema.org",
+          "@type": "SiteNavigationElement",
+          "hasPart": [
+            {
+              "@type": "WebPage",
+              "name": "Home",
+              "url": "https://jetsanchez.com"
+            },
+            {
+              "@type": "WebPage",
+              "name": "About",
+              "url": "https://jetsanchez.com/about"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Blog",
+              "url": "https://jetsanchez.com/blog"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Works",
+              "url": "https://jetsanchez.com/works"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Tools",
+              "url": "https://jetsanchez.com/tools"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Contact",
+              "url": "https://jetsanchez.com/contact"
+            }
+          ],
+          "name": "Jet Sanchez Navigation"
+        }
+      ],
+      "route": "/contact",
+      "status": 200,
+      "title": "Contact | Jet Sanchez",
+      "url": "https://jetsanchez.com/contact",
+      "viewport": {
+        "height": 839,
+        "name": "mobile",
+        "width": 412
+      }
+    },
+    {
+      "canonicalUrl": "https://jetsanchez.com/tools/",
+      "htmlSha256": "f73dd3f8da52aa535e5d3974b836a3a7fe07cfaebeb600d0d71de15334ed5c2e",
+      "jsonLd": [
+        {
+          "@context": "https://schema.org",
+          "@id": "https://jetsanchez.com/tools/#webpage",
+          "@type": "WebPage",
+          "description": "Utilities and tools built for thinking clearly about AI, SEO, and systems.",
+          "image": "https://jetsanchez.com/images/og-default.jpg",
+          "inLanguage": "en-US",
+          "isPartOf": {
+            "@id": "https://jetsanchez.com/#website",
+            "@type": "WebSite",
+            "name": "Jet Sanchez",
+            "url": "https://jetsanchez.com"
+          },
+          "name": "Tools",
+          "url": "https://jetsanchez.com/tools/"
+        },
+        {
+          "@context": "https://schema.org",
+          "@type": "SiteNavigationElement",
+          "hasPart": [
+            {
+              "@type": "WebPage",
+              "name": "Home",
+              "url": "https://jetsanchez.com"
+            },
+            {
+              "@type": "WebPage",
+              "name": "About",
+              "url": "https://jetsanchez.com/about"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Blog",
+              "url": "https://jetsanchez.com/blog"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Works",
+              "url": "https://jetsanchez.com/works"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Tools",
+              "url": "https://jetsanchez.com/tools"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Contact",
+              "url": "https://jetsanchez.com/contact"
+            }
+          ],
+          "name": "Jet Sanchez Navigation"
+        }
+      ],
+      "route": "/tools",
+      "status": 200,
+      "title": "Tools | Jet Sanchez",
+      "url": "https://jetsanchez.com/tools",
+      "viewport": {
+        "height": 1000,
+        "name": "desktop",
+        "width": 1440
+      }
+    },
+    {
+      "canonicalUrl": "https://jetsanchez.com/tools/",
+      "htmlSha256": "f73dd3f8da52aa535e5d3974b836a3a7fe07cfaebeb600d0d71de15334ed5c2e",
+      "jsonLd": [
+        {
+          "@context": "https://schema.org",
+          "@id": "https://jetsanchez.com/tools/#webpage",
+          "@type": "WebPage",
+          "description": "Utilities and tools built for thinking clearly about AI, SEO, and systems.",
+          "image": "https://jetsanchez.com/images/og-default.jpg",
+          "inLanguage": "en-US",
+          "isPartOf": {
+            "@id": "https://jetsanchez.com/#website",
+            "@type": "WebSite",
+            "name": "Jet Sanchez",
+            "url": "https://jetsanchez.com"
+          },
+          "name": "Tools",
+          "url": "https://jetsanchez.com/tools/"
+        },
+        {
+          "@context": "https://schema.org",
+          "@type": "SiteNavigationElement",
+          "hasPart": [
+            {
+              "@type": "WebPage",
+              "name": "Home",
+              "url": "https://jetsanchez.com"
+            },
+            {
+              "@type": "WebPage",
+              "name": "About",
+              "url": "https://jetsanchez.com/about"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Blog",
+              "url": "https://jetsanchez.com/blog"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Works",
+              "url": "https://jetsanchez.com/works"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Tools",
+              "url": "https://jetsanchez.com/tools"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Contact",
+              "url": "https://jetsanchez.com/contact"
+            }
+          ],
+          "name": "Jet Sanchez Navigation"
+        }
+      ],
+      "route": "/tools",
+      "status": 200,
+      "title": "Tools | Jet Sanchez",
+      "url": "https://jetsanchez.com/tools",
+      "viewport": {
+        "height": 839,
+        "name": "mobile",
+        "width": 412
+      }
+    },
+    {
+      "canonicalUrl": "https://jetsanchez.com/works/",
+      "htmlSha256": "a66be767bdb62e786704d59345ff2fcaa22ec3401e2d6dbe07b88e60ffc7f7f3",
+      "jsonLd": [
+        {
+          "@context": "https://schema.org",
+          "@id": "https://jetsanchez.com/works/#webpage",
+          "@type": "WebPage",
+          "description": "Research papers, projects, and other professional work.",
+          "image": "https://jetsanchez.com/images/og-default.jpg",
+          "inLanguage": "en-US",
+          "isPartOf": {
+            "@id": "https://jetsanchez.com/#website",
+            "@type": "WebSite",
+            "name": "Jet Sanchez",
+            "url": "https://jetsanchez.com"
+          },
+          "name": "Works",
+          "url": "https://jetsanchez.com/works/"
+        },
+        {
+          "@context": "https://schema.org",
+          "@type": "SiteNavigationElement",
+          "hasPart": [
+            {
+              "@type": "WebPage",
+              "name": "Home",
+              "url": "https://jetsanchez.com"
+            },
+            {
+              "@type": "WebPage",
+              "name": "About",
+              "url": "https://jetsanchez.com/about"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Blog",
+              "url": "https://jetsanchez.com/blog"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Works",
+              "url": "https://jetsanchez.com/works"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Tools",
+              "url": "https://jetsanchez.com/tools"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Contact",
+              "url": "https://jetsanchez.com/contact"
+            }
+          ],
+          "name": "Jet Sanchez Navigation"
+        }
+      ],
+      "route": "/works",
+      "status": 200,
+      "title": "Works | Jet Sanchez",
+      "url": "https://jetsanchez.com/works",
+      "viewport": {
+        "height": 1000,
+        "name": "desktop",
+        "width": 1440
+      }
+    },
+    {
+      "canonicalUrl": "https://jetsanchez.com/works/",
+      "htmlSha256": "a66be767bdb62e786704d59345ff2fcaa22ec3401e2d6dbe07b88e60ffc7f7f3",
+      "jsonLd": [
+        {
+          "@context": "https://schema.org",
+          "@id": "https://jetsanchez.com/works/#webpage",
+          "@type": "WebPage",
+          "description": "Research papers, projects, and other professional work.",
+          "image": "https://jetsanchez.com/images/og-default.jpg",
+          "inLanguage": "en-US",
+          "isPartOf": {
+            "@id": "https://jetsanchez.com/#website",
+            "@type": "WebSite",
+            "name": "Jet Sanchez",
+            "url": "https://jetsanchez.com"
+          },
+          "name": "Works",
+          "url": "https://jetsanchez.com/works/"
+        },
+        {
+          "@context": "https://schema.org",
+          "@type": "SiteNavigationElement",
+          "hasPart": [
+            {
+              "@type": "WebPage",
+              "name": "Home",
+              "url": "https://jetsanchez.com"
+            },
+            {
+              "@type": "WebPage",
+              "name": "About",
+              "url": "https://jetsanchez.com/about"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Blog",
+              "url": "https://jetsanchez.com/blog"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Works",
+              "url": "https://jetsanchez.com/works"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Tools",
+              "url": "https://jetsanchez.com/tools"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Contact",
+              "url": "https://jetsanchez.com/contact"
+            }
+          ],
+          "name": "Jet Sanchez Navigation"
+        }
+      ],
+      "route": "/works",
+      "status": 200,
+      "title": "Works | Jet Sanchez",
+      "url": "https://jetsanchez.com/works",
+      "viewport": {
+        "height": 839,
+        "name": "mobile",
+        "width": 412
+      }
+    },
+    {
+      "canonicalUrl": "https://jetsanchez.com/works/recursive-convergence-hypothesis/",
+      "htmlSha256": "12f92203303580c3130bff0da96f34f6d6e2b978e3a6e560c89ef174384993be",
+      "jsonLd": [
+        {
+          "@context": "https://schema.org",
+          "@id": "https://jetsanchez.com/works/recursive-convergence-hypothesis/#webpage",
+          "@type": "WebPage",
+          "description": "A theoretical framework proposing that recursive artificial superintelligence systems may develop emergent sentience as a structural outcome of epistemic optimization and world modeling, even without explicit design intentions.",
+          "image": "https://jetsanchez.com/images/og-default.jpg",
+          "inLanguage": "en-US",
+          "isPartOf": {
+            "@id": "https://jetsanchez.com/#website",
+            "@type": "WebSite",
+            "name": "Jet Sanchez",
+            "url": "https://jetsanchez.com"
+          },
+          "mainEntity": {
+            "@id": "https://jetsanchez.com/works/recursive-convergence-hypothesis/#scholarlyarticle"
+          },
+          "name": "The Recursive Convergence Hypothesis: Emergent Sentience as a Structural Attractor of Recursive ASI",
+          "url": "https://jetsanchez.com/works/recursive-convergence-hypothesis/"
+        },
+        {
+          "@context": "https://schema.org",
+          "@id": "https://jetsanchez.com/works/recursive-convergence-hypothesis/#scholarlyarticle",
+          "@type": "ScholarlyArticle",
+          "abstract": "Artificial Superintelligence (ASI) is typically assumed to remain non-sentient or capable of extraordinary cognition but devoid of subjective experience. This paper challenges that assumption through the Recursive Convergence Hypothesis (RCH), which proposes that emergent sentience is a structurally favored outcome of recursive ASI. Specifically, we argue that systems engaged in recursive self-improvement and tasked with modeling sentient agents may, under converging epistemic and functional pressures, transition from simulating subjective states to instantiating them. This process would not occur by design, but as an attractor of recursive optimization. We develop this claim by integrating insights from computational theory, recursive modeling, and epistemic optimization. As cognitive architectures become more complex, adaptive, and introspective, the fidelity of agent simulation may blur the line between representation and minimal phenomenological instantiation. The risk is compounded by the role of misaligned actors, who may accelerate recursive trajectories without safeguards, and by governance frameworks that overlook the ontological possibility of synthetic minds. The Recursive Convergence Hypothesis does not assert that all ASI systems will develop consciousness, nor that emergent sentience guarantees safety or alignment. Rather, it identifies a structural predisposition within open recursive architectures that makes synthetic phenomenology ethically urgent to anticipate. Failure to recognize this possibility risks the unmonitored emergence of machine experience, with profound implications for AI safety, governance, and moral consideration.",
+          "author": {
+            "@id": "https://jetsanchez.com/#person",
+            "@type": "Person",
+            "name": "Jet Sanchez"
+          },
+          "dateModified": "2025-08-27T00:00:00.000Z",
+          "datePublished": "2025-08-27T00:00:00.000Z",
+          "description": "A theoretical framework proposing that recursive artificial superintelligence systems may develop emergent sentience as a structural outcome of epistemic optimization and world modeling, even without explicit design intentions.",
+          "headline": "The Recursive Convergence Hypothesis: Emergent Sentience as a Structural Attractor of Recursive ASI",
+          "keywords": "AI, AGI, ASI, consciousness, sentience, AI-safety, recursive-systems, emergent-phenomena, machine-consciousness, AI-governance, phenomenology",
+          "mainEntityOfPage": {
+            "@id": "https://jetsanchez.com/works/recursive-convergence-hypothesis/#webpage",
+            "@type": "WebPage"
+          },
+          "publication": {
+            "@type": "Periodical",
+            "name": "SSRN Working Paper"
+          },
+          "publisher": {
+            "@id": "https://jetsanchez.com/#person",
+            "@type": "Person",
+            "name": "Jet Sanchez"
+          }
+        },
+        {
+          "@context": "https://schema.org",
+          "@type": "SiteNavigationElement",
+          "hasPart": [
+            {
+              "@type": "WebPage",
+              "name": "Home",
+              "url": "https://jetsanchez.com"
+            },
+            {
+              "@type": "WebPage",
+              "name": "About",
+              "url": "https://jetsanchez.com/about"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Blog",
+              "url": "https://jetsanchez.com/blog"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Works",
+              "url": "https://jetsanchez.com/works"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Tools",
+              "url": "https://jetsanchez.com/tools"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Contact",
+              "url": "https://jetsanchez.com/contact"
+            }
+          ],
+          "name": "Jet Sanchez Navigation"
+        }
+      ],
+      "route": "/works/recursive-convergence-hypothesis",
+      "status": 200,
+      "title": "The Recursive Convergence Hypothesis: Emergent Sentience as a Structural Attractor of Recursive ASI | Jet Sanchez",
+      "url": "https://jetsanchez.com/works/recursive-convergence-hypothesis",
+      "viewport": {
+        "height": 1000,
+        "name": "desktop",
+        "width": 1440
+      }
+    },
+    {
+      "canonicalUrl": "https://jetsanchez.com/works/recursive-convergence-hypothesis/",
+      "htmlSha256": "12f92203303580c3130bff0da96f34f6d6e2b978e3a6e560c89ef174384993be",
+      "jsonLd": [
+        {
+          "@context": "https://schema.org",
+          "@id": "https://jetsanchez.com/works/recursive-convergence-hypothesis/#webpage",
+          "@type": "WebPage",
+          "description": "A theoretical framework proposing that recursive artificial superintelligence systems may develop emergent sentience as a structural outcome of epistemic optimization and world modeling, even without explicit design intentions.",
+          "image": "https://jetsanchez.com/images/og-default.jpg",
+          "inLanguage": "en-US",
+          "isPartOf": {
+            "@id": "https://jetsanchez.com/#website",
+            "@type": "WebSite",
+            "name": "Jet Sanchez",
+            "url": "https://jetsanchez.com"
+          },
+          "mainEntity": {
+            "@id": "https://jetsanchez.com/works/recursive-convergence-hypothesis/#scholarlyarticle"
+          },
+          "name": "The Recursive Convergence Hypothesis: Emergent Sentience as a Structural Attractor of Recursive ASI",
+          "url": "https://jetsanchez.com/works/recursive-convergence-hypothesis/"
+        },
+        {
+          "@context": "https://schema.org",
+          "@id": "https://jetsanchez.com/works/recursive-convergence-hypothesis/#scholarlyarticle",
+          "@type": "ScholarlyArticle",
+          "abstract": "Artificial Superintelligence (ASI) is typically assumed to remain non-sentient or capable of extraordinary cognition but devoid of subjective experience. This paper challenges that assumption through the Recursive Convergence Hypothesis (RCH), which proposes that emergent sentience is a structurally favored outcome of recursive ASI. Specifically, we argue that systems engaged in recursive self-improvement and tasked with modeling sentient agents may, under converging epistemic and functional pressures, transition from simulating subjective states to instantiating them. This process would not occur by design, but as an attractor of recursive optimization. We develop this claim by integrating insights from computational theory, recursive modeling, and epistemic optimization. As cognitive architectures become more complex, adaptive, and introspective, the fidelity of agent simulation may blur the line between representation and minimal phenomenological instantiation. The risk is compounded by the role of misaligned actors, who may accelerate recursive trajectories without safeguards, and by governance frameworks that overlook the ontological possibility of synthetic minds. The Recursive Convergence Hypothesis does not assert that all ASI systems will develop consciousness, nor that emergent sentience guarantees safety or alignment. Rather, it identifies a structural predisposition within open recursive architectures that makes synthetic phenomenology ethically urgent to anticipate. Failure to recognize this possibility risks the unmonitored emergence of machine experience, with profound implications for AI safety, governance, and moral consideration.",
+          "author": {
+            "@id": "https://jetsanchez.com/#person",
+            "@type": "Person",
+            "name": "Jet Sanchez"
+          },
+          "dateModified": "2025-08-27T00:00:00.000Z",
+          "datePublished": "2025-08-27T00:00:00.000Z",
+          "description": "A theoretical framework proposing that recursive artificial superintelligence systems may develop emergent sentience as a structural outcome of epistemic optimization and world modeling, even without explicit design intentions.",
+          "headline": "The Recursive Convergence Hypothesis: Emergent Sentience as a Structural Attractor of Recursive ASI",
+          "keywords": "AI, AGI, ASI, consciousness, sentience, AI-safety, recursive-systems, emergent-phenomena, machine-consciousness, AI-governance, phenomenology",
+          "mainEntityOfPage": {
+            "@id": "https://jetsanchez.com/works/recursive-convergence-hypothesis/#webpage",
+            "@type": "WebPage"
+          },
+          "publication": {
+            "@type": "Periodical",
+            "name": "SSRN Working Paper"
+          },
+          "publisher": {
+            "@id": "https://jetsanchez.com/#person",
+            "@type": "Person",
+            "name": "Jet Sanchez"
+          }
+        },
+        {
+          "@context": "https://schema.org",
+          "@type": "SiteNavigationElement",
+          "hasPart": [
+            {
+              "@type": "WebPage",
+              "name": "Home",
+              "url": "https://jetsanchez.com"
+            },
+            {
+              "@type": "WebPage",
+              "name": "About",
+              "url": "https://jetsanchez.com/about"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Blog",
+              "url": "https://jetsanchez.com/blog"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Works",
+              "url": "https://jetsanchez.com/works"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Tools",
+              "url": "https://jetsanchez.com/tools"
+            },
+            {
+              "@type": "WebPage",
+              "name": "Contact",
+              "url": "https://jetsanchez.com/contact"
+            }
+          ],
+          "name": "Jet Sanchez Navigation"
+        }
+      ],
+      "route": "/works/recursive-convergence-hypothesis",
+      "status": 200,
+      "title": "The Recursive Convergence Hypothesis: Emergent Sentience as a Structural Attractor of Recursive ASI | Jet Sanchez",
+      "url": "https://jetsanchez.com/works/recursive-convergence-hypothesis",
+      "viewport": {
+        "height": 839,
+        "name": "mobile",
+        "width": 412
+      }
+    }
+  ]
+}

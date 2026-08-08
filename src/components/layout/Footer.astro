@@ -1,5 +1,5 @@
 ---
-import { SITE, SOCIAL_LINKS } from '../../config/site';
+import { NAV_ITEMS, SITE, SOCIAL_LINKS } from '../../config/site';
 import Container from '../ui/Container.astro';
 import Link from '../ui/Link.astro';
 
@@ -40,37 +40,31 @@ const socialLinksArray = Object.entries(SOCIAL_LINKS)
           Quick Links
         </h3>
         <ul class="space-y-2xs">
-          <li>
-            <Link href="/" variant="muted">Home</Link>
-          </li>
-          <li>
-            <Link href="/about/" variant="muted">About</Link>
-          </li>
-          <li>
-            <Link href="/blog/" variant="muted">Blog</Link>
-          </li>
-          <li>
-            <Link href="/works/" variant="muted">Works</Link>
-          </li>
-          <li>
-            <Link href="/contact/" variant="muted">Contact</Link>
-          </li>
+          {
+            NAV_ITEMS.map(({ href, label }) => (
+              <li>
+                <Link href={href} variant="muted">
+                  {label}
+                </Link>
+              </li>
+            ))
+          }
         </ul>
       </div>
 
       <!-- Social Links -->
       <div>
-        <h3 class="text-lg font-semibold mb-s text-text-primary">
-          Connect
-        </h3>
+        <h3 class="text-lg font-semibold mb-s text-text-primary">Connect</h3>
         <ul class="space-y-2xs">
-          {socialLinksArray.map(({ platform, url }) => (
-            <li>
-              <Link href={url} variant="muted" external>
-                {platform}
-              </Link>
-            </li>
-          ))}
+          {
+            socialLinksArray.map(({ platform, url }) => (
+              <li>
+                <Link href={url} variant="muted" external>
+                  {platform}
+                </Link>
+              </li>
+            ))
+          }
         </ul>
       </div>
     </div>
@@ -78,7 +72,8 @@ const socialLinksArray = Object.entries(SOCIAL_LINKS)
     <!-- Copyright -->
     <div class="mt-l pt-l border-t border-border-default">
       <p class="text-center text-sm text-text-tertiary">
-        © {currentYear} {SITE.author}. All rights reserved.
+        © {currentYear}
+        {SITE.author}. All rights reserved.
       </p>
     </div>
   </Container>

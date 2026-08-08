@@ -18,10 +18,10 @@ export interface BypassBrowserContext {
 function validatedPreviewOrigin(origin: string): string {
   const url = new URL(origin);
   if (
-    url.protocol !== 'https:'
-    || url.port !== ''
-    || !url.hostname.endsWith('.vercel.app')
-    || url.origin !== origin
+    url.protocol !== 'https:' ||
+    url.port !== '' ||
+    !url.hostname.endsWith('.vercel.app') ||
+    url.origin !== origin
   ) {
     throw new Error('DEPLOYMENT_PROTECTION_ORIGIN_FORBIDDEN');
   }
@@ -29,9 +29,11 @@ function validatedPreviewOrigin(origin: string): string {
 }
 
 function responseSetCookies(headers: Headers): string[] {
-  const getSetCookie = (headers as Headers & {
-    getSetCookie?: () => string[];
-  }).getSetCookie;
+  const getSetCookie = (
+    headers as Headers & {
+      getSetCookie?: () => string[];
+    }
+  ).getSetCookie;
   if (getSetCookie !== undefined) return getSetCookie.call(headers);
   const combined = headers.get('set-cookie');
   return combined === null ? [] : [combined];
@@ -40,7 +42,9 @@ function responseSetCookies(headers: Headers): string[] {
 function deploymentProtectionCookieValue(headers: Headers): string {
   const matches = responseSetCookies(headers)
     .map((header) => header.split(';', 1)[0])
-    .filter((cookie) => cookie.startsWith(`${DEPLOYMENT_PROTECTION_COOKIE_NAME}=`));
+    .filter((cookie) =>
+      cookie.startsWith(`${DEPLOYMENT_PROTECTION_COOKIE_NAME}=`),
+    );
   if (matches.length !== 1) {
     throw new Error('DEPLOYMENT_PROTECTION_COOKIE_MISSING');
   }
@@ -70,10 +74,10 @@ function validateManualRedirect(
   }
   const target = new URL(location, requestUrl);
   if (
-    target.origin !== previewOrigin
-    || target.pathname !== '/chatbot/'
-    || target.search !== ''
-    || target.hash !== ''
+    target.origin !== previewOrigin ||
+    target.pathname !== '/chatbot/' ||
+    target.search !== '' ||
+    target.hash !== ''
   ) {
     throw new Error('DEPLOYMENT_PROTECTION_REDIRECT_FORBIDDEN');
   }
@@ -105,14 +109,16 @@ export async function establishDeploymentProtectionBypass(
   validateManualRedirect(response, requestUrl, previewOrigin);
   const cookieValue = deploymentProtectionCookieValue(response.headers);
   try {
-    await context.addCookies([{
-      name: DEPLOYMENT_PROTECTION_COOKIE_NAME,
-      value: cookieValue,
-      url: previewOrigin,
-      httpOnly: true,
-      secure: true,
-      sameSite: 'Lax',
-    }]);
+    await context.addCookies([
+      {
+        name: DEPLOYMENT_PROTECTION_COOKIE_NAME,
+        value: cookieValue,
+        url: previewOrigin,
+        httpOnly: true,
+        secure: true,
+        sameSite: 'Lax',
+      },
+    ]);
   } catch {
     throw new Error('DEPLOYMENT_PROTECTION_COOKIE_INSTALL_FAILED');
   }

@@ -4,7 +4,6 @@
 export interface TaggedItem {
   data: {
     tags: string[];
-    [key: string]: any;
   };
 }
 
@@ -14,10 +13,13 @@ export interface TaggedItem {
  * @param tag - Tag to filter by (case-insensitive)
  * @returns Filtered array containing only items with the specified tag
  */
-export function filterByTag<T extends TaggedItem>(items: T[], tag: string): T[] {
+export function filterByTag<T extends TaggedItem>(
+  items: T[],
+  tag: string,
+): T[] {
   const lowerTag = tag.toLowerCase();
   return items.filter((item) =>
-    item.data.tags.some((t) => t.toLowerCase() === lowerTag)
+    item.data.tags.some((t) => t.toLowerCase() === lowerTag),
   );
 }
 
@@ -29,13 +31,13 @@ export function filterByTag<T extends TaggedItem>(items: T[], tag: string): T[] 
  */
 export function filterByAllTags<T extends TaggedItem>(
   items: T[],
-  tags: string[]
+  tags: string[],
 ): T[] {
   const lowerTags = tags.map((t) => t.toLowerCase());
   return items.filter((item) =>
     lowerTags.every((tag) =>
-      item.data.tags.some((t) => t.toLowerCase() === tag)
-    )
+      item.data.tags.some((t) => t.toLowerCase() === tag),
+    ),
   );
 }
 
@@ -47,11 +49,11 @@ export function filterByAllTags<T extends TaggedItem>(
  */
 export function filterByAnyTag<T extends TaggedItem>(
   items: T[],
-  tags: string[]
+  tags: string[],
 ): T[] {
   const lowerTags = tags.map((t) => t.toLowerCase());
   return items.filter((item) =>
-    item.data.tags.some((t) => lowerTags.includes(t.toLowerCase()))
+    item.data.tags.some((t) => lowerTags.includes(t.toLowerCase())),
   );
 }
 
@@ -71,7 +73,7 @@ export function getAllTags<T extends TaggedItem>(items: T[]): string[] {
 
   // Return sorted array (case-insensitive sort)
   return Array.from(tagSet).sort((a, b) =>
-    a.toLowerCase().localeCompare(b.toLowerCase())
+    a.toLowerCase().localeCompare(b.toLowerCase()),
   );
 }
 
@@ -81,7 +83,7 @@ export function getAllTags<T extends TaggedItem>(items: T[]): string[] {
  * @returns Object with tag names as keys and counts as values
  */
 export function getTagCounts<T extends TaggedItem>(
-  items: T[]
+  items: T[],
 ): Record<string, number> {
   const counts: Record<string, number> = {};
 

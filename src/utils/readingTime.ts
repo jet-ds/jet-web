@@ -15,7 +15,7 @@ export function getReadingTime(content: string): number {
     .trim();
 
   // Count words (split by whitespace)
-  const words = cleanContent.split(/\s+/).filter(word => word.length > 0);
+  const words = cleanContent.split(/\s+/).filter((word) => word.length > 0);
   const wordCount = words.length;
 
   // Average reading speed: 200-250 words per minute

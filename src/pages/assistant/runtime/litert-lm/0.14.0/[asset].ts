@@ -4,7 +4,7 @@ import {
   getLiteRtAssetContentType,
   isLiteRtAsset,
   resolveLiteRtAssetPath,
-} from '../../../../../features/jets-ghost/runtime/liteRtAssets.server';
+} from '../../../../../features/egregore/runtime/liteRtAssets.server';
 
 export const prerender = true;
 
@@ -14,7 +14,11 @@ export function getStaticPaths() {
   }));
 }
 
-export async function GET({ params }: { params: Record<string, string | undefined> }): Promise<Response> {
+export async function GET({
+  params,
+}: {
+  params: Record<string, string | undefined>;
+}): Promise<Response> {
   const { asset } = params;
 
   if (!isLiteRtAsset(asset)) {

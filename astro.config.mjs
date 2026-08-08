@@ -3,7 +3,7 @@ import { defineConfig } from 'astro/config';
 
 import react from '@astrojs/react';
 import mdx from '@astrojs/mdx';
-import tailwind from '@astrojs/tailwind';
+import tailwindcss from '@tailwindcss/vite';
 import sitemap from '@astrojs/sitemap';
 import partytown from '@astrojs/partytown';
 
@@ -13,18 +13,18 @@ const isProduction = process.env.VERCEL_ENV === 'production';
 export default defineConfig({
   site: 'https://jetsanchez.com',
   trailingSlash: 'always',
+  compressHTML: true,
   integrations: [
     react(),
     mdx(),
-    tailwind({
-      applyBaseStyles: false, // We'll use our own global.css
-    }),
     sitemap({
       filter: (page) => {
         const pathname = new URL(page).pathname.replace(/\/$/, '') || '/';
-        return (isProduction || pathname !== '/chatbot')
-          && pathname !== '/tools'
-          && !pathname.startsWith('/tools/');
+        return (
+          (isProduction || pathname !== '/chatbot') &&
+          pathname !== '/tools' &&
+          !pathname.startsWith('/tools/')
+        );
       },
     }),
     partytown({
@@ -33,6 +33,9 @@ export default defineConfig({
       },
     }),
   ],
+  vite: {
+    plugins: [tailwindcss()],
+  },
   image: {
     // Image optimization configuration
     domains: [],

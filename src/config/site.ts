@@ -1,8 +1,18 @@
-import { Home, User, FileText, Briefcase, Ghost, Mail, type LucideIcon } from 'lucide-react';
+import {
+  Home,
+  User,
+  FileText,
+  Briefcase,
+  Ghost,
+  Mail,
+  type LucideIcon,
+} from 'lucide-react';
+import { EGREGORE_IDENTITY } from './egregore';
 
 export const SITE = {
   title: 'Jet Sanchez',
-  description: 'Research, systems & tools for thinking clearly in an AI-driven world',
+  description:
+    'Research, systems & tools for thinking clearly in an AI-driven world',
   author: 'Jet Sanchez',
   givenName: 'Jet',
   familyName: 'Sanchez',
@@ -11,7 +21,6 @@ export const SITE = {
     'Josh Ethan Sanchez',
     'Jet (Josh Ethan) Sanchez',
   ],
-  jobTitle: 'Marketing Engineer & AI Researcher',
   email: 'jetsanchezzz@gmail.com',
   siteUrl: 'https://jetsanchez.com',
   ga4MeasurementId: 'G-71J4JTMLJE',
@@ -33,12 +42,48 @@ export const SOCIAL_LINKS = {
 } as const;
 
 export const NAV_ITEMS = [
-  { id: 'home', label: 'Home', href: '/', icon: Home, gradient: 'from-blue-600 to-blue-400' },
-  { id: 'about', label: 'About', href: '/about/', icon: User, gradient: 'from-purple-600 to-purple-400' },
-  { id: 'blog', label: 'Blog', href: '/blog/', icon: FileText, gradient: 'from-green-600 to-green-400' },
-  { id: 'works', label: 'Works', href: '/works/', icon: Briefcase, gradient: 'from-orange-600 to-orange-400' },
-  { id: 'ghost', label: "Jet's Ghost", href: '/chatbot/', icon: Ghost, gradient: 'from-indigo-600 to-indigo-400' },
-  { id: 'contact', label: 'Contact', href: '/contact/', icon: Mail, gradient: 'from-red-600 to-red-400' },
+  {
+    id: 'home',
+    label: 'Home',
+    href: '/',
+    icon: Home,
+    gradient: 'from-blue-600 to-blue-400',
+  },
+  {
+    id: 'about',
+    label: 'About',
+    href: '/about/',
+    icon: User,
+    gradient: 'from-purple-600 to-purple-400',
+  },
+  {
+    id: 'blog',
+    label: 'Blog',
+    href: '/blog/',
+    icon: FileText,
+    gradient: 'from-green-600 to-green-400',
+  },
+  {
+    id: 'works',
+    label: 'Works',
+    href: '/works/',
+    icon: Briefcase,
+    gradient: 'from-orange-600 to-orange-400',
+  },
+  {
+    id: 'egregore',
+    label: EGREGORE_IDENTITY.name,
+    href: EGREGORE_IDENTITY.canonicalPath,
+    icon: Ghost,
+    gradient: 'from-indigo-600 to-indigo-400',
+  },
+  {
+    id: 'contact',
+    label: 'Contact',
+    href: '/contact/',
+    icon: Mail,
+    gradient: 'from-red-600 to-red-400',
+  },
 ] as const;
 
 export function isActiveNavItem(currentPath: string, href: string): boolean {
@@ -49,8 +94,10 @@ export function isActiveNavItem(currentPath: string, href: string): boolean {
   const normalizedCurrentPath = normalizePath(currentPath);
   const normalizedHref = normalizePath(href);
 
-  return normalizedCurrentPath === normalizedHref
-    || (normalizedHref !== '/' && normalizedCurrentPath.startsWith(normalizedHref));
+  return (
+    normalizedCurrentPath === normalizedHref ||
+    (normalizedHref !== '/' && normalizedCurrentPath.startsWith(normalizedHref))
+  );
 }
 
 export type NavItem = {

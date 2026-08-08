@@ -1,12 +1,17 @@
 import type { PropsWithChildren } from 'react';
-import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  act,
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+} from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import LiquidGlassDock from '../../../src/components/navigation/LiquidGlassDock';
 
-const viewport = vi.hoisted(() => ({ isMobile: true }));
-
-vi.mock('../../../src/hooks/useMediaQuery', () => ({
-  useMediaQuery: () => viewport.isMobile,
+const media = vi.hoisted(() => ({
+  compact: true,
+  listeners: new Set<() => void>(),
 }));
 
 vi.mock('../../../src/hooks/useTheme', () => ({
@@ -14,23 +19,62 @@ vi.mock('../../../src/hooks/useTheme', () => ({
 }));
 
 vi.mock('../../../src/components/navigation/GlassSurface', () => ({
-  default: ({ children, className }: PropsWithChildren<{ className?: string }>) => (
+  default: ({
+    children,
+    className,
+  }: PropsWithChildren<{ className?: string }>) => (
     <div className={className}>{children}</div>
   ),
 }));
 
-function setScrollY(value: number) {
-  Object.defineProperty(window, 'scrollY', {
-    configurable: true,
-    value,
+function setCompact(compact: boolean) {
+  act(() => {
+    media.compact = compact;
+    for (const listener of media.listeners) listener();
   });
+}
+
+function setScrollY(value: number) {
+  Object.defineProperty(window, 'scrollY', { configurable: true, value });
+}
+
+function renderDock({
+  path = '/blog/',
+  immersive = false,
+}: {
+  path?: string;
+  immersive?: boolean;
+} = {}) {
+  return render(<LiquidGlassDock currentPath={path} immersive={immersive} />);
+}
+
+function dock() {
+  const navigation = document.querySelector('#site-navigation-dock');
+  if (!(navigation instanceof HTMLElement))
+    throw new Error('Dock was not rendered');
+  return navigation;
 }
 
 describe('LiquidGlassDock', () => {
   beforeEach(() => {
-    viewport.isMobile = true;
+    media.compact = true;
+    media.listeners.clear();
     sessionStorage.clear();
     setScrollY(0);
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      media: query,
+      get matches() {
+        return media.compact;
+      },
+      addEventListener: (_: string, listener: () => void) =>
+        media.listeners.add(listener),
+      removeEventListener: (_: string, listener: () => void) =>
+        media.listeners.delete(listener),
+      addListener: (listener: () => void) => media.listeners.add(listener),
+      removeListener: (listener: () => void) =>
+        media.listeners.delete(listener),
+      dispatchEvent: () => true,
+    }));
     vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockReturnValue({
       bottom: 64,
       height: 48,
@@ -47,104 +91,123 @@ describe('LiquidGlassDock', () => {
   afterEach(() => {
     cleanup();
     vi.restoreAllMocks();
+    vi.unstubAllGlobals();
   });
 
-  it('marks the current nested route and keeps desktop navigation exposed', () => {
-    viewport.isMobile = false;
+  it('keeps an ordinary compact dock open until document scroll discovers it', () => {
+    renderDock();
 
-    render(<LiquidGlassDock currentPath="/blog/post" />);
+    expect(
+      screen.queryByRole('button', { name: 'Open navigation' }),
+    ).not.toBeInTheDocument();
+    expect(
+      screen.queryByRole('button', { name: 'Close navigation' }),
+    ).not.toBeInTheDocument();
+    expect(dock()).not.toHaveAttribute('inert');
 
-    const dock = document.querySelector('#site-navigation-dock');
-    const blogLink = screen.getByRole('link', { name: 'Blog' });
+    setScrollY(160);
+    fireEvent.scroll(window);
 
-    expect(dock).not.toHaveAttribute('inert');
-    expect(dock).not.toHaveAttribute('aria-hidden');
-    expect(blogLink).toHaveAttribute('aria-current', 'page');
-    expect(screen.getByRole('link', { name: 'Home' })).not.toHaveAttribute('aria-current');
-    expect(blogLink).toHaveClass(
-      'focus-visible:ring-brand-base',
-      'focus-visible:ring-offset-bg-base',
-    );
+    expect(
+      screen.getByRole('button', { name: 'Open navigation' }),
+    ).toHaveAttribute('aria-expanded', 'false');
+    expect(dock()).toHaveAttribute('inert');
+    expect(dock()).toHaveAttribute('aria-hidden', 'true');
   });
 
-  it('hides the discovered mobile dock from focus until opened and restores focus on close', async () => {
-    const { rerender } = render(<LiquidGlassDock currentPath="/blog/post" />);
+  it('discovers an immersive compact dock immediately and retains that discovery for an ordinary remount', () => {
+    const mounted = renderDock({ immersive: true });
 
-    expect(screen.queryByRole('button', { name: 'Open navigation' })).not.toBeInTheDocument();
+    expect(
+      screen.getByRole('button', { name: 'Close navigation' }),
+    ).toHaveAttribute('aria-expanded', 'true');
+    expect(dock()).not.toHaveAttribute('inert');
 
-    setScrollY(100);
-    fireEvent.scroll(window);
-    expect(screen.queryByRole('button', { name: 'Open navigation' })).not.toBeInTheDocument();
+    mounted.unmount();
+    renderDock();
 
-    setScrollY(101);
-    fireEvent.scroll(window);
+    expect(
+      screen.getByRole('button', { name: 'Close navigation' }),
+    ).toHaveAttribute('aria-expanded', 'true');
+  });
 
-    const disclosure = await screen.findByRole('button', { name: 'Open navigation' });
-    const dock = document.querySelector('#site-navigation-dock');
-
-    expect(disclosure).toHaveAttribute('aria-expanded', 'false');
-    expect(disclosure).toHaveAttribute('aria-controls', 'site-navigation-dock');
-    expect(dock).toHaveAttribute('inert');
-    expect(dock).toHaveAttribute('aria-hidden', 'true');
-    expect(dock?.querySelectorAll('a, button')).not.toHaveLength(0);
-    dock?.querySelectorAll('a, button').forEach((element) => {
-      expect(element).toHaveAttribute('tabindex', '-1');
-    });
-
-    fireEvent.click(disclosure);
-
-    expect(screen.getByRole('button', { name: 'Close navigation' })).toHaveAttribute(
-      'aria-expanded',
-      'true',
-    );
-    expect(dock).not.toHaveAttribute('inert');
-    expect(dock).not.toHaveAttribute('aria-hidden');
-    dock?.querySelectorAll('a, button').forEach((element) => {
-      expect(element).not.toHaveAttribute('tabindex');
-    });
-
+  it('preserves an explicit compact choice through remounts and restores its route-appropriate default after session clearing', () => {
+    const mounted = renderDock({ immersive: true });
     fireEvent.click(screen.getByRole('button', { name: 'Close navigation' }));
 
-    await waitFor(() => {
-      expect(disclosure).toHaveFocus();
-      expect(dock).toHaveAttribute('inert');
-      expect(dock).toHaveAttribute('aria-hidden', 'true');
-    });
-    expect(sessionStorage.getItem('dockScrolled')).toBe('true');
+    expect(
+      screen.getByRole('button', { name: 'Open navigation' }),
+    ).toHaveAttribute('aria-expanded', 'false');
+    expect(dock()).toHaveAttribute('inert');
 
-    viewport.isMobile = false;
-    rerender(<LiquidGlassDock currentPath="/blog/post" />);
+    mounted.unmount();
+    renderDock({ immersive: true });
+    expect(
+      screen.getByRole('button', { name: 'Open navigation' }),
+    ).toHaveAttribute('aria-expanded', 'false');
 
-    await waitFor(() => {
-      expect(sessionStorage.getItem('dockScrolled')).toBeNull();
-      expect(dock).not.toHaveAttribute('inert');
-      expect(dock).not.toHaveAttribute('aria-hidden');
-    });
-
-    setScrollY(0);
-    viewport.isMobile = true;
-    rerender(<LiquidGlassDock currentPath="/blog/post" />);
-
-    await waitFor(() => {
-      expect(screen.queryByRole('button', { name: 'Open navigation' })).not.toBeInTheDocument();
-      expect(screen.queryByRole('button', { name: 'Close navigation' })).not.toBeInTheDocument();
-      expect(dock).not.toHaveAttribute('inert');
-      expect(dock).not.toHaveAttribute('aria-hidden');
-    });
+    cleanup();
+    sessionStorage.clear();
+    renderDock({ immersive: true });
+    expect(
+      screen.getByRole('button', { name: 'Close navigation' }),
+    ).toHaveAttribute('aria-expanded', 'true');
   });
 
-  it('discovers a mobile page already scrolled before effects attach', async () => {
+  it('keeps the remembered compact choice while a wide dock is effectively open', () => {
+    const mounted = renderDock({ immersive: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Close navigation' }));
+
+    setCompact(false);
+    mounted.rerender(<LiquidGlassDock currentPath="/blog/" immersive />);
+
+    expect(
+      screen.queryByRole('button', { name: /navigation/i }),
+    ).not.toBeInTheDocument();
+    expect(dock()).not.toHaveAttribute('inert');
+    expect(dock()).not.toHaveAttribute('aria-hidden');
+
+    setCompact(true);
+    expect(
+      screen.getByRole('button', { name: 'Open navigation' }),
+    ).toHaveAttribute('aria-expanded', 'false');
+    expect(dock()).toHaveAttribute('inert');
+  });
+
+  it('does not let later scrolling override an explicit open choice', () => {
+    renderDock({ immersive: true });
+    fireEvent.click(screen.getByRole('button', { name: 'Close navigation' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
+
     setScrollY(160);
+    fireEvent.scroll(window);
 
-    render(<LiquidGlassDock currentPath="/blog/post" />);
+    expect(
+      screen.getByRole('button', { name: 'Close navigation' }),
+    ).toHaveAttribute('aria-expanded', 'true');
+    expect(dock()).not.toHaveAttribute('inert');
+  });
 
-    const disclosure = await screen.findByRole('button', { name: 'Open navigation' });
-    const dock = document.querySelector('#site-navigation-dock');
+  it('fails open with operable page-lifetime state when session storage is unavailable', () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('Storage unavailable');
+    });
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('Storage unavailable');
+    });
 
-    expect(disclosure).toHaveAttribute('aria-expanded', 'false');
-    expect(disclosure).toHaveAttribute('aria-controls', 'site-navigation-dock');
-    expect(dock).toHaveAttribute('inert');
-    expect(dock).toHaveAttribute('aria-hidden', 'true');
-    expect(sessionStorage.getItem('dockScrolled')).toBe('true');
+    renderDock({ immersive: true });
+    expect(
+      screen.getByRole('button', { name: 'Close navigation' }),
+    ).toBeVisible();
+
+    fireEvent.click(screen.getByRole('button', { name: 'Close navigation' }));
+    expect(
+      screen.getByRole('button', { name: 'Open navigation' }),
+    ).toHaveAttribute('aria-expanded', 'false');
+    fireEvent.click(screen.getByRole('button', { name: 'Open navigation' }));
+    expect(
+      screen.getByRole('button', { name: 'Close navigation' }),
+    ).toHaveAttribute('aria-expanded', 'true');
   });
 });

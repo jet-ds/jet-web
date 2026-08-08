@@ -3,8 +3,10 @@ const normalize = (value: string) => value.trim().toLocaleLowerCase();
 function filterContext(root: HTMLElement, selectedValue: string): string {
   if (!selectedValue) return '';
 
-  return (root.dataset.filterContextTemplate ?? '')
-    .replace('{value}', selectedValue);
+  return (root.dataset.filterContextTemplate ?? '').replace(
+    '{value}',
+    selectedValue,
+  );
 }
 
 function synchronizeUrl(parameter: string, selectedValue: string): void {
@@ -34,20 +36,24 @@ function applyFilter(root: HTMLElement, requestedValue: string | null): void {
     root.querySelectorAll<HTMLButtonElement>('button[data-filter-value]'),
   );
   const selectedButton = requestedValue
-    ? buttons.find((button) => (
-        button.dataset.filterValue
-        && normalize(button.dataset.filterValue) === normalize(requestedValue)
-      ))
+    ? buttons.find(
+        (button) =>
+          button.dataset.filterValue &&
+          normalize(button.dataset.filterValue) === normalize(requestedValue),
+      )
     : buttons.find((button) => button.dataset.filterValue === '');
   const selectedValue = selectedButton?.dataset.filterValue ?? '';
 
-  const items = Array.from(root.querySelectorAll<HTMLElement>('[data-filter-item]'));
+  const items = Array.from(
+    root.querySelectorAll<HTMLElement>('[data-filter-item]'),
+  );
   let visibleCount = 0;
 
   for (const item of items) {
     const values = JSON.parse(item.dataset.filterValues ?? '[]') as string[];
-    const matches = !selectedValue
-      || values.some((value) => normalize(value) === normalize(selectedValue));
+    const matches =
+      !selectedValue ||
+      values.some((value) => normalize(value) === normalize(selectedValue));
     item.hidden = !matches;
     if (matches) visibleCount += 1;
   }
@@ -59,9 +65,14 @@ function applyFilter(root: HTMLElement, requestedValue: string | null): void {
     );
   }
 
-  for (const section of root.querySelectorAll<HTMLElement>('[data-filter-section]')) {
-    const sectionItems = Array.from(section.querySelectorAll<HTMLElement>('[data-filter-item]'));
-    section.hidden = sectionItems.length > 0 && sectionItems.every((item) => item.hidden);
+  for (const section of root.querySelectorAll<HTMLElement>(
+    '[data-filter-section]',
+  )) {
+    const sectionItems = Array.from(
+      section.querySelectorAll<HTMLElement>('[data-filter-item]'),
+    );
+    section.hidden =
+      sectionItems.length > 0 && sectionItems.every((item) => item.hidden);
   }
 
   const context = filterContext(root, selectedValue);
@@ -73,11 +84,15 @@ function applyFilter(root: HTMLElement, requestedValue: string | null): void {
   const empty = root.querySelector<HTMLElement>('[data-filter-empty]');
   if (empty) {
     empty.hidden = visibleCount > 0;
-    const message = empty.querySelector<HTMLElement>('[data-filter-empty-message]');
+    const message = empty.querySelector<HTMLElement>(
+      '[data-filter-empty-message]',
+    );
     if (message) message.textContent = `No ${plural} found${context}.`;
   }
 
-  for (const enhancement of root.querySelectorAll<HTMLElement>('[data-filter-enhancement]')) {
+  for (const enhancement of root.querySelectorAll<HTMLElement>(
+    '[data-filter-enhancement]',
+  )) {
     enhancement.hidden = false;
   }
 
@@ -90,7 +105,9 @@ function initializeRoot(root: HTMLElement): void {
       const target = event.target;
       if (!(target instanceof Element)) return;
 
-      const button = target.closest<HTMLButtonElement>('button[data-filter-value]');
+      const button = target.closest<HTMLButtonElement>(
+        'button[data-filter-value]',
+      );
       if (!button || !root.contains(button)) return;
       applyFilter(root, button.dataset.filterValue ?? '');
     });
@@ -102,8 +119,12 @@ function initializeRoot(root: HTMLElement): void {
   applyFilter(root, new URL(window.location.href).searchParams.get(parameter));
 }
 
-export function initializeCollectionFilters(scope: ParentNode = document): void {
-  for (const root of scope.querySelectorAll<HTMLElement>('[data-collection-filter]')) {
+export function initializeCollectionFilters(
+  scope: ParentNode = document,
+): void {
+  for (const root of scope.querySelectorAll<HTMLElement>(
+    '[data-collection-filter]',
+  )) {
     initializeRoot(root);
   }
 }

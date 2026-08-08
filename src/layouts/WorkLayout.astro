@@ -5,26 +5,29 @@ import PageWrapper from '../components/layout/PageWrapper.astro';
 import Container from '../components/ui/Container.astro';
 import Tag from '../components/ui/Tag.astro';
 import Button from '../components/ui/Button.astro';
-import OptimizedImage from '../components/ui/OptimizedImage.astro';
+import ThemeAwareImage from '../components/ui/ThemeAwareImage.astro';
 import { getCanonicalURL } from '../utils/seo';
 
 export interface Props {
   title: string;
   seoTitle?: string;
+  seoDescription?: string;
   description: string;
   type: 'research' | 'project' | 'other';
   date: Date;
   tags?: string[];
   image?: {
     url: string;
+    darkUrl?: string;
     alt: string;
+    width?: number;
+    height?: number;
   };
   links?: { label: string; url: string }[];
   // For research
   venue?: string;
   abstract?: string;
   // For projects
-  technologies?: string[];
   repository?: string;
   demo?: string;
 }
@@ -32,6 +35,7 @@ export interface Props {
 const {
   title,
   seoTitle,
+  seoDescription,
   description,
   type,
   date,
@@ -40,7 +44,6 @@ const {
   links = [],
   venue,
   abstract,
-  technologies = [],
   repository,
   demo,
 } = Astro.props;
@@ -63,50 +66,61 @@ const typeColor = {
 }[type];
 
 const canonicalURL = getCanonicalURL(Astro.url.pathname);
-const doiUrl = type === 'research'
-  ? links.find(({ url }) => url.startsWith('https://doi.org/'))?.url
-  : undefined;
+const doiUrl =
+  type === 'research'
+    ? links.find(
+        ({ url }) =>
+          url.startsWith('https://doi.org/') ||
+          url.startsWith('https://dx.doi.org/'),
+      )?.url
+    : undefined;
 ---
 
 <BaseLayout
   title={seoTitle ?? title}
-  description={description}
+  description={seoDescription ?? description}
   image={image?.url}
   imageAlt={image?.alt}
+  imageWidth={image?.width}
+  imageHeight={image?.height}
   type={type === 'research' ? 'article' : 'website'}
   publishedTime={type === 'research' ? date.toISOString() : undefined}
   tags={type === 'research' ? tags : undefined}
-  mainEntityId={type === 'research' ? `${canonicalURL}#scholarlyarticle` : `${canonicalURL}#creativework`}
+  mainEntityId={type === 'research'
+    ? `${canonicalURL}#scholarlyarticle`
+    : `${canonicalURL}#creativework`}
 >
-  {type === 'research' ? (
-    <StructuredData
-      slot="structured-data"
-      type="scholarlyarticle"
-      id={`${canonicalURL}#scholarlyarticle`}
-      url={canonicalURL}
-      headline={title}
-      description={description}
-      abstract={abstract}
-      image={image?.url}
-      datePublished={date.toISOString()}
-      venue={venue}
-      identifier={doiUrl}
-      sameAs={doiUrl ? [doiUrl] : undefined}
-      tags={tags}
-    />
-  ) : (
-    <StructuredData
-      slot="structured-data"
-      type="creativework"
-      id={`${canonicalURL}#creativework`}
-      url={canonicalURL}
-      name={title}
-      description={description}
-      image={image?.url}
-      datePublished={date.toISOString()}
-      tags={tags}
-    />
-  )}
+  {
+    type === 'research' ? (
+      <StructuredData
+        slot="structured-data"
+        type="scholarlyarticle"
+        id={`${canonicalURL}#scholarlyarticle`}
+        url={canonicalURL}
+        headline={title}
+        description={description}
+        abstract={abstract}
+        image={image?.url}
+        datePublished={date.toISOString()}
+        venue={venue}
+        identifier={doiUrl}
+        sameAs={doiUrl ? [doiUrl] : undefined}
+        tags={tags}
+      />
+    ) : (
+      <StructuredData
+        slot="structured-data"
+        type="creativework"
+        id={`${canonicalURL}#creativework`}
+        url={canonicalURL}
+        name={title}
+        description={description}
+        image={image?.url}
+        datePublished={date.toISOString()}
+        tags={tags}
+      />
+    )
+  }
   <PageWrapper spacing="compact">
     <Container size="md">
       <article>
@@ -129,94 +143,79 @@ const doiUrl = type === 'research'
           </h1>
 
           <!-- Meta Information -->
-          <div class="flex flex-wrap items-center gap-s text-sm text-text-tertiary mb-m">
-          <time datetime={date.toISOString()}>
-            {formattedDate}
-          </time>
-          {venue && (
-            <>
-              <div>•</div>
-              <div>{venue}</div>
-            </>
-          )}
-        </div>
-
-        <!-- Description -->
-        <p class="text-lg text-text-secondary mb-m">
-          {description}
-        </p>
-
-        <!-- Tags -->
-        {tags.length > 0 && (
-          <div class="flex flex-wrap gap-2xs mb-m">
-            {tags.map((tag) => (
-              <Tag>{tag}</Tag>
-            ))}
+          <div
+            class="flex flex-wrap items-center gap-s text-sm text-text-tertiary mb-m"
+          >
+            <time datetime={date.toISOString()}>
+              {formattedDate}
+            </time>
+            {
+              venue && (
+                <>
+                  <div>•</div>
+                  <div>{venue}</div>
+                </>
+              )
+            }
           </div>
-        )}
 
-        <!-- Technologies (for projects) -->
-        {technologies.length > 0 && (
-          <div class="mb-m">
-            <h3 class="text-sm font-semibold mb-2xs text-text-primary">
-              Technologies
-            </h3>
-            <div class="flex flex-wrap gap-2xs">
-              {technologies.map((tech) => (
-                <Tag>{tech}</Tag>
-              ))}
-            </div>
-          </div>
-        )}
+          <!-- Description -->
+          <p class="text-lg text-text-secondary mb-m">
+            {description}
+          </p>
 
-        <!-- Links -->
-        {(links.length > 0 || repository || demo) && (
-          <div class="flex flex-wrap gap-xs">
-            {links.map((link) => (
-              <Button
-                href={link.url}
-                variant="accent"
-                density="compact"
-              >
-                {link.label}
-              </Button>
-            ))}
-            {repository && (
-              <Button
-                href={repository}
-                variant="outline"
-                density="compact"
-              >
-                View repository
-              </Button>
-            )}
-            {demo && (
-              <Button
-                href={demo}
-                variant="secondary"
-                density="compact"
-              >
-                Live demo
-              </Button>
-            )}
-          </div>
-        )}
+          <!-- Tags -->
+          {
+            tags.length > 0 && (
+              <div class="flex flex-wrap gap-2xs mb-m">
+                {tags.map((tag) => (
+                  <Tag>{tag}</Tag>
+                ))}
+              </div>
+            )
+          }
+
+          <!-- Links -->
+          {
+            (links.length > 0 || repository || demo) && (
+              <div class="flex flex-wrap gap-xs">
+                {links.map((link) => (
+                  <Button href={link.url} variant="accent" density="compact">
+                    {link.label}
+                  </Button>
+                ))}
+                {repository && (
+                  <Button href={repository} variant="outline" density="compact">
+                    View repository
+                  </Button>
+                )}
+                {demo && (
+                  <Button href={demo} variant="secondary" density="compact">
+                    Live demo
+                  </Button>
+                )}
+              </div>
+            )
+          }
         </header>
 
         <!-- Featured Image -->
-        {image && (
-          <div class="aspect-video overflow-hidden rounded-lg mb-l">
-            <OptimizedImage
-              src={image.url}
-              alt={image.alt}
-              width={1920}
-              height={1080}
-              class="w-full h-full object-cover"
-              loading="eager"
-              sizes="(max-width: 768px) 100vw, 800px"
-            />
-          </div>
-        )}
+        {
+          image && (
+            <div class="aspect-video overflow-hidden rounded-lg mb-l">
+              <ThemeAwareImage
+                src={image.url}
+                darkSrc={image.darkUrl}
+                alt={image.alt}
+                width={image.width ?? 1920}
+                height={image.height ?? 1080}
+                class="w-full h-full object-cover"
+                loading="eager"
+                sizes="(max-width: 768px) 100vw, 800px"
+              />
+            </div>
+          )
+        }
 
         <!-- Work Content -->
         <slot />

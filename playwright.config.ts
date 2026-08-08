@@ -13,7 +13,8 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   webServer: {
-    command: 'cross-env PUBLIC_JETS_GHOST_E2E=1 npm run build && npm run preview -- --host 127.0.0.1',
+    command:
+      'cross-env PUBLIC_EGREGORE_E2E=1 npm run build && npm run preview -- --host 127.0.0.1',
     url: 'http://127.0.0.1:4321',
     reuseExistingServer: !process.env.CI,
   },

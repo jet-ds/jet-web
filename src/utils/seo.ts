@@ -25,9 +25,9 @@ export function getCanonicalURL(path: string): string {
   const canonicalURL = new URL(path, `${siteURL.origin}/`);
 
   if (
-    canonicalURL.origin !== siteURL.origin
-    || canonicalURL.username !== ''
-    || canonicalURL.password !== ''
+    canonicalURL.origin !== siteURL.origin ||
+    canonicalURL.username !== '' ||
+    canonicalURL.password !== ''
   ) {
     throw new TypeError('Cross-origin canonical URL is not allowed');
   }
@@ -36,14 +36,17 @@ export function getCanonicalURL(path: string): string {
   canonicalURL.hash = '';
   canonicalURL.pathname = canonicalURL.pathname.replace(/\/{2,}/gu, '/');
 
-  const pathWithoutTrailingSlashes = canonicalURL.pathname.replace(/\/+$/u, '') || '/';
+  const pathWithoutTrailingSlashes =
+    canonicalURL.pathname.replace(/\/+$/u, '') || '/';
   const finalSegment = pathWithoutTrailingSlashes.split('/').at(-1) ?? '';
-  const isMachineEndpoint = pathWithoutTrailingSlashes.startsWith('/api/')
-    || finalSegment.includes('.');
+  const isMachineEndpoint =
+    pathWithoutTrailingSlashes.startsWith('/api/') ||
+    finalSegment.includes('.');
 
-  canonicalURL.pathname = pathWithoutTrailingSlashes === '/' || isMachineEndpoint
-    ? pathWithoutTrailingSlashes
-    : `${pathWithoutTrailingSlashes}/`;
+  canonicalURL.pathname =
+    pathWithoutTrailingSlashes === '/' || isMachineEndpoint
+      ? pathWithoutTrailingSlashes
+      : `${pathWithoutTrailingSlashes}/`;
 
   return canonicalURL.toString();
 }
@@ -54,16 +57,23 @@ export function getCanonicalURL(path: string): string {
  * @returns Complete SEO props with defaults
  */
 export function generateSEOProps(props: Partial<SEOProps>): SEOProps {
-  const canonicalURL = props.canonicalURL || getCanonicalURL(props.canonicalURL || '/');
+  const canonicalURL =
+    props.canonicalURL || getCanonicalURL(props.canonicalURL || '/');
   const usesDefaultImage = props.image === undefined;
 
   return {
     title: props.title || SITE.title,
     description: props.description || SITE.description,
     image: props.image || SITE.defaultOpenGraphImage.url,
-    imageAlt: usesDefaultImage ? SITE.defaultOpenGraphImage.alt : props.imageAlt,
-    imageWidth: usesDefaultImage ? SITE.defaultOpenGraphImage.width : props.imageWidth,
-    imageHeight: usesDefaultImage ? SITE.defaultOpenGraphImage.height : props.imageHeight,
+    imageAlt: usesDefaultImage
+      ? SITE.defaultOpenGraphImage.alt
+      : props.imageAlt,
+    imageWidth: usesDefaultImage
+      ? SITE.defaultOpenGraphImage.width
+      : props.imageWidth,
+    imageHeight: usesDefaultImage
+      ? SITE.defaultOpenGraphImage.height
+      : props.imageHeight,
     canonicalURL,
     type: props.type || 'website',
     publishedTime: props.publishedTime,
@@ -79,7 +89,10 @@ export function generateSEOProps(props: Partial<SEOProps>): SEOProps {
  * @param includeSiteName - Whether to append site name (default: true)
  * @returns Formatted title string
  */
-export function formatTitle(pageTitle: string, includeSiteName: boolean = true): string {
+export function formatTitle(
+  pageTitle: string,
+  includeSiteName: boolean = true,
+): string {
   if (!includeSiteName || pageTitle === SITE.title) {
     return pageTitle;
   }
@@ -93,7 +106,10 @@ export function formatTitle(pageTitle: string, includeSiteName: boolean = true):
  * @param maxLength - Maximum length (default: 160)
  * @returns Truncated description
  */
-export function truncateDescription(description: string, maxLength: number = 160): string {
+export function truncateDescription(
+  description: string,
+  maxLength: number = 160,
+): string {
   if (description.length <= maxLength) {
     return description;
   }
@@ -102,8 +118,8 @@ export function truncateDescription(description: string, maxLength: number = 160
   if (maxLength === 1) return '…';
 
   const rawCandidate = description.slice(0, maxLength - 1);
-  const endsAtWordBoundary = /\s$/u.test(rawCandidate)
-    || /^\s/u.test(description.slice(maxLength - 1));
+  const endsAtWordBoundary =
+    /\s$/u.test(rawCandidate) || /^\s/u.test(description.slice(maxLength - 1));
   let candidate = rawCandidate.trimEnd();
 
   if (!endsAtWordBoundary) {

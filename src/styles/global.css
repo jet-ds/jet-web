@@ -1,61 +1,85 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+@import 'tailwindcss';
+@config "../../tailwind.config.mjs";
+@custom-variant dark (&:where(.dark, .dark *));
 
 @layer base {
   /* OKLCH Color System - CSS Custom Properties */
   :root {
     /* Background hierarchy */
-    --color-bg-base: oklch(0.9764 0.0045 214.33);     /* neutral.1 - Page background */
-    --color-bg-subtle: oklch(0.9549 0.006 223.46);    /* neutral.2 - Subtle backgrounds */
-    --color-bg-ui: oklch(0.9162 0.0111 225.99);       /* neutral.3 - UI element backgrounds */
-    --color-bg-hover: oklch(0.8614 0.018 229.04);     /* neutral.4 - Hover states */
-    --color-bg-active: oklch(0.7975 0.0252 234.52);   /* neutral.5 - Active states */
+    --color-bg-base: oklch(
+      0.9764 0.0045 214.33
+    ); /* neutral.1 - Page background */
+    --color-bg-subtle: oklch(
+      0.9549 0.006 223.46
+    ); /* neutral.2 - Subtle backgrounds */
+    --color-bg-ui: oklch(
+      0.9162 0.0111 225.99
+    ); /* neutral.3 - UI element backgrounds */
+    --color-bg-hover: oklch(0.8614 0.018 229.04); /* neutral.4 - Hover states */
+    --color-bg-active: oklch(
+      0.7975 0.0252 234.52
+    ); /* neutral.5 - Active states */
 
     /* Surface variants */
-    --color-surface-base: oklch(1 0 0);               /* White - Cards, panels */
-    --color-surface-raised: oklch(0.9764 0.0045 214.33); /* neutral.1 - Elevated */
-    --color-surface-overlay: oklch(1 0 0);            /* White - Modals */
-    --color-section-brand: oklch(0.9502 0.0069 247.9); /* brand.2 - Broad blue sections */
+    --color-surface-base: oklch(1 0 0); /* White - Cards, panels */
+    --color-surface-raised: oklch(
+      0.9764 0.0045 214.33
+    ); /* neutral.1 - Elevated */
+    --color-surface-overlay: oklch(1 0 0); /* White - Modals */
+    --color-section-brand: oklch(
+      0.9502 0.0069 247.9
+    ); /* brand.2 - Broad blue sections */
 
     /* Text hierarchy */
-    --color-text-primary: oklch(0.3151 0.0143 256.78);   /* neutral.11 - Headings */
-    --color-text-secondary: oklch(0.4521 0.022 250.82);  /* neutral.10 - Body */
-    --color-text-tertiary: oklch(0.5122 0.03 253.72);    /* neutral.9 - Muted readable text */
-    --color-text-disabled: oklch(0.7975 0.0252 234.52);  /* neutral.5 - Disabled */
+    --color-text-primary: oklch(
+      0.3151 0.0143 256.78
+    ); /* neutral.11 - Headings */
+    --color-text-secondary: oklch(0.4521 0.022 250.82); /* neutral.10 - Body */
+    --color-text-tertiary: oklch(
+      0.5122 0.03 253.72
+    ); /* neutral.9 - Muted readable text */
+    --color-text-disabled: oklch(
+      0.7975 0.0252 234.52
+    ); /* neutral.5 - Disabled */
 
     /* Border hierarchy */
-    --color-border-subtle: oklch(0.9162 0.0111 225.99);  /* neutral.3 */
-    --color-border-default: oklch(0.8614 0.018 229.04);  /* neutral.4 */
-    --color-border-strong: oklch(0.7342 0.0322 242.16);  /* neutral.6 */
+    --color-border-subtle: oklch(0.9162 0.0111 225.99); /* neutral.3 */
+    --color-border-default: oklch(0.8614 0.018 229.04); /* neutral.4 */
+    --color-border-strong: oklch(0.7342 0.0322 242.16); /* neutral.6 */
 
     /* Brand/Interactive */
-    --color-brand-base: oklch(0.4956 0.0566 248.16);     /* brand.7 - Solid interactive fill */
-    --color-brand-hover: oklch(0.4296 0.0477 248.99);    /* brand.8 */
-    --color-brand-active: oklch(0.384 0.0392 251.63);    /* brand.9 */
-    --color-brand-subtle: oklch(0.8895 0.0164 245.1);    /* brand.3 */
-    --color-brand-text: oklch(0.384 0.0392 251.63);      /* brand.9 */
-    --color-brand-contrast: oklch(1 0 0);                /* White */
-    --color-code-block-text: oklch(0.9502 0.0069 247.9); /* brand.2 on the dark code surface */
-    --color-brand-200: oklch(0.9502 0.0069 247.9);       /* brand.2 */
-    --color-brand-500: oklch(0.6728 0.0512 244.82);      /* brand.5 */
-    --color-brand-700: oklch(0.4956 0.0566 248.16);      /* brand.7 */
-    --color-brand-800: oklch(0.4296 0.0477 248.99);      /* brand.8 */
+    --color-brand-base: oklch(
+      0.4956 0.0566 248.16
+    ); /* brand.7 - Solid interactive fill */
+    --color-brand-hover: oklch(0.4296 0.0477 248.99); /* brand.8 */
+    --color-brand-active: oklch(0.384 0.0392 251.63); /* brand.9 */
+    --color-brand-subtle: oklch(0.8895 0.0164 245.1); /* brand.3 */
+    --color-brand-text: oklch(0.384 0.0392 251.63); /* brand.9 */
+    --color-brand-contrast: oklch(1 0 0); /* White */
+    --color-code-block-text: oklch(
+      0.9502 0.0069 247.9
+    ); /* brand.2 on the dark code surface */
+    --color-brand-200: oklch(0.9502 0.0069 247.9); /* brand.2 */
+    --color-brand-500: oklch(0.6728 0.0512 244.82); /* brand.5 */
+    --color-brand-700: oklch(0.4956 0.0566 248.16); /* brand.7 */
+    --color-brand-800: oklch(0.4296 0.0477 248.99); /* brand.8 */
     /* Shader-only HEX aliases: keep in lockstep with matching OKLCH tokens above. */
     /* If brand/accent scales change, update both representations together. */
-    --color-brand-200-hex: #ebeff3;                      /* brand.2 */
-    --color-brand-500-hex: #7c9ab4;                      /* brand.5 */
-    --color-brand-700-hex: #486581;                      /* brand.7 */
-    --color-brand-800-hex: #3b5269;                      /* brand.8 */
+    --color-brand-200-hex: #ebeff3; /* brand.2 */
+    --color-brand-500-hex: #7c9ab4; /* brand.5 */
+    --color-brand-700-hex: #486581; /* brand.7 */
+    --color-brand-800-hex: #3b5269; /* brand.8 */
 
     /* Accent */
-    --color-accent-base: oklch(0.8005 0.1639 84.11);     /* accent.6 */
-    --color-accent-hover: oklch(0.6834 0.1451 73.6);     /* accent.7 */
-    --color-accent-subtle: oklch(0.9455 0.1274 101.26);  /* accent.3 */
-    --color-accent-text: oklch(0.4766 0.1078 59.07);     /* accent.9 */
-    --color-accent-contrast: oklch(0.2852 0.0664 52.21);  /* accent.11 — deep brown */
-    --color-accent-400: oklch(0.9068 0.1681 97.52);      /* accent.4 */
-    --color-accent-400-hex: #ffe043;                     /* accent.4 */
+    --color-accent-base: oklch(0.8005 0.1639 84.11); /* accent.6 */
+    --color-accent-hover: oklch(0.6834 0.1451 73.6); /* accent.7 */
+    --color-accent-subtle: oklch(0.9455 0.1274 101.26); /* accent.3 */
+    --color-accent-text: oklch(0.4766 0.1078 59.07); /* accent.9 */
+    --color-accent-contrast: oklch(
+      0.2852 0.0664 52.21
+    ); /* accent.11 — deep brown */
+    --color-accent-400: oklch(0.9068 0.1681 97.52); /* accent.4 */
+    --color-accent-400-hex: #ffe043; /* accent.4 */
 
     /* Control and status roles reuse the existing palette without role inversion. */
     --color-control-disabled-fill: var(--color-bg-ui);
@@ -120,32 +144,51 @@
 
     /* === SEMANTIC SPACING TOKENS === */
     /* These provide named tokens for common spacing patterns */
-    --space-gutter: var(--space-s-m);           /* Container padding: 16px → 27px */
-    --space-section: var(--space-l-xl);         /* Section spacing: 36px → 60.75px */
-    --space-section-lg: var(--space-xl-2xl);    /* Large sections: 54px → 91.13px */
-    --space-card: var(--space-m-l);             /* Card padding: 24px → 40.5px */
-    --space-stack-xs: var(--space-3xs-2xs);     /* Tight stacking: 4.25px → 7.74px */
-    --space-stack-s: var(--space-2xs-xs);       /* Small stacking: 6.88px → 12px */
-    --space-stack-m: var(--space-xs-s);         /* Medium stacking: 10.67px → 18px */
-    --space-stack-l: var(--space-s-m);          /* Large stacking: 16px → 27px */
+    --space-gutter: var(--space-s-m); /* Container padding: 16px → 27px */
+    --space-section: var(--space-l-xl); /* Section spacing: 36px → 60.75px */
+    --space-section-lg: var(
+      --space-xl-2xl
+    ); /* Large sections: 54px → 91.13px */
+    --space-card: var(--space-m-l); /* Card padding: 24px → 40.5px */
+    --space-stack-xs: var(
+      --space-3xs-2xs
+    ); /* Tight stacking: 4.25px → 7.74px */
+    --space-stack-s: var(--space-2xs-xs); /* Small stacking: 6.88px → 12px */
+    --space-stack-m: var(--space-xs-s); /* Medium stacking: 10.67px → 18px */
+    --space-stack-l: var(--space-s-m); /* Large stacking: 16px → 27px */
+
+    /* Navigation owns the exclusion geometry consumed by immersive surfaces. */
+    --navigation-dock-offset: max(1rem, env(safe-area-inset-bottom));
+    --navigation-dock-height: 5rem;
+    --navigation-disclosure-height: 3rem;
+    --navigation-disclosure-raise: calc(
+      var(--navigation-dock-height) + var(--space-2xs)
+    );
+    --navigation-bottom-exclusion: calc(
+      var(--navigation-dock-offset) + var(--navigation-dock-height) +
+        var(--navigation-disclosure-height) + var(--space-s)
+    );
+    --navigation-top-clearance: 0px;
   }
 
   .dark {
     /* Background hierarchy (inverted to darker blues) */
-    --color-bg-base: oklch(0.27 0.0235 256.43);       /* brand.11 */
-    --color-bg-subtle: oklch(0.3536 0.0306 248.71);   /* brand.10 */
-    --color-bg-ui: oklch(0.384 0.0392 251.63);        /* brand.9 */
-    --color-bg-hover: oklch(0.4296 0.0477 248.99);    /* brand.8 */
-    --color-bg-active: oklch(0.4956 0.0566 248.16);   /* brand.7 */
+    --color-bg-base: oklch(0.27 0.0235 256.43); /* brand.11 */
+    --color-bg-subtle: oklch(0.3536 0.0306 248.71); /* brand.10 */
+    --color-bg-ui: oklch(0.384 0.0392 251.63); /* brand.9 */
+    --color-bg-hover: oklch(0.4296 0.0477 248.99); /* brand.8 */
+    --color-bg-active: oklch(0.4956 0.0566 248.16); /* brand.7 */
 
     /* Surface variants */
-    --color-surface-base: oklch(0.3151 0.0143 256.78);  /* neutral.11 */
+    --color-surface-base: oklch(0.3151 0.0143 256.78); /* neutral.11 */
     --color-surface-raised: oklch(0.3536 0.0306 248.71); /* brand.10 */
     --color-surface-overlay: oklch(0.384 0.0392 251.63); /* brand.9 */
-    --color-section-brand: oklch(0.3536 0.0306 248.71); /* brand.10 - Broad blue sections */
+    --color-section-brand: oklch(
+      0.3536 0.0306 248.71
+    ); /* brand.10 - Broad blue sections */
 
     /* Text hierarchy (inverted) */
-    --color-text-primary: oklch(0.9764 0.0045 214.33);  /* neutral.1 */
+    --color-text-primary: oklch(0.9764 0.0045 214.33); /* neutral.1 */
     --color-text-secondary: oklch(0.8614 0.018 229.04); /* neutral.4 */
     --color-text-tertiary: oklch(0.7342 0.0322 242.16); /* neutral.6 */
     --color-text-disabled: oklch(0.6596 0.0375 252.38); /* neutral.7 */
@@ -156,20 +199,26 @@
     --color-border-strong: oklch(0.5725 0.0587 245.59); /* brand.6 */
 
     /* Brand (lighter in dark mode) */
-    --color-brand-base: oklch(0.6728 0.0512 244.82);    /* brand.5 */
-    --color-brand-hover: oklch(0.7896 0.0331 246.79);   /* brand.4 */
-    --color-brand-active: oklch(0.8895 0.0164 245.1);   /* brand.3 */
-    --color-brand-subtle: oklch(0.4296 0.0477 248.99);  /* brand.8 */
-    --color-brand-text: oklch(0.8895 0.0164 245.1);     /* brand.3 */
-    --color-brand-contrast: oklch(0 0 0);               /* Black */
-    --color-code-block-text: oklch(0.9502 0.0069 247.9); /* brand.2 on the dark code surface */
+    --color-brand-base: oklch(0.6728 0.0512 244.82); /* brand.5 */
+    --color-brand-hover: oklch(0.7896 0.0331 246.79); /* brand.4 */
+    --color-brand-active: oklch(0.8895 0.0164 245.1); /* brand.3 */
+    --color-brand-subtle: oklch(0.4296 0.0477 248.99); /* brand.8 */
+    --color-brand-text: oklch(0.8895 0.0164 245.1); /* brand.3 */
+    --color-brand-contrast: oklch(0 0 0); /* Black */
+    --color-code-block-text: oklch(
+      0.9502 0.0069 247.9
+    ); /* brand.2 on the dark code surface */
 
     /* Accent */
-    --color-accent-base: oklch(0.8695 0.1736 90.79);    /* accent.5 */
-    --color-accent-hover: oklch(0.9068 0.1681 97.52);   /* accent.4 */
-    --color-accent-subtle: oklch(0.2852 0.0664 52.21);  /* accent.11 — deep warm tint */
-    --color-accent-text: oklch(0.9455 0.1274 101.26);   /* accent.3 */
-    --color-accent-contrast: oklch(0.2852 0.0664 52.21); /* accent.11 — deep brown */
+    --color-accent-base: oklch(0.8695 0.1736 90.79); /* accent.5 */
+    --color-accent-hover: oklch(0.9068 0.1681 97.52); /* accent.4 */
+    --color-accent-subtle: oklch(
+      0.2852 0.0664 52.21
+    ); /* accent.11 — deep warm tint */
+    --color-accent-text: oklch(0.9455 0.1274 101.26); /* accent.3 */
+    --color-accent-contrast: oklch(
+      0.2852 0.0664 52.21
+    ); /* accent.11 — deep brown */
   }
 
   body {
@@ -178,15 +227,19 @@
   }
 
   /* Global typography system: Brawler for headings, Work Sans for body */
-  h1, h2, h3, h4, h5, h6 {
+  h1,
+  h2,
+  h3,
+  h4,
+  h5,
+  h6 {
     @apply font-serif;
   }
 }
 
 @layer components {
   /* Framework-neutral inline link recipe for Astro, React, and plain HTML. */
-  .text-link,
-  .prose :where(a):not(:where([class~="not-prose"] *)) {
+  .text-link {
     color: var(--color-brand-text);
     font-weight: 500;
     text-decoration: none;
@@ -197,15 +250,12 @@
   }
 
   .text-link:hover,
-  .text-link:focus-visible,
-  .prose :where(a):not(:where([class~="not-prose"] *)):hover,
-  .prose :where(a):not(:where([class~="not-prose"] *)):focus-visible {
+  .text-link:focus-visible {
     color: var(--color-brand-hover);
     text-decoration: underline;
   }
 
-  .text-link:focus-visible,
-  .prose :where(a):not(:where([class~="not-prose"] *)):focus-visible {
+  .text-link:focus-visible {
     outline: 2px solid var(--color-brand-base);
     outline-offset: 2px;
   }
@@ -223,7 +273,8 @@
     text-align: center;
     text-decoration: none;
     cursor: pointer;
-    transition-property: color, background-color, border-color, box-shadow, opacity;
+    transition-property:
+      color, background-color, border-color, box-shadow, opacity;
     transition-duration: 150ms;
     transition-timing-function: ease;
   }
@@ -362,7 +413,6 @@
 
   @media (prefers-reduced-motion: reduce) {
     .text-link,
-    .prose :where(a):not(:where([class~="not-prose"] *)),
     .action {
       transition: none;
     }
@@ -389,66 +439,119 @@
     @apply text-text-primary;
   }
 
-  .prose :where(code):not(:where([class~="not-prose"] *)) {
-    @apply text-brand-text bg-bg-subtle px-3xs py-3xs rounded text-sm font-mono;
+  .prose :where(code):not(:where([class~='not-prose'] *)) {
+    @apply text-brand-text bg-bg-subtle px-3xs py-3xs rounded-sm text-sm font-mono;
   }
 
-  .prose :where(pre):not(:where([class~="not-prose"] *)) {
+  .prose :where(pre):not(:where([class~='not-prose'] *)) {
     @apply bg-brand-11 rounded-lg overflow-x-auto;
   }
 
-  .prose :where(pre code):not(:where([class~="not-prose"] *)) {
+  .prose :where(pre code):not(:where([class~='not-prose'] *)) {
     @apply bg-transparent text-sm p-0;
     color: var(--color-code-block-text);
   }
 
-  .prose :where(blockquote):not(:where([class~="not-prose"] *)) {
+  .prose :where(blockquote):not(:where([class~='not-prose'] *)) {
     @apply border-l-4 border-brand-base pl-s italic text-text-tertiary;
   }
 
-  .prose :where(h1, h2, h3, h4, h5, h6):not(:where([class~="not-prose"] *)) {
+  .prose :where(h1, h2, h3, h4, h5, h6):not(:where([class~='not-prose'] *)) {
     @apply text-text-primary font-serif font-bold;
   }
 
-  .prose :where(h1):not(:where([class~="not-prose"] *)) {
+  .prose :where(h1):not(:where([class~='not-prose'] *)) {
     font-size: var(--step-5);
     margin-bottom: var(--space-m);
   }
 
-  .prose :where(h2):not(:where([class~="not-prose"] *)) {
+  .prose :where(h2):not(:where([class~='not-prose'] *)) {
     font-size: var(--step-4);
     margin-bottom: var(--space-s);
     margin-top: var(--space-l);
   }
 
-  .prose :where(h2:first-child):not(:where([class~="not-prose"] *)) {
+  .prose :where(h2:first-child):not(:where([class~='not-prose'] *)) {
     margin-top: 0;
   }
 
-  .prose :where(h3):not(:where([class~="not-prose"] *)) {
+  .prose :where(h3):not(:where([class~='not-prose'] *)) {
     font-size: var(--step-3);
     margin-bottom: var(--space-xs);
     margin-top: var(--space-m);
   }
 
-  .prose :where(h3:first-child):not(:where([class~="not-prose"] *)) {
+  .prose :where(h3:first-child):not(:where([class~='not-prose'] *)) {
     margin-top: 0;
   }
 
-  .prose :where(p):not(:where([class~="not-prose"] *)) {
+  .prose :where(p):not(:where([class~='not-prose'] *)) {
     margin-bottom: var(--space-s);
   }
 
-  .prose :where(strong):not(:where([class~="not-prose"] *)) {
+  .prose :where(strong):not(:where([class~='not-prose'] *)) {
     @apply text-text-primary font-semibold;
   }
 
-  .prose :where(thead):not(:where([class~="not-prose"] *)) {
+  .prose :where(thead):not(:where([class~='not-prose'] *)) {
     @apply border-b border-border-default;
   }
 
-  .prose :where(tbody tr):not(:where([class~="not-prose"] *)) {
+  .prose :where(tbody tr):not(:where([class~='not-prose'] *)) {
     @apply border-b border-border-default;
+  }
+}
+
+/* Keep prose links outside layers so they win over Typography v4 utilities. */
+.prose :where(a):not(:where([class~='not-prose'] *)) {
+  color: var(--color-brand-text);
+  font-weight: 500;
+  text-decoration: none;
+  text-underline-offset: 4px;
+  transition-property: color, text-decoration-color;
+  transition-duration: 150ms;
+  transition-timing-function: ease;
+}
+
+.prose :where(a):not(:where([class~='not-prose'] *)):hover,
+.prose :where(a):not(:where([class~='not-prose'] *)):focus-visible {
+  color: var(--color-brand-hover);
+  text-decoration: underline;
+}
+
+.prose :where(a):not(:where([class~='not-prose'] *)):focus-visible {
+  outline: 2px solid var(--color-brand-base);
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .prose :where(a):not(:where([class~='not-prose'] *)) {
+    transition: none;
+  }
+}
+
+/* One responsive owner for dock and immersive navigation clearance. */
+.site-navigation-disclosure {
+  bottom: var(--navigation-dock-offset);
+}
+
+@media (min-width: 48rem) {
+  :root {
+    --navigation-dock-height: 6.5rem;
+    --navigation-bottom-exclusion: calc(
+      var(--navigation-dock-offset) + var(--navigation-dock-height) +
+        var(--space-m)
+    );
+  }
+}
+
+@media (min-width: 64rem) {
+  :root {
+    --navigation-bottom-exclusion: 0px;
+    --navigation-top-clearance: calc(
+      var(--navigation-dock-offset) + var(--navigation-dock-height) +
+        var(--space-m)
+    );
   }
 }
 

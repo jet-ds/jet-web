@@ -368,7 +368,8 @@ const Grainient: React.FC<GrainientProps> = ({
           const width = Math.max(1, Math.floor(rect.width));
           const height = Math.max(1, Math.floor(rect.height));
           renderer.setSize(width, height);
-          const res = (program.uniforms.iResolution as { value: Float32Array }).value;
+          const res = (program.uniforms.iResolution as { value: Float32Array })
+            .value;
           res[0] = gl.drawingBufferWidth;
           res[1] = gl.drawingBufferHeight;
         };
@@ -481,9 +482,14 @@ const Grainient: React.FC<GrainientProps> = ({
   }
 
   return (
-    <div ref={containerRef} className={`relative h-full w-full overflow-hidden ${className}`.trim()}>
+    <div
+      ref={containerRef}
+      className={`relative h-full w-full overflow-hidden ${className}`.trim()}
+    >
       {overlayClassName && (
-        <div className={`pointer-events-none absolute inset-0 ${overlayClassName}`.trim()} />
+        <div
+          className={`pointer-events-none absolute inset-0 ${overlayClassName}`.trim()}
+        />
       )}
     </div>
   );

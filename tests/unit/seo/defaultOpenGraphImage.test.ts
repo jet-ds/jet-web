@@ -29,16 +29,21 @@ function jpegDimensions(bytes: Buffer): { width: number; height: number } {
     if (bytes[offset] !== 0xff) throw new Error('INVALID_JPEG_MARKER');
     const marker = bytes[offset + 1];
     offset += 2;
-    if (marker === 0xd8 || marker === 0xd9 || (marker >= 0xd0 && marker <= 0xd7)) continue;
+    if (
+      marker === 0xd8 ||
+      marker === 0xd9 ||
+      (marker >= 0xd0 && marker <= 0xd7)
+    )
+      continue;
     const segmentLength = bytes.readUInt16BE(offset);
     if (segmentLength < 2 || offset + segmentLength > bytes.length) {
       throw new Error('INVALID_JPEG_SEGMENT');
     }
     if (
-      (marker >= 0xc0 && marker <= 0xc3)
-      || (marker >= 0xc5 && marker <= 0xc7)
-      || (marker >= 0xc9 && marker <= 0xcb)
-      || (marker >= 0xcd && marker <= 0xcf)
+      (marker >= 0xc0 && marker <= 0xc3) ||
+      (marker >= 0xc5 && marker <= 0xc7) ||
+      (marker >= 0xc9 && marker <= 0xcb) ||
+      (marker >= 0xcd && marker <= 0xcf)
     ) {
       return {
         height: bytes.readUInt16BE(offset + 3),
@@ -52,8 +57,9 @@ function jpegDimensions(bytes: Buffer): { width: number; height: number } {
 
 describe('default OpenGraph image', () => {
   it('defines one shared exact image contract and applies it to default SEO props', () => {
-    const configured = (SITE as typeof SITE & { defaultOpenGraphImage?: unknown })
-      .defaultOpenGraphImage;
+    const configured = (
+      SITE as typeof SITE & { defaultOpenGraphImage?: unknown }
+    ).defaultOpenGraphImage;
     expect(configured).toEqual(expected);
     expect(generateSEOProps({})).toMatchObject({
       image: expected.url,
@@ -64,9 +70,12 @@ describe('default OpenGraph image', () => {
   });
 
   it('does not attach false default dimensions or alt text to custom images', () => {
-    const custom = generateSEOProps({ image: 'https://example.com/custom.jpg' }) as ReturnType<
-      typeof generateSEOProps
-    > & { imageHeight?: number; imageWidth?: number };
+    const custom = generateSEOProps({
+      image: 'https://example.com/custom.jpg',
+    }) as ReturnType<typeof generateSEOProps> & {
+      imageHeight?: number;
+      imageWidth?: number;
+    };
     expect(custom.imageAlt).toBeUndefined();
     expect(custom.imageWidth).toBeUndefined();
     expect(custom.imageHeight).toBeUndefined();
@@ -80,7 +89,10 @@ describe('default OpenGraph image', () => {
 
     const bytes = readFileSync(assetPath);
     expect(bytes.subarray(0, 2)).toEqual(Buffer.from([0xff, 0xd8]));
-    expect(jpegDimensions(bytes)).toEqual({ width: expected.width, height: expected.height });
+    expect(jpegDimensions(bytes)).toEqual({
+      width: expected.width,
+      height: expected.height,
+    });
     expect(statSync(assetPath).size).toBeLessThanOrEqual(expected.maxBytes);
   });
 
@@ -93,7 +105,9 @@ describe('default OpenGraph image', () => {
       writeFileSync(outputPath, approved);
       writeFileSync(temporaryPath, Buffer.from('not a jpeg\n'));
 
-      expect(() => replaceValidatedCapture(temporaryPath, outputPath)).toThrow('OUTPUT_NOT_JPEG');
+      expect(() => replaceValidatedCapture(temporaryPath, outputPath)).toThrow(
+        'OUTPUT_NOT_JPEG',
+      );
       expect(readFileSync(outputPath)).toEqual(approved);
       expect(existsSync(temporaryPath)).toBe(false);
     } finally {

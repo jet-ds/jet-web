@@ -1,30 +1,38 @@
-import {
-  existsSync,
-  readFileSync,
-  readdirSync,
-  statSync,
-} from 'node:fs';
+import { existsSync, readFileSync, readdirSync, statSync } from 'node:fs';
 import { relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
+import { EGREGORE_IDENTITY } from '../src/config/egregore';
 import {
   LITERT_LM_WASM_ASSETS,
   resolveLiteRtAssetPath,
-} from '../src/features/jets-ghost/runtime/liteRtAssets.server';
+} from '../src/features/egregore/runtime/liteRtAssets.server';
 
 export const FORBIDDEN_PRODUCTION_ARTIFACT_MARKERS = [
   'FakeRuntime',
   'runtime=fake',
-  '__JETS_GHOST_E2E__',
+  '__EGREGORE_E2E__',
+  'egregore:qualification-observation',
+  'qualificationObserver',
+  'retrieval-context-selection-start',
+  'retrieval-context-selection-end',
+  'prompt-assembly-start',
+  'prompt-assembly-end',
+  'generation-send',
+  'generation-first-nonempty',
+  'retrieval-context-selection-ms',
+  'prompt-assembly-ms',
+  'send-to-first-nonempty-ms',
+  'total-generation-ms',
   "Jet's published work connects local-first AI with systems thinking [S1].",
   'stop-recovery',
   'late-event',
-  'JG_SOURCE_SENTINEL_4a6c1b',
+  'EGREGORE_SOURCE_SENTINEL_4a6c1b',
 ] as const;
 
 export interface ForbiddenProductionArtifact {
   path: string;
-  marker: typeof FORBIDDEN_PRODUCTION_ARTIFACT_MARKERS[number];
+  marker: (typeof FORBIDDEN_PRODUCTION_ARTIFACT_MARKERS)[number];
 }
 
 function emittedFiles(directory: string): string[] {
@@ -66,9 +74,11 @@ export function assertProductionArtifactsContainNoFakeRuntime(
 ): void {
   const findings = findForbiddenProductionArtifacts(directory);
   if (findings.length === 0) return;
-  throw new Error(`FORBIDDEN_PRODUCTION_ARTIFACT_CONTENT:${findings
-    .map(({ marker, path }) => `${path}:${marker}`)
-    .join(',')}`);
+  throw new Error(
+    `FORBIDDEN_PRODUCTION_ARTIFACT_CONTENT:${findings
+      .map(({ marker, path }) => `${path}:${marker}`)
+      .join(',')}`,
+  );
 }
 
 const REQUIRED_LICENSE_ARTIFACTS = [
@@ -95,6 +105,7 @@ const REQUIRED_LICENSE_ARTIFACTS = [
 ] as const;
 
 const REQUIRED_LICENSE_PAGE_FRAGMENTS = [
+  `${EGREGORE_IDENTITY.name} model and open-source licenses`,
   'Gemma 4 E2B',
   '/licenses/THIRD_PARTY_NOTICES.md',
   '/licenses/apache-2.0.txt',
@@ -103,6 +114,8 @@ const REQUIRED_LICENSE_PAGE_FRAGMENTS = [
   '/assistant/runtime/litert-lm/0.14.0/LICENSE.txt',
 ] as const;
 
+const LICENSE_PAGE_ARTIFACT = `${EGREGORE_IDENTITY.licensePath.slice(1)}index.html`;
+
 export function assertProductionLicenseArtifacts(
   directory = resolve('dist'),
 ): void {
@@ -110,26 +123,32 @@ export function assertProductionLicenseArtifacts(
   for (const artifact of REQUIRED_LICENSE_ARTIFACTS) {
     const emittedPath = resolve(root, artifact.emittedPath);
     if (!existsSync(emittedPath)) {
-      throw new Error(`PRODUCTION_LICENSE_ARTIFACT_MISSING:${artifact.emittedPath}`);
+      throw new Error(
+        `PRODUCTION_LICENSE_ARTIFACT_MISSING:${artifact.emittedPath}`,
+      );
     }
 
     const emitted = readFileSync(emittedPath);
     const expected = readFileSync(resolve(artifact.sourcePath));
     if (!emitted.equals(expected)) {
-      throw new Error(`PRODUCTION_LICENSE_ARTIFACT_MISMATCH:${artifact.emittedPath}`);
+      throw new Error(
+        `PRODUCTION_LICENSE_ARTIFACT_MISMATCH:${artifact.emittedPath}`,
+      );
     }
   }
 
-  const licensePagePath = resolve(root, 'licenses/jets-ghost/index.html');
+  const licensePagePath = resolve(root, LICENSE_PAGE_ARTIFACT);
   if (!existsSync(licensePagePath)) {
-    throw new Error('PRODUCTION_LICENSE_ARTIFACT_MISSING:licenses/jets-ghost/index.html');
+    throw new Error(
+      `PRODUCTION_LICENSE_ARTIFACT_MISSING:${LICENSE_PAGE_ARTIFACT}`,
+    );
   }
 
   const licensePage = readFileSync(licensePagePath, 'utf8');
   for (const fragment of REQUIRED_LICENSE_PAGE_FRAGMENTS) {
     if (!licensePage.includes(fragment)) {
       throw new Error(
-        `PRODUCTION_LICENSE_PAGE_INCOMPLETE:licenses/jets-ghost/index.html:${fragment}`,
+        `PRODUCTION_LICENSE_PAGE_INCOMPLETE:${LICENSE_PAGE_ARTIFACT}:${fragment}`,
       );
     }
   }
@@ -143,29 +162,38 @@ export function assertProductionRuntimeArtifacts(
     const emittedRelativePath = `assistant/runtime/litert-lm/0.14.0/${asset}`;
     const emittedPath = resolve(root, emittedRelativePath);
     if (!existsSync(emittedPath)) {
-      throw new Error(`PRODUCTION_RUNTIME_ARTIFACT_MISSING:${emittedRelativePath}`);
+      throw new Error(
+        `PRODUCTION_RUNTIME_ARTIFACT_MISSING:${emittedRelativePath}`,
+      );
     }
 
     const emitted = readFileSync(emittedPath);
     const expected = readFileSync(resolveLiteRtAssetPath(asset));
     if (!emitted.equals(expected)) {
-      throw new Error(`PRODUCTION_RUNTIME_ARTIFACT_MISMATCH:${emittedRelativePath}`);
+      throw new Error(
+        `PRODUCTION_RUNTIME_ARTIFACT_MISMATCH:${emittedRelativePath}`,
+      );
     }
   }
 }
 
-if (process.argv[1] && resolve(process.argv[1]) === fileURLToPath(import.meta.url)) {
+if (
+  process.argv[1] &&
+  resolve(process.argv[1]) === fileURLToPath(import.meta.url)
+) {
   try {
     const directory = process.argv[2] ?? resolve('dist');
     assertProductionArtifactsContainNoFakeRuntime(directory);
     assertProductionLicenseArtifacts(directory);
     assertProductionRuntimeArtifacts(directory);
     process.stdout.write(
-      'Production artifacts contain no Jet\'s Ghost fake-runtime seam; the runtime and license surfaces are complete and byte-exact.\n',
+      `Production artifacts contain no ${EGREGORE_IDENTITY.name} fake-runtime seam; the runtime and license surfaces are complete and byte-exact.\n`,
     );
   } catch (error) {
     const message = error instanceof Error ? error.message : 'UNEXPECTED_ERROR';
-    process.stderr.write(`Production artifact verification failed: ${message}\n`);
+    process.stderr.write(
+      `Production artifact verification failed: ${message}\n`,
+    );
     process.exitCode = 1;
   }
 }

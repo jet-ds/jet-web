@@ -81,31 +81,33 @@ const navigationElements = NAV_ITEMS.map((item) => ({
     <SEO {...seoProps} noindex={noindex} />
 
     <!-- WebPage Schema -->
-    {!suppressWebPage && (
-      <StructuredData
-        type="webpage"
-        id={`${seoProps.canonicalURL}#webpage`}
-        url={seoProps.canonicalURL}
-        name={seoProps.title}
-        description={seoProps.description}
-        image={seoProps.image}
-        mainEntityId={mainEntityId}
-      />
-    )}
+    {
+      !suppressWebPage && (
+        <StructuredData
+          type="webpage"
+          id={`${seoProps.canonicalURL}#webpage`}
+          url={seoProps.canonicalURL}
+          name={seoProps.title}
+          description={seoProps.description}
+          image={seoProps.image}
+          mainEntityId={mainEntityId}
+        />
+      )
+    }
 
     <!-- Content Schema -->
     <slot name="structured-data" />
 
     <!-- Site Navigation -->
-    <StructuredData
-      type="navigation"
-      navigationElements={navigationElements}
-    />
+    <StructuredData type="navigation" navigationElements={navigationElements} />
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link href="https://fonts.googleapis.com/css2?family=Brawler:wght@400;700&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet" />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Brawler:wght@400;700&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap"
+      rel="stylesheet"
+    />
 
     <!-- Site Icons -->
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
@@ -116,7 +118,12 @@ const navigationElements = NAV_ITEMS.map((item) => ({
     <link rel="manifest" href="/site.webmanifest" />
 
     <!-- RSS Feed -->
-    <link rel="alternate" type="application/rss+xml" title={SITE.title} href="/rss.xml" />
+    <link
+      rel="alternate"
+      type="application/rss+xml"
+      title={SITE.title}
+      href="/rss.xml"
+    />
 
     <!-- Theme -->
     <ThemeScript />
@@ -127,24 +134,38 @@ const navigationElements = NAV_ITEMS.map((item) => ({
     <!-- Page Transitions -->
     <ClientRouter />
   </head>
-  <body class:list={["min-h-screen flex flex-col", { "overflow-hidden": immersive }]}>
-    <DockWrapper />
+  <body
+    class:list={[
+      'min-h-[100svh] flex flex-col',
+      { 'overflow-hidden': immersive },
+    ]}
+  >
+    <DockWrapper immersive={immersive} />
 
     <noscript>
-      <nav class="fixed top-0 left-0 right-0 z-50 bg-surface-base/90 backdrop-blur-sm border-b border-border-default">
+      <nav
+        class="fixed top-0 left-0 right-0 z-50 bg-surface-base/90 backdrop-blur-xs border-b border-border-default"
+      >
         <div class="max-w-7xl mx-auto px-4 py-4">
           <ul class="flex flex-wrap items-center justify-center gap-6">
-            {NAV_ITEMS.map((item) => (
-              <li>
-                <a href={item.href} class="text-text-primary hover:text-brand-text">{item.label}</a>
-              </li>
-            ))}
+            {
+              NAV_ITEMS.map((item) => (
+                <li>
+                  <a
+                    href={item.href}
+                    class="text-text-primary hover:text-brand-text"
+                  >
+                    {item.label}
+                  </a>
+                </li>
+              ))
+            }
           </ul>
         </div>
       </nav>
     </noscript>
 
-    <main class:list={["flex-1", immersive ? "min-h-0" : "pt-0 md:pt-24"]}>
+    <main class:list={['flex-1', immersive ? 'min-h-0' : 'pt-0 md:pt-24']}>
       <slot />
     </main>
     {!immersive && <Footer />}

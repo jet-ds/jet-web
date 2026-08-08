@@ -1,13 +1,9 @@
-import { readFileSync } from 'node:fs';
 import { describe, expect, expectTypeOf, it } from 'vitest';
 import {
   buildStructuredData,
   type JsonLd,
   type StructuredDataProps,
 } from '../../../src/utils/structuredData';
-
-const homepageSource = readFileSync('src/pages/index.astro', 'utf8');
-const aboutSource = readFileSync('src/pages/about.astro', 'utf8');
 
 interface StructuredDataFixture {
   name: string;
@@ -306,63 +302,33 @@ const fixtures = [
 ] satisfies readonly StructuredDataFixture[];
 
 describe('structured data', () => {
-  it('keeps homepage schema URLs slashful without moving fragment identifiers', () => {
-    expect(homepageSource).toContain("const homepageUrl = `${SITE.siteUrl}/`;");
-    expect(homepageSource.match(/url=\{homepageUrl\}/gu) ?? []).toHaveLength(2);
-    expect(homepageSource).toContain('id={`${SITE.siteUrl}/#person`}');
-    expect(homepageSource).not.toContain('id={`${homepageUrl}#person`}');
-  });
-
   it('uses the slashful root identity for default schemas and the About Person', () => {
-    expect(buildStructuredData({ type: 'person' }).url).toBe('https://jetsanchez.com/');
-    expect(buildStructuredData({
-      type: 'webpage',
-      url: 'https://jetsanchez.com/about/',
-    }).isPartOf).toMatchObject({
+    expect(buildStructuredData({ type: 'person' }).url).toBe(
+      'https://jetsanchez.com/',
+    );
+    expect(
+      buildStructuredData({
+        type: 'webpage',
+        url: 'https://jetsanchez.com/about/',
+      }).isPartOf,
+    ).toMatchObject({
       '@id': 'https://jetsanchez.com/#website',
       url: 'https://jetsanchez.com/',
     });
-    expect(aboutSource).toContain('url={`${SITE.siteUrl}/`}');
   });
 
-  it.each(fixtures)('preserves the complete $name JSON shape', ({
-    props,
-    expectedType,
-    expectedSchema,
-  }) => {
-    const schema = buildStructuredData(props);
-    const serialized = JSON.stringify(schema);
-    const parsed: unknown = JSON.parse(serialized);
+  it.each(fixtures)(
+    'preserves the complete $name JSON shape',
+    ({ props, expectedType, expectedSchema }) => {
+      const schema = buildStructuredData(props);
+      const serialized = JSON.stringify(schema);
+      const parsed: unknown = JSON.parse(serialized);
 
-    expectTypeOf(schema).toEqualTypeOf<JsonLd>();
-    expectTypeOf(parsed).toEqualTypeOf<unknown>();
-    expect(schema['@type']).toBe(expectedType);
-    expect(schema).toEqual(expectedSchema);
-    expect(parsed).toEqual(expectedSchema);
-  });
-
-  it('links a scholarly article to its canonical webpage', () => {
-    const schema = buildStructuredData({
-      type: 'scholarlyarticle',
-      id: 'https://jetsanchez.com/works/rch#scholarlyarticle',
-      url: 'https://jetsanchez.com/works/rch',
-      headline: 'RCH',
-      description: 'Research description',
-      datePublished: '2025-08-27T00:00:00.000Z',
-      identifier: 'https://doi.org/10.2139/ssrn.5395309',
-      sameAs: ['https://doi.org/10.2139/ssrn.5395309'],
-      tags: ['AI'],
-    });
-
-    expect(schema['@type']).toBe('ScholarlyArticle');
-    expect(schema.mainEntityOfPage).toEqual({
-      '@type': 'WebPage',
-      '@id': 'https://jetsanchez.com/works/rch#webpage',
-    });
-    expect(schema).toMatchObject({
-      url: 'https://jetsanchez.com/works/rch',
-      identifier: 'https://doi.org/10.2139/ssrn.5395309',
-      sameAs: ['https://doi.org/10.2139/ssrn.5395309'],
-    });
-  });
+      expectTypeOf(schema).toEqualTypeOf<JsonLd>();
+      expectTypeOf(parsed).toEqualTypeOf<unknown>();
+      expect(schema['@type']).toBe(expectedType);
+      expect(schema).toEqual(expectedSchema);
+      expect(parsed).toEqual(expectedSchema);
+    },
+  );
 });

@@ -32,9 +32,11 @@ vi.mock('ogl', () => {
         canvas: document.createElement('canvas'),
         drawingBufferHeight: 1,
         drawingBufferWidth: 1,
-        getExtension: vi.fn((name: string) => (
-          name === 'WEBGL_lose_context' ? { loseContext: ogl.loseContext } : null
-        )),
+        getExtension: vi.fn((name: string) =>
+          name === 'WEBGL_lose_context'
+            ? { loseContext: ogl.loseContext }
+            : null,
+        ),
       };
     }
   }
@@ -107,12 +109,16 @@ function createMediaQuery(initialMatches: boolean) {
     },
     media: '(prefers-reduced-motion: reduce)',
     onchange: null,
-    addEventListener: vi.fn((type: string, listener: (event: MediaQueryListEvent) => void) => {
-      if (type === 'change') listeners.add(listener);
-    }),
-    removeEventListener: vi.fn((type: string, listener: (event: MediaQueryListEvent) => void) => {
-      if (type === 'change') listeners.delete(listener);
-    }),
+    addEventListener: vi.fn(
+      (type: string, listener: (event: MediaQueryListEvent) => void) => {
+        if (type === 'change') listeners.add(listener);
+      },
+    ),
+    removeEventListener: vi.fn(
+      (type: string, listener: (event: MediaQueryListEvent) => void) => {
+        if (type === 'change') listeners.delete(listener);
+      },
+    ),
     addListener: vi.fn(),
     removeListener: vi.fn(),
     dispatchEvent: vi.fn(() => true),
@@ -122,7 +128,10 @@ function createMediaQuery(initialMatches: boolean) {
     mediaQuery,
     emit(nextMatches: boolean) {
       matches = nextMatches;
-      const event = { matches: nextMatches, media: mediaQuery.media } as MediaQueryListEvent;
+      const event = {
+        matches: nextMatches,
+        media: mediaQuery.media,
+      } as MediaQueryListEvent;
       listeners.forEach((listener) => listener(event));
     },
   };
@@ -138,7 +147,10 @@ function installLifecycleEnvironment(initialReducedMotion: boolean) {
   const media = createMediaQuery(initialReducedMotion);
   vi.stubGlobal('ResizeObserver', FakeResizeObserver);
   vi.stubGlobal('IntersectionObserver', FakeIntersectionObserver);
-  vi.stubGlobal('matchMedia', vi.fn(() => media.mediaQuery));
+  vi.stubGlobal(
+    'matchMedia',
+    vi.fn(() => media.mediaQuery),
+  );
 
   return media;
 }
@@ -158,8 +170,7 @@ function emitIntersection(isIntersecting: boolean) {
 
 function runAnimationFrame(timestamp: number) {
   const entry = rafCallbacks.entries().next().value as
-    | [number, FrameRequestCallback]
-    | undefined;
+    [number, FrameRequestCallback] | undefined;
   if (!entry) throw new Error('No animation frame was scheduled');
   const [id, callback] = entry;
   rafCallbacks.delete(id);
@@ -231,7 +242,9 @@ describe('Grainient reduced-motion lifecycle', () => {
     act(() => media.emit(true));
 
     expect(cancelAnimationFrameMock).toHaveBeenCalledTimes(1);
-    expect(FakeResizeObserver.instances[0]?.disconnect).toHaveBeenCalledTimes(1);
+    expect(FakeResizeObserver.instances[0]?.disconnect).toHaveBeenCalledTimes(
+      1,
+    );
     expect(ogl.geometryRemove).toHaveBeenCalledTimes(1);
     expect(ogl.programRemove).toHaveBeenCalledTimes(1);
     expect(ogl.loseContext).toHaveBeenCalledTimes(1);
@@ -254,12 +267,17 @@ describe('Grainient reduced-motion lifecycle', () => {
     expect(ogl.geometryRemove).toHaveBeenCalledTimes(2);
     expect(ogl.programRemove).toHaveBeenCalledTimes(2);
     expect(ogl.loseContext).toHaveBeenCalledTimes(2);
-    expect(FakeResizeObserver.instances[1]?.disconnect).toHaveBeenCalledTimes(1);
-    expect(FakeIntersectionObserver.instances[0]?.disconnect).toHaveBeenCalledTimes(1);
+    expect(FakeResizeObserver.instances[1]?.disconnect).toHaveBeenCalledTimes(
+      1,
+    );
+    expect(
+      FakeIntersectionObserver.instances[0]?.disconnect,
+    ).toHaveBeenCalledTimes(1);
     expect(media.mediaQuery.removeEventListener).toHaveBeenCalledTimes(1);
     expect(media.mediaQuery.removeEventListener).toHaveBeenCalledWith(
       'change',
-      (media.mediaQuery.addEventListener as ReturnType<typeof vi.fn>).mock.calls[0]?.[1],
+      (media.mediaQuery.addEventListener as ReturnType<typeof vi.fn>).mock
+        .calls[0]?.[1],
     );
 
     act(() => {
@@ -413,7 +431,9 @@ describe('Grainient reduced-motion lifecycle', () => {
     expect(ogl.loseContext).toHaveBeenCalledTimes(0);
 
     view.unmount();
-    expect(FakeIntersectionObserver.instances[0]?.disconnect).toHaveBeenCalledTimes(1);
+    expect(
+      FakeIntersectionObserver.instances[0]?.disconnect,
+    ).toHaveBeenCalledTimes(1);
     expect(media.mediaQuery.removeEventListener).toHaveBeenCalledTimes(1);
 
     act(() => {

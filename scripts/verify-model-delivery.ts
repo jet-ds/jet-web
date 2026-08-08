@@ -2,7 +2,7 @@ import { mkdir, writeFile } from 'node:fs/promises';
 import { request } from 'node:https';
 import type { IncomingMessage } from 'node:http';
 import { dirname } from 'node:path';
-import { JETS_GHOST_MODEL } from '../src/features/jets-ghost/config';
+import { EGREGORE_MODEL } from '../src/features/egregore/config';
 import {
   isTrustedModelOrigin,
   sanitizeModelDeliveryResult,
@@ -12,7 +12,7 @@ import {
   type ModelDeliveryHop,
   type ModelDeliveryResult,
   type ModelDeliveryValidation,
-} from '../src/features/jets-ghost/runtime/modelDelivery';
+} from '../src/features/egregore/runtime/modelDelivery';
 
 type VerificationMode = ModelDeliveryResult['mode'];
 
@@ -63,9 +63,12 @@ function appendFailure(
   validation: ModelDeliveryValidation,
   failure: ModelDeliveryFailure,
 ): ModelDeliveryValidation {
-  if (validation.failures.some(({ hopIndex, ruleCode }) => (
-    hopIndex === failure.hopIndex && ruleCode === failure.ruleCode
-  ))) {
+  if (
+    validation.failures.some(
+      ({ hopIndex, ruleCode }) =>
+        hopIndex === failure.hopIndex && ruleCode === failure.ruleCode,
+    )
+  ) {
     return validation;
   }
 
@@ -89,15 +92,17 @@ function resultFor(
   };
 }
 
-async function runDelivery(mode: VerificationMode): Promise<ModelDeliveryResult> {
+async function runDelivery(
+  mode: VerificationMode,
+): Promise<ModelDeliveryResult> {
   const chain: ModelDeliveryHop[] = [];
-  const visitedUrls = new Set<string>([JETS_GHOST_MODEL.url]);
-  let currentUrl: string = JETS_GHOST_MODEL.url;
+  const visitedUrls = new Set<string>([EGREGORE_MODEL.url]);
+  let currentUrl: string = EGREGORE_MODEL.url;
 
   for (let hopIndex = 0; ; hopIndex += 1) {
-    if (!isTrustedModelOrigin(currentUrl, JETS_GHOST_MODEL.trustedOrigins)) {
+    if (!isTrustedModelOrigin(currentUrl, EGREGORE_MODEL.trustedOrigins)) {
       const validation = appendFailure(
-        validateModelDeliveryChain(chain, JETS_GHOST_MODEL),
+        validateModelDeliveryChain(chain, EGREGORE_MODEL),
         { hopIndex, ruleCode: 'ORIGIN_NOT_TRUSTED' },
       );
       return resultFor(mode, validation);
@@ -108,15 +113,16 @@ async function runDelivery(mode: VerificationMode): Promise<ModelDeliveryResult>
       response = await bodylessGet(currentUrl);
     } catch {
       const validation = appendFailure(
-        validateModelDeliveryChain(chain, JETS_GHOST_MODEL),
+        validateModelDeliveryChain(chain, EGREGORE_MODEL),
         { hopIndex, ruleCode: 'NETWORK_ERROR' },
       );
       return resultFor(mode, validation);
     }
 
-    const location = typeof response.headers.location === 'string'
-      ? response.headers.location
-      : undefined;
+    const location =
+      typeof response.headers.location === 'string'
+        ? response.headers.location
+        : undefined;
     const status = response.statusCode ?? 0;
 
     chain.push({
@@ -132,9 +138,9 @@ async function runDelivery(mode: VerificationMode): Promise<ModelDeliveryResult>
 
     if (REDIRECT_STATUSES.has(status)) {
       response.destroy();
-      const validation = validateModelDeliveryChain(chain, JETS_GHOST_MODEL);
+      const validation = validateModelDeliveryChain(chain, EGREGORE_MODEL);
 
-      if (!location || validation.redirectDepth > JETS_GHOST_MODEL.maxRedirects) {
+      if (!location || validation.redirectDepth > EGREGORE_MODEL.maxRedirects) {
         return resultFor(mode, validation);
       }
 
@@ -146,8 +152,8 @@ async function runDelivery(mode: VerificationMode): Promise<ModelDeliveryResult>
       }
 
       if (
-        !isTrustedModelOrigin(targetUrl, JETS_GHOST_MODEL.trustedOrigins)
-        || visitedUrls.has(targetUrl)
+        !isTrustedModelOrigin(targetUrl, EGREGORE_MODEL.trustedOrigins) ||
+        visitedUrls.has(targetUrl)
       ) {
         return resultFor(mode, validation);
       }
@@ -157,7 +163,7 @@ async function runDelivery(mode: VerificationMode): Promise<ModelDeliveryResult>
       continue;
     }
 
-    const validation = validateModelDeliveryChain(chain, JETS_GHOST_MODEL);
+    const validation = validateModelDeliveryChain(chain, EGREGORE_MODEL);
     if (!validation.valid) {
       response.destroy();
       return resultFor(mode, validation);
@@ -170,17 +176,20 @@ async function runDelivery(mode: VerificationMode): Promise<ModelDeliveryResult>
 
     try {
       const artifact = await verifyModelArtifactStream(response, {
-        bytes: JETS_GHOST_MODEL.bytes,
-        sha256: JETS_GHOST_MODEL.sha256,
+        bytes: EGREGORE_MODEL.bytes,
+        sha256: EGREGORE_MODEL.sha256,
         hopIndex,
       });
       return resultFor(mode, validation, artifact);
     } catch {
       response.destroy();
-      return resultFor(mode, appendFailure(validation, {
-        hopIndex,
-        ruleCode: 'NETWORK_ERROR',
-      }));
+      return resultFor(
+        mode,
+        appendFailure(validation, {
+          hopIndex,
+          ruleCode: 'NETWORK_ERROR',
+        }),
+      );
     }
   }
 }

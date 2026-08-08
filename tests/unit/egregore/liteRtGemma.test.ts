@@ -1,0 +1,1101 @@
+import { describe, expect, it, vi } from 'vitest';
+import {
+  EGREGORE_CONTEXT,
+  EGREGORE_PATHS,
+} from '../../../src/features/egregore/config';
+import { LiteRtGemmaRuntime } from '../../../src/features/egregore/runtime/liteRtGemma';
+import type { ModelSource } from '../../../src/features/egregore/runtime/modelArtifactStore';
+import {
+  createRuntimeError,
+  type LoadOptions,
+} from '../../../src/features/egregore/runtime/types';
+
+interface StreamMessage {
+  content?:
+    | string
+    | Array<{
+        type: string;
+        text?: string;
+      }>;
+}
+
+interface FakeConversation {
+  sendMessageStreaming: ReturnType<typeof vi.fn>;
+  cancel: ReturnType<typeof vi.fn>;
+  getTokenCount: ReturnType<typeof vi.fn>;
+  delete: ReturnType<typeof vi.fn>;
+}
+
+interface FakeDevice {
+  queue: {
+    onSubmittedWorkDone: ReturnType<typeof vi.fn>;
+  };
+  destroy: ReturnType<typeof vi.fn>;
+}
+
+interface FakeEngine {
+  createConversation: ReturnType<typeof vi.fn>;
+  delete: ReturnType<typeof vi.fn>;
+}
+
+interface Deferred<T> {
+  promise: Promise<T>;
+  resolve: (value: T) => void;
+  reject: (reason?: unknown) => void;
+}
+
+const TEST_MODEL_SOURCE = 'https://models.example/test.litertlm';
+
+class TestLiteRtGemmaRuntime extends LiteRtGemmaRuntime {
+  override load(
+    options: Omit<LoadOptions, 'modelSource'> & {
+      modelSource?: ModelSource;
+    } = {},
+  ): Promise<void> {
+    return super.load({
+      ...options,
+      modelSource: options.modelSource ?? TEST_MODEL_SOURCE,
+    });
+  }
+}
+
+function deferred<T>(): Deferred<T> {
+  let resolve!: (value: T) => void;
+  let reject!: (reason?: unknown) => void;
+  const promise = new Promise<T>((resolvePromise, rejectPromise) => {
+    resolve = resolvePromise;
+    reject = rejectPromise;
+  });
+  return { promise, resolve, reject };
+}
+
+function streamFrom(
+  messages: readonly StreamMessage[],
+): ReadableStream<StreamMessage> {
+  return new ReadableStream({
+    start(controller) {
+      for (const message of messages) controller.enqueue(message);
+      controller.close();
+    },
+  });
+}
+
+function controlledStream(): {
+  stream: ReadableStream<StreamMessage>;
+  emit: (message: StreamMessage) => void;
+  close: () => void;
+} {
+  let controller!: ReadableStreamDefaultController<StreamMessage>;
+  return {
+    stream: new ReadableStream({
+      start(nextController) {
+        controller = nextController;
+      },
+    }),
+    emit: (message) => controller.enqueue(message),
+    close: () => controller.close(),
+  };
+}
+
+function fakeConversation(
+  stream: ReadableStream<StreamMessage> = streamFrom([]),
+  calls: string[] = [],
+  name = 'conversation',
+  tokenCount = 0,
+): FakeConversation {
+  return {
+    sendMessageStreaming: vi.fn(() => stream),
+    cancel: vi.fn(() => calls.push(`${name}.cancel`)),
+    getTokenCount: vi.fn(async () => tokenCount),
+    delete: vi.fn(async () => {
+      calls.push(`${name}.delete`);
+    }),
+  };
+}
+
+function fakeEngine(
+  conversations: FakeConversation[],
+  calls: string[] = [],
+  name = 'engine',
+): FakeEngine {
+  return {
+    createConversation: vi.fn(async () => {
+      calls.push(`${name}.createConversation`);
+      const conversation = conversations.shift();
+      if (!conversation) throw new Error('No fake conversation remains.');
+      return conversation;
+    }),
+    delete: vi.fn(async () => {
+      calls.push(`${name}.delete`);
+    }),
+  };
+}
+
+function fakeGpuDevice(calls: string[], name = 'device'): FakeDevice {
+  return {
+    queue: {
+      onSubmittedWorkDone: vi.fn(async () => {
+        calls.push(`${name}.queue.onSubmittedWorkDone`);
+      }),
+    },
+    destroy: vi.fn(() => {
+      calls.push(`${name}.destroy`);
+    }),
+  };
+}
+
+function runtimeHarness(
+  options: {
+    calls?: string[];
+    engines?: FakeEngine[];
+    loadLiteRtLm?: (path: string) => Promise<unknown>;
+    unloadLiteRtLm?: () => void;
+    device?: FakeDevice;
+    devices?: FakeDevice[];
+    onDeviceReferenceChange?: (device: FakeDevice | undefined) => void;
+  } = {},
+) {
+  const calls = options.calls ?? [];
+  const engines = [
+    ...(options.engines ?? [fakeEngine([fakeConversation()], calls)]),
+  ];
+  const loadLiteRtLm = vi.fn(
+    options.loadLiteRtLm ??
+      (async () => {
+        calls.push('loadLiteRtLm');
+      }),
+  );
+  const unloadLiteRtLm = vi.fn(
+    options.unloadLiteRtLm ??
+      (() => {
+        calls.push('unloadLiteRtLm');
+      }),
+  );
+  let retainedDevice = options.device;
+  const devices = [...(options.devices ?? [])];
+  const create = vi.fn(async (_settings: unknown) => {
+    calls.push('Engine.create');
+    const engine = engines.shift();
+    if (!engine) throw new Error('No fake engine remains.');
+    retainedDevice = devices.shift() ?? retainedDevice;
+    return engine;
+  });
+  const liteRtLmWasm = {} as {
+    preinitializedWebGPUDevice?: FakeDevice;
+  };
+  Object.defineProperty(liteRtLmWasm, 'preinitializedWebGPUDevice', {
+    configurable: true,
+    get: () => retainedDevice,
+    set: (device: FakeDevice | undefined) => {
+      retainedDevice = device;
+      options.onDeviceReferenceChange?.(device);
+    },
+  });
+  const module = {
+    Engine: { create },
+    loadLiteRtLm,
+    unloadLiteRtLm,
+    getGlobalLiteRtLm: vi.fn(() => ({
+      liteRtLmWasm,
+    })),
+  };
+  const loadModule = vi.fn(async () => {
+    calls.push('loadModule');
+    return module;
+  });
+
+  return {
+    calls,
+    create,
+    loadLiteRtLm,
+    unloadLiteRtLm,
+    loadModule,
+    runtime: new TestLiteRtGemmaRuntime(loadModule as never),
+  };
+}
+
+describe('LiteRT-LM Gemma runtime', () => {
+  it('does not import LiteRT-LM before explicit load consent', async () => {
+    const { loadModule, runtime } = runtimeHarness();
+
+    expect(loadModule).not.toHaveBeenCalled();
+    await runtime.checkCapabilities();
+    expect(loadModule).not.toHaveBeenCalled();
+  });
+
+  it('passes the resolved model source to the engine after loading the pinned same-origin WASM', async () => {
+    const { calls, create, loadLiteRtLm, runtime } = runtimeHarness();
+    const phases: string[] = [];
+    const fetchSpy = vi.spyOn(globalThis, 'fetch');
+    const digestSpy = vi.spyOn(globalThis.crypto.subtle, 'digest');
+    const modelSource = new ReadableStream<Uint8Array>({
+      start(controller) {
+        controller.enqueue(new Uint8Array([1]));
+        controller.close();
+      },
+    });
+
+    await runtime.load({
+      modelSource,
+      onPhase: (phase) => phases.push(phase),
+    });
+
+    expect(calls.slice(0, 3)).toEqual([
+      'loadModule',
+      'loadLiteRtLm',
+      'Engine.create',
+    ]);
+    expect(loadLiteRtLm).toHaveBeenCalledWith(EGREGORE_PATHS.liteRtWasm);
+    expect(loadLiteRtLm).not.toHaveBeenCalledWith(
+      expect.stringContaining('jsdelivr'),
+    );
+    expect(create).toHaveBeenCalledWith({
+      model: modelSource,
+      mainExecutorSettings: {
+        maxNumTokens: 8_192,
+      },
+    });
+    const engineSettings = create.mock.calls[0]?.[0] as { model: unknown };
+    expect(engineSettings.model).toBe(modelSource);
+    expect(fetchSpy).not.toHaveBeenCalled();
+    expect(digestSpy).not.toHaveBeenCalled();
+    expect(phases).toEqual(['runtime', 'model']);
+    expect(runtime).not.toHaveProperty('artifactIntegrityVerified');
+    expect(runtime).not.toHaveProperty('runtimeArtifactIntegrity');
+
+    fetchSpy.mockRestore();
+    digestSpy.mockRestore();
+  });
+
+  it('cleans the partial LiteRT runtime when engine creation throws a runtime error', async () => {
+    const unloadLiteRtLm = vi.fn();
+    const loadModule = vi.fn(async () => ({
+      Engine: {
+        create: vi.fn(async () => {
+          throw createRuntimeError(
+            'model-load-failed',
+            'The test engine rejected its model source.',
+            true,
+          );
+        }),
+      },
+      loadLiteRtLm: vi.fn(async () => undefined),
+      unloadLiteRtLm,
+    }));
+    const runtime = new LiteRtGemmaRuntime(loadModule as never);
+
+    await expect(
+      runtime.load({ modelSource: TEST_MODEL_SOURCE }),
+    ).rejects.toMatchObject({ code: 'model-load-failed' });
+
+    expect(unloadLiteRtLm).toHaveBeenCalledOnce();
+  });
+
+  it('caps sessions at the reserved output budget without consuming estimator headroom', async () => {
+    const calls: string[] = [];
+    const conversation = fakeConversation(streamFrom([]), calls, 'first');
+    const engine = fakeEngine([conversation], calls);
+    const { runtime } = runtimeHarness({ engines: [engine] });
+    const preface = [{ role: 'system' as const, content: 'Grounded preface' }];
+
+    await runtime.load({});
+    await runtime.createSession(preface);
+
+    expect(engine.createConversation).toHaveBeenCalledWith({
+      preface: { messages: preface },
+      prefillPrefaceOnInit: true,
+      sessionConfig: {
+        maxOutputTokens: 1_024,
+      },
+    });
+    expect(EGREGORE_CONTEXT.responseReserve).toBe(1_024);
+    expect(EGREGORE_CONTEXT.maxContextTokens).toBe(8_192);
+    expect(EGREGORE_CONTEXT.estimatorHeadroom).toBe(1_024);
+  });
+
+  it('reports the token count of the active LiteRT conversation', async () => {
+    const conversation = fakeConversation(
+      streamFrom([]),
+      [],
+      'conversation',
+      73,
+    );
+    const engine = fakeEngine([conversation]);
+    const { runtime } = runtimeHarness({ engines: [engine] });
+
+    await runtime.load({});
+    await runtime.createSession([]);
+
+    await expect(runtime.getConversationTokenCount()).resolves.toBe(73);
+    expect(conversation.getTokenCount).toHaveBeenCalledOnce();
+  });
+
+  it('keeps consecutive generations on one conversation and requires reset before another', async () => {
+    const first = fakeConversation();
+    first.sendMessageStreaming
+      .mockImplementationOnce(() => streamFrom([{ content: 'First' }]))
+      .mockImplementationOnce(() => streamFrom([{ content: 'Second' }]));
+    const engine = fakeEngine([first]);
+    const { runtime } = runtimeHarness({ engines: [engine] });
+    const fragments: string[] = [];
+
+    await runtime.load({});
+    await runtime.createSession([{ role: 'system', content: 'First' }]);
+    await runtime.generate('Question one', {
+      onText: (text) => fragments.push(text),
+    });
+    await runtime.generate('Question two', {
+      onText: (text) => fragments.push(text),
+    });
+
+    expect(fragments).toEqual(['First', 'Second']);
+    expect(engine.createConversation).toHaveBeenCalledTimes(1);
+    await expect(runtime.createSession([])).rejects.toMatchObject({
+      code: 'generation-failed',
+    });
+    expect(first.delete).not.toHaveBeenCalled();
+  });
+
+  it('waits for deferred session creation, deletes the stale result, then unloads the engine', async () => {
+    const calls: string[] = [];
+    const stale = fakeConversation(streamFrom([]), calls, 'stale');
+    const creation = deferred<FakeConversation>();
+    const engine = fakeEngine([], calls);
+    engine.createConversation.mockImplementationOnce(async () => {
+      calls.push('creation.start');
+      const conversation = await creation.promise;
+      calls.push('creation.end');
+      return conversation;
+    });
+    const { runtime } = runtimeHarness({ engines: [engine] });
+
+    await runtime.load({});
+    const creating = runtime.createSession([
+      { role: 'system', content: 'First' },
+    ]);
+    await vi.waitFor(() => expect(calls).toContain('creation.start'));
+    calls.length = 0;
+
+    const unloading = runtime.unload();
+    await Promise.resolve();
+    expect(engine.delete).not.toHaveBeenCalled();
+    creation.resolve(stale);
+
+    await creating;
+    await unloading;
+    expect(calls).toEqual(['creation.end', 'stale.delete', 'engine.delete']);
+    await expect(
+      runtime.generate('Question', { onText: () => undefined }),
+    ).rejects.toMatchObject({ code: 'generation-failed' });
+  });
+
+  it('waits for deferred session creation during reset and deletes the stale conversation', async () => {
+    const stale = fakeConversation();
+    const creation = deferred<FakeConversation>();
+    const engine = fakeEngine([]);
+    engine.createConversation.mockImplementationOnce(
+      async () => creation.promise,
+    );
+    const { runtime } = runtimeHarness({ engines: [engine] });
+
+    await runtime.load({});
+    const creating = runtime.createSession([
+      { role: 'system', content: 'Pending' },
+    ]);
+    await vi.waitFor(() =>
+      expect(engine.createConversation).toHaveBeenCalledTimes(1),
+    );
+    let resetSettled = false;
+    const resetting = runtime.reset().then(() => {
+      resetSettled = true;
+    });
+    await Promise.resolve();
+    expect(resetSettled).toBe(false);
+
+    creation.resolve(stale);
+    await creating;
+    await resetting;
+
+    expect(stale.delete).toHaveBeenCalledTimes(1);
+    expect(engine.delete).not.toHaveBeenCalled();
+    await expect(
+      runtime.generate('Question', { onText: () => undefined }),
+    ).rejects.toMatchObject({ code: 'generation-failed' });
+  });
+
+  it('preserves a stale-session cleanup failure after cancellation for a later retry', async () => {
+    const stale = fakeConversation();
+    stale.delete
+      .mockRejectedValueOnce(new Error('PRIVATE_STALE_SESSION'))
+      .mockResolvedValueOnce(undefined);
+    const creation = deferred<FakeConversation>();
+    const engine = fakeEngine([]);
+    engine.createConversation.mockImplementationOnce(
+      async () => creation.promise,
+    );
+    const { runtime } = runtimeHarness({ engines: [engine] });
+
+    await runtime.load({});
+    const creating = runtime.createSession([
+      { role: 'system', content: 'Pending' },
+    ]);
+    await vi.waitFor(() =>
+      expect(engine.createConversation).toHaveBeenCalledTimes(1),
+    );
+    runtime.cancel();
+    creation.resolve(stale);
+
+    await expect(creating).rejects.toMatchObject({
+      code: 'engine-cleanup-failed',
+      cleanupFailures: ['conversation'],
+    });
+    expect(stale.delete).toHaveBeenCalledTimes(1);
+
+    await runtime.reset();
+    expect(stale.delete).toHaveBeenCalledTimes(2);
+  });
+
+  it('keeps stale session cleanup pending when reset observes a deletion failure', async () => {
+    const stale = fakeConversation();
+    stale.delete
+      .mockRejectedValueOnce(new Error('PRIVATE_STALE_SESSION'))
+      .mockResolvedValueOnce(undefined);
+    const creation = deferred<FakeConversation>();
+    const engine = fakeEngine([]);
+    engine.createConversation.mockImplementationOnce(
+      async () => creation.promise,
+    );
+    const { runtime } = runtimeHarness({ engines: [engine] });
+
+    await runtime.load({});
+    const creating = runtime.createSession([]);
+    await vi.waitFor(() =>
+      expect(engine.createConversation).toHaveBeenCalledTimes(1),
+    );
+    const resetting = runtime.reset();
+    creation.resolve(stale);
+
+    await expect(creating).rejects.toMatchObject({
+      code: 'engine-cleanup-failed',
+      cleanupFailures: ['conversation'],
+    });
+    await expect(resetting).rejects.toMatchObject({
+      code: 'engine-cleanup-failed',
+      cleanupFailures: ['conversation'],
+    });
+    expect(stale.delete).toHaveBeenCalledTimes(1);
+
+    await runtime.reset();
+    expect(stale.delete).toHaveBeenCalledTimes(2);
+  });
+
+  it('rejects concurrent session creation without creating or leaking a second conversation', async () => {
+    const first = fakeConversation();
+    const creation = deferred<FakeConversation>();
+    const engine = fakeEngine([]);
+    engine.createConversation.mockImplementationOnce(
+      async () => creation.promise,
+    );
+    const { runtime } = runtimeHarness({ engines: [engine] });
+
+    await runtime.load({});
+    const creating = runtime.createSession([
+      { role: 'system', content: 'First' },
+    ]);
+    await vi.waitFor(() =>
+      expect(engine.createConversation).toHaveBeenCalledTimes(1),
+    );
+
+    await expect(
+      runtime.createSession([{ role: 'system', content: 'Second' }]),
+    ).rejects.toMatchObject({
+      name: 'EgregoreRuntimeError',
+      code: 'generation-failed',
+    });
+    expect(engine.createConversation).toHaveBeenCalledTimes(1);
+
+    creation.resolve(first);
+    await creating;
+    expect(first.delete).not.toHaveBeenCalled();
+  });
+
+  it('streams string and text-part content in order while ignoring non-text parts', async () => {
+    const conversation = fakeConversation(
+      streamFrom([
+        { content: 'One' },
+        {
+          content: [
+            { type: 'text', text: ' two' },
+            { type: 'image' },
+            { type: 'text', text: ' three' },
+            { type: 'text' },
+          ],
+        },
+        {},
+      ]),
+    );
+    const engine = fakeEngine([conversation]);
+    const { runtime } = runtimeHarness({ engines: [engine] });
+    const fragments: string[] = [];
+
+    await runtime.load({});
+    await runtime.createSession([]);
+    const result = await runtime.generate('Question', {
+      onText: (text) => fragments.push(text),
+    });
+
+    expect(conversation.sendMessageStreaming).toHaveBeenCalledWith({
+      role: 'user',
+      content: 'Question',
+    });
+    expect(fragments).toEqual(['One', ' two', ' three']);
+    expect(result).toEqual({ finishReason: 'completed' });
+  });
+
+  it('cancels the active conversation and suppresses later stream fragments', async () => {
+    const controlled = controlledStream();
+    const conversation = fakeConversation(controlled.stream);
+    const engine = fakeEngine([conversation]);
+    const { runtime } = runtimeHarness({ engines: [engine] });
+    const fragments: string[] = [];
+
+    await runtime.load({});
+    await runtime.createSession([]);
+    const generation = runtime.generate('Question', {
+      onText: (text) => fragments.push(text),
+    });
+    controlled.emit({ content: 'keep' });
+    await vi.waitFor(() => expect(fragments).toEqual(['keep']));
+
+    runtime.cancel();
+    controlled.emit({ content: 'drop' });
+    controlled.close();
+
+    await expect(generation).resolves.toEqual({ finishReason: 'cancelled' });
+    expect(conversation.cancel).toHaveBeenCalledTimes(1);
+    expect(fragments).toEqual(['keep']);
+  });
+
+  it('invalidates generation before swallowing a private SDK cancel failure', async () => {
+    const controlled = controlledStream();
+    const conversation = fakeConversation(controlled.stream);
+    conversation.cancel.mockImplementation(() => {
+      throw new Error('PRIVATE_CANCEL_SENTINEL');
+    });
+    const engine = fakeEngine([conversation]);
+    const { runtime } = runtimeHarness({ engines: [engine] });
+    const fragments: string[] = [];
+
+    await runtime.load({});
+    await runtime.createSession([]);
+    const generation = runtime.generate('Question', {
+      onText: (text) => fragments.push(text),
+    });
+    controlled.emit({ content: 'keep' });
+    await vi.waitFor(() => expect(fragments).toEqual(['keep']));
+
+    expect(() => runtime.cancel()).not.toThrow();
+    controlled.emit({ content: 'PRIVATE_LATE_FRAGMENT' });
+    controlled.close();
+
+    await expect(generation).resolves.toEqual({ finishReason: 'cancelled' });
+    expect(fragments).toEqual(['keep']);
+    await expect(runtime.unload()).rejects.toMatchObject({
+      code: 'engine-cleanup-failed',
+      cleanupFailures: ['generation'],
+    });
+    expect(conversation.delete).toHaveBeenCalledTimes(1);
+  });
+
+  it('cancels an active SDK generation before delete so unload cannot deadlock', async () => {
+    const controlled = controlledStream();
+    const deleteRelease = deferred<void>();
+    const calls: string[] = [];
+    const conversation = fakeConversation(controlled.stream, calls);
+    conversation.cancel.mockImplementation(() => {
+      calls.push('conversation.cancel');
+      deleteRelease.resolve(undefined);
+    });
+    conversation.delete.mockImplementation(async () => {
+      calls.push('conversation.delete');
+      await deleteRelease.promise;
+    });
+    const engine = fakeEngine([conversation], calls);
+    const { runtime } = runtimeHarness({ engines: [engine] });
+    const fragments: string[] = [];
+
+    await runtime.load({});
+    await runtime.createSession([]);
+    const generation = runtime.generate('Question', {
+      onText: (text) => fragments.push(text),
+    });
+    controlled.emit({ content: 'keep' });
+    await vi.waitFor(() => expect(fragments).toEqual(['keep']));
+    calls.length = 0;
+
+    const unloading = runtime.unload();
+    try {
+      await vi.waitFor(() =>
+        expect(conversation.delete).toHaveBeenCalledTimes(1),
+      );
+      expect(calls.slice(0, 2)).toEqual([
+        'conversation.cancel',
+        'conversation.delete',
+      ]);
+    } finally {
+      deleteRelease.resolve(undefined);
+    }
+    await unloading;
+    controlled.emit({ content: 'late' });
+    controlled.close();
+
+    await expect(generation).resolves.toEqual({ finishReason: 'cancelled' });
+    expect(fragments).toEqual(['keep']);
+    expect(calls).toEqual([
+      'conversation.cancel',
+      'conversation.delete',
+      'engine.delete',
+    ]);
+  });
+
+  it('reset invalidates generation and deletes only the conversation', async () => {
+    const controlled = controlledStream();
+    const conversation = fakeConversation(controlled.stream);
+    const engine = fakeEngine([conversation]);
+    const { runtime } = runtimeHarness({ engines: [engine] });
+    const fragments: string[] = [];
+
+    await runtime.load({});
+    await runtime.createSession([]);
+    const generation = runtime.generate('Question', {
+      onText: (text) => fragments.push(text),
+    });
+    const resetting = runtime.reset();
+    controlled.emit({ content: 'late' });
+    controlled.close();
+    await resetting;
+
+    await expect(generation).resolves.toEqual({ finishReason: 'cancelled' });
+    expect(conversation.delete).toHaveBeenCalledTimes(1);
+    expect(engine.delete).not.toHaveBeenCalled();
+    expect(fragments).toEqual([]);
+  });
+
+  it('does not retry a failed conversation delete after destroying its engine owner', async () => {
+    const calls: string[] = [];
+    const conversation = fakeConversation(streamFrom([]), calls);
+    conversation.delete.mockImplementation(async () => {
+      calls.push('conversation.delete');
+      throw new Error('PRIVATE_CONVERSATION_SENTINEL');
+    });
+    const engine = fakeEngine([conversation], calls, 'engine');
+    const device = fakeGpuDevice(calls);
+    const { runtime } = runtimeHarness({
+      calls,
+      engines: [engine],
+      device,
+      onDeviceReferenceChange: (nextDevice) => {
+        if (nextDevice === undefined) calls.push('device.reference.clear');
+      },
+    });
+
+    await runtime.load({});
+    await runtime.createSession([]);
+    calls.length = 0;
+
+    await expect(runtime.unload()).rejects.toMatchObject({
+      code: 'engine-cleanup-failed',
+      cleanupFailures: ['conversation'],
+    });
+
+    expect(calls).toEqual([
+      'conversation.cancel',
+      'conversation.delete',
+      'engine.delete',
+      'device.queue.onSubmittedWorkDone',
+      'device.destroy',
+      'device.reference.clear',
+      'unloadLiteRtLm',
+    ]);
+
+    calls.length = 0;
+    await runtime.unload();
+    expect(calls).toEqual([]);
+    expect(conversation.delete).toHaveBeenCalledOnce();
+  });
+
+  it('does not retry an opaque engine delete after device and module teardown', async () => {
+    const calls: string[] = [];
+    const conversation = fakeConversation(streamFrom([]), calls);
+    const engine = fakeEngine([conversation], calls, 'engine');
+    engine.delete.mockImplementation(async () => {
+      calls.push('engine.delete');
+      throw new Error('PRIVATE_ENGINE_SENTINEL');
+    });
+    const device = fakeGpuDevice(calls);
+    const { runtime } = runtimeHarness({
+      calls,
+      engines: [engine],
+      device,
+      onDeviceReferenceChange: (nextDevice) => {
+        if (nextDevice === undefined) calls.push('device.reference.clear');
+      },
+    });
+
+    await runtime.load({});
+    await runtime.createSession([]);
+    calls.length = 0;
+
+    await expect(runtime.unload()).rejects.toMatchObject({
+      code: 'engine-cleanup-failed',
+      cleanupFailures: ['engine'],
+    });
+    expect(calls).toEqual([
+      'conversation.cancel',
+      'conversation.delete',
+      'engine.delete',
+      'device.queue.onSubmittedWorkDone',
+      'device.destroy',
+      'device.reference.clear',
+      'unloadLiteRtLm',
+    ]);
+
+    calls.length = 0;
+    await runtime.unload();
+    expect(calls).toEqual([]);
+    expect(engine.delete).toHaveBeenCalledOnce();
+  });
+
+  it('destroys the device after a queue-settlement failure without retrying it later', async () => {
+    const calls: string[] = [];
+    const conversation = fakeConversation(streamFrom([]), calls);
+    const engine = fakeEngine([conversation], calls, 'engine');
+    const device = fakeGpuDevice(calls);
+    device.queue.onSubmittedWorkDone.mockImplementation(async () => {
+      calls.push('device.queue.onSubmittedWorkDone');
+      throw new Error('PRIVATE_QUEUE_SENTINEL');
+    });
+    const { runtime } = runtimeHarness({
+      calls,
+      engines: [engine],
+      device,
+      onDeviceReferenceChange: (nextDevice) => {
+        if (nextDevice === undefined) calls.push('device.reference.clear');
+      },
+    });
+
+    await runtime.load({});
+    await runtime.createSession([]);
+    calls.length = 0;
+
+    await expect(runtime.unload()).rejects.toMatchObject({
+      code: 'engine-cleanup-failed',
+      cleanupFailures: ['device-queue'],
+    });
+    expect(calls.slice(-4)).toEqual([
+      'device.queue.onSubmittedWorkDone',
+      'device.destroy',
+      'device.reference.clear',
+      'unloadLiteRtLm',
+    ]);
+
+    calls.length = 0;
+    await runtime.unload();
+    expect(calls).toEqual([]);
+    expect(device.queue.onSubmittedWorkDone).toHaveBeenCalledOnce();
+  });
+
+  it('does not retry device destruction after clearing its owner and unloading the module', async () => {
+    const calls: string[] = [];
+    const conversation = fakeConversation(streamFrom([]), calls);
+    const engine = fakeEngine([conversation], calls, 'engine');
+    const device = fakeGpuDevice(calls);
+    device.destroy.mockImplementation(() => {
+      calls.push('device.destroy');
+      throw new Error('PRIVATE_DEVICE_SENTINEL');
+    });
+    const { runtime } = runtimeHarness({
+      calls,
+      engines: [engine],
+      device,
+      onDeviceReferenceChange: (nextDevice) => {
+        if (nextDevice === undefined) calls.push('device.reference.clear');
+      },
+    });
+
+    await runtime.load({});
+    await runtime.createSession([]);
+    calls.length = 0;
+
+    await expect(runtime.unload()).rejects.toMatchObject({
+      code: 'engine-cleanup-failed',
+      cleanupFailures: ['device'],
+    });
+    expect(calls.slice(-4)).toEqual([
+      'device.queue.onSubmittedWorkDone',
+      'device.destroy',
+      'device.reference.clear',
+      'unloadLiteRtLm',
+    ]);
+
+    calls.length = 0;
+    await runtime.unload();
+    expect(calls).toEqual([]);
+    expect(device.destroy).toHaveBeenCalledOnce();
+  });
+
+  it('keeps a failed reset deletion pending until an explicit retry succeeds', async () => {
+    const conversation = fakeConversation();
+    conversation.delete
+      .mockRejectedValueOnce(new Error('PRIVATE_RESET_SENTINEL'))
+      .mockResolvedValueOnce(undefined);
+    const engine = fakeEngine([conversation]);
+    const { runtime } = runtimeHarness({ engines: [engine] });
+
+    await runtime.load({});
+    await runtime.createSession([]);
+    await expect(runtime.reset()).rejects.toMatchObject({
+      code: 'engine-cleanup-failed',
+      diagnosticCause: 'Error',
+    });
+    await runtime.reset();
+
+    expect(conversation.delete).toHaveBeenCalledTimes(2);
+    await runtime.reset();
+    expect(conversation.delete).toHaveBeenCalledTimes(2);
+  });
+
+  it('creates a new conversation only after reset releases the previous one', async () => {
+    const first = fakeConversation();
+    const second = fakeConversation();
+    const engine = fakeEngine([first, second]);
+    const { runtime } = runtimeHarness({ engines: [engine] });
+
+    await runtime.load({});
+    await runtime.createSession([{ role: 'system', content: 'First' }]);
+    await runtime.reset();
+    await runtime.createSession([{ role: 'system', content: 'Second' }]);
+
+    expect(first.delete).toHaveBeenCalledOnce();
+    expect(engine.createConversation).toHaveBeenCalledTimes(2);
+    expect(second.delete).not.toHaveBeenCalled();
+  });
+
+  it('maps createConversation failures without retaining SDK cause text', async () => {
+    const conversation = fakeConversation();
+    const engine = fakeEngine([]);
+    engine.createConversation
+      .mockRejectedValueOnce(new Error('PRIVATE_PREFACE_SENTINEL'))
+      .mockResolvedValueOnce(conversation);
+    const { runtime } = runtimeHarness({ engines: [engine] });
+
+    await runtime.load({});
+    let sessionError: unknown;
+    try {
+      await runtime.createSession([
+        { role: 'system', content: 'PRIVATE_SYSTEM_SENTINEL' },
+      ]);
+    } catch (error) {
+      sessionError = error;
+    }
+
+    expect(sessionError).toMatchObject({
+      name: 'EgregoreRuntimeError',
+      code: 'generation-failed',
+      diagnosticCause: 'Error',
+    });
+    expect(JSON.stringify(sessionError)).not.toMatch(/PRIVATE|PREFACE|SYSTEM/);
+
+    await runtime.createSession([]);
+    expect(engine.createConversation).toHaveBeenCalledTimes(2);
+  });
+
+  it('waits for a non-abortable WASM load before stopping and never creates an engine', async () => {
+    const wasmLoad = deferred<unknown>();
+    const calls: string[] = [];
+    const { create, runtime, unloadLiteRtLm } = runtimeHarness({
+      loadLiteRtLm: async () => {
+        calls.push('wasm.start');
+        await wasmLoad.promise;
+        calls.push('wasm.end');
+      },
+      unloadLiteRtLm: () => calls.push('unloadLiteRtLm'),
+    });
+
+    const loading = runtime.load({});
+    await vi.waitFor(() => expect(calls).toContain('wasm.start'));
+    runtime.cancel();
+    expect(unloadLiteRtLm).not.toHaveBeenCalled();
+    wasmLoad.resolve(undefined);
+    await loading;
+
+    expect(create).not.toHaveBeenCalled();
+    expect(calls).toEqual(['wasm.start', 'wasm.end', 'unloadLiteRtLm']);
+  });
+
+  it('maps SDK load failures with code-like fields to fixed diagnostics', async () => {
+    const privateFailure = Object.assign(
+      new Error('PRIVATE_MODEL_URL_SENTINEL'),
+      { code: 'NETWORK_FAILURE' },
+    );
+    const { runtime } = runtimeHarness({
+      loadLiteRtLm: async () => {
+        throw privateFailure;
+      },
+    });
+
+    let loadError: unknown;
+    try {
+      await runtime.load({});
+    } catch (error) {
+      loadError = error;
+    }
+
+    expect(loadError).toMatchObject({
+      name: 'EgregoreRuntimeError',
+      code: 'model-load-failed',
+      diagnosticCause: 'Error',
+    });
+    expect(JSON.stringify(loadError)).not.toContain(
+      'PRIVATE_MODEL_URL_SENTINEL',
+    );
+  });
+
+  it('deletes a model engine that resolves after Stop before unloading the singleton', async () => {
+    const engineLoad = deferred<FakeEngine>();
+    const calls: string[] = [];
+    const engine = fakeEngine([fakeConversation()], calls);
+    const loadLiteRtLm = vi.fn(async () => calls.push('loadLiteRtLm'));
+    const unloadLiteRtLm = vi.fn(() => calls.push('unloadLiteRtLm'));
+    const create = vi.fn(async () => {
+      calls.push('Engine.create.start');
+      const created = await engineLoad.promise;
+      calls.push('Engine.create.end');
+      return created;
+    });
+    const loadModule = vi.fn(async () => ({
+      Engine: { create },
+      loadLiteRtLm,
+      unloadLiteRtLm,
+    }));
+    const runtime = new TestLiteRtGemmaRuntime(loadModule as never);
+
+    const loading = runtime.load({});
+    await vi.waitFor(() => expect(create).toHaveBeenCalledTimes(1));
+    runtime.cancel();
+    engineLoad.resolve(engine);
+    await loading;
+
+    expect(calls).toEqual([
+      'loadLiteRtLm',
+      'Engine.create.start',
+      'Engine.create.end',
+      'engine.delete',
+      'unloadLiteRtLm',
+    ]);
+  });
+
+  it('propagates an active-load cleanup failure through unload and keeps it retryable', async () => {
+    const wasmLoad = deferred<unknown>();
+    const unloadLiteRtLm = vi
+      .fn()
+      .mockImplementationOnce(() => {
+        throw new Error('PRIVATE_ACTIVE_LOAD_CLEANUP');
+      })
+      .mockImplementation(() => undefined);
+    const { loadLiteRtLm, runtime } = runtimeHarness({
+      loadLiteRtLm: async () => wasmLoad.promise,
+      unloadLiteRtLm,
+    });
+
+    const loading = runtime.load({});
+    await vi.waitFor(() => expect(loadLiteRtLm).toHaveBeenCalledTimes(1));
+    const unloading = runtime.unload();
+    wasmLoad.resolve(undefined);
+
+    await expect(loading).rejects.toMatchObject({
+      code: 'engine-cleanup-failed',
+      cleanupFailures: ['runtime'],
+    });
+    await expect(unloading).rejects.toMatchObject({
+      code: 'engine-cleanup-failed',
+      cleanupFailures: ['runtime'],
+    });
+    expect(unloadLiteRtLm).toHaveBeenCalledTimes(1);
+
+    await runtime.unload();
+    expect(unloadLiteRtLm).toHaveBeenCalledTimes(2);
+  });
+
+  it('creates fresh module, engine, and conversation state after unload and route re-entry', async () => {
+    const calls: string[] = [];
+    const firstDevice = fakeGpuDevice(calls, 'first-device');
+    const secondDevice = fakeGpuDevice(calls, 'second-device');
+    const firstConversation = fakeConversation(
+      streamFrom([]),
+      calls,
+      'first-conversation',
+    );
+    const secondConversation = fakeConversation(
+      streamFrom([]),
+      calls,
+      'second-conversation',
+    );
+    const firstEngine = fakeEngine([firstConversation], calls, 'first-engine');
+    const secondEngine = fakeEngine(
+      [secondConversation],
+      calls,
+      'second-engine',
+    );
+    const { loadModule, runtime, unloadLiteRtLm } = runtimeHarness({
+      calls,
+      engines: [firstEngine, secondEngine],
+      devices: [firstDevice, secondDevice],
+      onDeviceReferenceChange: (device) => {
+        if (device === undefined) calls.push('device.reference.clear');
+      },
+    });
+
+    await runtime.load({});
+    await runtime.createSession([]);
+    await runtime.unload();
+    await runtime.load({});
+    await runtime.createSession([]);
+    await runtime.unload();
+
+    expect(loadModule).toHaveBeenCalledTimes(2);
+    expect(unloadLiteRtLm).toHaveBeenCalledTimes(2);
+    expect(firstEngine.delete).toHaveBeenCalledTimes(1);
+    expect(firstConversation.delete).toHaveBeenCalledTimes(1);
+    expect(secondEngine.createConversation).toHaveBeenCalledTimes(1);
+    expect(secondConversation.delete).toHaveBeenCalledTimes(1);
+    expect(firstDevice.queue.onSubmittedWorkDone).toHaveBeenCalledOnce();
+    expect(firstDevice.destroy).toHaveBeenCalledOnce();
+    expect(secondDevice.queue.onSubmittedWorkDone).toHaveBeenCalledOnce();
+    expect(secondDevice.destroy).toHaveBeenCalledOnce();
+    expect(calls).toContain('first-device.destroy');
+    expect(calls).toContain('second-device.destroy');
+  });
+
+  it('ignores all stream events after unload begins', async () => {
+    const controlled = controlledStream();
+    const conversation = fakeConversation(controlled.stream);
+    const engine = fakeEngine([conversation]);
+    const { runtime } = runtimeHarness({ engines: [engine] });
+    const fragments: string[] = [];
+
+    await runtime.load({});
+    await runtime.createSession([]);
+    const generation = runtime.generate('Question', {
+      onText: (text) => fragments.push(text),
+    });
+    const unloading = runtime.unload();
+    controlled.emit({ content: 'late string' });
+    controlled.emit({ content: [{ type: 'text', text: 'late part' }] });
+    controlled.close();
+
+    await unloading;
+    await expect(generation).resolves.toEqual({ finishReason: 'cancelled' });
+    expect(fragments).toEqual([]);
+  });
+});
