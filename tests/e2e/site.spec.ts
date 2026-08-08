@@ -1245,19 +1245,46 @@ test('retired routes stay retired and out of feeds', async ({ request }) => {
   }
 });
 
-test('draft Works stay unavailable and out of public discovery surfaces', async ({
+test('the telemetry study is published across discovery, schema, and assistant surfaces', async ({
+  page,
   request,
 }) => {
   const slug = 'broad-reach-uneven-depth';
+  const canonical = `https://jetsanchez.com/works/${slug}/`;
+  const doi = 'https://dx.doi.org/10.2139/ssrn.7146398';
   const route = await request.get(`/works/${slug}/`);
   const home = await (await request.get('/')).text();
   const works = await (await request.get('/works/')).text();
   const sitemap = await (await request.get('/sitemap-0.xml')).text();
+  const corpus = (await (
+    await request.get('/assistant/corpus/content.json')
+  ).json()) as {
+    documents: Array<{ id: string; canonicalUrl: string }>;
+  };
 
-  expect(route.status()).toBe(404);
+  expect(route.status()).toBe(200);
   expect(home).not.toContain(slug);
-  expect(works).not.toContain(slug);
-  expect(sitemap).not.toContain(slug);
+  expect(works).toContain(slug);
+  expect(sitemap).toContain(canonical);
+  expect(corpus.documents).toContainEqual(
+    expect.objectContaining({
+      id: `works:${slug}`,
+      canonicalUrl: canonical,
+    }),
+  );
+
+  await page.goto(`/works/${slug}/`);
+  await expect(
+    page.getByRole('link', { name: 'View on SSRN' }),
+  ).toHaveAttribute('href', doi);
+  const schemas = await readSchemas(page);
+  expect(
+    schemas.find((schema) => schema['@type'] === 'ScholarlyArticle'),
+  ).toMatchObject({
+    url: canonical,
+    identifier: doi,
+    sameAs: [doi],
+  });
 });
 
 test('content pages expose parseable typed JSON-LD', async ({ page }) => {
