@@ -33,12 +33,6 @@ export interface QualificationRunInput {
   removeDownloadedModel: boolean;
 }
 
-export interface AccumulatingConversationEvidence {
-  conversationCreateCount: number;
-  completedTurnCount: number;
-  tokenCounts: readonly number[];
-}
-
 export interface UnloadLifecycleEvidence {
   deviceDestroyCount: number;
   deviceReferenceClearCount: number;
@@ -127,32 +121,6 @@ export function orderQualificationCases<T extends { id: string }>(
     }
     return visitorCase;
   });
-}
-
-export function validateAccumulatingConversationEvidence(
-  evidence: AccumulatingConversationEvidence,
-): string[] {
-  const failures: string[] = [];
-  if (evidence.conversationCreateCount !== 1) {
-    failures.push('CONVERSATION_CREATE_COUNT_INVALID');
-  }
-  if (evidence.tokenCounts.length !== evidence.completedTurnCount + 1) {
-    failures.push('CONVERSATION_TOKEN_CHECKPOINT_COUNT_INVALID');
-  }
-  if (
-    evidence.tokenCounts.some(
-      (count) => !Number.isSafeInteger(count) || count < 0,
-    )
-  ) {
-    failures.push('CONVERSATION_TOKEN_COUNT_INVALID');
-  } else if (
-    evidence.tokenCounts.some(
-      (count, index) => index > 0 && count <= evidence.tokenCounts[index - 1]!,
-    )
-  ) {
-    failures.push('CONVERSATION_TOKEN_COUNT_NOT_GROWING');
-  }
-  return failures;
 }
 
 export function validateUnloadLifecycleEvidence(

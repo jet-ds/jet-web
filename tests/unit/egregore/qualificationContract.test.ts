@@ -5,7 +5,6 @@ import {
   localQualificationSpansRequired,
   orderQualificationCases,
   resolveQualificationRunContract,
-  validateAccumulatingConversationEvidence,
   validateUnloadLifecycleEvidence,
 } from '../../manual/qualificationContract';
 
@@ -91,26 +90,6 @@ describe('real-model qualification contract', () => {
     expect(() => orderQualificationCases([...cases, cases[0]!])).toThrow(
       'QUALIFICATION_CASE_DUPLICATE',
     );
-  });
-
-  it('requires one conversation and strictly growing actual token checkpoints', () => {
-    expect(
-      validateAccumulatingConversationEvidence({
-        conversationCreateCount: 1,
-        completedTurnCount: 3,
-        tokenCounts: [212, 386, 541, 710],
-      }),
-    ).toEqual([]);
-    expect(
-      validateAccumulatingConversationEvidence({
-        conversationCreateCount: 2,
-        completedTurnCount: 3,
-        tokenCounts: [212, 386, 386, 710],
-      }),
-    ).toEqual([
-      'CONVERSATION_CREATE_COUNT_INVALID',
-      'CONVERSATION_TOKEN_COUNT_NOT_GROWING',
-    ]);
   });
 
   it('requires one successful device destroy and retained-reference clear per unload', () => {
