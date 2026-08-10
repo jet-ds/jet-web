@@ -1,11 +1,6 @@
 import { expect, test } from '@playwright/test';
 import { establishDeploymentProtectionBypass } from '../support/deploymentProtection';
 
-const expectedNoindexValue = process.env.EXPECTED_EGREGORE_NOINDEX;
-if (expectedNoindexValue !== '0' && expectedNoindexValue !== '1') {
-  throw new Error('EXPECTED_EGREGORE_NOINDEX must be exactly 0 or 1');
-}
-const expectedNoindex = expectedNoindexValue === '1';
 const deploymentOrigin = new URL(
   process.env.PRODUCTION_ORIGIN ?? 'https://jetsanchez.com',
 ).origin;
@@ -112,7 +107,7 @@ test('production preserves core containment and canonical redirects', async ({
   expect(about.headers().location).toBe('/about/');
 });
 
-test('deployment exposes the target-gated canonical Egregore identity', async ({
+test('Production exposes the indexable canonical Egregore identity', async ({
   page,
   context,
 }) => {
@@ -122,7 +117,7 @@ test('deployment exposes the target-gated canonical Egregore identity', async ({
   expect(response?.status()).toBe(200);
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
     'content',
-    expectedNoindex ? 'noindex, nofollow' : 'index, follow',
+    'index, follow',
   );
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
     'href',
@@ -194,7 +189,7 @@ test('deployment exposes the target-gated canonical Egregore identity', async ({
   ).text();
   const memberships =
     sitemap.match(/https:\/\/jetsanchez\.com\/chatbot\//g) ?? [];
-  expect(memberships).toHaveLength(expectedNoindex ? 0 : 1);
+  expect(memberships).toHaveLength(1);
   expect(sitemap).not.toContain('https://jetsanchez.com/tools/');
 });
 

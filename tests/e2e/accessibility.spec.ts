@@ -188,7 +188,7 @@ async function expectLifecycleAccessibility(page: Page, announcement: string) {
 }
 
 for (const theme of ['light', 'dark'] as const) {
-  test(`every sitemap HTML page plus qualification routes is axe-clean in ${theme} theme`, async ({
+  test(`every sitemap HTML page plus the dormant route is axe-clean in ${theme} theme`, async ({
     page,
     request,
   }, testInfo) => {
@@ -199,11 +199,11 @@ for (const theme of ['light', 'dark'] as const) {
     }, theme);
 
     const sitemapRoutes = await sitemapHtmlRoutes(request);
-    expect(sitemapRoutes).not.toContain('/chatbot/');
+    expect(sitemapRoutes).toContain('/chatbot/');
     expect(sitemapRoutes).not.toContain('/tools/');
 
     const failures = [];
-    for (const route of [...sitemapRoutes, '/chatbot/', '/tools/']) {
+    for (const route of [...sitemapRoutes, '/tools/']) {
       await page.goto(route);
       await expect(page.locator('html')).toHaveClass(
         theme === 'dark' ? /\bdark\b/u : /^(?!.*\bdark\b)/u,
