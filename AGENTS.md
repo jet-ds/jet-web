@@ -79,7 +79,8 @@ assistant: false
 - Public content requires `status: published`.
 - Egregore inclusion requires both `status: published` and `assistant: true`.
 - Draft, untracked, malformed, or implicitly configured content must never enter the production site or assistant corpus.
-- Blog fields include title, optional short display title, description, optional card summary, optional search title and description overrides, publication date, author, tags, publication state, assistant eligibility, and optional image metadata.
+- Blog fields include title, optional short display title, description, optional card summary, optional search title and description overrides, publication date, author, tags, publication state, assistant eligibility, optional image metadata, and optional explicit review metadata.
+- Review metadata currently identifies a movie and an integer rating on the five-star scale. It renders in the article header and as a linked `Review` JSON-LD entity; Blog and Home cards remain unrated editorial teasers.
 - Work fields include title, optional short display title, description, optional card summary, optional search title and description overrides, type, date, tags, publication state, assistant eligibility, optional featured/image/link fields, and type-specific research or project fields.
 - Every content image requires a stable URL and descriptive `alt` text. Blog images also record their verified intrinsic pixel `width` and `height` so custom OpenGraph metadata never borrows false default dimensions.
 - Run `npm run verify:content` after changing frontmatter or content-policy code.
@@ -140,7 +141,7 @@ The default social image is the committed `public/images/og-default.jpg`. Recrea
 
 Egregore is a local-first technical showcase and experimental personal assistant, not a general website-support widget.
 
-The released `2.2.0` runtime and interaction boundaries are in force:
+The released `2.2` runtime and interaction boundaries are in force:
 
 - The semantic route is the canonical `200` document at `/chatbot/`; platform normalization owns slashless variants, and one explicit legacy `/tools/chatbot/` rule redirects to `/chatbot/`.
 - Vercel Production serves `/chatbot/` as index-follow and includes it once in the sitemap. Local and Preview builds keep it noindex and outside the sitemap.

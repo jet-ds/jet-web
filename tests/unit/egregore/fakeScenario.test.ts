@@ -13,6 +13,7 @@ import {
   resolveFakeScenario,
 } from '../../../src/features/egregore/runtime/fakeScenario';
 import type { SelectionResult } from '../../../src/features/egregore/selection/types';
+import { serializeSourcePayload } from '../../../src/features/egregore/sourcePayload';
 
 describe('Egregore fake browser scenarios', () => {
   it('admits only an allowlisted scenario in an explicit local test build', () => {
@@ -537,10 +538,63 @@ describe('Egregore fake browser scenarios', () => {
   it('builds the citation fixture from packed sources without injecting source content', () => {
     const packed = {
       sources: [
-        { citationId: 'S17', canonicalUrl: '/long/', title: 'Long research' },
-        { citationId: 'S3', canonicalUrl: '/long/', title: 'Long research' },
-        { citationId: 'S28', canonicalUrl: '/other/', title: 'Other writing' },
+        {
+          citationId: 'S17',
+          documentId: 'document-long',
+          sectionId: 'section-long-1',
+          chunkId: 'chunk-17',
+          canonicalUrl: '/long/',
+          title: 'Long research',
+          heading: 'Long research section one',
+          text: 'Primary long research evidence.',
+        },
+        {
+          citationId: 'S3',
+          documentId: 'document-long',
+          sectionId: 'section-long-2',
+          chunkId: 'chunk-3',
+          canonicalUrl: '/long/',
+          title: 'Long research',
+          heading: 'Long research section two',
+          text: 'Additional long research evidence.',
+        },
+        {
+          citationId: 'S28',
+          documentId: 'document-other',
+          sectionId: 'section-other',
+          chunkId: 'chunk-28',
+          canonicalUrl: '/other/',
+          title: 'Other writing',
+          heading: 'Other writing section',
+          text: 'Distinct published evidence.',
+        },
+        {
+          citationId: 'S41',
+          documentId: 'document-uncited',
+          sectionId: 'section-uncited',
+          chunkId: 'chunk-41',
+          canonicalUrl: '/uncited/',
+          title: 'Uncited context',
+          heading: 'Uncited context section',
+          text: 'Context outside the citation fixture.',
+        },
+        {
+          citationId: 'S52',
+          documentId: 'document-also-uncited',
+          sectionId: 'section-also-uncited',
+          chunkId: 'chunk-52',
+          canonicalUrl: '/also-uncited/',
+          title: 'More uncited context',
+          heading: 'More uncited context section',
+          text: 'Additional context outside the fixture.',
+        },
       ],
+      estimatedTokens: 999,
+      diagnostics: {
+        packedCount: 5,
+        completeCorpusIncluded: true,
+        knowledgeTokens: 999,
+      },
     } as unknown as SelectionResult;
 
     const configured = configureFakeCitationSelection(packed);
@@ -556,10 +610,21 @@ describe('Egregore fake browser scenarios', () => {
       { citationId: 'S3', canonicalUrl: '/long/' },
     ]);
     expect(configured).not.toBe(packed);
+    const exactFixtureTokens = serializeSourcePayload(
+      configured.sources,
+    ).estimatedTokens;
+    expect(configured.estimatedTokens).toBe(exactFixtureTokens);
+    expect(configured.diagnostics).toMatchObject({
+      packedCount: 3,
+      completeCorpusIncluded: false,
+      knowledgeTokens: exactFixtureTokens,
+    });
     expect(packed.sources.map(({ citationId }) => citationId)).toEqual([
       'S17',
       'S3',
       'S28',
+      'S41',
+      'S52',
     ]);
   });
 

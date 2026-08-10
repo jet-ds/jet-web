@@ -1,5 +1,6 @@
 import { EGREGORE_IDENTITY } from '../../../config/egregore';
 import type { SelectionResult } from '../selection/types';
+import { serializeSourcePayload } from '../sourcePayload';
 
 export const FAKE_SCENARIOS = [
   'default',
@@ -160,14 +161,19 @@ export function configureFakeCitationSelection(
   }
 
   const fixtureSources = [distinctDocument, primary, duplicateDocument];
-  const fixtureIds = new Set(fixtureSources.map(({ chunkId }) => chunkId));
-  const remaining = selection.sources.filter(
-    ({ chunkId }) => !fixtureIds.has(chunkId),
-  );
+  const estimatedTokens =
+    serializeSourcePayload(fixtureSources).estimatedTokens;
 
   return {
     ...selection,
-    sources: [...fixtureSources, ...remaining],
+    sources: fixtureSources,
+    estimatedTokens,
+    diagnostics: {
+      ...selection.diagnostics,
+      packedCount: fixtureSources.length,
+      completeCorpusIncluded: false,
+      knowledgeTokens: estimatedTokens,
+    },
   };
 }
 

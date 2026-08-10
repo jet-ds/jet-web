@@ -2057,6 +2057,24 @@ test.describe('Egregore responses, citations, and scrolling', () => {
     );
   });
 
+  test('keeps a representative live-corpus follow-up within one local session', async ({
+    page,
+  }) => {
+    await startFakeAssistant(page);
+    await submitQuestion(page, 'What does Jet write about agentic work?');
+    await waitForCompletedResponse(page);
+
+    await submitQuestion(page, 'What else has Jet published?');
+    await waitForCompletedResponse(page);
+
+    expect(
+      (await runtimeMethods(page)).filter((method) => method === 'generate'),
+    ).toHaveLength(2);
+    await expect(
+      page.locator('[aria-label="Conversation"] article'),
+    ).toHaveCount(4);
+  });
+
   test('renders citation disclosure with responsive semantics and no overlay', async ({
     page,
   }, testInfo) => {

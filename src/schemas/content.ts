@@ -31,6 +31,14 @@ export const blogSchema = z.object({
   author: z.string().default('Jet Sanchez'),
   tags: z.array(z.string()).default([]),
   ...publicationFields,
+  review: z
+    .object({
+      itemType: z.literal('movie'),
+      itemName: z.string().trim().min(1),
+      ratingValue: z.number().int().min(1).max(5),
+      bestRating: z.literal(5),
+    })
+    .optional(),
   image: z
     .object({
       url: z.string(),

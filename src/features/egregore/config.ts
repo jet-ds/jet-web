@@ -22,7 +22,7 @@ export const EGREGORE_CONTEXT = {
   systemLimit: 640,
   questionLimit: 384,
   responseReserve: 1_024,
-  knowledgeLimit: 6_144,
+  knowledgeLimit: 3_072,
   estimatorHeadroom: 1_024,
 } as const;
 
