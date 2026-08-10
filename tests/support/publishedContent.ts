@@ -10,6 +10,7 @@ import {
 
 export type PublishedContent = {
   kind: 'blog' | 'work';
+  sourceId: `blog:${string}` | `works:${string}`;
   route: string;
   title: string;
   shortTitle?: string;
@@ -18,9 +19,11 @@ export type PublishedContent = {
   seoDescription?: string;
   summary?: string;
   date: Date;
+  dateModified?: Date;
   featured: boolean;
   assistant: boolean;
   entityType: 'BlogPosting' | 'ScholarlyArticle' | 'CreativeWork';
+  openGraphType: 'article' | 'website';
   image?: { width?: number; height?: number };
   links?: Array<{ label: string; url: string }>;
   identifier?: string;
@@ -31,6 +34,11 @@ export type PublishedContent = {
     ratingValue: number;
     bestRating: 5;
   };
+};
+
+export type PublishedAssistantSource = {
+  id: `blog:${string}` | `works:${string}` | `profile:${string}`;
+  route: string;
 };
 
 export function publishedContent(): PublishedContent[] {
@@ -45,10 +53,14 @@ export function publishedContent(): PublishedContent[] {
         matter(readFileSync(resolve(root, path), 'utf8')).data,
       );
       if (data.status !== 'published') return [];
+      const slug = path
+        .replace(/^src\/data\/blog\//u, '')
+        .replace(/\.mdx$/u, '');
       return [
         {
           kind: 'blog',
-          route: `/${path.replace(/^src\/data\//u, '').replace(/\.mdx$/u, '')}/`,
+          sourceId: `blog:${slug}`,
+          route: `/blog/${slug}/`,
           title: data.title,
           shortTitle: data.shortTitle,
           seoTitle: data.seoTitle,
@@ -56,9 +68,11 @@ export function publishedContent(): PublishedContent[] {
           seoDescription: data.seoDescription,
           summary: data.summary,
           date: data.pubDate,
+          dateModified: data.updatedDate ?? data.pubDate,
           featured: false,
           assistant: data.assistant,
           entityType: 'BlogPosting',
+          openGraphType: 'article',
           image: data.image,
           author: data.author,
           review: data.review,
@@ -74,6 +88,9 @@ export function publishedContent(): PublishedContent[] {
         matter(readFileSync(resolve(root, path), 'utf8')).data,
       );
       if (data.status !== 'published') return [];
+      const slug = path
+        .replace(/^src\/data\/works\//u, '')
+        .replace(/\.mdx$/u, '');
       const identifier =
         data.type === 'research'
           ? data.links?.find(
@@ -85,7 +102,8 @@ export function publishedContent(): PublishedContent[] {
       return [
         {
           kind: 'work',
-          route: `/${path.replace(/^src\/data\//u, '').replace(/\.mdx$/u, '')}/`,
+          sourceId: `works:${slug}`,
+          route: `/works/${slug}/`,
           title: data.title,
           shortTitle: data.shortTitle,
           seoTitle: data.seoTitle,
@@ -97,8 +115,16 @@ export function publishedContent(): PublishedContent[] {
           assistant: data.assistant,
           entityType:
             data.type === 'research' ? 'ScholarlyArticle' : 'CreativeWork',
+          openGraphType: data.type === 'research' ? 'article' : 'website',
+          dateModified: data.type === 'research' ? data.date : undefined,
           image: data.image,
-          links: data.links,
+          links: [
+            ...(data.links ?? []),
+            ...(data.repository
+              ? [{ label: 'View repository', url: data.repository }]
+              : []),
+            ...(data.demo ? [{ label: 'Live demo', url: data.demo }] : []),
+          ],
           identifier,
         },
       ];
@@ -106,22 +132,29 @@ export function publishedContent(): PublishedContent[] {
   return [...blogs, ...works];
 }
 
-export function publishedAssistantSourceRoutes(): string[] {
+export function publishedAssistantSources(): PublishedAssistantSource[] {
   const root = process.cwd();
   const trackedPaths = [...loadTrackedContentPaths(root)];
-  const contentRoutes = publishedContent()
+  const contentSources = publishedContent()
     .filter(({ assistant }) => assistant)
-    .map(({ route }) => route);
-  const profileRoutes = trackedPaths
+    .map(({ sourceId, route }) => ({ id: sourceId, route }));
+  const profileSources = trackedPaths
     .filter(
       (path) => path.startsWith('src/data/profile/') && path.endsWith('.mdx'),
     )
-    .flatMap((path): string[] => {
+    .flatMap((path): PublishedAssistantSource[] => {
       const data = profileSchema.parse(
         matter(readFileSync(resolve(root, path), 'utf8')).data,
       );
-      return data.status === 'published' && data.assistant ? ['/about/'] : [];
+      const slug = path
+        .replace(/^src\/data\/profile\//u, '')
+        .replace(/\.mdx$/u, '');
+      return data.status === 'published' && data.assistant
+        ? [{ id: `profile:${slug}`, route: '/about/' }]
+        : [];
     });
 
-  return [...contentRoutes, ...profileRoutes].sort();
+  return [...contentSources, ...profileSources].sort((left, right) =>
+    left.id.localeCompare(right.id, 'en'),
+  );
 }

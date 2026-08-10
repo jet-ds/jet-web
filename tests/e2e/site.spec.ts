@@ -5,8 +5,9 @@ import {
   type Locator,
   type Page,
 } from '@playwright/test';
-import { SOCIAL_LINKS } from '../../src/config/site';
+import { SITE, SOCIAL_LINKS } from '../../src/config/site';
 import {
+  publishedAssistantSources,
   publishedContent,
   type PublishedContent,
 } from '../support/publishedContent';
@@ -48,6 +49,12 @@ type JsonLdSchema = {
     worstRating?: number;
   };
   itemReviewed?: { '@type'?: string; name?: string };
+  datePublished?: string;
+  dateModified?: string;
+};
+
+type CorpusContent = {
+  documents: Array<{ id: string; canonicalUrl: string }>;
 };
 
 async function readSchemas(page: Page): Promise<JsonLdSchema[]> {
@@ -144,6 +151,29 @@ function sitemapLocations(xml: string): string[] {
   return [...xml.matchAll(/<loc>([^<]+)<\/loc>/gu)].map(
     ([, location]) => new URL(location).pathname,
   );
+}
+
+function rssItemLinks(xml: string): string[] {
+  return [
+    ...xml.matchAll(/<item>[\s\S]*?<link>([^<]+)<\/link>[\s\S]*?<\/item>/gu),
+  ]
+    .map(([, location]) => location)
+    .sort();
+}
+
+async function contentCardRoutes(page: Page, route: string): Promise<string[]> {
+  const response = await page.goto(route);
+  expect(response?.status()).toBe(200);
+  return (
+    await page
+      .locator('main [data-content-card] > a[href]')
+      .evaluateAll((anchors) =>
+        anchors.flatMap((anchor) => {
+          const href = anchor.getAttribute('href');
+          return href === null ? [] : [href];
+        }),
+      )
+  ).sort();
 }
 
 async function publicHtmlRoutes(request: APIRequestContext): Promise<string[]> {
@@ -1248,6 +1278,72 @@ test('the canonical profile has no standalone profile route', async ({
   expect((await request.get('/profile/jet-sanchez/')).status()).toBe(404);
 });
 
+test('content discovery surfaces exactly match tracked publication state', async ({
+  page,
+  request,
+}) => {
+  const content = publishedContent();
+  const homepageContent = [
+    ...content
+      .filter(({ kind }) => kind === 'blog')
+      .sort((left, right) => right.date.getTime() - left.date.getTime())
+      .slice(0, 3),
+    ...content
+      .filter(({ kind, featured }) => kind === 'work' && featured)
+      .sort((left, right) => right.date.getTime() - left.date.getTime())
+      .slice(0, 3),
+  ];
+
+  expect(await contentCardRoutes(page, '/')).toEqual(
+    homepageContent.map(({ route }) => route).sort(),
+  );
+  expect(await contentCardRoutes(page, '/blog/')).toEqual(
+    content
+      .filter(({ kind }) => kind === 'blog')
+      .map(({ route }) => route)
+      .sort(),
+  );
+  expect(await contentCardRoutes(page, '/works/')).toEqual(
+    content
+      .filter(({ kind }) => kind === 'work')
+      .map(({ route }) => route)
+      .sort(),
+  );
+
+  const sitemapContentRoutes = (await publicHtmlRoutes(request)).filter(
+    (route) => /^\/(?:blog|works)\/.+\/$/u.test(route),
+  );
+  expect(sitemapContentRoutes).toEqual(
+    content.map(({ route }) => route).sort(),
+  );
+
+  const rssResponse = await request.get('/rss.xml');
+  expect(rssResponse.ok()).toBe(true);
+  expect(rssItemLinks(await rssResponse.text())).toEqual(
+    content
+      .filter(({ kind }) => kind === 'blog')
+      .map(({ route }) => new URL(route, SITE.siteUrl).toString())
+      .sort(),
+  );
+});
+
+test('assistant corpus identities exactly match tracked eligibility', async ({
+  request,
+}) => {
+  const response = await request.get('/assistant/corpus/content.json');
+  expect(response.ok()).toBe(true);
+  const corpus = (await response.json()) as CorpusContent;
+  const actual = corpus.documents
+    .map(({ id, canonicalUrl }) => ({ id, canonicalUrl }))
+    .sort((left, right) => left.id.localeCompare(right.id, 'en'));
+  const expected = publishedAssistantSources().map(({ id, route }) => ({
+    id,
+    canonicalUrl: new URL(route, SITE.siteUrl).toString(),
+  }));
+
+  expect(actual).toEqual(expected);
+});
+
 test('retired routes stay retired and out of feeds', async ({ request }) => {
   for (const route of [
     '/blog/the-future-of-ai/',
@@ -1336,6 +1432,13 @@ test('content pages expose deliberate search descriptions and faithful entity su
     const entityDescription = contentItem.description;
     const { entityType, route } = contentItem;
     await page.goto(route);
+    await expect(page.locator('meta[property="og:type"]')).toHaveAttribute(
+      'content',
+      contentItem.openGraphType,
+    );
+    await expect(
+      page.locator(`main time[datetime="${contentItem.date.toISOString()}"]`),
+    ).toBeVisible();
     await expect(page.locator('meta[name="description"]')).toHaveAttribute(
       'content',
       seoDescription,
@@ -1357,12 +1460,19 @@ test('content pages expose deliberate search descriptions and faithful entity su
       url: canonical,
       description: entityDescription,
       mainEntityOfPage: { '@id': `${canonical}#webpage` },
+      datePublished: contentItem.date.toISOString(),
     });
+    expect(entity?.dateModified).toBe(contentItem.dateModified?.toISOString());
     if (contentItem.identifier !== undefined) {
       expect(entity).toMatchObject({
         identifier: contentItem.identifier,
         sameAs: [contentItem.identifier],
       });
+    }
+    for (const link of contentItem.links ?? []) {
+      await expect(
+        page.getByRole('link', { name: link.label, exact: true }),
+      ).toHaveAttribute('href', link.url);
     }
   }
 });

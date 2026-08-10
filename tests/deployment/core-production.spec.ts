@@ -1,8 +1,13 @@
-import { expect, test, type APIRequestContext } from '@playwright/test';
+import {
+  expect,
+  test,
+  type APIRequestContext,
+  type Page,
+} from '@playwright/test';
 import { SITE } from '../../src/config/site';
 import { establishDeploymentProtectionBypass } from '../support/deploymentProtection';
 import {
-  publishedAssistantSourceRoutes,
+  publishedAssistantSources,
   publishedContent,
 } from '../support/publishedContent';
 
@@ -18,6 +23,8 @@ type JsonLdSchema = {
   mainEntityOfPage?: { '@id'?: string };
   identifier?: string;
   sameAs?: string[];
+  datePublished?: string;
+  dateModified?: string;
   reviewRating?: {
     ratingValue?: number;
     bestRating?: number;
@@ -29,7 +36,7 @@ type JsonLdSchema = {
 };
 
 type CorpusContent = {
-  documents: Array<{ canonicalUrl: string }>;
+  documents: Array<{ id: string; canonicalUrl: string }>;
 };
 
 function occurrences(value: string, target: string): number {
@@ -40,6 +47,29 @@ function sitemapLocations(xml: string): string[] {
   return [...xml.matchAll(/<loc>([^<]+)<\/loc>/gu)].map(
     ([, location]) => location,
   );
+}
+
+function rssItemLinks(xml: string): string[] {
+  return [
+    ...xml.matchAll(/<item>[\s\S]*?<link>([^<]+)<\/link>[\s\S]*?<\/item>/gu),
+  ]
+    .map(([, location]) => location)
+    .sort();
+}
+
+async function contentCardRoutes(page: Page, route: string): Promise<string[]> {
+  const response = await page.goto(route);
+  expect(response?.status()).toBe(200);
+  return (
+    await page
+      .locator('main [data-content-card] > a[href]')
+      .evaluateAll((anchors) =>
+        anchors.flatMap((anchor) => {
+          const href = anchor.getAttribute('href');
+          return href === null ? [] : [href];
+        }),
+      )
+  ).sort();
 }
 
 async function publishedSitemapXml(
@@ -73,45 +103,28 @@ test('Production publishes every tracked published content contract', async ({
   const content = publishedContent();
   expect(content.length).toBeGreaterThan(0);
 
-  const [
-    homeResponse,
-    blogResponse,
-    worksResponse,
-    rssResponse,
-    corpusResponse,
-  ] = await Promise.all([
-    request.get('/'),
-    request.get('/blog/'),
-    request.get('/works/'),
+  const [rssResponse, corpusResponse] = await Promise.all([
     request.get('/rss.xml'),
     request.get('/assistant/corpus/content.json'),
   ]);
-  for (const response of [
-    homeResponse,
-    blogResponse,
-    worksResponse,
-    rssResponse,
-    corpusResponse,
-  ]) {
+  for (const response of [rssResponse, corpusResponse]) {
     expect(response.ok()).toBe(true);
   }
 
-  const homeHtml = await homeResponse.text();
-  const collectionHtml = {
-    blog: await blogResponse.text(),
-    work: await worksResponse.text(),
-  } as const;
   const rss = await rssResponse.text();
   const sitemap = await publishedSitemapXml(request);
   const corpus = (await corpusResponse.json()) as CorpusContent;
 
-  const expectedAssistantUrls = publishedAssistantSourceRoutes()
-    .map((route) => new URL(route, SITE.siteUrl).toString())
-    .sort();
-  const deployedAssistantUrls = corpus.documents
-    .map(({ canonicalUrl }) => canonicalUrl)
-    .sort();
-  expect(deployedAssistantUrls).toEqual(expectedAssistantUrls);
+  const expectedAssistantSources = publishedAssistantSources().map(
+    ({ id, route }) => ({
+      id,
+      canonicalUrl: new URL(route, SITE.siteUrl).toString(),
+    }),
+  );
+  const deployedAssistantSources = corpus.documents
+    .map(({ id, canonicalUrl }) => ({ id, canonicalUrl }))
+    .sort((left, right) => left.id.localeCompare(right.id, 'en'));
+  expect(deployedAssistantSources).toEqual(expectedAssistantSources);
 
   const homepageContent = [
     ...content
@@ -123,17 +136,41 @@ test('Production publishes every tracked published content contract', async ({
       .sort((left, right) => right.date.getTime() - left.date.getTime())
       .slice(0, 3),
   ];
-  for (const { route } of homepageContent) {
-    expect(homeHtml).toContain(`href="${route}"`);
-  }
+  expect(await contentCardRoutes(page, '/')).toEqual(
+    homepageContent.map(({ route }) => route).sort(),
+  );
+  expect(await contentCardRoutes(page, '/blog/')).toEqual(
+    content
+      .filter(({ kind }) => kind === 'blog')
+      .map(({ route }) => route)
+      .sort(),
+  );
+  expect(await contentCardRoutes(page, '/works/')).toEqual(
+    content
+      .filter(({ kind }) => kind === 'work')
+      .map(({ route }) => route)
+      .sort(),
+  );
+
+  const expectedCanonicalUrls = content
+    .map(({ route }) => new URL(route, SITE.siteUrl).toString())
+    .sort();
+  const sitemapContentUrls = sitemapLocations(sitemap)
+    .filter((location) =>
+      /^\/(?:blog|works)\/.+\/$/u.test(new URL(location).pathname),
+    )
+    .sort();
+  expect(sitemapContentUrls).toEqual(expectedCanonicalUrls);
+  expect(rssItemLinks(rss)).toEqual(
+    content
+      .filter(({ kind }) => kind === 'blog')
+      .map(({ route }) => new URL(route, SITE.siteUrl).toString())
+      .sort(),
+  );
 
   for (const item of content) {
     const canonical = new URL(item.route, SITE.siteUrl).toString();
-    expect(collectionHtml[item.kind]).toContain(`href="${item.route}"`);
     expect(occurrences(sitemap, `<loc>${canonical}</loc>`)).toBe(1);
-    if (item.kind === 'blog') {
-      expect(occurrences(rss, `<link>${canonical}</link>`)).toBe(1);
-    }
 
     const response = await page.goto(item.route);
     expect(response?.status()).toBe(200);
@@ -149,6 +186,10 @@ test('Production publishes every tracked published content contract', async ({
       'content',
       canonical,
     );
+    await expect(page.locator('meta[property="og:type"]')).toHaveAttribute(
+      'content',
+      item.openGraphType,
+    );
     await expect(page).toHaveTitle(
       `${item.seoTitle ?? item.title} | Jet Sanchez`,
     );
@@ -158,6 +199,9 @@ test('Production publishes every tracked published content contract', async ({
       'content',
       seoDescription,
     );
+    await expect(
+      page.locator(`main time[datetime="${item.date.toISOString()}"]`),
+    ).toBeVisible();
 
     const schemas = (
       await page.locator('script[type="application/ld+json"]').allTextContents()
@@ -169,7 +213,9 @@ test('Production publishes every tracked published content contract', async ({
       url: canonical,
       description: item.description,
       mainEntityOfPage: { '@id': `${canonical}#webpage` },
+      datePublished: item.date.toISOString(),
     });
+    expect(entity?.dateModified).toBe(item.dateModified?.toISOString());
     if (item.identifier !== undefined) {
       expect(entity).toMatchObject({
         identifier: item.identifier,
