@@ -303,7 +303,7 @@ for (const route of routes) {
   });
 }
 
-test('Egregore exposes canonical qualification metadata', async ({ page }) => {
+test('Egregore exposes canonical public metadata', async ({ page }) => {
   const canonical = 'https://jetsanchez.com/chatbot/';
   const softwareId = `${canonical}#softwareapplication`;
 
@@ -317,7 +317,7 @@ test('Egregore exposes canonical qualification metadata', async ({ page }) => {
   );
   await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
     'content',
-    'noindex, nofollow',
+    'index, follow',
   );
 
   const schemas = await readSchemas(page);
@@ -1565,10 +1565,10 @@ test('rendered internal human-page links use trailing-slash identities', async (
   request,
 }) => {
   const crawlRoutes = await publicHtmlRoutes(request);
-  expect(crawlRoutes).not.toContain('/chatbot/');
+  expect(crawlRoutes).toContain('/chatbot/');
   expect(crawlRoutes).not.toContain('/tools/');
 
-  for (const route of [...crawlRoutes, '/chatbot/', '/tools/']) {
+  for (const route of [...crawlRoutes, '/tools/']) {
     await page.goto(route);
     const hrefs = await page
       .locator('a[href]')
@@ -1696,7 +1696,7 @@ test('third-party notice local destinations resolve in the built site', async ({
   }
 });
 
-test('qualification and dormant routes stay out of the sitemap', async ({
+test('Egregore is canonical while dormant routes stay out of the sitemap', async ({
   request,
 }) => {
   const sitemap = await (await request.get('/sitemap-0.xml')).text();
@@ -1707,7 +1707,9 @@ test('qualification and dormant routes stay out of the sitemap', async ({
   expect(sitemapUrls.every((url) => new URL(url).pathname.endsWith('/'))).toBe(
     true,
   );
-  expect(sitemapUrls).not.toContain('https://jetsanchez.com/chatbot/');
+  expect(
+    sitemapUrls.filter((url) => url === 'https://jetsanchez.com/chatbot/'),
+  ).toHaveLength(1);
   expect(
     sitemapUrls.every((url) => {
       const pathname = new URL(url).pathname;

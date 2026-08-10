@@ -118,16 +118,15 @@ test('Blog restores a direct tag query and preserves the canonical collection UR
 }) => {
   await page.goto('/blog/?tag=TUTORIAL');
   const root = filterRoot(page, 'tag');
+  const tutorial = filterButton(root, 'tutorial');
+  const expectedVisiblePosts = countFromLabel(await tutorial.innerText());
 
-  await expect(filterButton(root, 'tutorial')).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  await expect(tutorial).toHaveAttribute('aria-pressed', 'true');
   await expect(filterButton(root, '')).toHaveAttribute('aria-pressed', 'false');
   expect(await filterItems(root).count()).toBeGreaterThan(0);
-  await expect(visibleFilterItems(root)).toHaveCount(1);
+  await expect(visibleFilterItems(root)).toHaveCount(expectedVisiblePosts);
   await expect(root.getByRole('status')).toHaveText(
-    '1 post tagged with "tutorial"',
+    `${expectedVisiblePosts} ${expectedVisiblePosts === 1 ? 'post' : 'posts'} tagged with "tutorial"`,
   );
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
     'href',
@@ -139,7 +138,9 @@ test('Blog restores a direct tag query and preserves the canonical collection UR
   await expect(
     filterButton(filterRoot(page, 'tag'), 'tutorial'),
   ).toHaveAttribute('aria-pressed', 'true');
-  await expect(visibleFilterItems(filterRoot(page, 'tag'))).toHaveCount(1);
+  await expect(visibleFilterItems(filterRoot(page, 'tag'))).toHaveCount(
+    expectedVisiblePosts,
+  );
 });
 
 test('Works restores a direct type query and preserves the canonical collection URL', async ({
@@ -168,13 +169,12 @@ test('Blog interaction filters cards, synchronizes the URL, and All clears it', 
 }) => {
   await page.goto('/blog/');
   const root = filterRoot(page, 'tag');
+  const tutorial = filterButton(root, 'tutorial');
+  const expectedVisiblePosts = countFromLabel(await tutorial.innerText());
 
-  await filterButton(root, 'tutorial').click();
-  await expect(visibleFilterItems(root)).toHaveCount(1);
-  await expect(filterButton(root, 'tutorial')).toHaveAttribute(
-    'aria-pressed',
-    'true',
-  );
+  await tutorial.click();
+  await expect(visibleFilterItems(root)).toHaveCount(expectedVisiblePosts);
+  await expect(tutorial).toHaveAttribute('aria-pressed', 'true');
   expect(new URL(page.url()).searchParams.get('tag')).toBe('tutorial');
 
   await filterButton(root, '').click();
@@ -191,14 +191,15 @@ test('Works buttons support the keyboard and expose the project category', async
   await page.goto('/works/');
   const root = filterRoot(page, 'type');
   const projects = filterButton(root, 'project');
+  const expectedVisibleWorks = countFromLabel(await projects.innerText());
 
   await projects.focus();
   await page.keyboard.press('Enter');
 
   await expect(projects).toHaveAttribute('aria-pressed', 'true');
-  await expect(visibleFilterItems(root)).toHaveCount(1);
+  await expect(visibleFilterItems(root)).toHaveCount(expectedVisibleWorks);
   await expect(root.getByRole('status')).toHaveText(
-    '1 work in the project category',
+    `${expectedVisibleWorks} ${expectedVisibleWorks === 1 ? 'work' : 'works'} in the project category`,
   );
   await expect(root.locator('[data-filter-empty]')).toBeHidden();
   expect(new URL(page.url()).searchParams.get('type')).toBe('project');

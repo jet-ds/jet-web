@@ -14,7 +14,6 @@ const canonicalUrl = new URL(
   SITE.siteUrl,
 ).toString();
 const softwareApplicationId = `${canonicalUrl}#softwareapplication`;
-const noindex = process.env.VERCEL_ENV !== 'production';
 ---
 
 <BaseLayout
@@ -22,7 +21,6 @@ const noindex = process.env.VERCEL_ENV !== 'production';
   description={description}
   canonicalURL={canonicalUrl}
   mainEntityId={softwareApplicationId}
-  noindex={noindex}
   immersive
 >
   <StructuredData

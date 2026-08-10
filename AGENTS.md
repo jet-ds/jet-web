@@ -144,7 +144,7 @@ Egregore is a local-first technical showcase and experimental personal assistant
 The released `2.2` runtime and interaction boundaries are in force:
 
 - The semantic route is the canonical `200` document at `/chatbot/`; platform normalization owns slashless variants, and one explicit legacy `/tools/chatbot/` rule redirects to `/chatbot/`.
-- Vercel Production serves `/chatbot/` as index-follow and includes it once in the sitemap. Local and Preview builds keep it noindex and outside the sitemap.
+- `/chatbot/` is an index-follow canonical page and appears once in the generated sitemap. Vercel owns Preview and outdated-deployment exclusion through its deployment-wide `X-Robots-Tag`; do not add a page-level Egregore indexing gate.
 - Egregore occupies the former Tools navigation slot; `/tools/` stays dormant, noindexed, and out of primary navigation.
 - Use the pinned Gemma 4 E2B LiteRT-LM browser runtime only. Do not add E4B switching or a hosted fallback.
 - Preserve the explicit boundary: route rendering and compatibility checks do not authorize model/corpus download or GPU allocation. Only “Load Egregore” may start those operations; prompt assembly begins only when the visitor sends a message.

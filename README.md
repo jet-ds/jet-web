@@ -86,7 +86,7 @@ The default social image is committed at `public/images/og-default.jpg` and can 
 
 ## Egregore
 
-Egregore is available at canonical `/chatbot/` as a local-first experimental assistant and first-class site experience, not a hosted support widget. Local and Preview builds remain `noindex` and outside the sitemap; only the verified Vercel Production build emits index-follow metadata and one canonical sitemap entry.
+Egregore is available at canonical `/chatbot/` as a local-first experimental assistant and first-class site experience, not a hosted support widget. The page emits index-follow metadata and one canonical sitemap entry; Vercel applies deployment-wide noindex headers to Preview and outdated deployments.
 
 The integrated experience uses the pinned Gemma 4 E2B LiteRT-LM runtime in compatible WebGPU browsers with deterministic cited retrieval. The exact model is `litert-community/gemma-4-E2B-it-litert-lm` revision `9262660a1676eed6d0c477ab1a86344430854664`, filename `gemma-4-E2B-it-web.litertlm`, 2,008,432,640 bytes, SHA-256 `3a08e8d94e23b814ae5414469c370c503813949acb8ceaa17e4ebf8a35af35b5`. After explicit visitor action, the browser downloads it directly from Hugging Face at the pinned revision; the site does not mirror or rename the model. See the [pinned model card](https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/blob/9262660a1676eed6d0c477ab1a86344430854664/README.md), [Google's Gemma 4 model card](https://ai.google.dev/gemma/docs/core/model_card_4), and [Gemma Apache 2.0 license](https://ai.google.dev/gemma/apache_2).
 
