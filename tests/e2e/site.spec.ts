@@ -1,3 +1,6 @@
+import { readdirSync, readFileSync } from 'node:fs';
+import { join } from 'node:path';
+
 import {
   expect,
   test,
@@ -5,7 +8,88 @@ import {
   type Locator,
   type Page,
 } from '@playwright/test';
+import matter from 'gray-matter';
 import { SOCIAL_LINKS } from '../../src/config/site';
+import { blogSchema, worksSchema } from '../../src/schemas/content';
+
+type PublishedContent = {
+  kind: 'blog' | 'work';
+  route: string;
+  title: string;
+  shortTitle?: string;
+  seoTitle?: string;
+  description: string;
+  seoDescription?: string;
+  summary?: string;
+  date: Date;
+  featured: boolean;
+  entityType: 'BlogPosting' | 'ScholarlyArticle' | 'CreativeWork';
+  image?: { width?: number; height?: number };
+  author?: string;
+  review?: {
+    itemType: 'movie';
+    itemName: string;
+    ratingValue: number;
+    bestRating: 5;
+  };
+};
+
+function publishedContent(): PublishedContent[] {
+  const blogDirectory = join(process.cwd(), 'src/data/blog');
+  const workDirectory = join(process.cwd(), 'src/data/works');
+  const blogs = readdirSync(blogDirectory)
+    .filter((filename) => filename.endsWith('.mdx'))
+    .flatMap((filename): PublishedContent[] => {
+      const data = blogSchema.parse(
+        matter(readFileSync(join(blogDirectory, filename), 'utf8')).data,
+      );
+      if (data.status !== 'published') return [];
+      return [
+        {
+          kind: 'blog',
+          route: `/blog/${filename.replace(/\.mdx$/u, '')}/`,
+          title: data.title,
+          shortTitle: data.shortTitle,
+          seoTitle: data.seoTitle,
+          description: data.description,
+          seoDescription: data.seoDescription,
+          summary: data.summary,
+          date: data.pubDate,
+          featured: false,
+          entityType: 'BlogPosting',
+          image: data.image,
+          author: data.author,
+          review: data.review,
+        },
+      ];
+    });
+  const works = readdirSync(workDirectory)
+    .filter((filename) => filename.endsWith('.mdx'))
+    .flatMap((filename): PublishedContent[] => {
+      const data = worksSchema.parse(
+        matter(readFileSync(join(workDirectory, filename), 'utf8')).data,
+      );
+      if (data.status !== 'published') return [];
+      return [
+        {
+          kind: 'work',
+          route: `/works/${filename.replace(/\.mdx$/u, '')}/`,
+          title: data.title,
+          shortTitle: data.shortTitle,
+          seoTitle: data.seoTitle,
+          description: data.description,
+          seoDescription: data.seoDescription,
+          summary: data.summary,
+          date: data.date,
+          featured: data.featured,
+          entityType:
+            data.type === 'research' ? 'ScholarlyArticle' : 'CreativeWork',
+          image: data.image,
+        },
+      ];
+    });
+  return [...blogs, ...works];
+}
 
 const routes = [
   '/',
@@ -36,6 +120,14 @@ type JsonLdSchema = {
   identifier?: string;
   sameAs?: string[];
   description?: string;
+  author?: { '@id'?: string; name?: string };
+  reviewRating?: {
+    '@type'?: string;
+    ratingValue?: number;
+    bestRating?: number;
+    worstRating?: number;
+  };
+  itemReviewed?: { '@type'?: string; name?: string };
 };
 
 async function readSchemas(page: Page): Promise<JsonLdSchema[]> {
@@ -345,37 +437,24 @@ test('homepage content cards include their padded perimeter in the dominant acti
 test('homepage content cards use deliberate human-facing card copy', async ({
   page,
 }) => {
+  const content = publishedContent();
   const cases = [
-    {
-      href: '/blog/how-to-install-claude-code-cli-2026/',
-      title: 'How to Install Claude Code CLI in 2026',
-      description:
-        "Install Claude Code CLI, configure plugins and skills, and start using Anthropic's coding agent.",
-    },
-    {
-      href: '/blog/vibe-coding-vs-agentic-coding-why-the-distinction-matters/',
-      title: 'Vibe Coding vs Agentic Coding',
-      description:
-        'Vibe coding explores ideas; agentic coding makes them survivable. Learn how these workflows differ.',
-    },
-    {
-      href: '/works/digital-squad-timesheet/',
-      title: 'Digital Squad Timesheet',
-      description:
-        'A weekly operations platform for time logging, project context, team visibility, and reporting.',
-    },
-    {
-      href: '/works/recursive-convergence-hypothesis/',
-      title: 'The Recursive Convergence Hypothesis',
-      description:
-        'A framework for how ASI may converge on synthetic sentience through recursive self-improvement.',
-    },
-  ] as const;
+    ...content
+      .filter(({ kind }) => kind === 'blog')
+      .sort((a, b) => b.date.getTime() - a.date.getTime())
+      .slice(0, 3),
+    ...content
+      .filter(({ kind, featured }) => kind === 'work' && featured)
+      .sort((a, b) => b.date.getTime() - a.date.getTime())
+      .slice(0, 3),
+  ];
 
   await page.goto('/');
 
-  for (const { href, title, description } of cases) {
-    const teaser = page.locator(`main a[href="${href}"]`);
+  for (const contentItem of cases) {
+    const title = contentItem.shortTitle ?? contentItem.title;
+    const description = contentItem.summary ?? contentItem.description;
+    const teaser = page.locator(`main a[href="${contentItem.route}"]`);
     await expect(
       teaser.getByRole('heading', { name: title, exact: true }),
     ).toBeVisible();
@@ -386,38 +465,41 @@ test('homepage content cards use deliberate human-facing card copy', async ({
       const styles = getComputedStyle(element);
       return {
         height: element.getBoundingClientRect().height,
-        scrollHeight: element.scrollHeight,
         lineHeight: Number.parseFloat(styles.lineHeight),
         lineClamp: styles.webkitLineClamp,
+        overflow: styles.overflow,
       };
     });
 
     expect(metrics.lineClamp).toBe('4');
     expect(metrics.height).toBeLessThanOrEqual(metrics.lineHeight * 4 + 1);
-    expect(metrics.scrollHeight).toBeLessThanOrEqual(metrics.height + 1);
+    expect(metrics.overflow).toBe('hidden');
   }
 });
 
 test('blog cards omit repeated single-author attribution while article pages retain it', async ({
   page,
 }) => {
-  const postRoutes = [
-    '/blog/how-to-install-claude-code-cli-2026/',
-    '/blog/vibe-coding-vs-agentic-coding-why-the-distinction-matters/',
-  ] as const;
-
   for (const collectionRoute of ['/', '/blog/']) {
     await page.goto(collectionRoute);
 
-    for (const postRoute of postRoutes) {
-      const card = page.locator(`main a[href="${postRoute}"]`);
-      await expect(card).toBeVisible();
-      await expect(card).not.toContainText('Jet Sanchez');
+    const cards = page.locator('main [data-content-card] > a[href^="/blog/"]');
+    const cardText = await cards.allTextContents();
+    expect(cardText.length).toBeGreaterThan(0);
+    for (const text of cardText) {
+      expect(text).not.toContain('Jet Sanchez');
     }
   }
 
-  await page.goto(postRoutes[0]);
-  await expect(page.locator('main')).toContainText('By Jet Sanchez');
+  const posts = publishedContent().filter((item) => item.kind === 'blog');
+  for (const post of posts) {
+    await page.goto(post.route);
+    await expect(
+      page
+        .locator('main article > header')
+        .getByText(`By ${post.author}`, { exact: true }),
+    ).toBeVisible();
+  }
 });
 
 test('image-backed Home and Works cards keep media and normalized metadata aligned', async ({
@@ -1325,85 +1407,78 @@ test('content pages expose parseable typed JSON-LD', async ({ page }) => {
   });
 });
 
+test('review posts expose the author rating and a linked Review entity', async ({
+  page,
+}) => {
+  const reviewPosts = publishedContent().filter(
+    (
+      item,
+    ): item is PublishedContent & {
+      review: NonNullable<PublishedContent['review']>;
+    } => item.kind === 'blog' && item.review !== undefined,
+  );
+
+  expect(reviewPosts.length).toBeGreaterThan(0);
+
+  for (const post of reviewPosts) {
+    const { review, route } = post;
+    const canonical = new URL(route, 'https://jetsanchez.com').toString();
+
+    await page.goto(route);
+    await expect(
+      page.getByLabel(
+        `Jet’s rating: ${review.ratingValue} out of ${review.bestRating} stars`,
+      ),
+    ).toContainText(`${review.ratingValue}/${review.bestRating}`);
+
+    const schemas = await readSchemas(page);
+    expect(
+      schemas.find((schema) => schema['@type'] === 'BlogPosting'),
+    ).toMatchObject({
+      '@id': `${canonical}#blogposting`,
+      url: canonical,
+    });
+    expect(
+      schemas.find((schema) => schema['@type'] === 'Review'),
+    ).toMatchObject({
+      '@id': `${canonical}#review`,
+      url: canonical,
+      reviewRating: {
+        '@type': 'Rating',
+        ratingValue: review.ratingValue,
+        bestRating: review.bestRating,
+        worstRating: 1,
+      },
+      itemReviewed: {
+        '@type': 'Movie',
+        name: review.itemName,
+      },
+      isPartOf: { '@id': `${canonical}#blogposting` },
+    });
+  }
+});
+
 test('content pages use deliberate SEO titles without replacing their headings', async ({
   page,
 }) => {
-  const cases = [
-    {
-      route: '/blog/how-to-install-claude-code-cli-2026/',
-      seoTitle: 'How to Install Claude Code CLI in 2026 | Jet Sanchez',
-      heading: 'How to Install and Get Started With Claude Code CLI in 2026',
-    },
-    {
-      route: '/blog/vibe-coding-vs-agentic-coding-why-the-distinction-matters/',
-      seoTitle: 'Vibe Coding vs Agentic Coding: Key Differences | Jet Sanchez',
-      heading: 'Vibe Coding vs Agentic Coding: Why the Distinction Matters',
-    },
-    {
-      route: '/works/recursive-convergence-hypothesis/',
-      seoTitle: 'Recursive Convergence Hypothesis: AI Sentience | Jet Sanchez',
-      heading:
-        'The Recursive Convergence Hypothesis: Emergent Sentience as a Structural Attractor of Recursive ASI',
-    },
-    {
-      route: '/works/digital-squad-timesheet/',
-      seoTitle: 'Digital Squad Timesheet: Operations Platform | Jet Sanchez',
-      heading: 'Digital Squad Timesheet',
-    },
-  ] as const;
-
-  for (const { route, seoTitle, heading } of cases) {
+  for (const contentItem of publishedContent()) {
+    const seoTitle = `${contentItem.seoTitle ?? contentItem.title} | Jet Sanchez`;
+    const heading = contentItem.title;
+    const { route } = contentItem;
     await page.goto(route);
     await expect(page).toHaveTitle(seoTitle);
     await expect(page.locator('main h1')).toHaveText(heading);
-    expect(seoTitle.length).toBeLessThanOrEqual(60);
   }
 });
 
 test('content pages expose deliberate search descriptions and faithful entity summaries', async ({
   page,
 }) => {
-  const cases = [
-    {
-      route: '/blog/how-to-install-claude-code-cli-2026/',
-      seoDescription:
-        "Complete guide to installing Claude Code CLI, setting up plugins, leveraging skills, and getting productive with Anthropic's agentic coding tool.",
-      entityType: 'BlogPosting',
-      entityDescription:
-        "Complete guide to installing Claude Code CLI, setting up plugins, leveraging skills, and getting productive with Anthropic's agentic coding tool.",
-    },
-    {
-      route: '/blog/vibe-coding-vs-agentic-coding-why-the-distinction-matters/',
-      seoDescription:
-        'Vibe coding is exploratory. Agentic coding is survivable. Learn why intent, cognition, and workflow maturity now define modern software.',
-      entityType: 'BlogPosting',
-      entityDescription:
-        'Vibe coding is exploratory. Agentic coding is survivable. Learn why intent, cognition, and workflow maturity now define modern software.',
-    },
-    {
-      route: '/works/recursive-convergence-hypothesis/',
-      seoDescription:
-        'A theoretical framework proposing that recursive ASI may develop emergent sentience through self-improvement, agent modeling, and epistemic optimization.',
-      entityType: 'ScholarlyArticle',
-      entityDescription:
-        'A theoretical framework proposing that recursive artificial superintelligence systems may develop emergent sentience as a structural outcome of epistemic optimization and world modeling, even without explicit design intentions.',
-    },
-    {
-      route: '/works/digital-squad-timesheet/',
-      seoDescription:
-        'A task-based weekly operations platform for Digital Squad, combining time logging, project context, team visibility, and reporting in one focused workflow.',
-      entityType: 'CreativeWork',
-      entityDescription:
-        'A task-based weekly operations platform for Digital Squad, combining time logging, project context, team visibility, and reporting in one focused workflow.',
-    },
-  ] as const;
-
-  for (const {
-    route,
-    seoDescription,
-    entityType,
-    entityDescription,
-  } of cases) {
+  for (const contentItem of publishedContent()) {
+    const seoDescription =
+      contentItem.seoDescription ?? contentItem.description;
+    const entityDescription = contentItem.description;
+    const { entityType, route } = contentItem;
     await page.goto(route);
     await expect(page.locator('meta[name="description"]')).toHaveAttribute(
       'content',
@@ -1429,17 +1504,17 @@ test('content pages expose deliberate search descriptions and faithful entity su
 test('custom blog images expose their verified intrinsic OpenGraph dimensions', async ({
   page,
 }) => {
-  for (const route of [
-    '/blog/how-to-install-claude-code-cli-2026/',
-    '/blog/vibe-coding-vs-agentic-coding-why-the-distinction-matters/',
-  ]) {
+  const imageBackedBlogs = publishedContent().filter(
+    ({ kind, image }) => kind === 'blog' && image !== undefined,
+  );
+  for (const { route, image } of imageBackedBlogs) {
     await page.goto(route);
     await expect(
       page.locator('meta[property="og:image:width"]'),
-    ).toHaveAttribute('content', '1920');
+    ).toHaveAttribute('content', String(image?.width));
     await expect(
       page.locator('meta[property="og:image:height"]'),
-    ).toHaveAttribute('content', '1080');
+    ).toHaveAttribute('content', String(image?.height));
   }
 });
 

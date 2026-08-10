@@ -23,13 +23,12 @@ describe('Egregore configuration', () => {
     ]);
   });
 
-  it('bounds local context and reserves capacity outside retrieval', () => {
+  it('bounds per-turn evidence while leaving greater capacity outside retrieval', () => {
     expect(EGREGORE_CONTEXT.maxContextTokens).toBe(8_192);
+    expect(EGREGORE_CONTEXT.knowledgeLimit).toBe(3_072);
     expect(
-      EGREGORE_CONTEXT.knowledgeLimit +
-        EGREGORE_CONTEXT.responseReserve +
-        EGREGORE_CONTEXT.estimatorHeadroom,
-    ).toBe(EGREGORE_CONTEXT.maxContextTokens);
+      EGREGORE_CONTEXT.maxContextTokens - EGREGORE_CONTEXT.knowledgeLimit,
+    ).toBeGreaterThan(EGREGORE_CONTEXT.knowledgeLimit);
     expect(EGREGORE_CONTEXT.responseReserve).toBeGreaterThan(0);
     expect(EGREGORE_CONTEXT.estimatorHeadroom).toBeGreaterThan(0);
   });

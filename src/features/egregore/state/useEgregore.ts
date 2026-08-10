@@ -15,8 +15,11 @@ import {
   reduceEgregoreLifecycle,
   type EgregoreLifecycleEvent,
 } from '../runtime/lifecycle';
-import type { LocalModelRuntime } from '../runtime/types';
-import type { CapabilityReport } from '../runtime/types';
+import {
+  createRuntimeError,
+  type CapabilityReport,
+  type LocalModelRuntime,
+} from '../runtime/types';
 import {
   ModelArtifactStoreUnavailableError,
   type ModelArtifactStore,
@@ -486,6 +489,16 @@ export function useEgregore(
           knowledgeBase,
           budget: turnBudget,
         });
+        if (
+          selection.sources.length === 0 &&
+          selection.diagnostics.rejectedForBudgetCount > 0
+        ) {
+          throw createRuntimeError(
+            'conversation-limit-reached',
+            'The current session cannot fit the relevant published evidence.',
+            true,
+          );
+        }
         assembled = dependenciesRef.current.assemblePrompt(
           cleanQuestion,
           selection,

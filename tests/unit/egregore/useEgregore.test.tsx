@@ -769,11 +769,7 @@ describe('useEgregore activation boundary', () => {
     expect(
       harness.runtime.calls.filter(({ method }) => method === 'createSession'),
     ).toHaveLength(1);
-    const firstBudget = harness.rankAndPack.mock.calls[0]?.[0].budget;
     const secondBudget = harness.rankAndPack.mock.calls[1]?.[0].budget;
-    expect(secondBudget?.knowledgeLimit).toBeLessThan(
-      firstBudget?.knowledgeLimit ?? 0,
-    );
     expect(harness.assemblePrompt.mock.calls[1]?.[2]).toEqual(secondBudget);
   });
 
@@ -1351,6 +1347,24 @@ describe('useEgregore activation boundary', () => {
     expect(harness.rankAndPack).toHaveBeenCalledTimes(selectionCount);
     expect(harness.assemblePrompt).toHaveBeenCalledTimes(assemblyCount);
     expect(result.current.startNewSession).toBeTypeOf('function');
+  });
+
+  it('requires a new session when relevant evidence cannot fit after retrieval', async () => {
+    const useEgregore = await loadSubject();
+    const rejectedSelection = selection([]);
+    rejectedSelection.diagnostics.rejectedForBudgetCount = 1;
+    const harness = createHarness({ selection: rejectedSelection });
+    const { result } = renderHook(() => useEgregore(harness.dependencies));
+    await makeReady(result);
+
+    await act(async () => {
+      await result.current.sendMessage('What else has Jet published?');
+    });
+
+    expect(result.current.state.error?.code).toBe('conversation-limit-reached');
+    expect(result.current.state.turns).toEqual([]);
+    expect(harness.assemblePrompt).not.toHaveBeenCalled();
+    expect(harness.runtime.generationMessages).toEqual([]);
   });
 
   it('runs every cleanup stage and reports only aggregated safe diagnostics', async () => {

@@ -32,6 +32,21 @@ type BlogPostingProps = {
   tags?: readonly string[];
 };
 
+type ReviewProps = {
+  type: 'review';
+  id?: string;
+  url?: string;
+  name: string;
+  itemType: 'Movie';
+  itemName: string;
+  ratingValue: number;
+  bestRating: number;
+  datePublished?: string;
+  dateModified?: string;
+  author?: string;
+  isPartOfId: string;
+};
+
 type PersonProps = {
   type: 'person';
   id?: string;
@@ -112,6 +127,7 @@ type CreativeWorkProps = {
 export type StructuredDataProps =
   | WebsiteProps
   | BlogPostingProps
+  | ReviewProps
   | PersonProps
   | NavigationProps
   | WebPageProps
@@ -174,6 +190,41 @@ function buildBlogPostingSchema(
       '@id': `${url}#webpage`,
     },
     keywords: (props.tags ?? []).join(', '),
+  };
+}
+
+function buildReviewSchema(
+  props: Extract<StructuredDataProps, { type: 'review' }>,
+): JsonLd {
+  const url = props.url ?? SITE_ROOT_URL;
+  const dateModified = props.dateModified || props.datePublished;
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'Review',
+    ...(props.id && { '@id': props.id }),
+    url,
+    name: props.name,
+    author: {
+      '@type': 'Person',
+      '@id': `${SITE.siteUrl}/#person`,
+      name: props.author || SITE.author,
+    },
+    ...(props.datePublished && { datePublished: props.datePublished }),
+    ...(dateModified && { dateModified }),
+    reviewRating: {
+      '@type': 'Rating',
+      ratingValue: props.ratingValue,
+      bestRating: props.bestRating,
+      worstRating: 1,
+    },
+    itemReviewed: {
+      '@type': props.itemType,
+      name: props.itemName,
+    },
+    isPartOf: {
+      '@id': props.isPartOfId,
+    },
   };
 }
 
@@ -362,6 +413,8 @@ export function buildStructuredData(props: StructuredDataProps): JsonLd {
       return buildWebsiteSchema(props);
     case 'blogposting':
       return buildBlogPostingSchema(props);
+    case 'review':
+      return buildReviewSchema(props);
     case 'person':
       return buildPersonSchema(props);
     case 'navigation':

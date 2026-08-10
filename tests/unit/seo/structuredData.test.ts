@@ -81,6 +81,51 @@ const fixtures = [
     },
   },
   {
+    name: 'movie review',
+    props: {
+      type: 'review',
+      id: 'https://example.com/blog/movie-review/#review',
+      url: 'https://example.com/blog/movie-review/',
+      name: 'Example Movie review',
+      itemType: 'Movie',
+      itemName: 'Example Movie',
+      ratingValue: 5,
+      bestRating: 5,
+      datePublished: '2026-08-01T00:00:00.000Z',
+      dateModified: '2026-08-10T00:00:00.000Z',
+      author: 'Example Author',
+      isPartOfId: 'https://example.com/blog/movie-review/#blogposting',
+    } satisfies Extract<StructuredDataProps, { type: 'review' }>,
+    expectedType: 'Review',
+    expectedSchema: {
+      '@context': 'https://schema.org',
+      '@type': 'Review',
+      '@id': 'https://example.com/blog/movie-review/#review',
+      url: 'https://example.com/blog/movie-review/',
+      name: 'Example Movie review',
+      author: {
+        '@type': 'Person',
+        '@id': 'https://jetsanchez.com/#person',
+        name: 'Example Author',
+      },
+      datePublished: '2026-08-01T00:00:00.000Z',
+      dateModified: '2026-08-10T00:00:00.000Z',
+      reviewRating: {
+        '@type': 'Rating',
+        ratingValue: 5,
+        bestRating: 5,
+        worstRating: 1,
+      },
+      itemReviewed: {
+        '@type': 'Movie',
+        name: 'Example Movie',
+      },
+      isPartOf: {
+        '@id': 'https://example.com/blog/movie-review/#blogposting',
+      },
+    },
+  },
+  {
     name: 'person',
     props: {
       type: 'person',

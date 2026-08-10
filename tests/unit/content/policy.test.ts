@@ -36,3 +36,42 @@ describe('publication policy', () => {
     );
   });
 });
+
+describe('blog review metadata', () => {
+  const review = {
+    itemType: 'movie' as const,
+    itemName: 'Example Movie',
+    ratingValue: 5,
+    bestRating: 5 as const,
+  };
+
+  it('accepts an explicit movie rating on the five-star scale', () => {
+    const parsed = blogSchema.parse({
+      ...baseBlog,
+      status: 'published',
+      review,
+    });
+
+    expect(parsed.review).toEqual(review);
+  });
+
+  it.each([
+    { name: 'unsupported item type', review: { ...review, itemType: 'book' } },
+    { name: 'empty item name', review: { ...review, itemName: ' ' } },
+    { name: 'rating below the scale', review: { ...review, ratingValue: 0 } },
+    { name: 'rating above the scale', review: { ...review, ratingValue: 6 } },
+    {
+      name: 'unsupported rating increment',
+      review: { ...review, ratingValue: 4.2 },
+    },
+    { name: 'different scale', review: { ...review, bestRating: 10 } },
+  ])('rejects an invalid review contract: $name', ({ review: candidate }) => {
+    expect(
+      blogSchema.safeParse({
+        ...baseBlog,
+        status: 'published',
+        review: candidate,
+      }).success,
+    ).toBe(false);
+  });
+});
