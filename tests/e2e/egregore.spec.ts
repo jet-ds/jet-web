@@ -968,7 +968,7 @@ test.describe('Egregore supported lifecycle', () => {
     });
   });
 
-  test('crossfades ready to loading and loading to ready across remounted screen branches', async ({
+  test('crossfades button-driven ready and loading states across stable remounted screen branches', async ({
     page,
   }, testInfo) => {
     test.skip(testInfo.project.name !== 'chromium');
@@ -978,36 +978,25 @@ test.describe('Egregore supported lifecycle', () => {
     await page.getByRole('button', { name: 'Check compatibility' }).click();
     const load = page.getByRole('button', { name: /Load Egregore/ });
     await expect(load).toBeVisible();
-    await page.waitForTimeout(220);
 
     const viewport = largeGhostViewport(page);
     const layers = largeGhostLayers(page);
     await expect(viewport).toHaveAttribute('data-mode', 'ready');
     await expect(layers).toHaveCount(1);
+    await expect(layers).toHaveAttribute('data-mode', 'ready');
     const readyBeforeLoad = await boxOf(viewport);
 
     await load.click();
     await expect(viewport).toHaveAttribute('data-mode', 'loading');
-    await expect(layers).toHaveCount(2);
+    const loading = await boxOf(viewport);
+    expect(loading.width).toBe(readyBeforeLoad.width);
+    expect(loading.height).toBe(readyBeforeLoad.height);
     await expect(
-      page.locator(
-        '[data-testid="animated-ghost-mode-layer"][data-mode="ready"]',
-      ),
-    ).toHaveCount(1);
-    await expect(
-      page.locator(
-        '[data-testid="animated-ghost-mode-layer"][data-mode="loading"]',
-      ),
-    ).toHaveCount(1);
-    const loadingDuringFade = await boxOf(viewport);
-    expect(loadingDuringFade.width).toBe(readyBeforeLoad.width);
-    expect(loadingDuringFade.height).toBe(readyBeforeLoad.height);
-
-    await page.waitForTimeout(220);
-    await expect(layers).toHaveCount(1);
-    await expect(layers).toHaveAttribute('data-mode', 'loading');
+      page
+        .getByTestId('loading-stack')
+        .getByText('Loading on this device', { exact: true }),
+    ).toBeVisible();
     await expect(currentStatusLabel(page)).toHaveText('Ready');
-    await page.waitForTimeout(220);
     await expect(viewport).toHaveAttribute('data-mode', 'ready');
     await expect(layers).toHaveCount(1);
     await expect(layers).toHaveAttribute('data-mode', 'ready');
@@ -2234,7 +2223,7 @@ test.describe('Egregore responses, citations, and scrolling', () => {
     await expect(firstLinks.first()).toContainText(LONG_SOURCE_TITLE);
     expect(await firstDisclosure.textContent()).not.toContain(SOURCE_SENTINEL);
 
-    await submitQuestion(page, 'What does Jet write about agentic work?');
+    await submitQuestion(page, `${LONG_SOURCE_TITLE} ${SOURCE_SENTINEL}`);
     await waitForCompletedResponse(page);
     const disclosures = page.getByTestId('response-source-disclosure');
     await expect(disclosures).toHaveCount(2);

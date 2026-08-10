@@ -1,6 +1,3 @@
-import { readdirSync, readFileSync } from 'node:fs';
-import { join } from 'node:path';
-
 import {
   expect,
   test,
@@ -8,88 +5,12 @@ import {
   type Locator,
   type Page,
 } from '@playwright/test';
-import matter from 'gray-matter';
-import { SOCIAL_LINKS } from '../../src/config/site';
-import { blogSchema, worksSchema } from '../../src/schemas/content';
-
-type PublishedContent = {
-  kind: 'blog' | 'work';
-  route: string;
-  title: string;
-  shortTitle?: string;
-  seoTitle?: string;
-  description: string;
-  seoDescription?: string;
-  summary?: string;
-  date: Date;
-  featured: boolean;
-  entityType: 'BlogPosting' | 'ScholarlyArticle' | 'CreativeWork';
-  image?: { width?: number; height?: number };
-  author?: string;
-  review?: {
-    itemType: 'movie';
-    itemName: string;
-    ratingValue: number;
-    bestRating: 5;
-  };
-};
-
-function publishedContent(): PublishedContent[] {
-  const blogDirectory = join(process.cwd(), 'src/data/blog');
-  const workDirectory = join(process.cwd(), 'src/data/works');
-  const blogs = readdirSync(blogDirectory)
-    .filter((filename) => filename.endsWith('.mdx'))
-    .flatMap((filename): PublishedContent[] => {
-      const data = blogSchema.parse(
-        matter(readFileSync(join(blogDirectory, filename), 'utf8')).data,
-      );
-      if (data.status !== 'published') return [];
-      return [
-        {
-          kind: 'blog',
-          route: `/blog/${filename.replace(/\.mdx$/u, '')}/`,
-          title: data.title,
-          shortTitle: data.shortTitle,
-          seoTitle: data.seoTitle,
-          description: data.description,
-          seoDescription: data.seoDescription,
-          summary: data.summary,
-          date: data.pubDate,
-          featured: false,
-          entityType: 'BlogPosting',
-          image: data.image,
-          author: data.author,
-          review: data.review,
-        },
-      ];
-    });
-  const works = readdirSync(workDirectory)
-    .filter((filename) => filename.endsWith('.mdx'))
-    .flatMap((filename): PublishedContent[] => {
-      const data = worksSchema.parse(
-        matter(readFileSync(join(workDirectory, filename), 'utf8')).data,
-      );
-      if (data.status !== 'published') return [];
-      return [
-        {
-          kind: 'work',
-          route: `/works/${filename.replace(/\.mdx$/u, '')}/`,
-          title: data.title,
-          shortTitle: data.shortTitle,
-          seoTitle: data.seoTitle,
-          description: data.description,
-          seoDescription: data.seoDescription,
-          summary: data.summary,
-          date: data.date,
-          featured: data.featured,
-          entityType:
-            data.type === 'research' ? 'ScholarlyArticle' : 'CreativeWork',
-          image: data.image,
-        },
-      ];
-    });
-  return [...blogs, ...works];
-}
+import { SITE, SOCIAL_LINKS } from '../../src/config/site';
+import {
+  publishedAssistantSources,
+  publishedContent,
+  type PublishedContent,
+} from '../support/publishedContent';
 
 const routes = [
   '/',
@@ -128,6 +49,12 @@ type JsonLdSchema = {
     worstRating?: number;
   };
   itemReviewed?: { '@type'?: string; name?: string };
+  datePublished?: string;
+  dateModified?: string;
+};
+
+type CorpusContent = {
+  documents: Array<{ id: string; canonicalUrl: string }>;
 };
 
 async function readSchemas(page: Page): Promise<JsonLdSchema[]> {
@@ -224,6 +151,29 @@ function sitemapLocations(xml: string): string[] {
   return [...xml.matchAll(/<loc>([^<]+)<\/loc>/gu)].map(
     ([, location]) => new URL(location).pathname,
   );
+}
+
+function rssItemLinks(xml: string): string[] {
+  return [
+    ...xml.matchAll(/<item>[\s\S]*?<link>([^<]+)<\/link>[\s\S]*?<\/item>/gu),
+  ]
+    .map(([, location]) => location)
+    .sort();
+}
+
+async function contentCardRoutes(page: Page, route: string): Promise<string[]> {
+  const response = await page.goto(route);
+  expect(response?.status()).toBe(200);
+  return (
+    await page
+      .locator('main [data-content-card] > a[href]')
+      .evaluateAll((anchors) =>
+        anchors.flatMap((anchor) => {
+          const href = anchor.getAttribute('href');
+          return href === null ? [] : [href];
+        }),
+      )
+  ).sort();
 }
 
 async function publicHtmlRoutes(request: APIRequestContext): Promise<string[]> {
@@ -786,15 +736,31 @@ test('Tools remains a dormant noindexed route', async ({ page }) => {
   await expect(page.locator('main a')).toHaveCount(0);
 });
 
-test('research exposes one DOI-backed action', async ({ page }) => {
-  await page.goto('/works/recursive-convergence-hypothesis/');
-  const action = page.getByRole('link', { name: 'View on SSRN' });
-  await expect(action).toHaveAttribute(
-    'href',
-    'https://doi.org/10.2139/ssrn.5395309',
+test('published research exposes DOI-backed shared actions without download controls', async ({
+  page,
+}) => {
+  const research = publishedContent().filter(
+    ({ entityType, identifier }) =>
+      entityType === 'ScholarlyArticle' && identifier !== undefined,
   );
-  await expectSharedAction(action, 'accent', 'compact', 44);
-  await expect(page.getByRole('link', { name: 'Download PDF' })).toHaveCount(0);
+  expect(research.length).toBeGreaterThan(0);
+
+  for (const item of research) {
+    await page.goto(item.route);
+    const link = item.links?.find(({ url }) => url === item.identifier);
+    if (link === undefined) {
+      throw new Error(`Missing DOI action for ${item.route}`);
+    }
+    const action = page.getByRole('link', {
+      name: link.label,
+      exact: true,
+    });
+    await expect(action).toHaveAttribute('href', item.identifier ?? '');
+    await expectSharedAction(action, 'accent', 'compact', 44);
+    await expect(page.getByRole('link', { name: 'Download PDF' })).toHaveCount(
+      0,
+    );
+  }
 });
 
 test('Astro and React actions share rendered roles, hover, focus, and density', async ({
@@ -1312,6 +1278,76 @@ test('the canonical profile has no standalone profile route', async ({
   expect((await request.get('/profile/jet-sanchez/')).status()).toBe(404);
 });
 
+test('content discovery surfaces exactly match tracked publication state', async ({
+  page,
+  request,
+}) => {
+  const content = publishedContent();
+  const homepageContent = [
+    ...content
+      .filter(({ kind }) => kind === 'blog')
+      .sort((left, right) => right.date.getTime() - left.date.getTime())
+      .slice(0, 3),
+    ...content
+      .filter(({ kind, featured }) => kind === 'work' && featured)
+      .sort((left, right) => right.date.getTime() - left.date.getTime())
+      .slice(0, 3),
+  ];
+
+  expect(await contentCardRoutes(page, '/')).toEqual(
+    homepageContent.map(({ route }) => route).sort(),
+  );
+  expect(await contentCardRoutes(page, '/blog/')).toEqual(
+    content
+      .filter(({ kind }) => kind === 'blog')
+      .map(({ route }) => route)
+      .sort(),
+  );
+  expect(await contentCardRoutes(page, '/works/')).toEqual(
+    content
+      .filter(({ kind }) => kind === 'work')
+      .map(({ route }) => route)
+      .sort(),
+  );
+
+  const sitemapContentRoutes = (await publicHtmlRoutes(request)).filter(
+    (route) =>
+      ['/blog/', '/works/'].some(
+        (collectionRoot) =>
+          route.startsWith(collectionRoot) && route !== collectionRoot,
+      ),
+  );
+  expect(sitemapContentRoutes).toEqual(
+    content.map(({ route }) => route).sort(),
+  );
+
+  const rssResponse = await request.get('/rss.xml');
+  expect(rssResponse.ok()).toBe(true);
+  expect(rssItemLinks(await rssResponse.text())).toEqual(
+    content
+      .filter(({ kind }) => kind === 'blog')
+      .map(({ route }) => new URL(route, SITE.siteUrl).toString())
+      .sort(),
+  );
+});
+
+test('assistant corpus identities exactly match tracked eligibility', async ({
+  request,
+}) => {
+  const response = await request.get('/assistant/corpus/content.json');
+  expect(response.ok()).toBe(true);
+  const corpus = (await response.json()) as CorpusContent;
+  const actual = corpus.documents
+    .map(({ id, canonicalUrl }) => ({ id, canonicalUrl }))
+    .sort((left, right) => left.id.localeCompare(right.id, 'en'));
+  const expected = publishedAssistantSources().map(({ id, route }) => ({
+    id,
+    canonicalUrl: new URL(route, SITE.siteUrl).toString(),
+  }));
+
+  expect(actual).toEqual(expected);
+});
+
 test('retired routes stay retired and out of feeds', async ({ request }) => {
   for (const route of [
     '/blog/the-future-of-ai/',
@@ -1325,86 +1361,6 @@ test('retired routes stay retired and out of feeds', async ({ request }) => {
     expect(sitemap).not.toContain(slug);
     expect(rss).not.toContain(slug);
   }
-});
-
-test('the telemetry study is published across discovery, schema, and assistant surfaces', async ({
-  page,
-  request,
-}) => {
-  const slug = 'broad-reach-uneven-depth';
-  const canonical = `https://jetsanchez.com/works/${slug}/`;
-  const doi = 'https://dx.doi.org/10.2139/ssrn.7146398';
-  const route = await request.get(`/works/${slug}/`);
-  const home = await (await request.get('/')).text();
-  const works = await (await request.get('/works/')).text();
-  const sitemap = await (await request.get('/sitemap-0.xml')).text();
-  const corpus = (await (
-    await request.get('/assistant/corpus/content.json')
-  ).json()) as {
-    documents: Array<{ id: string; canonicalUrl: string }>;
-  };
-
-  expect(route.status()).toBe(200);
-  expect(home).toContain(slug);
-  expect(works).toContain(slug);
-  expect(sitemap).toContain(canonical);
-  expect(corpus.documents).toContainEqual(
-    expect.objectContaining({
-      id: `works:${slug}`,
-      canonicalUrl: canonical,
-    }),
-  );
-
-  await page.goto(`/works/${slug}/`);
-  await expect(
-    page.locator('time[datetime="2026-08-01T00:00:00.000Z"]'),
-  ).toHaveText('August 2026');
-  await expect(
-    page.getByRole('link', { name: 'View on SSRN' }),
-  ).toHaveAttribute('href', doi);
-  await expect(page.getByRole('heading', { name: 'Citation' })).toBeVisible();
-  await expect(page.locator('pre code')).toContainText(
-    'Sanchez, J. E. M. (2026). Broad Reach, Uneven Depth?',
-  );
-  const schemas = await readSchemas(page);
-  expect(
-    schemas.find((schema) => schema['@type'] === 'ScholarlyArticle'),
-  ).toMatchObject({
-    url: canonical,
-    identifier: doi,
-    sameAs: [doi],
-  });
-});
-
-test('content pages expose parseable typed JSON-LD', async ({ page }) => {
-  const researchCanonical =
-    'https://jetsanchez.com/works/recursive-convergence-hypothesis/';
-  const doi = 'https://doi.org/10.2139/ssrn.5395309';
-  await page.goto('/works/recursive-convergence-hypothesis/');
-  await expect(page.locator('meta[property="og:type"]')).toHaveAttribute(
-    'content',
-    'article',
-  );
-  let schemas = await readSchemas(page);
-  expect(
-    schemas.find((schema) => schema['@type'] === 'ScholarlyArticle'),
-  ).toMatchObject({
-    url: researchCanonical,
-    identifier: doi,
-    sameAs: [doi],
-    mainEntityOfPage: { '@id': `${researchCanonical}#webpage` },
-  });
-
-  const blogCanonical =
-    'https://jetsanchez.com/blog/how-to-install-claude-code-cli-2026/';
-  await page.goto('/blog/how-to-install-claude-code-cli-2026/');
-  schemas = await readSchemas(page);
-  expect(
-    schemas.find((schema) => schema['@type'] === 'BlogPosting'),
-  ).toMatchObject({
-    url: blogCanonical,
-    mainEntityOfPage: { '@id': `${blogCanonical}#webpage` },
-  });
 });
 
 test('review posts expose the author rating and a linked Review entity', async ({
@@ -1480,6 +1436,13 @@ test('content pages expose deliberate search descriptions and faithful entity su
     const entityDescription = contentItem.description;
     const { entityType, route } = contentItem;
     await page.goto(route);
+    await expect(page.locator('meta[property="og:type"]')).toHaveAttribute(
+      'content',
+      contentItem.openGraphType,
+    );
+    await expect(
+      page.locator(`main time[datetime="${contentItem.date.toISOString()}"]`),
+    ).toBeVisible();
     await expect(page.locator('meta[name="description"]')).toHaveAttribute(
       'content',
       seoDescription,
@@ -1495,9 +1458,26 @@ test('content pages expose deliberate search descriptions and faithful entity su
     expect(
       schemas.find((schema) => schema['@type'] === 'WebPage')?.description,
     ).toBe(seoDescription);
-    expect(
-      schemas.find((schema) => schema['@type'] === entityType)?.description,
-    ).toBe(entityDescription);
+    const canonical = new URL(route, 'https://jetsanchez.com').toString();
+    const entity = schemas.find((schema) => schema['@type'] === entityType);
+    expect(entity).toMatchObject({
+      url: canonical,
+      description: entityDescription,
+      mainEntityOfPage: { '@id': `${canonical}#webpage` },
+      datePublished: contentItem.date.toISOString(),
+    });
+    expect(entity?.dateModified).toBe(contentItem.dateModified?.toISOString());
+    if (contentItem.identifier !== undefined) {
+      expect(entity).toMatchObject({
+        identifier: contentItem.identifier,
+        sameAs: [contentItem.identifier],
+      });
+    }
+    for (const link of contentItem.links ?? []) {
+      await expect(
+        page.getByRole('link', { name: link.label, exact: true }),
+      ).toHaveAttribute('href', link.url);
+    }
   }
 });
 

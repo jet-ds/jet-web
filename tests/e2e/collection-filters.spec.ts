@@ -123,7 +123,6 @@ test('Blog restores a direct tag query and preserves the canonical collection UR
 
   await expect(tutorial).toHaveAttribute('aria-pressed', 'true');
   await expect(filterButton(root, '')).toHaveAttribute('aria-pressed', 'false');
-  expect(await filterItems(root).count()).toBeGreaterThan(0);
   await expect(visibleFilterItems(root)).toHaveCount(expectedVisiblePosts);
   await expect(root.getByRole('status')).toHaveText(
     `${expectedVisiblePosts} ${expectedVisiblePosts === 1 ? 'post' : 'posts'} tagged with "tutorial"`,

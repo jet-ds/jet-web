@@ -157,7 +157,7 @@ export function configureFakeCitationSelection(
     (source) => source.canonicalUrl !== primary.canonicalUrl,
   );
   if (duplicateDocument === undefined || distinctDocument === undefined) {
-    return selection;
+    throw new Error('FAKE_CITATION_FIXTURE_TOPOLOGY_UNAVAILABLE');
   }
 
   const fixtureSources = [distinctDocument, primary, duplicateDocument];

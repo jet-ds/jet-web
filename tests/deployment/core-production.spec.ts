@@ -1,9 +1,91 @@
-import { expect, test } from '@playwright/test';
+import {
+  expect,
+  test,
+  type APIRequestContext,
+  type Page,
+} from '@playwright/test';
+import { SITE } from '../../src/config/site';
 import { establishDeploymentProtectionBypass } from '../support/deploymentProtection';
+import {
+  publishedAssistantSources,
+  publishedContent,
+} from '../support/publishedContent';
 
 const deploymentOrigin = new URL(
   process.env.PRODUCTION_ORIGIN ?? 'https://jetsanchez.com',
 ).origin;
+
+type JsonLdSchema = {
+  '@type'?: string;
+  '@id'?: string;
+  url?: string;
+  description?: string;
+  mainEntityOfPage?: { '@id'?: string };
+  identifier?: string;
+  sameAs?: string[];
+  datePublished?: string;
+  dateModified?: string;
+  reviewRating?: {
+    ratingValue?: number;
+    bestRating?: number;
+  };
+  itemReviewed?: {
+    '@type'?: string;
+    name?: string;
+  };
+};
+
+type CorpusContent = {
+  documents: Array<{ id: string; canonicalUrl: string }>;
+};
+
+function occurrences(value: string, target: string): number {
+  return value.split(target).length - 1;
+}
+
+function sitemapLocations(xml: string): string[] {
+  return [...xml.matchAll(/<loc>([^<]+)<\/loc>/gu)].map(
+    ([, location]) => location,
+  );
+}
+
+function rssItemLinks(xml: string): string[] {
+  return [
+    ...xml.matchAll(/<item>[\s\S]*?<link>([^<]+)<\/link>[\s\S]*?<\/item>/gu),
+  ]
+    .map(([, location]) => location)
+    .sort();
+}
+
+async function contentCardRoutes(page: Page, route: string): Promise<string[]> {
+  const response = await page.goto(route);
+  expect(response?.status()).toBe(200);
+  return (
+    await page
+      .locator('main [data-content-card] > a[href]')
+      .evaluateAll((anchors) =>
+        anchors.flatMap((anchor) => {
+          const href = anchor.getAttribute('href');
+          return href === null ? [] : [href];
+        }),
+      )
+  ).sort();
+}
+
+async function publishedSitemapXml(
+  request: APIRequestContext,
+): Promise<string> {
+  const indexResponse = await request.get('/sitemap-index.xml');
+  expect(indexResponse.ok()).toBe(true);
+
+  const documents: string[] = [];
+  for (const location of sitemapLocations(await indexResponse.text())) {
+    const response = await request.get(new URL(location).pathname);
+    expect(response.ok()).toBe(true);
+    documents.push(await response.text());
+  }
+  return documents.join('\n');
+}
 
 test.beforeEach(async ({ context }) => {
   await establishDeploymentProtectionBypass(
@@ -11,6 +93,172 @@ test.beforeEach(async ({ context }) => {
     deploymentOrigin,
     process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
   );
+});
+
+test('Production publishes every tracked published content contract', async ({
+  page,
+  context,
+}) => {
+  const request = context.request;
+  const content = publishedContent();
+  expect(content.length).toBeGreaterThan(0);
+
+  const [rssResponse, corpusResponse] = await Promise.all([
+    request.get('/rss.xml'),
+    request.get('/assistant/corpus/content.json'),
+  ]);
+  for (const response of [rssResponse, corpusResponse]) {
+    expect(response.ok()).toBe(true);
+  }
+
+  const rss = await rssResponse.text();
+  const sitemap = await publishedSitemapXml(request);
+  const corpus = (await corpusResponse.json()) as CorpusContent;
+
+  const expectedAssistantSources = publishedAssistantSources().map(
+    ({ id, route }) => ({
+      id,
+      canonicalUrl: new URL(route, SITE.siteUrl).toString(),
+    }),
+  );
+  const deployedAssistantSources = corpus.documents
+    .map(({ id, canonicalUrl }) => ({ id, canonicalUrl }))
+    .sort((left, right) => left.id.localeCompare(right.id, 'en'));
+  expect(deployedAssistantSources).toEqual(expectedAssistantSources);
+
+  const homepageContent = [
+    ...content
+      .filter(({ kind }) => kind === 'blog')
+      .sort((left, right) => right.date.getTime() - left.date.getTime())
+      .slice(0, 3),
+    ...content
+      .filter(({ kind, featured }) => kind === 'work' && featured)
+      .sort((left, right) => right.date.getTime() - left.date.getTime())
+      .slice(0, 3),
+  ];
+  expect(await contentCardRoutes(page, '/')).toEqual(
+    homepageContent.map(({ route }) => route).sort(),
+  );
+  expect(await contentCardRoutes(page, '/blog/')).toEqual(
+    content
+      .filter(({ kind }) => kind === 'blog')
+      .map(({ route }) => route)
+      .sort(),
+  );
+  expect(await contentCardRoutes(page, '/works/')).toEqual(
+    content
+      .filter(({ kind }) => kind === 'work')
+      .map(({ route }) => route)
+      .sort(),
+  );
+
+  const expectedCanonicalUrls = content
+    .map(({ route }) => new URL(route, SITE.siteUrl).toString())
+    .sort();
+  const sitemapContentUrls = sitemapLocations(sitemap)
+    .filter((location) => {
+      const pathname = new URL(location).pathname;
+      return ['/blog/', '/works/'].some(
+        (collectionRoot) =>
+          pathname.startsWith(collectionRoot) && pathname !== collectionRoot,
+      );
+    })
+    .sort();
+  expect(sitemapContentUrls).toEqual(expectedCanonicalUrls);
+  expect(rssItemLinks(rss)).toEqual(
+    content
+      .filter(({ kind }) => kind === 'blog')
+      .map(({ route }) => new URL(route, SITE.siteUrl).toString())
+      .sort(),
+  );
+
+  for (const item of content) {
+    const canonical = new URL(item.route, SITE.siteUrl).toString();
+    expect(occurrences(sitemap, `<loc>${canonical}</loc>`)).toBe(1);
+
+    const response = await page.goto(item.route);
+    expect(response?.status()).toBe(200);
+    await expect(page.locator('meta[name="robots"]')).toHaveAttribute(
+      'content',
+      'index, follow',
+    );
+    await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
+      'href',
+      canonical,
+    );
+    await expect(page.locator('meta[property="og:url"]')).toHaveAttribute(
+      'content',
+      canonical,
+    );
+    await expect(page.locator('meta[property="og:type"]')).toHaveAttribute(
+      'content',
+      item.openGraphType,
+    );
+    await expect(page).toHaveTitle(
+      `${item.seoTitle ?? item.title} | Jet Sanchez`,
+    );
+
+    const seoDescription = item.seoDescription ?? item.description;
+    await expect(page.locator('meta[name="description"]')).toHaveAttribute(
+      'content',
+      seoDescription,
+    );
+    await expect(
+      page.locator(`main time[datetime="${item.date.toISOString()}"]`),
+    ).toBeVisible();
+
+    const schemas = (
+      await page.locator('script[type="application/ld+json"]').allTextContents()
+    ).map((schema) => JSON.parse(schema) as JsonLdSchema);
+    const entity = schemas.find(
+      (schema) => schema['@type'] === item.entityType,
+    );
+    expect(entity).toMatchObject({
+      url: canonical,
+      description: item.description,
+      mainEntityOfPage: { '@id': `${canonical}#webpage` },
+      datePublished: item.date.toISOString(),
+    });
+    expect(entity?.dateModified).toBe(item.dateModified?.toISOString());
+    if (item.identifier !== undefined) {
+      expect(entity).toMatchObject({
+        identifier: item.identifier,
+        sameAs: [item.identifier],
+      });
+    }
+
+    for (const link of item.links ?? []) {
+      await expect(
+        page.getByRole('link', { name: link.label, exact: true }),
+      ).toHaveAttribute('href', link.url);
+    }
+
+    if (item.image?.width !== undefined) {
+      await expect(
+        page.locator('meta[property="og:image:width"]'),
+      ).toHaveAttribute('content', String(item.image.width));
+    }
+    if (item.image?.height !== undefined) {
+      await expect(
+        page.locator('meta[property="og:image:height"]'),
+      ).toHaveAttribute('content', String(item.image.height));
+    }
+    if (item.review !== undefined) {
+      expect(
+        schemas.find((schema) => schema['@type'] === 'Review'),
+      ).toMatchObject({
+        url: canonical,
+        reviewRating: {
+          ratingValue: item.review.ratingValue,
+          bestRating: item.review.bestRating,
+        },
+        itemReviewed: {
+          '@type': 'Movie',
+          name: item.review.itemName,
+        },
+      });
+    }
+  }
 });
 
 test('production preserves core containment and canonical redirects', async ({
