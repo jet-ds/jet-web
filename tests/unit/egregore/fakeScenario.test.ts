@@ -628,6 +628,25 @@ describe('Egregore fake browser scenarios', () => {
     ]);
   });
 
+  it('fails explicitly when the citation fixture topology is unavailable', () => {
+    const packed = {
+      sources: [
+        {
+          citationId: 'S1',
+          canonicalUrl: '/only-document/',
+        },
+        {
+          citationId: 'S2',
+          canonicalUrl: '/only-document/',
+        },
+      ],
+    } as unknown as SelectionResult;
+
+    expect(() => configureFakeCitationSelection(packed)).toThrow(
+      'FAKE_CITATION_FIXTURE_TOPOLOGY_UNAVAILABLE',
+    );
+  });
+
   it('seeds an independent privacy sentinel into fake selected context only', () => {
     const packed = {
       sources: [

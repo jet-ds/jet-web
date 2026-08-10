@@ -2234,7 +2234,7 @@ test.describe('Egregore responses, citations, and scrolling', () => {
     await expect(firstLinks.first()).toContainText(LONG_SOURCE_TITLE);
     expect(await firstDisclosure.textContent()).not.toContain(SOURCE_SENTINEL);
 
-    await submitQuestion(page, 'What does Jet write about agentic work?');
+    await submitQuestion(page, `${LONG_SOURCE_TITLE} ${SOURCE_SENTINEL}`);
     await waitForCompletedResponse(page);
     const disclosures = page.getByTestId('response-source-disclosure');
     await expect(disclosures).toHaveCount(2);
