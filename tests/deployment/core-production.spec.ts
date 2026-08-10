@@ -156,9 +156,13 @@ test('Production publishes every tracked published content contract', async ({
     .map(({ route }) => new URL(route, SITE.siteUrl).toString())
     .sort();
   const sitemapContentUrls = sitemapLocations(sitemap)
-    .filter((location) =>
-      /^\/(?:blog|works)\/.+\/$/u.test(new URL(location).pathname),
-    )
+    .filter((location) => {
+      const pathname = new URL(location).pathname;
+      return ['/blog/', '/works/'].some(
+        (collectionRoot) =>
+          pathname.startsWith(collectionRoot) && pathname !== collectionRoot,
+      );
+    })
     .sort();
   expect(sitemapContentUrls).toEqual(expectedCanonicalUrls);
   expect(rssItemLinks(rss)).toEqual(

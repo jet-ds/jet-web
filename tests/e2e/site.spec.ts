@@ -1311,7 +1311,11 @@ test('content discovery surfaces exactly match tracked publication state', async
   );
 
   const sitemapContentRoutes = (await publicHtmlRoutes(request)).filter(
-    (route) => /^\/(?:blog|works)\/.+\/$/u.test(route),
+    (route) =>
+      ['/blog/', '/works/'].some(
+        (collectionRoot) =>
+          route.startsWith(collectionRoot) && route !== collectionRoot,
+      ),
   );
   expect(sitemapContentRoutes).toEqual(
     content.map(({ route }) => route).sort(),
