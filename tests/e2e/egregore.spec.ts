@@ -35,6 +35,7 @@ const SOURCE_SENTINEL = 'EGREGORE_SOURCE_SENTINEL_4a6c1b';
 
 type FakeScenario =
   | 'default'
+  | 'published-corpus'
   | 'checking'
   | 'unsupported'
   | 'load-failure'
@@ -623,7 +624,7 @@ test.describe('Egregore consent and local privacy', () => {
     await installFetchAudit(page);
     const browserRequests: Request[] = [];
     page.on('request', (request) => browserRequests.push(request));
-    await page.goto(fakePath());
+    await page.goto(fakePath('published-corpus'));
     await page.waitForLoadState('networkidle');
     browserRequests.length = 0;
     await page.evaluate(() => {
@@ -737,6 +738,25 @@ test.describe('Egregore consent and local privacy', () => {
         allowBrowserCookie: isApplicationAsset || isAnalytics,
       });
     }
+  });
+
+  test('keeps lifecycle scenarios independent from the published corpus', async ({
+    page,
+  }) => {
+    await installFetchAudit(page);
+    await startFakeAssistant(page);
+    await submitQuestionAndWait(
+      page,
+      'What does Jet write about agentic work?',
+    );
+
+    expect(
+      (await auditedFetches(page)).filter(({ url }) =>
+        CORPUS_PATHS.includes(
+          new URL(url).pathname as (typeof CORPUS_PATHS)[number],
+        ),
+      ),
+    ).toEqual([]);
   });
 });
 
@@ -1956,7 +1976,7 @@ test.describe('Egregore loading hierarchy and activation recovery', () => {
         { width: 1280, height: 800 },
       ]) {
         await page.setViewportSize(viewport);
-        await page.goto(fakePath());
+        await page.goto(fakePath('published-corpus'));
         await page.getByRole('button', { name: 'Check compatibility' }).click();
         const slot = page.getByTestId('activation-status-message');
         const activationMain = page.getByTestId('activation-main');
@@ -2048,7 +2068,7 @@ test.describe('Egregore responses, citations, and scrolling', () => {
   test('grounds a profile question in the canonical About source without exposing uncited context', async ({
     page,
   }) => {
-    await startFakeAssistant(page);
+    await startFakeAssistant(page, 'published-corpus');
     await submitQuestionAndWait(page, 'Who is Jet?');
 
     const response = page.locator('[aria-label="Conversation"] article').last();
@@ -2085,7 +2105,7 @@ test.describe('Egregore responses, citations, and scrolling', () => {
   test('keeps a representative live-corpus follow-up within one local session', async ({
     page,
   }) => {
-    await startFakeAssistant(page);
+    await startFakeAssistant(page, 'published-corpus');
     await submitQuestionAndWait(
       page,
       'What does Jet write about agentic work?',

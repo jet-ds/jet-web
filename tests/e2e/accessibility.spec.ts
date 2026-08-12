@@ -6,6 +6,7 @@ import {
   type Locator,
   type Page,
 } from '@playwright/test';
+import { publishedContent } from '../support/publishedContent';
 
 const suggestedQuestions = [
   'What does Jet write about agentic work?',
@@ -162,6 +163,19 @@ async function sitemapHtmlRoutes(request: APIRequestContext) {
   return [...routes].sort();
 }
 
+const publicHtmlRoutes = [
+  '/',
+  '/about/',
+  '/blog/',
+  '/chatbot/',
+  '/contact/',
+  '/licenses/egregore/',
+  '/works/',
+  ...publishedContent().map(({ route }) => route),
+].filter((route, index, routes) => routes.indexOf(route) === index);
+
+const accessibilityRoutes = [...publicHtmlRoutes, '/tools/'].sort();
+
 async function focusWithKeyboard(page: Page, target: Locator) {
   await expect(target).toBeVisible();
   await expect(target).toBeEnabled();
@@ -187,41 +201,33 @@ async function expectLifecycleAccessibility(page: Page, announcement: string) {
   await expect(compactStatus).not.toHaveAttribute('role', /.+/);
 }
 
-for (const theme of ['light', 'dark'] as const) {
-  test(`every sitemap HTML page plus the dormant route is axe-clean in ${theme} theme`, async ({
-    page,
-    request,
-  }, testInfo) => {
-    test.skip(testInfo.project.name !== 'chromium');
-    test.slow();
+test('the accessibility route matrix covers every sitemap HTML page plus the dormant route', async ({
+  request,
+}) => {
+  const sitemapRoutes = await sitemapHtmlRoutes(request);
+  expect(sitemapRoutes).toContain('/chatbot/');
+  expect(sitemapRoutes).not.toContain('/tools/');
+  expect(accessibilityRoutes).toEqual([...sitemapRoutes, '/tools/'].sort());
+});
 
-    await page.addInitScript((selectedTheme) => {
-      localStorage.setItem('theme', selectedTheme);
-    }, theme);
+for (const route of accessibilityRoutes) {
+  for (const theme of ['light', 'dark'] as const) {
+    test(`${route} is axe-clean in ${theme} theme`, async ({
+      page,
+    }, testInfo) => {
+      test.skip(testInfo.project.name !== 'chromium');
 
-    const sitemapRoutes = await sitemapHtmlRoutes(request);
-    expect(sitemapRoutes).toContain('/chatbot/');
-    expect(sitemapRoutes).not.toContain('/tools/');
+      await page.addInitScript((selectedTheme) => {
+        localStorage.setItem('theme', selectedTheme);
+      }, theme);
 
-    const failures = [];
-    for (const route of [...sitemapRoutes, '/tools/']) {
       await page.goto(route);
       await expect(page.locator('html')).toHaveClass(
         theme === 'dark' ? /\bdark\b/u : /^(?!.*\bdark\b)/u,
       );
-      for (const violation of await seriousAxeViolations(page)) {
-        for (const node of violation.nodes) {
-          failures.push({
-            route,
-            rule: violation.id,
-            target: node.target,
-            summary: node.failureSummary,
-          });
-        }
-      }
-    }
-    expect(failures, `axe violations in ${theme} theme`).toEqual([]);
-  });
+      await expectNoSeriousAxeViolations(page, `${route} in ${theme} theme`);
+    });
+  }
 }
 
 test('Egregore introduction, ready, and response states remain accessible by keyboard', async ({
@@ -314,7 +320,7 @@ test('Egregore recoverable error is axe-clean and keyboard operable', async ({
       body: 'Temporarily unavailable',
     });
   });
-  await page.goto('/chatbot/?runtime=fake');
+  await page.goto('/chatbot/?runtime=fake&scenario=published-corpus');
 
   const compatibility = page.getByRole('button', {
     name: 'Check compatibility',

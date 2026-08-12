@@ -28,6 +28,7 @@ export const FORBIDDEN_PRODUCTION_ARTIFACT_MARKERS = [
   'stop-recovery',
   'late-event',
   'EGREGORE_SOURCE_SENTINEL_4a6c1b',
+  'local-first-agentic-systems',
 ] as const;
 
 export interface ForbiddenProductionArtifact {
