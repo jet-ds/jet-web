@@ -124,6 +124,7 @@ describe('ordinary production artifact containment', () => {
       'stop-recovery',
       'late-event',
       'EGREGORE_SOURCE_SENTINEL_4a6c1b',
+      'local-first-agentic-systems',
       'egregore:qualification-observation',
       'retrieval-context-selection-ms',
     ];
