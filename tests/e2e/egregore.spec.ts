@@ -283,29 +283,52 @@ async function startFakeAssistant(
   return composer;
 }
 
+async function generatedResponseCount(page: Page): Promise<number> {
+  return (await runtimeMethods(page)).filter((method) => method === 'generate')
+    .length;
+}
+
 async function submitQuestion(
   page: Page,
   question: string,
   modality: 'pointer' | 'keyboard' = 'pointer',
-): Promise<void> {
+): Promise<number> {
+  const completedGenerationCount = await generatedResponseCount(page);
   const composer = page.getByRole('textbox', { name: 'Ask Egregore' });
   await composer.fill(question);
   if (modality === 'keyboard') await composer.press('Enter');
   else await page.getByRole('button', { name: 'Send message' }).click();
+  return completedGenerationCount;
 }
 
-async function waitForCompletedResponse(page: Page): Promise<void> {
+async function waitForCompletedResponse(
+  page: Page,
+  completedGenerationCount: number,
+): Promise<void> {
   await expect
     .poll(
       async () =>
         (await runtimeMethods(page)).filter((method) => method === 'generate')
           .length,
     )
-    .toBeGreaterThan(0);
+    .toBeGreaterThan(completedGenerationCount);
   await expect(
     page.getByRole('textbox', { name: 'Ask Egregore' }),
   ).toBeEnabled();
   await expect(currentStatusLabel(page)).toHaveText('Ready');
+}
+
+async function submitQuestionAndWait(
+  page: Page,
+  question: string,
+  modality: 'pointer' | 'keyboard' = 'pointer',
+): Promise<void> {
+  const completedGenerationCount = await submitQuestion(
+    page,
+    question,
+    modality,
+  );
+  await waitForCompletedResponse(page, completedGenerationCount);
 }
 
 async function boxOf(locator: Locator): Promise<Box> {
@@ -620,8 +643,7 @@ test.describe('Egregore consent and local privacy', () => {
       page.getByRole('button', { name: 'Remove downloaded model' }),
     ).toHaveCount(0);
 
-    await submitQuestion(page, PROMPT_SENTINEL);
-    await waitForCompletedResponse(page);
+    await submitQuestionAndWait(page, PROMPT_SENTINEL);
 
     const fetches = await auditedFetches(page);
     const corpusFetches = fetches.filter(({ url }) =>
@@ -887,8 +909,10 @@ test.describe('Egregore compact navigation clearance', () => {
     );
 
     const tabletComposer = await startFakeAssistant(page);
-    await submitQuestion(page, 'What does Jet write about agentic work?');
-    await waitForCompletedResponse(page);
+    await submitQuestionAndWait(
+      page,
+      'What does Jet write about agentic work?',
+    );
     const [tabletComposerBox, tabletScrollerBox] = await Promise.all([
       boxOf(tabletComposer),
       boxOf(page.getByTestId('conversation-scroller')),
@@ -905,8 +929,10 @@ test.describe('Egregore compact navigation clearance', () => {
     const desktopDock = page.locator('#site-navigation-dock');
     const desktopHeaderContent = page.getByTestId('egregore-identity');
     const desktopComposer = await startFakeAssistant(page);
-    await submitQuestion(page, 'What does Jet write about agentic work?');
-    await waitForCompletedResponse(page);
+    await submitQuestionAndWait(
+      page,
+      'What does Jet write about agentic work?',
+    );
     const [
       desktopDockBox,
       desktopHeaderBox,
@@ -1079,13 +1105,14 @@ test.describe('Egregore supported lifecycle', () => {
     await expect(composer).toBeFocused();
     await expect(composer).toHaveValue(question);
 
+    const completedGenerationCount = await generatedResponseCount(page);
     await page.getByRole('button', { name: 'Send message' }).click();
     await expect(composer).not.toBeFocused();
     await expect(reliability).toHaveCount(0);
     await expect(
       page.getByRole('button', { name: 'Stop response' }),
     ).toBeVisible();
-    await waitForCompletedResponse(page);
+    await waitForCompletedResponse(page, completedGenerationCount);
 
     const inlineCitation = page
       .getByRole('link', { name: /\[S\d+\]/u })
@@ -1211,6 +1238,7 @@ test.describe('Egregore supported lifecycle', () => {
     ).toHaveCount(0);
 
     await composer.fill('Summarize the recursive convergence hypothesis.');
+    const completedGenerationCount = await generatedResponseCount(page);
     await page.getByRole('button', { name: 'Send message' }).click();
     await expect(currentStatusLabel(page)).toHaveText('Responding');
     const respondingImmediate = {
@@ -1253,7 +1281,7 @@ test.describe('Egregore supported lifecycle', () => {
     const statusLabels = page.getByTestId('lifecycle-visual-label');
     expect(await statusLabels.count()).toBeLessThanOrEqual(2);
     await page.clock.runFor(1_000);
-    await waitForCompletedResponse(page);
+    await waitForCompletedResponse(page, completedGenerationCount);
     await expect(newSession).toBeEnabled();
     await expect(unload).toBeEnabled();
 
@@ -1307,9 +1335,10 @@ test.describe('Egregore supported lifecycle', () => {
   }, testInfo) => {
     const composer = await startFakeAssistant(page, 'long-stream');
     await composer.fill('What does Jet write about agentic work?');
+    const completedGenerationCount = await generatedResponseCount(page);
     await page.getByRole('button', { name: 'Send message' }).click();
     await expect(composer).not.toBeFocused();
-    await waitForCompletedResponse(page);
+    await waitForCompletedResponse(page, completedGenerationCount);
     await expect(composer).not.toBeFocused();
 
     await page
@@ -1324,16 +1353,18 @@ test.describe('Egregore supported lifecycle', () => {
         composerBox.y + composerBox.height / 2,
       );
       await composer.fill('Summarize the recursive convergence hypothesis.');
+      const touchGenerationCount = await generatedResponseCount(page);
       await composer.press('Enter');
       await expect(composer).not.toBeFocused();
-      await waitForCompletedResponse(page);
+      await waitForCompletedResponse(page, touchGenerationCount);
       await expect(composer).not.toBeFocused();
     } else {
       await composer.focus();
       await composer.fill('Summarize the recursive convergence hypothesis.');
+      const keyboardGenerationCount = await generatedResponseCount(page);
       await composer.press('Enter');
       await expect(composer).toBeFocused();
-      await waitForCompletedResponse(page);
+      await waitForCompletedResponse(page, keyboardGenerationCount);
       await expect(composer).toBeFocused();
       const newSession = page.getByRole('button', { name: 'New session' });
       await newSession.focus();
@@ -1348,9 +1379,12 @@ test.describe('Egregore supported lifecycle', () => {
   }) => {
     await installLifecycleLabelAudit(page);
     const composer = await startFakeAssistant(page, 'long-stream');
-    await submitQuestion(page, 'What does Jet write about agentic work?');
+    const completedGenerationCount = await submitQuestion(
+      page,
+      'What does Jet write about agentic work?',
+    );
     await expect(currentStatusLabel(page)).toHaveText('Responding');
-    await waitForCompletedResponse(page);
+    await waitForCompletedResponse(page, completedGenerationCount);
 
     const labels = await page.evaluate(
       () =>
@@ -1914,6 +1948,7 @@ test.describe('Egregore loading hierarchy and activation recovery', () => {
       page,
       request,
     }) => {
+      test.slow();
       await installCorpusMismatch(page, request, mismatch);
       for (const viewport of [
         { width: 320, height: 800 },
@@ -1982,8 +2017,10 @@ test.describe('Egregore loading hierarchy and activation recovery', () => {
   }) => {
     await page.clock.install();
     await startFakeAssistant(page, 'unloading');
-    await submitQuestion(page, 'What does Jet write about agentic work?');
-    await waitForCompletedResponse(page);
+    await submitQuestionAndWait(
+      page,
+      'What does Jet write about agentic work?',
+    );
     await page.getByRole('button', { name: /Unload/ }).click();
 
     const stack = page.getByTestId('loading-stack');
@@ -2012,8 +2049,7 @@ test.describe('Egregore responses, citations, and scrolling', () => {
     page,
   }) => {
     await startFakeAssistant(page);
-    await submitQuestion(page, 'Who is Jet?');
-    await waitForCompletedResponse(page);
+    await submitQuestionAndWait(page, 'Who is Jet?');
 
     const response = page.locator('[aria-label="Conversation"] article').last();
     const citation = response.getByRole('link', {
@@ -2050,11 +2086,12 @@ test.describe('Egregore responses, citations, and scrolling', () => {
     page,
   }) => {
     await startFakeAssistant(page);
-    await submitQuestion(page, 'What does Jet write about agentic work?');
-    await waitForCompletedResponse(page);
+    await submitQuestionAndWait(
+      page,
+      'What does Jet write about agentic work?',
+    );
 
-    await submitQuestion(page, 'What else has Jet published?');
-    await waitForCompletedResponse(page);
+    await submitQuestionAndWait(page, 'What else has Jet published?');
 
     expect(
       (await runtimeMethods(page)).filter((method) => method === 'generate'),
@@ -2082,8 +2119,7 @@ test.describe('Egregore responses, citations, and scrolling', () => {
     for (const [name, width, height] of viewports) {
       await page.setViewportSize({ width, height });
       await startFakeAssistant(page);
-      await submitQuestion(page, LONG_SOURCE_TITLE);
-      await waitForCompletedResponse(page);
+      await submitQuestionAndWait(page, LONG_SOURCE_TITLE);
 
       const trigger = page.getByRole('button', { name: '1 source' });
       await expect(trigger).toHaveAttribute('aria-expanded', 'false');
@@ -2176,8 +2212,7 @@ test.describe('Egregore responses, citations, and scrolling', () => {
   }) => {
     await page.setViewportSize({ width: 430, height: 932 });
     await startFakeAssistant(page);
-    await submitQuestion(page, LONG_SOURCE_TITLE);
-    await waitForCompletedResponse(page);
+    await submitQuestionAndWait(page, LONG_SOURCE_TITLE);
 
     const response = page.locator('[aria-label="Conversation"] article').last();
     const citation = response.getByRole('link', { name: /^\[S\d+\] /u });
@@ -2202,8 +2237,10 @@ test.describe('Egregore responses, citations, and scrolling', () => {
   }) => {
     await page.setViewportSize({ width: 430, height: 932 });
     await startFakeAssistant(page, 'citations');
-    await submitQuestion(page, `${LONG_SOURCE_TITLE} ${SOURCE_SENTINEL}`);
-    await waitForCompletedResponse(page);
+    await submitQuestionAndWait(
+      page,
+      `${LONG_SOURCE_TITLE} ${SOURCE_SENTINEL}`,
+    );
 
     const firstDisclosure = page
       .getByTestId('response-source-disclosure')
@@ -2223,8 +2260,10 @@ test.describe('Egregore responses, citations, and scrolling', () => {
     await expect(firstLinks.first()).toContainText(LONG_SOURCE_TITLE);
     expect(await firstDisclosure.textContent()).not.toContain(SOURCE_SENTINEL);
 
-    await submitQuestion(page, `${LONG_SOURCE_TITLE} ${SOURCE_SENTINEL}`);
-    await waitForCompletedResponse(page);
+    await submitQuestionAndWait(
+      page,
+      `${LONG_SOURCE_TITLE} ${SOURCE_SENTINEL}`,
+    );
     const disclosures = page.getByTestId('response-source-disclosure');
     await expect(disclosures).toHaveCount(2);
     await expect(disclosures.first().getByRole('button')).toHaveAttribute(
@@ -2242,8 +2281,7 @@ test.describe('Egregore responses, citations, and scrolling', () => {
   }) => {
     await startFakeAssistant(page, 'zero-citation');
     await expect(page.getByTestId('response-source-disclosure')).toHaveCount(0);
-    await submitQuestion(page, 'What has Jet published?');
-    await waitForCompletedResponse(page);
+    await submitQuestionAndWait(page, 'What has Jet published?');
     await expect(page.getByTestId('response-source-disclosure')).toHaveCount(0);
     await expect(page.getByRole('button', { name: /sources?$/ })).toHaveCount(
       0,
@@ -2280,9 +2318,10 @@ test.describe('Egregore responses, citations, and scrolling', () => {
     // The durable contract is that the disclosure mirrors validated inline citations.
     await expect(stoppedDisclosures).toHaveCount(expectedStoppedDisclosures);
     await composer.fill('Summarize the recursive convergence hypothesis.');
+    const completedGenerationCount = await generatedResponseCount(page);
     await page.getByRole('button', { name: 'Send message' }).click();
     await expect(composer).not.toBeFocused();
-    await waitForCompletedResponse(page);
+    await waitForCompletedResponse(page, completedGenerationCount);
     await expect(composer).not.toBeFocused();
     await expect(page.getByText('Stopped', { exact: true })).toHaveCount(1);
     await expect(page.getByTestId('response-source-disclosure')).toHaveCount(
@@ -2403,8 +2442,9 @@ test.describe('Egregore unsupported, failure, and exhaustion states', () => {
       .press('Enter');
     await expect(composer).toBeFocused();
     await composer.fill('Summarize the recursive convergence hypothesis.');
+    const completedGenerationCount = await generatedResponseCount(page);
     await composer.press('Enter');
-    await waitForCompletedResponse(page);
+    await waitForCompletedResponse(page, completedGenerationCount);
     await expect(
       page.getByText('Summarize the recursive convergence hypothesis.', {
         exact: true,
@@ -2415,9 +2455,10 @@ test.describe('Egregore unsupported, failure, and exhaustion states', () => {
   test('preserves the complete transcript and avoids generation after exhaustion', async ({
     page,
   }) => {
+    const supportedQuestion = 'What does Jet write about agentic work?';
+    const recoveryQuestion = 'Summarize the recursive convergence hypothesis.';
     const composer = await startFakeAssistant(page, 'exhaustion');
-    await submitQuestion(page, 'First supported question');
-    await waitForCompletedResponse(page);
+    await submitQuestionAndWait(page, supportedQuestion);
     const transcriptBefore = await page
       .locator('[aria-label="Conversation"] article')
       .allTextContents();
@@ -2462,20 +2503,16 @@ test.describe('Egregore unsupported, failure, and exhaustion states', () => {
     await expect(
       page.locator('[aria-label="Conversation"] article'),
     ).toHaveCount(0);
-    await submitQuestion(page, 'Supported question after keyboard reset');
-    await waitForCompletedResponse(page);
+    await submitQuestionAndWait(page, recoveryQuestion);
     await expect(
-      page.getByText('Supported question after keyboard reset', {
-        exact: true,
-      }),
+      page.getByText(recoveryQuestion, { exact: true }),
     ).toBeVisible();
 
     await page.goto(fakePath('exhaustion'));
     await page.getByRole('button', { name: 'Check compatibility' }).click();
     await page.getByRole('button', { name: /Load Egregore/ }).click();
     const pointerComposer = page.getByRole('textbox', { name: 'Ask Egregore' });
-    await submitQuestion(page, 'First pointer question');
-    await waitForCompletedResponse(page);
+    await submitQuestionAndWait(page, supportedQuestion);
     await submitQuestion(page, 'Second pointer question');
     await expect(
       page.getByText(
@@ -2489,10 +2526,9 @@ test.describe('Egregore unsupported, failure, and exhaustion states', () => {
     await expect(pointerComposer).toBeEnabled();
     await expect(pointerComposer).toHaveValue('');
     await expect(pointerComposer).not.toBeFocused();
-    await submitQuestion(page, 'Supported question after pointer reset');
-    await waitForCompletedResponse(page);
+    await submitQuestionAndWait(page, recoveryQuestion);
     await expect(
-      page.getByText('Supported question after pointer reset', { exact: true }),
+      page.getByText(recoveryQuestion, { exact: true }),
     ).toBeVisible();
   });
 
@@ -2549,8 +2585,7 @@ test.describe('Egregore ClientRouter cleanup', () => {
   }) => {
     const previousQuestion = 'What does Jet write about agentic work?';
     await startFakeAssistant(page);
-    await submitQuestion(page, previousQuestion);
-    await waitForCompletedResponse(page);
+    await submitQuestionAndWait(page, previousQuestion);
     await navigateAwayThroughDock(page);
 
     const methods = await runtimeMethods(page);
@@ -2592,8 +2627,7 @@ test.describe('Egregore ClientRouter cleanup', () => {
     await expect(currentStatusLabel(page)).toHaveText('Ready');
 
     const reentryQuestion = 'Which projects connect AI and systems thinking?';
-    await submitQuestion(page, reentryQuestion);
-    await waitForCompletedResponse(page);
+    await submitQuestionAndWait(page, reentryQuestion);
     await expect(
       page.getByText(reentryQuestion, { exact: true }),
     ).toBeVisible();

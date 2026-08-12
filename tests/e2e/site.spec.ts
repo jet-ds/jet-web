@@ -325,44 +325,33 @@ test('compact immersive navigation keeps the disclosure visually separated from 
   expect(visualGap).toBeLessThanOrEqual(10);
 });
 
-test('content card covers navigate through their dominant action everywhere', async ({
+test('every rendered content-card cover uses its dominant card destination', async ({
   page,
 }) => {
-  const cases = [
-    {
-      route: '/',
-      imageName:
-        'Retro computer with a human arm and a floating brain against a split purple and orange background',
-      destination:
-        '/blog/vibe-coding-vs-agentic-coding-why-the-distinction-matters/',
-    },
-    {
-      route: '/',
-      imageName:
-        'Digital Squad Timesheet weekly dashboard for Jet Sanchez showing a populated July work week',
-      destination: '/works/digital-squad-timesheet/',
-    },
-    {
-      route: '/blog/',
-      imageName:
-        'Retro computer with a human arm and a floating brain against a split purple and orange background',
-      destination:
-        '/blog/vibe-coding-vs-agentic-coding-why-the-distinction-matters/',
-    },
-    {
-      route: '/works/',
-      imageName:
-        'Digital Squad Timesheet weekly dashboard for Jet Sanchez showing a populated July work week',
-      destination: '/works/digital-squad-timesheet/',
-    },
-  ] as const;
-
-  for (const { route, imageName, destination } of cases) {
+  for (const route of ['/', '/blog/', '/works/']) {
     await page.goto(route);
-    const cover = page.getByRole('img', { name: imageName });
-    await expect(cover).toBeVisible();
-    await cover.click();
-    await expect(page).toHaveURL(destination);
+    const destinations = await page
+      .locator(
+        'main [data-content-card] > a[href]:has([data-content-card-media])',
+      )
+      .evaluateAll((anchors) =>
+        anchors.flatMap((anchor) => {
+          const href = anchor.getAttribute('href');
+          return href === null ? [] : [href];
+        }),
+      );
+    expect(destinations.length).toBeGreaterThan(0);
+
+    for (const destination of destinations) {
+      await page.goto(route);
+      const dominantAction = page
+        .locator(`main [data-content-card] > a[href="${destination}"]`)
+        .first();
+      const cover = dominantAction.locator('[data-content-card-media]');
+      await expect(cover).toBeVisible();
+      await cover.click();
+      await expect(page).toHaveURL(destination);
+    }
   }
 });
 
