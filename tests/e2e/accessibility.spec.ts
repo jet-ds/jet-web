@@ -193,6 +193,7 @@ for (const theme of ['light', 'dark'] as const) {
     request,
   }, testInfo) => {
     test.skip(testInfo.project.name !== 'chromium');
+    test.slow();
 
     await page.addInitScript((selectedTheme) => {
       localStorage.setItem('theme', selectedTheme);
@@ -263,10 +264,16 @@ test('Egregore introduction, ready, and response states remain accessible by key
   await expect(composer).toBeFocused();
   await expect(composer).toHaveValue(suggestedQuestions[0]);
 
+  await page.clock.install();
+  const pageNow = await page.evaluate(() => Date.now());
+  await page.clock.pauseAt(pageNow + 1_000);
   const send = page.getByRole('button', { name: 'Send message' });
   await focusWithKeyboard(page, send);
   await page.keyboard.press('Enter');
   await expectLifecycleAccessibility(page, 'Egregore is responding.');
+  await page.clock.runFor(1_000);
+  await expectLifecycleAccessibility(page, 'Egregore is ready.');
+  await page.clock.resume();
 
   const conversation = page.getByLabel('Conversation');
   const response = conversation.locator('article').last().locator('p').first();

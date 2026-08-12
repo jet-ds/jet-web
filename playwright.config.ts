@@ -4,6 +4,7 @@ export default defineConfig({
   testDir: './tests/e2e',
   outputDir: 'test-results/playwright',
   fullyParallel: false,
+  workers: process.env.CI ? 2 : 3,
   forbidOnly: Boolean(process.env.CI),
   failOnFlakyTests: Boolean(process.env.CI),
   retries: process.env.CI ? 2 : 0,

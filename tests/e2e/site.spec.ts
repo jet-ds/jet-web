@@ -325,41 +325,38 @@ test('compact immersive navigation keeps the disclosure visually separated from 
   expect(visualGap).toBeLessThanOrEqual(10);
 });
 
-test('content card covers navigate through their dominant action everywhere', async ({
+test('every rendered content-card cover uses its dominant card destination', async ({
   page,
 }) => {
-  const cases = [
-    {
-      route: '/',
-      imageName:
-        'Retro computer with a human arm and a floating brain against a split purple and orange background',
-      destination:
-        '/blog/vibe-coding-vs-agentic-coding-why-the-distinction-matters/',
-    },
-    {
-      route: '/',
-      imageName:
-        'Digital Squad Timesheet weekly dashboard for Jet Sanchez showing a populated July work week',
-      destination: '/works/digital-squad-timesheet/',
-    },
-    {
-      route: '/blog/',
-      imageName:
-        'Retro computer with a human arm and a floating brain against a split purple and orange background',
-      destination:
-        '/blog/vibe-coding-vs-agentic-coding-why-the-distinction-matters/',
-    },
-    {
-      route: '/works/',
-      imageName:
-        'Digital Squad Timesheet weekly dashboard for Jet Sanchez showing a populated July work week',
-      destination: '/works/digital-squad-timesheet/',
-    },
-  ] as const;
-
-  for (const { route, imageName, destination } of cases) {
+  for (const route of ['/', '/blog/', '/works/']) {
     await page.goto(route);
-    const cover = page.getByRole('img', { name: imageName });
+    const bindings = await page
+      .locator('main [data-content-card] [data-content-card-media]')
+      .evaluateAll((covers) =>
+        covers.map((cover) => {
+          const dominantAction = cover.closest('a[href]');
+          const card = cover.closest('[data-content-card]');
+          return {
+            href: dominantAction?.getAttribute('href') ?? null,
+            isDirectCardAction: dominantAction?.parentElement === card,
+          };
+        }),
+      );
+    expect(bindings.length).toBeGreaterThan(0);
+    for (const binding of bindings) {
+      expect(binding.href).toBeTruthy();
+      expect(binding.isDirectCardAction).toBe(true);
+    }
+
+    const dominantAction = page
+      .locator(
+        'main [data-content-card] > a[href]:has([data-content-card-media])',
+      )
+      .first();
+    const destination = await dominantAction.getAttribute('href');
+    if (!destination)
+      throw new Error(`Missing content-card action on ${route}`);
+    const cover = dominantAction.locator('[data-content-card-media]');
     await expect(cover).toBeVisible();
     await cover.click();
     await expect(page).toHaveURL(destination);
