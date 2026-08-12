@@ -4,6 +4,7 @@ import { serializeSourcePayload } from '../sourcePayload';
 
 export const FAKE_SCENARIOS = [
   'default',
+  'published-corpus',
   'checking',
   'unsupported',
   'load-failure',
@@ -42,6 +43,7 @@ type ScenarioFailurePoint =
 
 export interface FakeScenarioConfiguration {
   responseChunks: readonly string[];
+  knowledgeSource: 'fixture' | 'published';
   failures?: Partial<Record<ScenarioFailurePoint, true | number>>;
   capabilityDelayMs?: number;
   loadDelayMs?: number;
@@ -68,9 +70,9 @@ const LONG_RESPONSE_CHUNKS = [
 
 const FAKE_SOURCE_SENTINEL = 'EGREGORE_SOURCE_SENTINEL_4a6c1b';
 
-export function getFakeScenarioConfiguration(
-  scenario: FakeScenario,
-): FakeScenarioConfiguration {
+type FakeScenarioDetails = Omit<FakeScenarioConfiguration, 'knowledgeSource'>;
+
+function getFakeScenarioDetails(scenario: FakeScenario): FakeScenarioDetails {
   switch (scenario) {
     case 'checking':
       return {
@@ -139,8 +141,18 @@ export function getFakeScenarioConfiguration(
         emitLateChunkAfterCancellation: true,
       };
     case 'default':
+    case 'published-corpus':
       return { responseChunks: DEFAULT_RESPONSE_CHUNKS, capabilityDelayMs: 50 };
   }
+}
+
+export function getFakeScenarioConfiguration(
+  scenario: FakeScenario,
+): FakeScenarioConfiguration {
+  return {
+    ...getFakeScenarioDetails(scenario),
+    knowledgeSource: scenario === 'published-corpus' ? 'published' : 'fixture',
+  };
 }
 
 export function configureFakeCitationSelection(

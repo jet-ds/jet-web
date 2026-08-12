@@ -53,6 +53,7 @@ import {
   FakeRuntimeRecorder,
   type FakeRuntimeCall,
 } from './runtime/fakeRuntime';
+import { createFakeKnowledgeRepository } from './runtime/fakeKnowledge';
 import {
   configureFakeCitationSelection,
   configureFakeSourceSentinel,
@@ -234,7 +235,10 @@ function createTestBuildDependencies(): EgregoreDependencies {
             },
       removeCurrent: async () => undefined,
     };
-    const repository = new StaticKnowledgeRepository();
+    const repository =
+      configuration.knowledgeSource === 'published'
+        ? new StaticKnowledgeRepository()
+        : createFakeKnowledgeRepository();
     exposeE2EAudit(recorder);
 
     return {

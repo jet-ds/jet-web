@@ -81,6 +81,7 @@ describe('Egregore fake browser scenarios', () => {
 
     expect(FAKE_SCENARIOS).toEqual([
       'default',
+      'published-corpus',
       'checking',
       'unsupported',
       'load-failure',
@@ -157,6 +158,11 @@ describe('Egregore fake browser scenarios', () => {
     );
     expect(getFakeScenarioConfiguration('default')).toMatchObject({
       capabilityDelayMs: 50,
+      knowledgeSource: 'fixture',
+    });
+    expect(getFakeScenarioConfiguration('published-corpus')).toMatchObject({
+      capabilityDelayMs: 50,
+      knowledgeSource: 'published',
     });
   });
 
