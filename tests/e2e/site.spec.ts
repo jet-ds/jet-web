@@ -330,28 +330,36 @@ test('every rendered content-card cover uses its dominant card destination', asy
 }) => {
   for (const route of ['/', '/blog/', '/works/']) {
     await page.goto(route);
-    const destinations = await page
+    const bindings = await page
+      .locator('main [data-content-card] [data-content-card-media]')
+      .evaluateAll((covers) =>
+        covers.map((cover) => {
+          const dominantAction = cover.closest('a[href]');
+          const card = cover.closest('[data-content-card]');
+          return {
+            href: dominantAction?.getAttribute('href') ?? null,
+            isDirectCardAction: dominantAction?.parentElement === card,
+          };
+        }),
+      );
+    expect(bindings.length).toBeGreaterThan(0);
+    for (const binding of bindings) {
+      expect(binding.href).toBeTruthy();
+      expect(binding.isDirectCardAction).toBe(true);
+    }
+
+    const dominantAction = page
       .locator(
         'main [data-content-card] > a[href]:has([data-content-card-media])',
       )
-      .evaluateAll((anchors) =>
-        anchors.flatMap((anchor) => {
-          const href = anchor.getAttribute('href');
-          return href === null ? [] : [href];
-        }),
-      );
-    expect(destinations.length).toBeGreaterThan(0);
-
-    for (const destination of destinations) {
-      await page.goto(route);
-      const dominantAction = page
-        .locator(`main [data-content-card] > a[href="${destination}"]`)
-        .first();
-      const cover = dominantAction.locator('[data-content-card-media]');
-      await expect(cover).toBeVisible();
-      await cover.click();
-      await expect(page).toHaveURL(destination);
-    }
+      .first();
+    const destination = await dominantAction.getAttribute('href');
+    if (!destination)
+      throw new Error(`Missing content-card action on ${route}`);
+    const cover = dominantAction.locator('[data-content-card-media]');
+    await expect(cover).toBeVisible();
+    await cover.click();
+    await expect(page).toHaveURL(destination);
   }
 });
 
