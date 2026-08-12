@@ -625,7 +625,10 @@ test.describe('Egregore consent and local privacy', () => {
     const browserRequests: Request[] = [];
     page.on('request', (request) => browserRequests.push(request));
     await page.goto(fakePath('published-corpus'));
-    await page.waitForLoadState('networkidle');
+    const compatibilityButton = page.getByRole('button', {
+      name: 'Check compatibility',
+    });
+    await expect(compatibilityButton).toBeVisible();
     browserRequests.length = 0;
     await page.evaluate(() => {
       const auditedWindow = window as typeof window & {
@@ -634,7 +637,7 @@ test.describe('Egregore consent and local privacy', () => {
       auditedWindow.__EGREGORE_FETCHES__ = [];
     });
 
-    await page.getByRole('button', { name: 'Check compatibility' }).click();
+    await compatibilityButton.click();
     expect(await auditedFetches(page)).toEqual([]);
     await page.getByRole('button', { name: /Load Egregore/ }).click();
     await expect(
@@ -694,6 +697,10 @@ test.describe('Egregore consent and local privacy', () => {
         CORPUS_PATHS.includes(url.pathname as (typeof CORPUS_PATHS)[number]);
       const isApplicationAsset =
         url.origin === origin && url.pathname.startsWith('/_astro/');
+      const isDeclaredFontAsset =
+        (url.hostname === 'fonts.googleapis.com' && url.pathname === '/css2') ||
+        (url.hostname === 'fonts.gstatic.com' &&
+          url.pathname.startsWith('/l/font'));
       const runtimeAsset =
         url.origin === origin && url.pathname.startsWith(RUNTIME_ROOT)
           ? url.pathname.slice(RUNTIME_ROOT.length)
@@ -714,7 +721,11 @@ test.describe('Egregore consent and local privacy', () => {
           /\/(?:g\/)?collect$|\/gtag\/js$/u.test(url.pathname)) ||
         isPartytownAnalytics;
       expect(
-        isCorpus || isApplicationAsset || isRuntimeAsset || isAnalytics,
+        isCorpus ||
+          isApplicationAsset ||
+          isDeclaredFontAsset ||
+          isRuntimeAsset ||
+          isAnalytics,
         `Nonallowlisted request: ${url.origin}${url.pathname}`,
       ).toBe(true);
       if (!isAnalytics) {
