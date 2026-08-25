@@ -44,7 +44,6 @@ const worksData: WorksFrontmatter = {
   tags: ['AI', 'research'],
   status: 'published',
   assistant: true,
-  featured: true,
   image: {
     url: 'https://assets.public.blob.vercel-storage.com/images/works/research-project-e5f6a7b8.png',
     alt: 'A research illustration',
@@ -446,13 +445,6 @@ describe('source hash contract', () => {
       worksData,
       changedWorks((value) => {
         value.date = new Date('2025-09-01');
-      }),
-    ],
-    [
-      'featured',
-      worksData,
-      changedWorks((value) => {
-        value.featured = false;
       }),
     ],
     [

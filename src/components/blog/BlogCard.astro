@@ -9,10 +9,9 @@ interface Props {
 }
 
 const { record, variant = 'collection', headingLevel = 2 } = Astro.props;
-const tags = record.search?.tags ?? [];
 ---
 
-<div class="h-full" data-filter-item data-filter-values={JSON.stringify(tags)}>
+<div class="h-full">
   <ContentCard
     href={record.href}
     title={record.title}

@@ -147,7 +147,6 @@ export const worksSchema = z
     date: z.coerce.date(),
     tags: z.array(z.string()).default([]),
     ...publicationFields,
-    featured: z.boolean().default(false),
     homepagePriority: z.number().int().positive().optional(),
     image: worksImageSchema.optional(),
     links: z

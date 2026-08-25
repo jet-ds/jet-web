@@ -236,17 +236,15 @@ describe('content validation', () => {
     },
   );
 
-  it('accepts a positive integer homepagePriority while retaining featured compatibility', () => {
+  it('accepts a positive integer homepagePriority', () => {
     const result = worksSchema.safeParse({
       ...publishedWork,
       homepagePriority: 2,
-      featured: true,
     });
 
     expect(result.success).toBe(true);
     if (result.success) {
       expect(result.data.homepagePriority).toBe(2);
-      expect(result.data.featured).toBe(true);
     }
   });
 

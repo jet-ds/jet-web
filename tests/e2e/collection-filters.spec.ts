@@ -1,232 +1,145 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 
-type FilterConfig = {
-  route: '/blog/' | '/works/';
-  parameter: 'tag' | 'type';
-  groupName: string;
-  singular: 'post' | 'work';
-  plural: 'posts' | 'works';
-};
-
-const filters: FilterConfig[] = [
-  {
-    route: '/blog/',
-    parameter: 'tag',
-    groupName: 'Filter posts by tag',
-    singular: 'post',
-    plural: 'posts',
-  },
-  {
-    route: '/works/',
-    parameter: 'type',
-    groupName: 'Filter works by type',
-    singular: 'work',
-    plural: 'works',
-  },
-];
-
-function filterRoot(page: Page, parameter: FilterConfig['parameter']): Locator {
-  return page.locator(
-    `[data-collection-filter][data-filter-param="${parameter}"]`,
-  );
+function blogItems(page: Page): Locator {
+  return page.locator('[data-blog-search-item]');
 }
 
-function filterItems(root: Locator): Locator {
-  return root.locator('[data-filter-item]');
+function worksRoot(page: Page): Locator {
+  return page.locator('[data-collection-filter][data-filter-param="type"]');
 }
 
-function visibleFilterItems(root: Locator): Locator {
-  return root.locator('[data-filter-item]:visible');
+function workItems(page: Page): Locator {
+  return worksRoot(page).locator('[data-filter-item]');
 }
 
-function filterButton(root: Locator, value: string): Locator {
-  return root.locator(`button[data-filter-value="${value}"]`);
-}
+test('Blog keeps its complete collection available without JavaScript', async ({
+  browser,
+}) => {
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  const page = await context.newPage();
 
-function countFromLabel(label: string): number {
-  const match = /\((\d+)\)$/u.exec(label.trim());
-  expect(match, `expected a trailing count in "${label}"`).not.toBeNull();
-  return Number(match?.[1]);
-}
+  await page.goto('/blog/?q=invented-query');
+  const items = blogItems(page);
+  const total = await items.count();
 
-for (const config of filters) {
-  test(`${config.route} renders a complete useful collection without JavaScript`, async ({
-    browser,
-  }) => {
-    const context = await browser.newContext({ javaScriptEnabled: false });
-    const page = await context.newPage();
+  expect(total).toBeGreaterThan(0);
+  await expect(items.filter({ visible: true })).toHaveCount(total);
+  await expect(page.locator('[data-blog-search-enhancement]')).toBeHidden();
 
-    await page.goto(`${config.route}?${config.parameter}=not-a-real-filter`);
-    const root = filterRoot(page, config.parameter);
-    const items = filterItems(root);
-    const total = await items.count();
+  await context.close();
+});
 
-    expect(total).toBeGreaterThan(0);
-    await expect(visibleFilterItems(root)).toHaveCount(total);
-    await expect(root.locator('[data-filter-enhancement]')).toBeHidden();
-    const group = root.locator(
-      `[role="group"][aria-label="${config.groupName}"]`,
-    );
-    await expect(group).toHaveCount(1);
-    await expect(group).toBeHidden();
-    await expect(page.locator(`a[href*="?${config.parameter}="]`)).toHaveCount(
-      0,
-    );
+test('Works keeps its complete canonical sequence available without JavaScript', async ({
+  browser,
+}) => {
+  const context = await browser.newContext({ javaScriptEnabled: false });
+  const page = await context.newPage();
 
-    await context.close();
-  });
+  await page.goto('/works/?type=research');
+  const root = worksRoot(page);
+  const items = workItems(page);
+  const total = await items.count();
 
-  test(`${config.route} initializes to All with collection-derived counts`, async ({
-    page,
-  }) => {
-    await page.goto(config.route);
-    const root = filterRoot(page, config.parameter);
-    const items = filterItems(root);
-    const allButton = filterButton(root, '');
-    const total = await items.count();
+  expect(total).toBeGreaterThan(0);
+  await expect(items.filter({ visible: true })).toHaveCount(total);
+  await expect(root.locator('[data-filter-enhancement]')).toBeHidden();
 
-    expect(total).toBeGreaterThan(0);
-    await expect(visibleFilterItems(root)).toHaveCount(total);
-    await expect(allButton).toHaveAttribute('aria-pressed', 'true');
-    expect(countFromLabel(await allButton.innerText())).toBe(total);
-    await expect(root.getByRole('status')).toHaveText(
-      `${total} ${total === 1 ? config.singular : config.plural}`,
-    );
-    await expect(
-      root.getByRole('group', { name: config.groupName }),
-    ).toBeVisible();
-    await expect(root.locator('[data-filter-enhancement]')).toBeVisible();
-    await expect(page.locator(`a[href*="?${config.parameter}="]`)).toHaveCount(
-      0,
-    );
+  await context.close();
+});
 
-    const buttons = root.locator('button[data-filter-value]');
-    for (let index = 0; index < (await buttons.count()); index += 1) {
-      const button = buttons.nth(index);
-      const expectedVisibleCards = countFromLabel(await button.innerText());
-
-      await button.click();
-
-      await expect(button).toHaveAttribute('aria-pressed', 'true');
-      await expect(visibleFilterItems(root)).toHaveCount(expectedVisibleCards);
-    }
-  });
-}
-
-test('Blog restores a direct tag query and preserves the canonical collection URL', async ({
+test('Blog restores q, replaces its URL state, and clears back to the complete collection', async ({
   page,
 }) => {
-  await page.goto('/blog/?tag=TUTORIAL');
-  const root = filterRoot(page, 'tag');
-  const tutorial = filterButton(root, 'tutorial');
-  const expectedVisiblePosts = countFromLabel(await tutorial.innerText());
+  await page.goto('/blog/?q=invented-query&q=duplicate');
 
-  await expect(tutorial).toHaveAttribute('aria-pressed', 'true');
-  await expect(filterButton(root, '')).toHaveAttribute('aria-pressed', 'false');
-  await expect(visibleFilterItems(root)).toHaveCount(expectedVisiblePosts);
-  await expect(root.getByRole('status')).toHaveText(
-    `${expectedVisiblePosts} ${expectedVisiblePosts === 1 ? 'post' : 'posts'} tagged with "tutorial"`,
-  );
+  const input = page.getByRole('searchbox', { name: 'Search blog posts' });
+  const clear = page.getByRole('button', { name: 'Clear search' });
+  const total = await blogItems(page).count();
+
+  await expect(input).toHaveValue('invented-query');
+  await expect(clear).toBeVisible();
+  await expect(page.getByRole('status')).toBeVisible();
+  await expect(page.locator('[data-blog-search-empty]')).toBeVisible();
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
     'href',
     'https://jetsanchez.com/blog/',
   );
-  expect(new URL(page.url()).searchParams.get('tag')).toBe('tutorial');
+  expect(new URL(page.url()).searchParams.getAll('q')).toEqual([
+    'invented-query',
+  ]);
 
-  await page.reload();
-  await expect(
-    filterButton(filterRoot(page, 'tag'), 'tutorial'),
-  ).toHaveAttribute('aria-pressed', 'true');
-  await expect(visibleFilterItems(filterRoot(page, 'tag'))).toHaveCount(
-    expectedVisiblePosts,
-  );
+  const firstTitle = await page
+    .locator('script[data-blog-search-records]')
+    .evaluate((source) => {
+      const records = JSON.parse(source.textContent ?? '[]') as Array<{
+        title: string;
+      }>;
+      return records[0]?.title ?? '';
+    });
+  expect(firstTitle).not.toBe('');
+  await input.focus();
+  await input.fill(firstTitle);
+  expect(
+    await blogItems(page).filter({ visible: true }).count(),
+  ).toBeGreaterThan(0);
+  await expect(page.locator('[data-blog-search-empty]')).toBeHidden();
+  expect(new URL(page.url()).searchParams.getAll('q')).toEqual([firstTitle]);
+
+  await input.fill('another invented query');
+  await expect(input).toBeFocused();
+  await expect(page.locator('[data-blog-search-empty]')).toBeVisible();
+  expect(new URL(page.url()).searchParams.getAll('q')).toEqual([
+    'another invented query',
+  ]);
+
+  await clear.click();
+  await expect(input).toBeFocused();
+  await expect(input).toHaveValue('');
+  await expect(clear).toBeHidden();
+  await expect(blogItems(page).filter({ visible: true })).toHaveCount(total);
+  await expect(page.locator('[data-blog-search-empty]')).toBeHidden();
+  expect(new URL(page.url()).searchParams.has('q')).toBe(false);
 });
 
-test('Works restores a direct type query and preserves the canonical collection URL', async ({
+test('Blog normalizes whitespace-only q to the empty canonical state', async ({
+  page,
+}) => {
+  await page.goto('/blog/?q=%20%20%20');
+
+  const input = page.getByRole('searchbox', { name: 'Search blog posts' });
+  const items = blogItems(page);
+  const total = await items.count();
+
+  await expect(input).toHaveValue('');
+  await expect(items.filter({ visible: true })).toHaveCount(total);
+  expect(new URL(page.url()).searchParams.has('q')).toBe(false);
+});
+
+test('Works owns native pressed state and normalizes an invalid type to All', async ({
   page,
 }) => {
   await page.goto('/works/?type=RESEARCH');
-  const root = filterRoot(page, 'type');
-  const research = filterButton(root, 'research');
-  const expectedVisibleWorks = countFromLabel(await research.innerText());
+  let root = worksRoot(page);
+  const research = root.locator('button[data-filter-value="research"]');
 
   await expect(research).toHaveAttribute('aria-pressed', 'true');
-  await expect(filterButton(root, '')).toHaveAttribute('aria-pressed', 'false');
-  await expect(visibleFilterItems(root)).toHaveCount(expectedVisibleWorks);
-  await expect(root.getByRole('status')).toHaveText(
-    `${expectedVisibleWorks} ${expectedVisibleWorks === 1 ? 'work' : 'works'} in the research category`,
-  );
-  await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
-    'href',
-    'https://jetsanchez.com/works/',
-  );
   expect(new URL(page.url()).searchParams.get('type')).toBe('research');
-});
 
-test('Blog interaction filters cards, synchronizes the URL, and All clears it', async ({
-  page,
-}) => {
-  await page.goto('/blog/');
-  const root = filterRoot(page, 'tag');
-  const tutorial = filterButton(root, 'tutorial');
-  const expectedVisiblePosts = countFromLabel(await tutorial.innerText());
-
-  await tutorial.click();
-  await expect(visibleFilterItems(root)).toHaveCount(expectedVisiblePosts);
-  await expect(tutorial).toHaveAttribute('aria-pressed', 'true');
-  expect(new URL(page.url()).searchParams.get('tag')).toBe('tutorial');
-
-  await filterButton(root, '').click();
-  await expect(visibleFilterItems(root)).toHaveCount(
-    await filterItems(root).count(),
-  );
-  await expect(filterButton(root, '')).toHaveAttribute('aria-pressed', 'true');
-  expect(new URL(page.url()).searchParams.has('tag')).toBe(false);
-});
-
-test('Works buttons support the keyboard and expose the project category', async ({
-  page,
-}) => {
-  await page.goto('/works/');
-  const root = filterRoot(page, 'type');
-  const projects = filterButton(root, 'project');
-  const expectedVisibleWorks = countFromLabel(await projects.innerText());
-
+  const projects = root.locator('button[data-filter-value="project"]');
   await projects.focus();
   await page.keyboard.press('Enter');
-
+  await expect(projects).toBeFocused();
   await expect(projects).toHaveAttribute('aria-pressed', 'true');
-  await expect(visibleFilterItems(root)).toHaveCount(expectedVisibleWorks);
-  await expect(root.getByRole('status')).toHaveText(
-    `${expectedVisibleWorks} ${expectedVisibleWorks === 1 ? 'work' : 'works'} in the project category`,
-  );
-  await expect(root.locator('[data-filter-empty]')).toBeHidden();
   expect(new URL(page.url()).searchParams.get('type')).toBe('project');
 
-  const all = filterButton(root, '');
-  await all.focus();
-  await page.keyboard.press('Space');
-  await expect(visibleFilterItems(root)).toHaveCount(
-    await filterItems(root).count(),
+  await page.goto('/works/?type=not-a-real-type');
+  root = worksRoot(page);
+  await expect(root.locator('button[data-filter-value=""]')).toHaveAttribute(
+    'aria-pressed',
+    'true',
   );
-  await expect(root.locator('[data-filter-empty]')).toBeHidden();
+  await expect(workItems(page).filter({ visible: true })).toHaveCount(
+    await workItems(page).count(),
+  );
   expect(new URL(page.url()).searchParams.has('type')).toBe(false);
 });
-
-for (const config of filters) {
-  test(`${config.route} normalizes an invalid filter query back to All`, async ({
-    page,
-  }) => {
-    await page.goto(`${config.route}?${config.parameter}=not-a-real-filter`);
-    const root = filterRoot(page, config.parameter);
-
-    await expect(filterButton(root, '')).toHaveAttribute(
-      'aria-pressed',
-      'true',
-    );
-    await expect(visibleFilterItems(root)).toHaveCount(
-      await filterItems(root).count(),
-    );
-    expect(new URL(page.url()).searchParams.has(config.parameter)).toBe(false);
-  });
-}

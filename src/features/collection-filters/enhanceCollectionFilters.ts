@@ -65,16 +65,6 @@ function applyFilter(root: HTMLElement, requestedValue: string | null): void {
     );
   }
 
-  for (const section of root.querySelectorAll<HTMLElement>(
-    '[data-filter-section]',
-  )) {
-    const sectionItems = Array.from(
-      section.querySelectorAll<HTMLElement>('[data-filter-item]'),
-    );
-    section.hidden =
-      sectionItems.length > 0 && sectionItems.every((item) => item.hidden);
-  }
-
   const context = filterContext(root, selectedValue);
   const status = root.querySelector<HTMLElement>('[data-filter-status]');
   if (status) {
