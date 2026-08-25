@@ -48,7 +48,7 @@ function runProductionArtifactVerifier(directory: string) {
   );
 }
 
-function writeExactProductionSurface(directory: string): void {
+function writePreMarkdownProductionSurface(directory: string): void {
   const licensePageDirectory = join(directory, 'licenses', 'egregore');
   const liteRtDirectory = join(
     directory,
@@ -89,6 +89,31 @@ function writeExactProductionSurface(directory: string): void {
       '/licenses/minisearch-7.2.0-MIT.txt',
       '/licenses/stemmer-2.0.1-MIT.txt',
       '/assistant/runtime/litert-lm/0.14.0/LICENSE.txt',
+    ].join('\n'),
+  );
+}
+
+function writeRendererLicenseArtifacts(directory: string): void {
+  for (const filename of [
+    'react-markdown-10.1.0-MIT.txt',
+    'remark-gfm-4.0.1-MIT.txt',
+    'egregore-markdown-renderer-dependencies.txt',
+  ]) {
+    cpSync(join('LICENSES', filename), join(directory, 'licenses', filename));
+  }
+}
+
+function writeExactProductionSurface(directory: string): void {
+  writePreMarkdownProductionSurface(directory);
+  writeRendererLicenseArtifacts(directory);
+  const pagePath = join(directory, 'licenses', 'egregore', 'index.html');
+  writeFileSync(
+    pagePath,
+    [
+      readFileSync(pagePath, 'utf8'),
+      '/licenses/react-markdown-10.1.0-MIT.txt',
+      '/licenses/remark-gfm-4.0.1-MIT.txt',
+      '/licenses/egregore-markdown-renderer-dependencies.txt',
     ].join('\n'),
   );
 }
@@ -181,6 +206,31 @@ describe('ordinary production artifact containment', () => {
     expect(result.status).toBe(1);
     expect(result.stderr).toContain(
       'PRODUCTION_LICENSE_PAGE_INCOMPLETE:licenses/egregore/index.html:Egregore model and open-source licenses',
+    );
+  });
+
+  it('rejects the pre-Markdown renderer license artifact surface', () => {
+    const directory = temporaryBuildDirectory();
+    writePreMarkdownProductionSurface(directory);
+
+    const result = runProductionArtifactVerifier(directory);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      'PRODUCTION_LICENSE_ARTIFACT_MISSING:licenses/react-markdown-10.1.0-MIT.txt',
+    );
+  });
+
+  it('rejects a license page that omits the renderer license links', () => {
+    const directory = temporaryBuildDirectory();
+    writePreMarkdownProductionSurface(directory);
+    writeRendererLicenseArtifacts(directory);
+
+    const result = runProductionArtifactVerifier(directory);
+
+    expect(result.status).toBe(1);
+    expect(result.stderr).toContain(
+      'PRODUCTION_LICENSE_PAGE_INCOMPLETE:licenses/egregore/index.html:/licenses/react-markdown-10.1.0-MIT.txt',
     );
   });
 

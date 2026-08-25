@@ -100,6 +100,18 @@ const REQUIRED_LICENSE_ARTIFACTS = [
     sourcePath: 'LICENSES/stemmer-2.0.1-MIT.txt',
   },
   {
+    emittedPath: 'licenses/react-markdown-10.1.0-MIT.txt',
+    sourcePath: 'LICENSES/react-markdown-10.1.0-MIT.txt',
+  },
+  {
+    emittedPath: 'licenses/remark-gfm-4.0.1-MIT.txt',
+    sourcePath: 'LICENSES/remark-gfm-4.0.1-MIT.txt',
+  },
+  {
+    emittedPath: 'licenses/egregore-markdown-renderer-dependencies.txt',
+    sourcePath: 'LICENSES/egregore-markdown-renderer-dependencies.txt',
+  },
+  {
     emittedPath: 'assistant/runtime/litert-lm/0.14.0/LICENSE.txt',
     sourcePath: 'LICENSES/Apache-2.0.txt',
   },
@@ -112,6 +124,9 @@ const REQUIRED_LICENSE_PAGE_FRAGMENTS = [
   '/licenses/apache-2.0.txt',
   '/licenses/minisearch-7.2.0-MIT.txt',
   '/licenses/stemmer-2.0.1-MIT.txt',
+  '/licenses/react-markdown-10.1.0-MIT.txt',
+  '/licenses/remark-gfm-4.0.1-MIT.txt',
+  '/licenses/egregore-markdown-renderer-dependencies.txt',
   '/assistant/runtime/litert-lm/0.14.0/LICENSE.txt',
 ] as const;
 

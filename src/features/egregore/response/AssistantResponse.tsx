@@ -40,13 +40,29 @@ const ALLOWED_ELEMENTS = [
 type SafeDestination =
   { href: string; external: true } | { href: string; external: false };
 
+function containsControlCharacter(value: string): boolean {
+  const containsCodePoint = (
+    candidate: string,
+    includeSpace: boolean,
+  ): boolean =>
+    Array.from(candidate).some((character) => {
+      const codePoint = character.codePointAt(0) ?? Infinity;
+      return (
+        codePoint <= (includeSpace ? 0x20 : 0x1f) ||
+        (codePoint >= 0x7f && codePoint <= 0x9f)
+      );
+    });
+
+  if (containsCodePoint(value, true)) return true;
+  try {
+    return containsCodePoint(decodeURIComponent(value), false);
+  } catch {
+    return true;
+  }
+}
+
 function safeDestination(value: string | undefined): SafeDestination | null {
-  if (
-    value === undefined ||
-    Array.from(value).some(
-      (character) => (character.codePointAt(0) ?? Infinity) <= 0x20,
-    )
-  ) {
+  if (value === undefined || containsControlCharacter(value)) {
     return null;
   }
   if (/^#[^\s#]+$/u.test(value)) return { href: value, external: false };
@@ -105,8 +121,10 @@ function responseComponents(
     strong: ({ children }) => (
       <strong className="font-semibold">{children}</strong>
     ),
-    ol: ({ children }) => (
-      <ol className="ml-s list-decimal space-y-2xs pl-s">{children}</ol>
+    ol: ({ children, start }) => (
+      <ol start={start} className="ml-s list-decimal space-y-2xs pl-s">
+        {children}
+      </ol>
     ),
     ul: ({ children }) => (
       <ul className="ml-s list-disc space-y-2xs pl-s">{children}</ul>

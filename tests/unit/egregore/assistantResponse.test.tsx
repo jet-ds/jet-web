@@ -108,6 +108,14 @@ const safe = true;
     );
   });
 
+  it('preserves an authored ordered-list start value', () => {
+    const { container } = render(
+      <AssistantResponse turn={turn('4. Fourth\n5. Fifth')} />,
+    );
+
+    expect(container.querySelector('ol')).toHaveAttribute('start', '4');
+  });
+
   it('activates only allowed destinations with external-link isolation', () => {
     render(
       <AssistantResponse
@@ -148,6 +156,30 @@ const safe = true;
     }
   });
 
+  it('rejects raw and percent-decoded C0, DEL, and C1 controls in every link form', () => {
+    const { container } = render(
+      <AssistantResponse
+        turn={turn(
+          '[explicit-c0](https://example.com/a%0Db) [explicit-del](https://example.com/a%7Fb) [explicit-c1](https://example.com/a%C2%85b) [explicit-raw-c1](https://example.com/a\u0085b) [mail-control](mailto:jet@example.com?subject=a%0Ab) [fragment-control](#a%0Db) <https://example.com/auto%0Ab> https://example.com/bare%7Fb',
+        )}
+      />,
+    );
+
+    for (const text of [
+      'explicit-c0',
+      'explicit-del',
+      'explicit-c1',
+      'explicit-raw-c1',
+      'mail-control',
+      'fragment-control',
+      'https://example.com/auto%0Ab',
+      'https://example.com/bare%7Fb',
+    ]) {
+      expect(container).toHaveTextContent(text);
+    }
+    expect(container.querySelector('a')).toBeNull();
+  });
+
   it('keeps raw HTML and remote images inert while retaining readable text', () => {
     const { container } = render(
       <AssistantResponse
@@ -176,6 +208,25 @@ const safe = true;
     expect(container).toHaveTextContent('reference diagram');
   });
 
+  it.each([
+    [
+      'direct',
+      '[![linked direct alt](https://egregore.invalid/direct.png)](https://example.com/)',
+      'linked direct alt',
+    ],
+    [
+      'reference',
+      '[![linked reference alt][asset]](https://example.com/)\n\n[asset]: https://egregore.invalid/reference.png',
+      'linked reference alt',
+    ],
+  ])('flattens linked %s images to inert alt text', (_kind, content, alt) => {
+    const { container } = render(<AssistantResponse turn={turn(content)} />);
+
+    expect(container).toHaveTextContent(alt);
+    expect(container.querySelector('img')).toBeNull();
+    expect(container.querySelector('a')).toBeNull();
+  });
+
   it('flattens unsupported GFM without controls or lost ordinary text', () => {
     const { container } = render(
       <AssistantResponse
@@ -198,6 +249,40 @@ const safe = true;
     expect(container).toHaveTextContent('Beta');
     expect(container).toHaveTextContent('Finished task');
     expect(container).toHaveTextContent('Retained strike text');
+  });
+
+  it('preserves mixed textual leaves while flattening unsupported ancestry', () => {
+    const { container } = render(
+      <AssistantResponse
+        turn={turn(`| Mixed |
+| --- |
+| table ordinary and \`table inline\` |
+
+~~strike ordinary and \`strike inline\` [^note]~~
+
+[^note]:
+    footnote ordinary
+
+    \`\`\`txt
+    fenced leaf
+    \`\`\``)}
+      />,
+    );
+
+    for (const leaf of [
+      'table ordinary',
+      'table inline',
+      'strike ordinary',
+      'strike inline',
+      '[^note]',
+      'footnote ordinary',
+      'fenced leaf',
+    ]) {
+      expect(container).toHaveTextContent(leaf);
+    }
+    expect(
+      container.querySelector('table, del, code, input, a, sup'),
+    ).toBeNull();
   });
 
   it('links only current-turn citations outside protected Markdown ancestry', () => {
@@ -232,17 +317,24 @@ const safe = true;
     expect(container).toHaveTextContent('unknown [S9]');
   });
 
-  it('uses source positions so character-reference lookalikes remain text', () => {
+  it('maps citations to exact literal source spans outside raw HTML regions', () => {
     const { container } = render(
       <AssistantResponse
-        turn={turn('Encoded &#91;S1] and literal [S1].', ['S1'])}
+        turn={turn('Encoded &#91;S1], literal [S1], raw <span>[S1]</span>.', [
+          'S1',
+        ])}
       />,
     );
 
-    expect(screen.getAllByRole('link', { name: '[S1] Source 1' })).toHaveLength(
-      1,
+    const paragraph = container.querySelector('p');
+    const citation = screen.getByRole('link', { name: '[S1] Source 1' });
+    const prefix = document.createRange();
+    prefix.setStart(paragraph!, 0);
+    prefix.setEndBefore(citation);
+    expect(prefix.toString()).toBe('Encoded [S1], literal ');
+    expect(paragraph).toHaveTextContent(
+      'Encoded [S1], literal [S1], raw <span>[S1]</span>.',
     );
-    expect(container).toHaveTextContent('Encoded [S1] and literal [S1].');
   });
 
   it('does not activate citations while flattening unsupported nodes', () => {
