@@ -12,6 +12,7 @@ import {
   resolvedPublishedCollections,
   type PublishedContent,
 } from '../support/publishedContent';
+import type { CollectionDisplayRecord } from '../../src/features/collections/types';
 
 const routes = [
   '/',
@@ -181,20 +182,16 @@ async function contentCardRoutes(page: Page, route: string): Promise<string[]> {
     );
 }
 
-async function sectionContentCardUrls(
-  page: Page,
-  heading: string,
-): Promise<string[]> {
-  return page
-    .getByRole('heading', { name: heading, exact: true })
-    .locator('xpath=ancestor::section[1]')
-    .locator('article a[href]')
-    .evaluateAll((anchors) =>
-      anchors.flatMap((anchor) => {
-        const href = anchor.getAttribute('href');
-        return href === null ? [] : [href];
-      }),
-    );
+function canonicalCollectionUrl(record: CollectionDisplayRecord): string {
+  return new URL(record.href, SITE.siteUrl).toString();
+}
+
+function collectionEntityFragment(
+  kind: CollectionDisplayRecord['kind'],
+): 'blogposting' | 'scholarlyarticle' | 'creativework' {
+  if (kind === 'blog') return 'blogposting';
+  if (kind === 'research') return 'scholarlyarticle';
+  return 'creativework';
 }
 
 async function publicHtmlRoutes(request: APIRequestContext): Promise<string[]> {
@@ -1122,25 +1119,18 @@ test('content discovery surfaces exactly match tracked publication state', async
 test('collection ItemLists match the rendered server card sequence', async ({
   page,
 }) => {
+  const resolved = resolvedPublishedCollections();
   const collections = [
     {
       route: '/',
       lists: [
         {
           id: '#latest-articles',
-          name: 'Latest Articles',
-          renderedUrls: async () =>
-            (await sectionContentCardUrls(page, 'Latest Articles')).map(
-              (href) => new URL(href, SITE.siteUrl).toString(),
-            ),
+          records: resolved.homepage.filter(({ kind }) => kind === 'blog'),
         },
         {
           id: '#latest-works',
-          name: 'Selected Works',
-          renderedUrls: async () =>
-            (await sectionContentCardUrls(page, 'Selected Works')).map((href) =>
-              new URL(href, SITE.siteUrl).toString(),
-            ),
+          records: resolved.homepage.filter(({ kind }) => kind !== 'blog'),
         },
       ],
     },
@@ -1149,11 +1139,7 @@ test('collection ItemLists match the rendered server card sequence', async ({
       lists: [
         {
           id: '#blog-posts',
-          name: 'Blog Posts',
-          renderedUrls: async () =>
-            (await contentCardRoutes(page, '/blog/')).map((href) =>
-              new URL(href, SITE.siteUrl).toString(),
-            ),
+          records: resolved.blog,
         },
       ],
     },
@@ -1162,22 +1148,26 @@ test('collection ItemLists match the rendered server card sequence', async ({
       lists: [
         {
           id: '#works-collection',
-          name: 'Works',
-          renderedUrls: async () =>
-            (await contentCardRoutes(page, '/works/')).map((href) =>
-              new URL(href, SITE.siteUrl).toString(),
-            ),
+          records: resolved.works,
         },
       ],
     },
   ] as const;
 
   for (const { route, lists } of collections) {
-    await page.goto(route);
+    const renderedUrls = (await contentCardRoutes(page, route)).map((href) =>
+      new URL(href, SITE.siteUrl).toString(),
+    );
     const schemas = await readSchemas(page);
+    let renderedPosition = 0;
 
-    for (const { id, name, renderedUrls } of lists) {
-      const expectedUrls = await renderedUrls();
+    for (const { id, records } of lists) {
+      const expectedUrls = records.map(canonicalCollectionUrl);
+      expect(
+        renderedUrls.slice(renderedPosition, renderedPosition + records.length),
+      ).toEqual(expectedUrls);
+      renderedPosition += records.length;
+
       const schema = schemas.find(
         (candidate) =>
           candidate['@type'] === 'ItemList' &&
@@ -1185,7 +1175,8 @@ test('collection ItemLists match the rendered server card sequence', async ({
       );
       const elements = schema?.itemListElement ?? [];
 
-      expect(schema).toMatchObject({ name });
+      expect(typeof schema?.name).toBe('string');
+      expect(schema?.name?.trim().length).toBeGreaterThan(0);
       expect(elements.map(({ '@type': type }) => type)).toEqual(
         expectedUrls.map(() => 'ListItem'),
       );
@@ -1196,14 +1187,15 @@ test('collection ItemLists match the rendered server card sequence', async ({
       expect(new Set(elements.map(({ url }) => url)).size).toBe(
         expectedUrls.length,
       );
-      expect(
-        elements.every(({ item }) =>
-          /#(?:blogposting|scholarlyarticle|creativework)$/u.test(
-            item?.['@id'] ?? '',
-          ),
+      expect(elements.map(({ item }) => item?.['@id'])).toEqual(
+        records.map(
+          (record) =>
+            `${canonicalCollectionUrl(record)}#${collectionEntityFragment(record.kind)}`,
         ),
-      ).toBe(true);
+      );
     }
+
+    expect(renderedPosition).toBe(renderedUrls.length);
   }
 });
 
