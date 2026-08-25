@@ -121,6 +121,25 @@ async function expectOutsideTextLinkRecipe(element: Locator) {
   await expect(element).not.toHaveClass(/(^|\s)text-link(\s|$)/u);
 }
 
+async function visitBlogArticleWithTableOfContents(page: Page): Promise<void> {
+  const blogRoutes = publishedContent()
+    .filter(({ kind }) => kind === 'blog')
+    .map(({ route }) => route);
+
+  for (const route of blogRoutes) {
+    await page.goto(route);
+    if (
+      (await page.locator('article[data-article-toc-content]').count()) === 1 &&
+      (await page.locator('[data-article-toc] a[href^="#"]').count()) > 0
+    )
+      return;
+  }
+
+  throw new Error(
+    'Expected at least one published Blog article with a table of contents',
+  );
+}
+
 async function applyTheme(page: Page, theme: 'light' | 'dark') {
   await page.evaluate((nextTheme) => {
     if (!document.querySelector('#browser-contract-no-transitions')) {
@@ -765,19 +784,39 @@ test('About portrait remains an unfiltered clipped image surface at narrow and w
   }
 });
 
-test('inline prose and article back links share one rendered interaction model', async ({
+test('Blog article navigation stays sticky while prose links and Back labels use their scoped rendered treatments', async ({
   page,
-}) => {
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'chromium');
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto(
-    '/blog/vibe-coding-vs-agentic-coding-why-the-distinction-matters/',
-  );
+  await page.setViewportSize({ width: 1440, height: 900 });
+  await visitBlogArticleWithTableOfContents(page);
 
   const blogBack = page.getByRole('link', { name: 'Back to blog' });
-  const proseLink = page
-    .getByRole('main')
-    .getByRole('link', { name: 'Claude Code', exact: true });
-  const rest = await blogBack.evaluate((element) => {
+  const backArrow = blogBack.locator('.article-back-link__arrow');
+  const backLabel = blogBack.locator('.article-back-link__label');
+  const proseLink = page.locator('article.prose-content a[href]').first();
+  const tableOfContents = page.locator('aside [data-article-toc]');
+
+  await expect(tableOfContents).toBeVisible();
+  await expect(proseLink).toBeVisible();
+  const stickyAside = page.locator('aside:has([data-article-toc])');
+  await expect(stickyAside).toHaveCSS('position', 'sticky');
+  await expect(stickyAside).toHaveCSS('top', '96px');
+  const stickyActivationScroll = await stickyAside.evaluate(
+    (element) => window.scrollY + element.getBoundingClientRect().top - 96 + 32,
+  );
+  await page.evaluate(
+    (top) => window.scrollTo({ top }),
+    stickyActivationScroll,
+  );
+  const stickyTop = await stickyAside.evaluate(
+    (element) => element.getBoundingClientRect().top,
+  );
+  expect(stickyTop).toBeGreaterThanOrEqual(95);
+  expect(stickyTop).toBeLessThanOrEqual(97);
+
+  const proseRest = await proseLink.evaluate((element) => {
     const style = getComputedStyle(element);
     return {
       color: style.color,
@@ -787,57 +826,66 @@ test('inline prose and article back links share one rendered interaction model',
       transitionDuration: style.transitionDuration,
     };
   });
-  expect(rest.fontWeight).toBe('500');
-  expect(rest.textDecorationLine).toBe('none');
-  expect(rest.textUnderlineOffset).toBe('4px');
-  expect(rest.transitionDuration).toBe('0s');
+  expect(proseRest.fontWeight).toBe('500');
+  expect(proseRest.textDecorationLine).toBe('none');
+  expect(proseRest.textUnderlineOffset).toBe('4px');
+  expect(proseRest.transitionDuration).toBe('0s');
 
-  for (const link of [blogBack, proseLink]) {
-    await expect(link).toHaveCSS('color', rest.color);
-    await expect(link).toHaveCSS('font-weight', rest.fontWeight);
-    await expect(link).toHaveCSS(
-      'text-decoration-line',
-      rest.textDecorationLine,
-    );
-    await expect(link).toHaveCSS(
-      'text-underline-offset',
-      rest.textUnderlineOffset,
-    );
-    await link.focus();
-    await expect(link).toHaveCSS('text-decoration-line', 'underline');
-    await expect(link).toHaveCSS('outline-style', 'solid');
-    await expect(link).toHaveCSS('outline-offset', '2px');
-  }
+  await proseLink.focus();
+  await expect(proseLink).toHaveCSS('text-decoration-line', 'underline');
+  await expect(proseLink).toHaveCSS('outline-style', 'solid');
+  await expect(proseLink).toHaveCSS('outline-offset', '2px');
 
-  for (const [route, name] of [
-    ['/works/recursive-convergence-hypothesis/', 'Back to works'],
-    ['/licenses/egregore/', 'Back to Egregore'],
-  ] as const) {
-    await page.goto(route);
-    const backLink = page.getByRole('link', {
-      name: new RegExp(`${name}$`, 'u'),
-    });
-    await expect(backLink).toHaveCSS('color', rest.color);
-    await expect(backLink).toHaveCSS('font-weight', rest.fontWeight);
-    await expect(backLink).toHaveCSS(
-      'text-decoration-line',
-      rest.textDecorationLine,
-    );
-    await expect(backLink).toHaveCSS(
-      'text-underline-offset',
-      rest.textUnderlineOffset,
-    );
-    await backLink.focus();
-    await expect(backLink).toHaveCSS('text-decoration-line', 'underline');
-    await expect(backLink).toHaveCSS('outline-style', 'solid');
-    await expect(backLink).toHaveCSS('outline-offset', '2px');
-  }
+  await blogBack.focus();
+  await expect(blogBack).toHaveCSS('text-decoration-line', 'none');
+  await expect(backArrow).toHaveCSS('text-decoration-line', 'none');
+  await expect(backLabel).toHaveCSS('text-decoration-line', 'underline');
+  await expect(blogBack).toHaveCSS('outline-style', 'solid');
+  await expect(blogBack).toHaveCSS('outline-offset', '2px');
 
   const footerLink = page
     .getByRole('contentinfo')
     .getByRole('link', { name: 'Home', exact: true });
   await expect(footerLink).toHaveCSS('font-weight', '400');
   await expect(footerLink).toHaveCSS('text-decoration-line', 'none');
+});
+
+test('mobile article navigation exposes one controlled fragment disclosure and closes it after selection', async ({
+  page,
+}) => {
+  await page.setViewportSize({ width: 390, height: 844 });
+  await visitBlogArticleWithTableOfContents(page);
+
+  const toggle = page.getByRole('button', { name: /On this page/u });
+  await expect(toggle).toBeVisible();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  const panelId = await toggle.getAttribute('aria-controls');
+  expect(panelId).toBeTruthy();
+  const panel = page.locator(`#${panelId}`);
+  await expect(panel).toBeHidden();
+
+  await toggle.focus();
+  await expect(toggle).toHaveCSS('outline-style', 'solid');
+  await toggle.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+  await expect(panel).toBeVisible();
+  const panelClearance = await panel.evaluate((element) => {
+    const style = getComputedStyle(element);
+    return {
+      marginBottom: Number.parseFloat(style.marginBottom),
+      maxHeight: Number.parseFloat(style.maxHeight),
+    };
+  });
+  expect(panelClearance.marginBottom).toBeGreaterThan(0);
+  expect(panelClearance.maxHeight).toBeGreaterThan(0);
+
+  const headingLink = panel.getByRole('link').first();
+  const href = await headingLink.getAttribute('href');
+  expect(href).toMatch(/^#[^\s]+$/u);
+  await headingLink.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(panel).toBeHidden();
+  await expect(page).toHaveURL(new RegExp(`${href}$`, 'u'));
 });
 
 test('specialized navigation and actions stay outside the inline prose link recipe', async ({

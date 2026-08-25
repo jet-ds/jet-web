@@ -52,15 +52,20 @@ const nextPost = currentIndex > 0 ? sortedPosts[currentIndex - 1] : null;
   image={post.data.image}
   review={post.data.review}
 >
+  <TableOfContents headings={headings} variant="mobile" />
+
   <div class="grid grid-cols-1 lg:grid-cols-[1fr_250px] gap-l">
     {/* Main content */}
-    <article class="prose prose-lg dark:prose-invert max-w-none">
+    <article
+      class="prose prose-content prose-lg dark:prose-invert max-w-none"
+      data-article-toc-content
+    >
       <Content />
     </article>
 
     {/* Table of Contents (desktop only) */}
-    <aside class="hidden lg:block">
-      <TableOfContents headings={headings} />
+    <aside class="hidden lg:block sticky top-24 self-start">
+      <TableOfContents headings={headings} variant="desktop" />
     </aside>
   </div>
 

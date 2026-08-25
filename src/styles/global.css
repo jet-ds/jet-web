@@ -260,6 +260,32 @@
     outline-offset: 2px;
   }
 
+  .article-back-link {
+    align-items: center;
+    color: var(--color-brand-text);
+    display: inline-flex;
+    font-weight: 500;
+    gap: var(--space-3xs);
+    text-decoration: none;
+    text-underline-offset: 4px;
+    transition: color 150ms ease;
+  }
+
+  .article-back-link:hover,
+  .article-back-link:focus-visible {
+    color: var(--color-brand-hover);
+  }
+
+  .article-back-link:hover .article-back-link__label,
+  .article-back-link:focus-visible .article-back-link__label {
+    text-decoration: underline;
+  }
+
+  .article-back-link:focus-visible {
+    outline: 2px solid var(--color-brand-base);
+    outline-offset: 2px;
+  }
+
   /* Framework-neutral action taxonomy for Astro, React, and plain HTML. */
   .action {
     display: inline-flex;
@@ -780,9 +806,49 @@
   outline-offset: 2px;
 }
 
+/* Long-form Blog and Works prose uses the content-accent link family. */
+.prose-content :where(a):not(:where([class~='not-prose'] *)) {
+  color: var(--color-accent-text);
+  font-weight: 500;
+  text-decoration: none;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+  transition-property: color, text-decoration-color;
+  transition-duration: 150ms;
+  transition-timing-function: ease;
+}
+
+.prose-content :where(a):not(:where([class~='not-prose'] *)):hover,
+.prose-content :where(a):not(:where([class~='not-prose'] *)):focus-visible {
+  color: var(--color-accent-hover);
+  text-decoration: underline;
+}
+
+.prose-content :where(a):not(:where([class~='not-prose'] *)):focus-visible {
+  outline: 2px solid var(--color-accent-base);
+  outline-offset: 2px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .prose :where(a):not(:where([class~='not-prose'] *)) {
     transition: none;
+  }
+
+  .prose-content :where(a):not(:where([class~='not-prose'] *)),
+  .article-back-link {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .prose-content :where(a):not(:where([class~='not-prose'] *)) {
+    color: LinkText;
+    text-decoration: underline;
+  }
+
+  .prose-content :where(a):not(:where([class~='not-prose'] *)):focus-visible,
+  .article-back-link:focus-visible {
+    outline-color: Highlight;
   }
 }
 

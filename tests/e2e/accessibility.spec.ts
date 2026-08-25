@@ -84,24 +84,46 @@ function parseCssColor(raw: string): LinearColor {
     const a = chroma * Math.cos(hue);
     const b = chroma * Math.sin(hue);
 
-    const lPrime = lightness + 0.3963377774 * a + 0.2158037573 * b;
-    const mPrime = lightness - 0.1055613458 * a - 0.0638541728 * b;
-    const sPrime = lightness - 0.0894841775 * a - 1.291485548 * b;
-    const l = lPrime ** 3;
-    const m = mPrime ** 3;
-    const s = sPrime ** 3;
+    return linearOklab(lightness, a, b, parseAlpha(slashAlpha));
+  }
 
-    return {
-      channels: [
-        clamp(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s),
-        clamp(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s),
-        clamp(-0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s),
-      ],
-      alpha: parseAlpha(slashAlpha),
-    };
+  if (name === 'oklab') {
+    const [rawLightness, rawA, rawB] = colorBody.split(/\s+/u);
+    const lightness = rawLightness.endsWith('%')
+      ? Number.parseFloat(rawLightness) / 100
+      : Number.parseFloat(rawLightness);
+    return linearOklab(
+      lightness,
+      Number.parseFloat(rawA),
+      Number.parseFloat(rawB),
+      parseAlpha(slashAlpha),
+    );
   }
 
   throw new Error(`Unsupported CSS color: ${raw}`);
+}
+
+function linearOklab(
+  lightness: number,
+  a: number,
+  b: number,
+  alpha: number,
+): LinearColor {
+  const lPrime = lightness + 0.3963377774 * a + 0.2158037573 * b;
+  const mPrime = lightness - 0.1055613458 * a - 0.0638541728 * b;
+  const sPrime = lightness - 0.0894841775 * a - 1.291485548 * b;
+  const l = lPrime ** 3;
+  const m = mPrime ** 3;
+  const s = sPrime ** 3;
+
+  return {
+    channels: [
+      clamp(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s),
+      clamp(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s),
+      clamp(-0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s),
+    ],
+    alpha,
+  };
 }
 
 function contrastRatio(foreground: string, background: string): number {
@@ -596,4 +618,56 @@ test('mobile disclosure follows sequential focus order and restores focus', asyn
   await expect(dock).toHaveAttribute('inert', '');
   await page.keyboard.press('Tab');
   await expect(dock.locator(':focus')).toHaveCount(0);
+});
+
+test('mobile article navigation is keyboard-operable, fragment-based, and keeps prose links readable', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile-chromium');
+
+  const candidates = publishedContent()
+    .filter(({ kind }) => kind === 'blog')
+    .map(({ route }) => route);
+  let found = false;
+  for (const route of candidates) {
+    await page.goto(route);
+    if ((await page.locator('article.prose-content a[href]').count()) > 0) {
+      found = true;
+      break;
+    }
+  }
+  if (!found)
+    throw new Error('Expected a published Blog article with prose links');
+
+  const toggle = page.getByRole('button', { name: /On this page/u });
+  await expect(toggle).toBeVisible();
+  await toggle.focus();
+  await page.keyboard.press('Enter');
+  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
+
+  const controlledId = await toggle.getAttribute('aria-controls');
+  if (!controlledId)
+    throw new Error('Article navigation disclosure lacks aria-controls');
+  const panel = page.locator(`#${controlledId}`);
+  await expect(panel).toBeVisible();
+  const fragmentLink = panel.getByRole('link').first();
+  const fragment = await fragmentLink.getAttribute('href');
+  expect(fragment).toMatch(/^#[^\s]+$/u);
+  await fragmentLink.click();
+  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
+  await expect(page).toHaveURL(new RegExp(`${fragment}$`, 'u'));
+
+  const proseLink = page.locator('article.prose-content a[href]').first();
+  for (const theme of ['light', 'dark'] as const) {
+    await page.evaluate((nextTheme) => {
+      document.documentElement.classList.toggle('dark', nextTheme === 'dark');
+    }, theme);
+    const colors = await proseLink.evaluate((element) => ({
+      foreground: getComputedStyle(element).color,
+      background: getComputedStyle(document.body).backgroundColor,
+    }));
+    expect(
+      contrastRatio(colors.foreground, colors.background),
+    ).toBeGreaterThanOrEqual(4.5);
+  }
 });
