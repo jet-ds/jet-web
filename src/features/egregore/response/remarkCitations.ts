@@ -288,6 +288,18 @@ function updateRawHtmlStack(value: string, stack: string[]): void {
   }
 }
 
+function scanRawHtmlScope(node: RootContent, stack: string[]): void {
+  if (node.type === 'html') {
+    updateRawHtmlStack(node.value, stack);
+    return;
+  }
+  if (!isParent(node)) return;
+
+  for (const child of node.children) {
+    scanRawHtmlScope(child as RootContent, stack);
+  }
+}
+
 function constrainChildren(
   parent: MutableParent,
   source: string,
@@ -300,14 +312,15 @@ function constrainChildren(
   for (const child of parent.children) {
     if (child.type === 'link' && containsImage(child)) {
       const value = textFromUnsupported(child, source);
+      scanRawHtmlScope(child, rawHtmlStack);
       if (value) nextChildren.push({ type: 'text', value });
       continue;
     }
 
     if (!PARSED_NODE_ALLOWLIST.has(child.type)) {
       const value = textFromUnsupported(child, source);
+      scanRawHtmlScope(child, rawHtmlStack);
       if (value) nextChildren.push({ type: 'text', value });
-      if (child.type === 'html') updateRawHtmlStack(child.value, rawHtmlStack);
       continue;
     }
 

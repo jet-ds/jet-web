@@ -434,6 +434,45 @@ const safe = true;
     expect(prefix.toString()).toBe('<span>nested [S1]</span> ');
   });
 
+  it.each([
+    [
+      'delete opening tag',
+      '~~<span>nested~~ [S1]</span> [S1]',
+      '<span>nested [S1]</span> ',
+    ],
+    [
+      'delete closing tag',
+      '<span>~~nested [S1]</span>~~ [S1]',
+      '<span>nested [S1]</span> ',
+    ],
+    [
+      'table opening tag',
+      '| H |\n| --- |\n| <span>nested |\n\n[S1]</span> [S1]',
+      'H <span> nested\n[S1]</span> ',
+    ],
+    [
+      'table closing tag',
+      '<span>\n\n| H |\n| --- |\n| nested [S1]</span> |\n\n[S1]',
+      '<span>\nH nested [S1] </span>\n',
+    ],
+  ])(
+    'tracks a raw HTML %s through flattened unsupported ancestry',
+    (_shape, content, expectedPrefix) => {
+      const { container } = render(
+        <AssistantResponse turn={turn(content, ['S1'])} />,
+      );
+
+      const citation = screen.getByRole('link', { name: '[S1] Source 1' });
+      const prefix = document.createRange();
+      prefix.setStart(container, 0);
+      prefix.setEndBefore(citation);
+      expect(prefix.toString()).toBe(expectedPrefix);
+      expect(container.querySelectorAll('a')).toHaveLength(1);
+      expect(container.querySelector('table')).toBeNull();
+      expect(container.querySelector('del')).toBeNull();
+    },
+  );
+
   it('does not activate citations while flattening unsupported nodes', () => {
     const { container } = render(
       <AssistantResponse
