@@ -410,6 +410,30 @@ const safe = true;
     );
   });
 
+  it.each([
+    ['an opening tag in Markdown ancestry', '*<span>nested* [S1]</span> [S1]'],
+    ['a closing tag in Markdown ancestry', '<span>*nested [S1]</span>* [S1]'],
+    [
+      'an opening tag in nested strong/emphasis ancestry',
+      '***<span>nested*** [S1]</span> [S1]',
+    ],
+    [
+      'a closing tag in nested strong/emphasis ancestry',
+      '<span>***nested [S1]</span>*** [S1]',
+    ],
+  ])('shares raw HTML scope when %s crosses a boundary', (_shape, content) => {
+    const { container } = render(
+      <AssistantResponse turn={turn(content, ['S1'])} />,
+    );
+
+    const paragraph = container.querySelector('p');
+    const citation = screen.getByRole('link', { name: '[S1] Source 1' });
+    const prefix = document.createRange();
+    prefix.setStart(paragraph!, 0);
+    prefix.setEndBefore(citation);
+    expect(prefix.toString()).toBe('<span>nested [S1]</span> ');
+  });
+
   it('does not activate citations while flattening unsupported nodes', () => {
     const { container } = render(
       <AssistantResponse

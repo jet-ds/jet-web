@@ -293,10 +293,9 @@ function constrainChildren(
   source: string,
   citationIds: ReadonlySet<string>,
   ancestors: readonly string[],
-  insideRawHtml: boolean,
+  rawHtmlStack: string[],
 ): void {
   const nextChildren: RootContent[] = [];
-  const rawHtmlStack: string[] = [];
 
   for (const child of parent.children) {
     if (child.type === 'link' && containsImage(child)) {
@@ -314,7 +313,6 @@ function constrainChildren(
 
     if (child.type === 'text') {
       const citationsBlocked =
-        insideRawHtml ||
         rawHtmlStack.length > 0 ||
         ancestors.some((type) => CITATION_BLOCKING_ANCESTORS.has(type));
       nextChildren.push(
@@ -335,7 +333,7 @@ function constrainChildren(
         source,
         citationIds,
         [...ancestors, child.type],
-        insideRawHtml || rawHtmlStack.length > 0,
+        rawHtmlStack,
       );
     }
     nextChildren.push(child);
@@ -349,6 +347,6 @@ export const remarkCitations: Plugin<[RemarkCitationsOptions], Root> =
     const citationIds = new Set(options.citationIds);
 
     return (tree, file) => {
-      constrainChildren(tree, String(file.value), citationIds, ['root'], false);
+      constrainChildren(tree, String(file.value), citationIds, ['root'], []);
     };
   };
