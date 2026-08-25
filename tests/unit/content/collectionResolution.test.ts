@@ -208,6 +208,41 @@ describe('collection resolution', () => {
     },
   );
 
+  it('rejects invalid Homepage limits before resolving malformed published entries', () => {
+    const malformedBlog: BlogEntry = {
+      id: 'malformed-blog',
+      data: { status: 'published', assistant: false },
+    };
+    const malformedWorks: WorkEntry[] = [
+      {
+        id: 'malformed-work-one',
+        data: { status: 'published', assistant: false },
+      },
+      {
+        id: 'malformed-work-two',
+        data: { status: 'published', assistant: false },
+      },
+    ];
+
+    expect(() => resolveHomepageBlog([malformedBlog], 0)).toThrow(/limit/iu);
+    expect(() => resolveHomepageWorks(malformedWorks, 0)).toThrow(/limit/iu);
+  });
+
+  it('projects only public image fields into serialized display records', () => {
+    const rawImage = {
+      ...blogImage,
+      serverOnly: { internalAssetId: 'invented-private-id' },
+    };
+    const [record] = resolveBlogCollection([
+      blogEntry('projected-image', '2026-08-20', { image: rawImage }),
+    ]);
+
+    expect(record.image).toEqual(blogImage);
+    expect(JSON.parse(JSON.stringify(record))).not.toHaveProperty(
+      'image.serverOnly',
+    );
+  });
+
   it('adapts published entries into complete serializable display records', () => {
     const blog = blogEntry('invented-post', '2026-08-20', {
       title: 'A full invented title',

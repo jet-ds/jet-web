@@ -92,7 +92,13 @@ function adaptImage(entryId: string, image: EntryImage): CollectionImage {
   if (image.height !== 1080) {
     throw new Error(`Published content ${entryId} image.height must be 1080.`);
   }
-  return { ...image, width: 1920, height: 1080 };
+  return {
+    url: image.url,
+    ...(image.darkUrl === undefined ? {} : { darkUrl: image.darkUrl }),
+    alt: image.alt,
+    width: 1920,
+    height: 1080,
+  };
 }
 
 function compareBlogEntries(left: BlogEntry, right: BlogEntry): number {
@@ -204,15 +210,17 @@ export function resolveHomepageBlog(
   entries: readonly BlogEntry[],
   limit?: number,
 ): readonly CollectionDisplayRecord[] {
-  return resolveBlogCollection(entries).slice(0, resolveLimit(limit));
+  const resolvedLimit = resolveLimit(limit);
+  return resolveBlogCollection(entries).slice(0, resolvedLimit);
 }
 
 export function resolveHomepageWorks(
   entries: readonly WorkEntry[],
   limit?: number,
 ): readonly CollectionDisplayRecord[] {
+  const resolvedLimit = resolveLimit(limit);
   return publishedWorks(entries)
     .sort(compareHomepageWorks)
-    .slice(0, resolveLimit(limit))
+    .slice(0, resolvedLimit)
     .map(adaptWork);
 }

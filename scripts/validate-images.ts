@@ -151,21 +151,23 @@ async function readBoundedResponse(
   maxBytes: number,
 ): Promise<Uint8Array> {
   const contentLengthHeader = response.headers.get('content-length');
-  if (contentLengthHeader === null) {
-    throw new Error('Image response requires a Content-Length header.');
-  }
-
-  const contentLength = Number(contentLengthHeader);
-  if (!Number.isSafeInteger(contentLength) || contentLength <= 0) {
+  const contentLength =
+    contentLengthHeader === null ? undefined : Number(contentLengthHeader);
+  if (
+    contentLength !== undefined &&
+    (!Number.isSafeInteger(contentLength) || contentLength <= 0)
+  ) {
+    await response.body?.cancel();
     throw new Error('Image response payload is empty or invalid.');
   }
-  if (contentLength > maxBytes) {
+  if (contentLength !== undefined && contentLength > maxBytes) {
+    await response.body?.cancel();
     throw new Error(
       `Image response payload exceeds the ${maxBytes}-byte safety limit.`,
     );
   }
   if (response.body === null) {
-    throw new Error('Image response payload is missing.');
+    throw new Error('Image response payload is empty or missing.');
   }
 
   const reader = response.body.getReader();
@@ -176,10 +178,13 @@ async function readBoundedResponse(
       const { done, value } = await reader.read();
       if (done) break;
       totalBytes += value.byteLength;
-      if (totalBytes > maxBytes || totalBytes > contentLength) {
+      if (
+        totalBytes > maxBytes ||
+        (contentLength !== undefined && totalBytes > contentLength)
+      ) {
         await reader.cancel();
         throw new Error(
-          'Image response payload exceeds its declared bounded length.',
+          'Image response payload exceeds its bounded length or safety limit.',
         );
       }
       chunks.push(value);
@@ -188,7 +193,10 @@ async function readBoundedResponse(
     reader.releaseLock();
   }
 
-  if (totalBytes !== contentLength) {
+  if (totalBytes === 0) {
+    throw new Error('Image response payload is empty.');
+  }
+  if (contentLength !== undefined && totalBytes !== contentLength) {
     throw new Error(
       `Image response payload length ${totalBytes} does not match declared length ${contentLength}.`,
     );
@@ -216,6 +224,7 @@ export async function validateRemoteImage(
       redirect: 'follow',
     });
     if (!response.ok) {
+      await response.body?.cancel();
       return {
         ok: false,
         error: `HTTP ${response.status}: ${response.statusText}`,
@@ -224,6 +233,7 @@ export async function validateRemoteImage(
 
     const contentType = response.headers.get('content-type');
     if (!contentType?.toLowerCase().startsWith('image/')) {
+      await response.body?.cancel();
       return { ok: false, error: `Invalid content-type: ${contentType}` };
     }
 
