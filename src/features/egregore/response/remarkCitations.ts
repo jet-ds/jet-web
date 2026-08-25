@@ -126,11 +126,14 @@ function parsedTextValue(node: Root | RootContent): string {
 }
 
 function decodedTextSource(value: string): string {
-  const sentinel = '\uE000';
+  const startSentinel = '\uE000';
+  const endSentinel = '\uE001';
   const decoded = parsedTextValue(
-    rawTextDecoder.parse(`${value}${sentinel}`) as Root,
+    rawTextDecoder.parse(`${startSentinel}${value}${endSentinel}`) as Root,
   );
-  return decoded.endsWith(sentinel) ? decoded.slice(0, -sentinel.length) : '';
+  return decoded.startsWith(startSentinel) && decoded.endsWith(endSentinel)
+    ? decoded.slice(startSentinel.length, -endSentinel.length)
+    : '';
 }
 
 function isEscapedAt(raw: string, markerIndex: number): boolean {
@@ -213,16 +216,74 @@ function citationTextNodes(
   return children;
 }
 
+interface RawHtmlTag {
+  name: string;
+  closing: boolean;
+  selfClosing: boolean;
+}
+
+function rawHtmlTags(value: string): RawHtmlTag[] {
+  const tags: RawHtmlTag[] = [];
+  let cursor = 0;
+
+  while (cursor < value.length) {
+    const opening = value.indexOf('<', cursor);
+    if (opening < 0) break;
+    if (value.startsWith('<!--', opening)) {
+      const commentEnd = value.indexOf('-->', opening + 4);
+      cursor = commentEnd < 0 ? value.length : commentEnd + 3;
+      continue;
+    }
+
+    let tagCursor = opening + 1;
+    const closing = value[tagCursor] === '/';
+    if (closing) tagCursor += 1;
+    const nameStart = tagCursor;
+    while (tagCursor < value.length && /[A-Za-z0-9-]/u.test(value[tagCursor])) {
+      tagCursor += 1;
+    }
+    if (tagCursor === nameStart || !/[A-Za-z]/u.test(value[nameStart] ?? '')) {
+      cursor = opening + 1;
+      continue;
+    }
+
+    let quote: '"' | "'" | null = null;
+    let tagEnd = tagCursor;
+    for (; tagEnd < value.length; tagEnd += 1) {
+      const character = value[tagEnd];
+      if (quote !== null) {
+        if (character === quote) quote = null;
+      } else if (character === '"' || character === "'") {
+        quote = character;
+      } else if (character === '>') {
+        break;
+      }
+    }
+    if (tagEnd >= value.length) break;
+
+    let contentEnd = tagEnd - 1;
+    while (contentEnd > tagCursor && /\s/u.test(value[contentEnd])) {
+      contentEnd -= 1;
+    }
+    tags.push({
+      name: value.slice(nameStart, tagCursor).toLowerCase(),
+      closing,
+      selfClosing: !closing && value[contentEnd] === '/',
+    });
+    cursor = tagEnd + 1;
+  }
+
+  return tags;
+}
+
 function updateRawHtmlStack(value: string, stack: string[]): void {
-  const tagPattern = /<\/?([A-Za-z][A-Za-z0-9-]*)\b[^>]*>/gu;
-  for (const match of value.matchAll(tagPattern)) {
-    const tag = match[1].toLowerCase();
-    const token = match[0];
-    if (token.startsWith('</')) {
-      const matchIndex = stack.lastIndexOf(tag);
+  for (const tag of rawHtmlTags(value)) {
+    if (tag.closing) {
+      const tagName = tag.name;
+      const matchIndex = stack.lastIndexOf(tagName);
       if (matchIndex >= 0) stack.splice(matchIndex);
-    } else if (!token.endsWith('/>') && !VOID_HTML_ELEMENTS.has(tag)) {
-      stack.push(tag);
+    } else if (!tag.selfClosing && !VOID_HTML_ELEMENTS.has(tag.name)) {
+      stack.push(tag.name);
     }
   }
 }
@@ -232,6 +293,7 @@ function constrainChildren(
   source: string,
   citationIds: ReadonlySet<string>,
   ancestors: readonly string[],
+  insideRawHtml: boolean,
 ): void {
   const nextChildren: RootContent[] = [];
   const rawHtmlStack: string[] = [];
@@ -252,6 +314,7 @@ function constrainChildren(
 
     if (child.type === 'text') {
       const citationsBlocked =
+        insideRawHtml ||
         rawHtmlStack.length > 0 ||
         ancestors.some((type) => CITATION_BLOCKING_ANCESTORS.has(type));
       nextChildren.push(
@@ -267,7 +330,13 @@ function constrainChildren(
     }
 
     if (isParent(child)) {
-      constrainChildren(child, source, citationIds, [...ancestors, child.type]);
+      constrainChildren(
+        child,
+        source,
+        citationIds,
+        [...ancestors, child.type],
+        insideRawHtml || rawHtmlStack.length > 0,
+      );
     }
     nextChildren.push(child);
   }
@@ -280,6 +349,6 @@ export const remarkCitations: Plugin<[RemarkCitationsOptions], Root> =
     const citationIds = new Set(options.citationIds);
 
     return (tree, file) => {
-      constrainChildren(tree, String(file.value), citationIds, ['root']);
+      constrainChildren(tree, String(file.value), citationIds, ['root'], false);
     };
   };

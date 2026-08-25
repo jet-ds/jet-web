@@ -337,6 +337,79 @@ const safe = true;
     );
   });
 
+  it.each([
+    ['strong sibling', '**bold** [S1]', 'bold '],
+    ['emphasis sibling', 'prefix *emphasis* [S1]', 'prefix emphasis '],
+    [
+      'link sibling',
+      '[ordinary link](https://example.com/) [S1]',
+      'ordinary link ',
+    ],
+    ['raw HTML sibling', '<span>[S1]</span> [S1]', '<span>[S1]</span> '],
+  ])(
+    'maps citations in leading-whitespace %s text',
+    (_shape, content, expectedPrefix) => {
+      const { container } = render(
+        <AssistantResponse turn={turn(content, ['S1'])} />,
+      );
+
+      const paragraph = container.querySelector('p');
+      const citation = screen.getByRole('link', { name: '[S1] Source 1' });
+      const prefix = document.createRange();
+      prefix.setStart(paragraph!, 0);
+      prefix.setEndBefore(citation);
+      expect(prefix.toString()).toBe(expectedPrefix);
+      expect(citation).toHaveAttribute(
+        'href',
+        'https://jetsanchez.com/blog/source-1/',
+      );
+    },
+  );
+
+  it.each([
+    [
+      'quoted greater-than',
+      '<span title="quoted>delimiter"><em>nested</em>[S1]</span> [S1]',
+      '<span title="quoted>delimiter"><em>nested</em>[S1]</span> ',
+    ],
+    [
+      'quoted self-close lookalike',
+      "<span title='quoted/>delimiter'><em>nested</em>[S1]</span> [S1]",
+      "<span title='quoted/>delimiter'><em>nested</em>[S1]</span> ",
+    ],
+  ])(
+    'keeps nested raw HTML citations inert with a %s attribute',
+    (_shape, content, expectedPrefix) => {
+      const { container } = render(
+        <AssistantResponse turn={turn(content, ['S1'])} />,
+      );
+
+      const paragraph = container.querySelector('p');
+      const citation = screen.getByRole('link', { name: '[S1] Source 1' });
+      const prefix = document.createRange();
+      prefix.setStart(paragraph!, 0);
+      prefix.setEndBefore(citation);
+      expect(prefix.toString()).toBe(expectedPrefix);
+      expect(paragraph).toHaveTextContent(content);
+    },
+  );
+
+  it('keeps citations inert in Markdown ancestry nested inside raw HTML', () => {
+    const content = '<span title="quoted>delimiter">*nested [S1]*</span> [S1]';
+    const { container } = render(
+      <AssistantResponse turn={turn(content, ['S1'])} />,
+    );
+
+    const paragraph = container.querySelector('p');
+    const citation = screen.getByRole('link', { name: '[S1] Source 1' });
+    const prefix = document.createRange();
+    prefix.setStart(paragraph!, 0);
+    prefix.setEndBefore(citation);
+    expect(prefix.toString()).toBe(
+      '<span title="quoted>delimiter">nested [S1]</span> ',
+    );
+  });
+
   it('does not activate citations while flattening unsupported nodes', () => {
     const { container } = render(
       <AssistantResponse
