@@ -9,6 +9,7 @@ import { establishDeploymentProtectionBypass } from '../support/deploymentProtec
 import {
   publishedAssistantSources,
   publishedContent,
+  resolvedPublishedCollections,
 } from '../support/publishedContent';
 
 const deploymentOrigin = new URL(
@@ -60,16 +61,14 @@ function rssItemLinks(xml: string): string[] {
 async function contentCardRoutes(page: Page, route: string): Promise<string[]> {
   const response = await page.goto(route);
   expect(response?.status()).toBe(200);
-  return (
-    await page
-      .locator('main [data-content-card] > a[href]')
-      .evaluateAll((anchors) =>
-        anchors.flatMap((anchor) => {
-          const href = anchor.getAttribute('href');
-          return href === null ? [] : [href];
-        }),
-      )
-  ).sort();
+  return page
+    .locator('main article a[href^="/blog/"], main article a[href^="/works/"]')
+    .evaluateAll((anchors) =>
+      anchors.flatMap((anchor) => {
+        const href = anchor.getAttribute('href');
+        return href === null ? [] : [href];
+      }),
+    );
 }
 
 async function publishedSitemapXml(
@@ -126,30 +125,15 @@ test('Production publishes every tracked published content contract', async ({
     .sort((left, right) => left.id.localeCompare(right.id, 'en'));
   expect(deployedAssistantSources).toEqual(expectedAssistantSources);
 
-  const homepageContent = [
-    ...content
-      .filter(({ kind }) => kind === 'blog')
-      .sort((left, right) => right.date.getTime() - left.date.getTime())
-      .slice(0, 3),
-    ...content
-      .filter(({ kind, featured }) => kind === 'work' && featured)
-      .sort((left, right) => right.date.getTime() - left.date.getTime())
-      .slice(0, 3),
-  ];
+  const collections = resolvedPublishedCollections();
   expect(await contentCardRoutes(page, '/')).toEqual(
-    homepageContent.map(({ route }) => route).sort(),
+    collections.homepage.map(({ href }) => href),
   );
   expect(await contentCardRoutes(page, '/blog/')).toEqual(
-    content
-      .filter(({ kind }) => kind === 'blog')
-      .map(({ route }) => route)
-      .sort(),
+    collections.blog.map(({ href }) => href),
   );
   expect(await contentCardRoutes(page, '/works/')).toEqual(
-    content
-      .filter(({ kind }) => kind === 'work')
-      .map(({ route }) => route)
-      .sort(),
+    collections.works.map(({ href }) => href),
   );
 
   const expectedCanonicalUrls = content

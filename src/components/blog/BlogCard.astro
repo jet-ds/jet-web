@@ -5,9 +5,10 @@ import ContentCard from '../content/ContentCard.astro';
 interface Props {
   record: CollectionDisplayRecord;
   variant?: 'collection' | 'compact';
+  headingLevel?: 2 | 3;
 }
 
-const { record, variant = 'collection' } = Astro.props;
+const { record, variant = 'collection', headingLevel = 2 } = Astro.props;
 const tags = record.search?.tags ?? [];
 ---
 
@@ -19,6 +20,6 @@ const tags = record.search?.tags ?? [];
     image={record.image}
     facts={record.facts}
     variant={variant}
-    headingLevel={variant === 'compact' ? 3 : 2}
+    headingLevel={headingLevel}
   />
 </div>

@@ -3,6 +3,15 @@ import { resolve } from 'node:path';
 import matter from 'gray-matter';
 import { loadTrackedContentPaths } from '../../src/content/gitTracking';
 import {
+  resolveBlogCollection,
+  resolveHomepageBlog,
+  resolveHomepageWorks,
+  resolveWorksCollection,
+  type BlogEntry,
+  type WorkEntry,
+} from '../../src/features/collections/resolveCollections';
+import type { CollectionDisplayRecord } from '../../src/features/collections/types';
+import {
   blogSchema,
   profileSchema,
   worksSchema,
@@ -20,7 +29,6 @@ export type PublishedContent = {
   summary?: string;
   date: Date;
   dateModified?: Date;
-  featured: boolean;
   assistant: boolean;
   entityType: 'BlogPosting' | 'ScholarlyArticle' | 'CreativeWork';
   openGraphType: 'article' | 'website';
@@ -69,7 +77,6 @@ export function publishedContent(): PublishedContent[] {
           summary: data.summary,
           date: data.pubDate,
           dateModified: data.updatedDate ?? data.pubDate,
-          featured: false,
           assistant: data.assistant,
           entityType: 'BlogPosting',
           openGraphType: 'article',
@@ -111,7 +118,6 @@ export function publishedContent(): PublishedContent[] {
           seoDescription: data.seoDescription,
           summary: data.summary,
           date: data.date,
-          featured: data.featured,
           assistant: data.assistant,
           entityType:
             data.type === 'research' ? 'ScholarlyArticle' : 'CreativeWork',
@@ -130,6 +136,50 @@ export function publishedContent(): PublishedContent[] {
       ];
     });
   return [...blogs, ...works];
+}
+
+export type ResolvedPublishedCollections = {
+  homepage: readonly CollectionDisplayRecord[];
+  blog: readonly CollectionDisplayRecord[];
+  works: readonly CollectionDisplayRecord[];
+};
+
+export function resolvedPublishedCollections(): ResolvedPublishedCollections {
+  const root = process.cwd();
+  const trackedPaths = [...loadTrackedContentPaths(root)];
+  const blogs = trackedPaths
+    .filter(
+      (path) => path.startsWith('src/data/blog/') && path.endsWith('.mdx'),
+    )
+    .map((path): BlogEntry => {
+      const source = matter(readFileSync(resolve(root, path), 'utf8'));
+      return {
+        id: path.replace(/^src\/data\/blog\//u, '').replace(/\.mdx$/u, ''),
+        body: source.content,
+        data: blogSchema.parse(source.data),
+      };
+    });
+  const works = trackedPaths
+    .filter(
+      (path) => path.startsWith('src/data/works/') && path.endsWith('.mdx'),
+    )
+    .map((path): WorkEntry => {
+      const source = matter(readFileSync(resolve(root, path), 'utf8'));
+      return {
+        id: path.replace(/^src\/data\/works\//u, '').replace(/\.mdx$/u, ''),
+        body: source.content,
+        data: worksSchema.parse(source.data),
+      };
+    });
+
+  return {
+    homepage: [
+      ...resolveHomepageBlog(blogs, 3),
+      ...resolveHomepageWorks(works, 3),
+    ],
+    blog: resolveBlogCollection(blogs),
+    works: resolveWorksCollection(works),
+  };
 }
 
 export function publishedAssistantSources(): PublishedAssistantSource[] {

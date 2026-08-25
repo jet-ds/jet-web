@@ -101,7 +101,7 @@ const pageSubheading =
           sortedPosts.length > 0 ? (
             <div class="grid grid-cols-1 gap-l md:grid-cols-2">
               {sortedPosts.map((post) => (
-                <BlogCard record={post} />
+                <BlogCard headingLevel={2} record={post} />
               ))}
             </div>
           ) : (

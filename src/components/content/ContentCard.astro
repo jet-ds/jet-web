@@ -35,55 +35,57 @@ const imageSizes =
     : '(max-width: 767px) 100vw, 50vw';
 ---
 
-<Card
-  href={href}
-  clip
-  padding="none"
-  class="h-full"
-  data-content-card
-  data-content-card-variant={variant}
->
-  <div data-content-card-media class="aspect-video overflow-hidden">
-    <ThemeAwareImage
-      src={image.url}
-      darkSrc={image.darkUrl}
-      alt={image.alt}
-      width={image.width}
-      height={image.height}
-      class="h-full w-full object-cover motion-safe:transition-transform motion-safe:duration-300 motion-safe:group-hover:scale-105"
-      loading="lazy"
-      sizes={imageSizes}
-    />
-  </div>
+<article class="h-full">
+  <Card
+    href={href}
+    clip
+    padding="none"
+    class="h-full"
+    data-content-card
+    data-content-card-variant={variant}
+  >
+    <div data-content-card-media class="aspect-video overflow-hidden">
+      <ThemeAwareImage
+        src={image.url}
+        darkSrc={image.darkUrl}
+        alt={image.alt}
+        width={image.width}
+        height={image.height}
+        class="h-full w-full object-cover motion-safe:transition-transform motion-safe:duration-300 motion-safe:group-hover:scale-105"
+        loading="lazy"
+        sizes={imageSizes}
+      />
+    </div>
 
-  <div class={`p-card flex flex-1 flex-col ${contentGap}`}>
-    {
-      eyebrow && (
-        <p class="text-xs font-medium uppercase tracking-wide text-brand-text">
-          {eyebrow}
-        </p>
-      )
-    }
+    <div class={`p-card flex flex-1 flex-col ${contentGap}`}>
+      {
+        eyebrow && (
+          <p class="text-xs font-medium uppercase tracking-wide text-brand-text">
+            {eyebrow}
+          </p>
+        )
+      }
 
-    <Heading
-      data-content-card-title
-      class={`${titleSize} font-bold leading-tight text-text-primary transition-colors group-hover:text-brand-text`}
-    >
-      {title}
-    </Heading>
+      <Heading
+        data-content-card-title
+        class={`${titleSize} font-bold leading-tight text-text-primary transition-colors group-hover:text-brand-text`}
+      >
+        {title}
+      </Heading>
 
-    <p
-      data-content-card-summary
-      class={`${summarySize} leading-relaxed text-text-secondary`}
-    >
-      {summary}
-    </p>
+      <p
+        data-content-card-summary
+        class={`${summarySize} leading-relaxed text-text-secondary`}
+      >
+        {summary}
+      </p>
 
-    <ul
-      data-content-card-facts
-      class="flex flex-wrap gap-x-s gap-y-2xs text-sm text-text-tertiary"
-    >
-      {facts.map((fact) => <li data-content-card-fact>{fact}</li>)}
-    </ul>
-  </div>
-</Card>
+      <ul
+        data-content-card-facts
+        class="flex flex-wrap gap-x-s gap-y-2xs text-sm text-text-tertiary"
+      >
+        {facts.map((fact) => <li data-content-card-fact>{fact}</li>)}
+      </ul>
+    </div>
+  </Card>
+</article>

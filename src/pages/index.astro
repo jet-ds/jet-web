@@ -130,7 +130,7 @@ const selectedWorks = resolveHomepageWorks(allWorks, 3);
         latestPosts.length > 0 ? (
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-m">
             {latestPosts.map((record) => (
-              <BlogCard variant="compact" record={record} />
+              <BlogCard variant="compact" headingLevel={3} record={record} />
             ))}
           </div>
         ) : (
@@ -160,7 +160,7 @@ const selectedWorks = resolveHomepageWorks(allWorks, 3);
         selectedWorks.length > 0 ? (
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-m">
             {selectedWorks.map((record) => (
-              <WorkCard variant="compact" record={record} />
+              <WorkCard variant="compact" headingLevel={3} record={record} />
             ))}
           </div>
         ) : (

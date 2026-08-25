@@ -5,14 +5,15 @@ import ContentCard from '../content/ContentCard.astro';
 interface Props {
   record: CollectionDisplayRecord;
   variant?: 'collection' | 'compact';
+  headingLevel?: 2 | 3;
 }
 
-const { record, variant = 'collection' } = Astro.props;
+const { record, variant = 'collection', headingLevel = 2 } = Astro.props;
 
 const typeLabel = {
   research: 'Research',
   project: 'Project',
-  other: 'Other',
+  other: 'Work',
 } as const;
 
 const eyebrow = record.kind === 'blog' ? undefined : typeLabel[record.kind];
@@ -31,6 +32,6 @@ const eyebrow = record.kind === 'blog' ? undefined : typeLabel[record.kind];
     eyebrow={eyebrow}
     facts={record.facts}
     variant={variant}
-    headingLevel={variant === 'compact' ? 3 : 2}
+    headingLevel={headingLevel}
   />
 </div>

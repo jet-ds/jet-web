@@ -9,6 +9,7 @@ import { SITE, SOCIAL_LINKS } from '../../src/config/site';
 import {
   publishedAssistantSources,
   publishedContent,
+  resolvedPublishedCollections,
   type PublishedContent,
 } from '../support/publishedContent';
 
@@ -164,16 +165,14 @@ function rssItemLinks(xml: string): string[] {
 async function contentCardRoutes(page: Page, route: string): Promise<string[]> {
   const response = await page.goto(route);
   expect(response?.status()).toBe(200);
-  return (
-    await page
-      .locator('main [data-content-card] > a[href]')
-      .evaluateAll((anchors) =>
-        anchors.flatMap((anchor) => {
-          const href = anchor.getAttribute('href');
-          return href === null ? [] : [href];
-        }),
-      )
-  ).sort();
+  return page
+    .locator('main article a[href^="/blog/"], main article a[href^="/works/"]')
+    .evaluateAll((anchors) =>
+      anchors.flatMap((anchor) => {
+        const href = anchor.getAttribute('href');
+        return href === null ? [] : [href];
+      }),
+    );
 }
 
 async function publicHtmlRoutes(request: APIRequestContext): Promise<string[]> {
@@ -328,64 +327,52 @@ test('compact immersive navigation keeps the disclosure visually separated from 
 test('collection cards expose one complete shared anatomy and destination', async ({
   page,
 }) => {
-  for (const route of ['/', '/blog/', '/works/']) {
-    await page.goto(route);
-    const cards = page.locator('main [data-content-card]');
-    expect(await cards.count()).toBeGreaterThan(0);
+  const collections = resolvedPublishedCollections();
+  const pages = [
+    { route: '/', records: collections.homepage },
+    { route: '/blog/', records: collections.blog },
+    { route: '/works/', records: collections.works },
+  ] as const;
 
-    for (const card of await cards.all()) {
-      const action = card.locator(':scope > a[href]');
+  for (const { route, records } of pages) {
+    await page.goto(route);
+    const renderedRoutes = await contentCardRoutes(page, route);
+    expect(renderedRoutes).toEqual(records.map(({ href }) => href));
+
+    for (const record of records) {
+      const card = page.locator(`main article:has(a[href="${record.href}"])`);
+      const action = card.locator(`a[href="${record.href}"]`);
+      const heading = action.getByRole('heading');
+      const image = action.getByRole('img');
+      const summary = action.getByText(record.summary, { exact: true });
+      const facts = action.getByRole('list').getByRole('listitem');
+
+      await expect(card).toHaveCount(1);
       await expect(action).toHaveCount(1);
       await expect(card.locator('a[href]')).toHaveCount(1);
-      await expect(action).toHaveAttribute('href', /^\/(?:blog|works)\/.+\/$/u);
-
-      const media = action.locator('[data-content-card-media]');
-      const image = media.getByRole('img');
-      const title = action.locator('[data-content-card-title]');
-      const summary = action.locator('[data-content-card-summary]');
-      const facts = action.locator(
-        '[data-content-card-facts] > [data-content-card-fact]',
-      );
-
-      await expect(media).toBeVisible();
-      await expect(image).toHaveAttribute('alt', /\S/u);
-      await expect(title).toBeVisible();
-      await expect(title).not.toBeEmpty();
+      await expect(image).toHaveAttribute('alt', record.image.alt);
+      await expect(heading).toHaveText(record.title);
       await expect(summary).toBeVisible();
-      await expect(summary).not.toBeEmpty();
-      expect(await facts.count()).toBeGreaterThan(0);
-      for (const fact of await facts.all()) {
-        await expect(fact).toBeVisible();
-        await expect(fact).not.toBeEmpty();
-      }
+      await expect(facts).toHaveText([...record.facts]);
 
-      const anatomy = await action.evaluate((element) => {
-        const selectors = [
-          '[data-content-card-media]',
-          '[data-content-card-title]',
-          '[data-content-card-summary]',
-          '[data-content-card-facts]',
-        ];
-        const regions = selectors.map((selector) =>
-          element.querySelector<HTMLElement>(selector),
-        );
-        if (regions.some((region) => region === null)) {
-          throw new Error('Content card anatomy is incomplete');
-        }
-
-        return regions.map((region) => {
-          const target = region as HTMLElement;
-          const style = getComputedStyle(target);
-          return {
-            clientHeight: target.clientHeight,
-            clientWidth: target.clientWidth,
-            lineClamp: style.webkitLineClamp,
-            scrollHeight: target.scrollHeight,
-            scrollWidth: target.scrollWidth,
-            top: target.getBoundingClientRect().top,
-          };
-        });
-      });
+      const anatomy = await Promise.all(
+        [image, heading, summary, action.getByRole('list')].map((region) =>
+          region.evaluate((target) => {
+            if (!(target instanceof HTMLElement)) {
+              throw new Error('Content card region is not an HTML element');
+            }
+            const style = getComputedStyle(target);
+            return {
+              clientHeight: target.clientHeight,
+              clientWidth: target.clientWidth,
+              lineClamp: style.webkitLineClamp,
+              scrollHeight: target.scrollHeight,
+              scrollWidth: target.scrollWidth,
+              top: target.getBoundingClientRect().top,
+            };
+          }),
+        ),
+      );
 
       expect(anatomy.map(({ top }) => top)).toEqual(
         [...anatomy.map(({ top }) => top)].sort((left, right) => left - right),
@@ -398,16 +385,19 @@ test('collection cards expose one complete shared anatomy and destination', asyn
         expect(region.scrollWidth).toBeLessThanOrEqual(region.clientWidth + 1);
       }
 
-      const mediaBounds = await media.boundingBox();
+      const mediaBounds = await image.boundingBox();
       if (mediaBounds === null) throw new Error('Card media has no geometry');
       expect(mediaBounds.width / mediaBounds.height).toBeCloseTo(16 / 9, 2);
     }
 
-    const firstAction = cards.first().locator(':scope > a[href]');
-    const destination = await firstAction.getAttribute('href');
-    if (destination === null) throw new Error('Card destination is missing');
-    await firstAction.locator('[data-content-card-media]').click();
-    await expect(page).toHaveURL(destination);
+    const firstRecord = records[0];
+    if (firstRecord !== undefined) {
+      await page
+        .locator(`main article a[href="${firstRecord.href}"]`)
+        .getByRole('img')
+        .click();
+      await expect(page).toHaveURL(firstRecord.href);
+    }
   }
 });
 
@@ -1074,31 +1064,16 @@ test('content discovery surfaces exactly match tracked publication state', async
   request,
 }) => {
   const content = publishedContent();
-  const homepageContent = [
-    ...content
-      .filter(({ kind }) => kind === 'blog')
-      .sort((left, right) => right.date.getTime() - left.date.getTime())
-      .slice(0, 3),
-    ...content
-      .filter(({ kind, featured }) => kind === 'work' && featured)
-      .sort((left, right) => right.date.getTime() - left.date.getTime())
-      .slice(0, 3),
-  ];
+  const collections = resolvedPublishedCollections();
 
   expect(await contentCardRoutes(page, '/')).toEqual(
-    homepageContent.map(({ route }) => route).sort(),
+    collections.homepage.map(({ href }) => href),
   );
   expect(await contentCardRoutes(page, '/blog/')).toEqual(
-    content
-      .filter(({ kind }) => kind === 'blog')
-      .map(({ route }) => route)
-      .sort(),
+    collections.blog.map(({ href }) => href),
   );
   expect(await contentCardRoutes(page, '/works/')).toEqual(
-    content
-      .filter(({ kind }) => kind === 'work')
-      .map(({ route }) => route)
-      .sort(),
+    collections.works.map(({ href }) => href),
   );
 
   const sitemapContentRoutes = (await publicHtmlRoutes(request)).filter(
