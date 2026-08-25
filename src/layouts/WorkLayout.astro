@@ -164,17 +164,6 @@ const doiUrl =
             {description}
           </p>
 
-          <!-- Tags -->
-          {
-            tags.length > 0 && (
-              <div class="flex flex-wrap gap-2xs mb-m">
-                {tags.map((tag) => (
-                  <Tag>{tag}</Tag>
-                ))}
-              </div>
-            )
-          }
-
           <!-- Links -->
           {
             (links.length > 0 || repository || demo) && (

@@ -54,11 +54,12 @@ test('Blog restores q, replaces its URL state, and clears back to the complete c
 
   const input = page.getByRole('searchbox', { name: 'Search blog posts' });
   const clear = page.getByRole('button', { name: 'Clear search' });
+  const status = page.getByRole('status');
   const total = await blogItems(page).count();
 
   await expect(input).toHaveValue('invented-query');
   await expect(clear).toBeVisible();
-  await expect(page.getByRole('status')).toBeVisible();
+  await expect(status).toHaveText('0 posts found');
   await expect(page.locator('[data-blog-search-empty]')).toBeVisible();
   await expect(page.locator('link[rel="canonical"]')).toHaveAttribute(
     'href',
@@ -79,15 +80,18 @@ test('Blog restores q, replaces its URL state, and clears back to the complete c
   expect(firstTitle).not.toBe('');
   await input.focus();
   await input.fill(firstTitle);
-  expect(
-    await blogItems(page).filter({ visible: true }).count(),
-  ).toBeGreaterThan(0);
+  const positiveCount = await blogItems(page).filter({ visible: true }).count();
+  expect(positiveCount).toBeGreaterThan(0);
+  await expect(status).toHaveText(
+    `${positiveCount} ${positiveCount === 1 ? 'post' : 'posts'} found`,
+  );
   await expect(page.locator('[data-blog-search-empty]')).toBeHidden();
   expect(new URL(page.url()).searchParams.getAll('q')).toEqual([firstTitle]);
 
   await input.fill('another invented query');
   await expect(input).toBeFocused();
   await expect(page.locator('[data-blog-search-empty]')).toBeVisible();
+  await expect(status).toHaveText('0 posts found');
   expect(new URL(page.url()).searchParams.getAll('q')).toEqual([
     'another invented query',
   ]);
@@ -97,6 +101,7 @@ test('Blog restores q, replaces its URL state, and clears back to the complete c
   await expect(input).toHaveValue('');
   await expect(clear).toBeHidden();
   await expect(blogItems(page).filter({ visible: true })).toHaveCount(total);
+  await expect(status).toHaveText(`${total} ${total === 1 ? 'post' : 'posts'}`);
   await expect(page.locator('[data-blog-search-empty]')).toBeHidden();
   expect(new URL(page.url()).searchParams.has('q')).toBe(false);
 });
