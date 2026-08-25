@@ -23,29 +23,12 @@ if (profile === undefined) {
   );
 }
 
-function requireEntry<T extends { id: string }>(
-  entries: readonly T[],
-  id: string,
-): T {
-  const entry = entries.find((candidate) => candidate.id === id);
-  if (entry === undefined) {
-    throw new Error(`Resolved Homepage content is missing its source: ${id}.`);
-  }
-  return entry;
-}
-
 // Keep the pre-carousel grids at three while canonical resolution owns membership.
 const allBlogPosts = await getCollection('blog');
-const latestPosts = resolveHomepageBlog(allBlogPosts, 3).map((record) => ({
-  record,
-  entry: requireEntry(allBlogPosts, record.id),
-}));
+const latestPosts = resolveHomepageBlog(allBlogPosts, 3);
 
 const allWorks = await getCollection('works');
-const featuredWorks = resolveHomepageWorks(allWorks, 3).map((record) => ({
-  record,
-  entry: requireEntry(allWorks, record.id),
-}));
+const selectedWorks = resolveHomepageWorks(allWorks, 3);
 ---
 
 <BaseLayout
@@ -146,19 +129,8 @@ const featuredWorks = resolveHomepageWorks(allWorks, 3).map((record) => ({
       {
         latestPosts.length > 0 ? (
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-m">
-            {latestPosts.map(({ record, entry: post }) => (
-              <BlogCard
-                variant="compact"
-                slug={record.id}
-                title={post.data.title}
-                shortTitle={post.data.shortTitle}
-                description={post.data.description}
-                summary={post.data.summary}
-                pubDate={post.data.pubDate}
-                tags={post.data.tags}
-                image={post.data.image}
-                content={post.body}
-              />
+            {latestPosts.map((record) => (
+              <BlogCard variant="compact" record={record} />
             ))}
           </div>
         ) : (
@@ -172,12 +144,12 @@ const featuredWorks = resolveHomepageWorks(allWorks, 3).map((record) => ({
     </Container>
   </Section>
 
-  <!-- Featured Works -->
+  <!-- Selected Works -->
   <Section spacing="default">
     <Container size="lg">
       <div class="flex justify-between items-center mb-l">
         <h2 class="text-3xl font-bold leading-tight text-text-primary">
-          Featured Works
+          Selected Works
         </h2>
         <Button href="/works/" variant="ghost"
           ><span>View all <span class="text-accent-base">→</span></span></Button
@@ -185,30 +157,16 @@ const featuredWorks = resolveHomepageWorks(allWorks, 3).map((record) => ({
       </div>
 
       {
-        featuredWorks.length > 0 ? (
+        selectedWorks.length > 0 ? (
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-m">
-            {featuredWorks.map(({ record, entry: work }) => (
-              <WorkCard
-                variant="compact"
-                slug={record.id}
-                title={work.data.title}
-                shortTitle={work.data.shortTitle}
-                description={work.data.description}
-                summary={work.data.summary}
-                type={work.data.type}
-                date={work.data.date}
-                tags={work.data.tags}
-                image={work.data.image}
-                venue={work.data.venue}
-                technologies={work.data.technologies}
-                links={work.data.links}
-              />
+            {selectedWorks.map((record) => (
+              <WorkCard variant="compact" record={record} />
             ))}
           </div>
         ) : (
           <Card>
             <p class="text-center text-text-tertiary py-l">
-              No featured works yet. Check back soon!
+              No selected works yet. Check back soon!
             </p>
           </Card>
         )

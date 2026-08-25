@@ -1,98 +1,24 @@
 ---
-import { formatDate } from '../../utils/formatDate';
-import { getReadingTimeText } from '../../utils/readingTime';
+import type { CollectionDisplayRecord } from '../../features/collections/types';
 import ContentCard from '../content/ContentCard.astro';
 
 interface Props {
-  slug: string;
-  title: string;
-  shortTitle?: string;
-  description: string;
-  summary?: string;
-  pubDate: Date;
-  tags: string[];
-  image?: {
-    url: string;
-    alt: string;
-  };
-  content?: string; // For reading time calculation
+  record: CollectionDisplayRecord;
   variant?: 'collection' | 'compact';
 }
 
-const {
-  slug,
-  title,
-  shortTitle,
-  description,
-  summary,
-  pubDate,
-  tags,
-  image,
-  content,
-  variant = 'collection',
-} = Astro.props;
-
-const postUrl = `/blog/${slug}/`;
-const formattedDate = formatDate(pubDate);
-const readingTime = content ? getReadingTimeText(content) : null;
-const displayTitle = shortTitle ?? title;
-const displaySummary = summary ?? description;
+const { record, variant = 'collection' } = Astro.props;
+const tags = record.search?.tags ?? [];
 ---
 
-<ContentCard
-  href={postUrl}
-  title={displayTitle}
-  description={displaySummary}
-  tags={tags}
-  image={image}
-  variant={variant}
-  headingLevel={variant === 'compact' ? 3 : 2}
-  data-filter-item
-  data-filter-values={JSON.stringify(tags)}
->
-  <div slot="metadata" class="space-y-2xs">
-    <time datetime={pubDate.toISOString()} class="flex items-center gap-1">
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        class="h-4 w-4"
-        fill="none"
-        viewBox="0 0 24 24"
-        stroke="currentColor"
-        aria-hidden="true"
-      >
-        <path
-          stroke-linecap="round"
-          stroke-linejoin="round"
-          stroke-width="2"
-          d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z"
-        ></path>
-      </svg>
-      {formattedDate}
-    </time>
-
-    <div class="flex flex-wrap items-center gap-x-s gap-y-2xs">
-      {
-        readingTime && (
-          <span class="flex items-center gap-1">
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              class="h-4 w-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
-              aria-hidden="true"
-            >
-              <path
-                stroke-linecap="round"
-                stroke-linejoin="round"
-                stroke-width="2"
-                d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"
-              />
-            </svg>
-            {readingTime}
-          </span>
-        )
-      }
-    </div>
-  </div>
-</ContentCard>
+<div class="h-full" data-filter-item data-filter-values={JSON.stringify(tags)}>
+  <ContentCard
+    href={record.href}
+    title={record.title}
+    summary={record.summary}
+    image={record.image}
+    facts={record.facts}
+    variant={variant}
+    headingLevel={variant === 'compact' ? 3 : 2}
+  />
+</div>

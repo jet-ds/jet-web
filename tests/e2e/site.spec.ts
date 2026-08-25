@@ -325,102 +325,89 @@ test('compact immersive navigation keeps the disclosure visually separated from 
   expect(visualGap).toBeLessThanOrEqual(10);
 });
 
-test('every rendered content-card cover uses its dominant card destination', async ({
+test('collection cards expose one complete shared anatomy and destination', async ({
   page,
 }) => {
   for (const route of ['/', '/blog/', '/works/']) {
     await page.goto(route);
-    const bindings = await page
-      .locator('main [data-content-card] [data-content-card-media]')
-      .evaluateAll((covers) =>
-        covers.map((cover) => {
-          const dominantAction = cover.closest('a[href]');
-          const card = cover.closest('[data-content-card]');
-          return {
-            href: dominantAction?.getAttribute('href') ?? null,
-            isDirectCardAction: dominantAction?.parentElement === card,
-          };
-        }),
+    const cards = page.locator('main [data-content-card]');
+    expect(await cards.count()).toBeGreaterThan(0);
+
+    for (const card of await cards.all()) {
+      const action = card.locator(':scope > a[href]');
+      await expect(action).toHaveCount(1);
+      await expect(card.locator('a[href]')).toHaveCount(1);
+      await expect(action).toHaveAttribute('href', /^\/(?:blog|works)\/.+\/$/u);
+
+      const media = action.locator('[data-content-card-media]');
+      const image = media.getByRole('img');
+      const title = action.locator('[data-content-card-title]');
+      const summary = action.locator('[data-content-card-summary]');
+      const facts = action.locator(
+        '[data-content-card-facts] > [data-content-card-fact]',
       );
-    expect(bindings.length).toBeGreaterThan(0);
-    for (const binding of bindings) {
-      expect(binding.href).toBeTruthy();
-      expect(binding.isDirectCardAction).toBe(true);
+
+      await expect(media).toBeVisible();
+      await expect(image).toHaveAttribute('alt', /\S/u);
+      await expect(title).toBeVisible();
+      await expect(title).not.toBeEmpty();
+      await expect(summary).toBeVisible();
+      await expect(summary).not.toBeEmpty();
+      expect(await facts.count()).toBeGreaterThan(0);
+      for (const fact of await facts.all()) {
+        await expect(fact).toBeVisible();
+        await expect(fact).not.toBeEmpty();
+      }
+
+      const anatomy = await action.evaluate((element) => {
+        const selectors = [
+          '[data-content-card-media]',
+          '[data-content-card-title]',
+          '[data-content-card-summary]',
+          '[data-content-card-facts]',
+        ];
+        const regions = selectors.map((selector) =>
+          element.querySelector<HTMLElement>(selector),
+        );
+        if (regions.some((region) => region === null)) {
+          throw new Error('Content card anatomy is incomplete');
+        }
+
+        return regions.map((region) => {
+          const target = region as HTMLElement;
+          const style = getComputedStyle(target);
+          return {
+            clientHeight: target.clientHeight,
+            clientWidth: target.clientWidth,
+            lineClamp: style.webkitLineClamp,
+            scrollHeight: target.scrollHeight,
+            scrollWidth: target.scrollWidth,
+            top: target.getBoundingClientRect().top,
+          };
+        });
+      });
+
+      expect(anatomy.map(({ top }) => top)).toEqual(
+        [...anatomy.map(({ top }) => top)].sort((left, right) => left - right),
+      );
+      for (const region of anatomy.slice(1)) {
+        expect(region.lineClamp).toMatch(/^(?:none|0)$/u);
+        expect(region.scrollHeight).toBeLessThanOrEqual(
+          region.clientHeight + 1,
+        );
+        expect(region.scrollWidth).toBeLessThanOrEqual(region.clientWidth + 1);
+      }
+
+      const mediaBounds = await media.boundingBox();
+      if (mediaBounds === null) throw new Error('Card media has no geometry');
+      expect(mediaBounds.width / mediaBounds.height).toBeCloseTo(16 / 9, 2);
     }
 
-    const dominantAction = page
-      .locator(
-        'main [data-content-card] > a[href]:has([data-content-card-media])',
-      )
-      .first();
-    const destination = await dominantAction.getAttribute('href');
-    if (!destination)
-      throw new Error(`Missing content-card action on ${route}`);
-    const cover = dominantAction.locator('[data-content-card-media]');
-    await expect(cover).toBeVisible();
-    await cover.click();
+    const firstAction = cards.first().locator(':scope > a[href]');
+    const destination = await firstAction.getAttribute('href');
+    if (destination === null) throw new Error('Card destination is missing');
+    await firstAction.locator('[data-content-card-media]').click();
     await expect(page).toHaveURL(destination);
-  }
-});
-
-test('homepage content cards include their padded perimeter in the dominant action', async ({
-  page,
-}) => {
-  await page.goto('/');
-
-  const card = page.locator('main [data-content-card="true"]').first();
-  const primaryAction = card.locator(':scope > a');
-  const destination = await primaryAction.getAttribute('href');
-  if (!destination) throw new Error('Missing homepage card destination');
-
-  await card.scrollIntoViewIfNeeded();
-  const cardBounds = await card.boundingBox();
-  if (!cardBounds) throw new Error('Missing homepage content card');
-
-  await page.mouse.click(cardBounds.x + 4, cardBounds.y + 4);
-  await expect(page).toHaveURL(destination);
-});
-
-test('homepage content cards use deliberate human-facing card copy', async ({
-  page,
-}) => {
-  const content = publishedContent();
-  const cases = [
-    ...content
-      .filter(({ kind }) => kind === 'blog')
-      .sort((a, b) => b.date.getTime() - a.date.getTime())
-      .slice(0, 3),
-    ...content
-      .filter(({ kind, featured }) => kind === 'work' && featured)
-      .sort((a, b) => b.date.getTime() - a.date.getTime())
-      .slice(0, 3),
-  ];
-
-  await page.goto('/');
-
-  for (const contentItem of cases) {
-    const title = contentItem.shortTitle ?? contentItem.title;
-    const description = contentItem.summary ?? contentItem.description;
-    const teaser = page.locator(`main a[href="${contentItem.route}"]`);
-    await expect(
-      teaser.getByRole('heading', { name: title, exact: true }),
-    ).toBeVisible();
-
-    const summary = teaser.locator('p');
-    await expect(summary).toHaveText(description);
-    const metrics = await summary.evaluate((element) => {
-      const styles = getComputedStyle(element);
-      return {
-        height: element.getBoundingClientRect().height,
-        lineHeight: Number.parseFloat(styles.lineHeight),
-        lineClamp: styles.webkitLineClamp,
-        overflow: styles.overflow,
-      };
-    });
-
-    expect(metrics.lineClamp).toBe('4');
-    expect(metrics.height).toBeLessThanOrEqual(metrics.lineHeight * 4 + 1);
-    expect(metrics.overflow).toBe('hidden');
   }
 });
 
@@ -449,248 +436,55 @@ test('blog cards omit repeated single-author attribution while article pages ret
   }
 });
 
-test('image-backed Home and Works cards keep media and normalized metadata aligned', async ({
+test('collection hubs keep the standardized responsive card geometry', async ({
   page,
 }) => {
-  for (const route of ['/', '/works/']) {
-    await page.goto(route);
-    const timesheet = page.locator(
-      'main a[href="/works/digital-squad-timesheet/"]',
-    );
-    const research = page.locator(
-      'main a[href="/works/recursive-convergence-hypothesis/"]',
-    );
-
-    const geometry = await Promise.all(
-      [timesheet, research].map((card) =>
-        card.evaluate((element) => {
-          const media = element.querySelector('[data-content-card-media]');
-          const title = element.querySelector('[data-content-card-title]');
-          const metadata = element.querySelector(
-            '[data-content-card-metadata]',
-          );
-          if (!media || !title || !metadata)
-            throw new Error('Incomplete shared content card');
-          return {
-            mediaTop: media.getBoundingClientRect().top,
-            mediaHeight: media.getBoundingClientRect().height,
-            titleHeight: title.getBoundingClientRect().height,
-            metadataHeight: metadata.getBoundingClientRect().height,
-            metadataTop: metadata.getBoundingClientRect().top,
-          };
-        }),
-      ),
-    );
-
-    if ((page.viewportSize()?.width ?? 0) >= 768) {
-      expect(
-        Math.abs(geometry[0].mediaTop - geometry[1].mediaTop),
-      ).toBeLessThanOrEqual(1);
-      expect(
-        Math.abs(geometry[0].metadataTop - geometry[1].metadataTop),
-      ).toBeLessThanOrEqual(1);
-    }
-    expect(
-      Math.abs(geometry[0].mediaHeight - geometry[1].mediaHeight),
-    ).toBeLessThanOrEqual(1);
-    expect(
-      Math.abs(geometry[0].titleHeight - geometry[1].titleHeight),
-    ).toBeLessThanOrEqual(1);
-    expect(
-      Math.abs(geometry[0].metadataHeight - geometry[1].metadataHeight),
-    ).toBeLessThanOrEqual(1);
-  }
-});
-
-test('image-backed content cards clip media and expose a visible keyboard boundary', async ({
-  page,
-}) => {
-  const cases = [
-    {
-      route: '/blog/',
-      href: '/blog/vibe-coding-vs-agentic-coding-why-the-distinction-matters/',
-    },
-    {
-      route: '/works/',
-      href: '/works/digital-squad-timesheet/',
-    },
-  ] as const;
-
-  for (const width of [320, 1440]) {
+  for (const width of [320, 430, 767, 768, 1440]) {
     await page.setViewportSize({ width, height: 900 });
 
-    for (const { route, href } of cases) {
+    for (const route of ['/blog/', '/works/']) {
       await page.goto(route);
-      const action = page.locator(`main a[href="${href}"]`).first();
-      const image = action.getByRole('img');
-      await expect(action).toBeVisible();
-      await expect(image).toBeVisible();
+      const cards = page.locator('main [data-content-card]');
+      const first = await cards.nth(0).boundingBox();
+      const media = await cards
+        .nth(0)
+        .locator('[data-content-card-media]')
+        .boundingBox();
+      if (first === null || media === null) {
+        throw new Error(`Collection card geometry is unavailable on ${route}`);
+      }
 
-      // Page navigation preserves the pointer position, which can leave the next
-      // card hovered before its resting state is sampled.
-      await page.mouse.move(width - 1, 1);
-      await expect
-        .poll(() =>
-          image.evaluate((element) => getComputedStyle(element).transform),
-        )
-        .toBe('none');
-
-      const rest = await action.evaluate((element) => {
-        let surface = element.parentElement;
-        while (surface !== null) {
-          const style = getComputedStyle(surface);
-          if (
-            style.overflow === 'hidden' &&
-            Number.parseFloat(style.borderRadius) > 0
-          )
-            break;
-          surface = surface.parentElement;
+      const columns = await cards.first().evaluate((element) => {
+        let ancestor = element.parentElement;
+        while (
+          ancestor !== null &&
+          getComputedStyle(ancestor).display !== 'grid'
+        ) {
+          ancestor = ancestor.parentElement;
         }
-        if (surface === null)
-          throw new Error('Clipped content-card surface missing');
-        const media = surface.querySelector('[data-content-card-media]');
-        const imageElement = media?.querySelector('img');
-        if (!media || !imageElement)
-          throw new Error('Content-card media boundary missing');
-        const surfaceStyle = getComputedStyle(surface);
-        return {
-          borderRadius: Number.parseFloat(surfaceStyle.borderRadius),
-          imageWidth: imageElement.getBoundingClientRect().width,
-          overflow: surfaceStyle.overflow,
-        };
+        if (ancestor === null)
+          throw new Error('Collection grid is unavailable');
+        return getComputedStyle(ancestor).gridTemplateColumns.split(' ').length;
       });
-      expect(rest.borderRadius).toBe(8);
-      expect(rest.overflow).toBe('hidden');
+      expect(columns).toBe(width >= 768 ? 2 : 1);
 
-      const supportsHover = await page.evaluate(
-        () => window.matchMedia('(hover: hover) and (pointer: fine)').matches,
+      expect(media.width / media.height).toBeCloseTo(16 / 9, 2);
+      if (width === 1440) {
+        expect(media.width).toBeGreaterThanOrEqual(528);
+        expect(media.width).toBeLessThanOrEqual(536);
+        expect(media.height).toBeGreaterThanOrEqual(296);
+        expect(media.height).toBeLessThanOrEqual(302);
+      }
+
+      const overflow = await page.evaluate(() => ({
+        clientWidth: document.documentElement.clientWidth,
+        scrollWidth: document.documentElement.scrollWidth,
+      }));
+      expect(overflow.scrollWidth).toBeLessThanOrEqual(
+        overflow.clientWidth + 1,
       );
-      if (supportsHover) {
-        await action.hover();
-        await expect
-          .poll(() =>
-            image.evaluate((element) => element.getBoundingClientRect().width),
-          )
-          .toBeGreaterThan(rest.imageWidth + 1);
-      }
-
-      await page.reload();
-      const keyboardAction = page.locator(`main a[href="${href}"]`).first();
-      for (let attempt = 0; attempt < 60; attempt += 1) {
-        await page.keyboard.press('Tab');
-        if (
-          await keyboardAction.evaluate(
-            (element) => element === document.activeElement,
-          )
-        )
-          break;
-      }
-      await expect(keyboardAction).toBeFocused();
-      const focus = await keyboardAction.evaluate((element) => {
-        let surface = element.parentElement;
-        while (surface !== null) {
-          const style = getComputedStyle(surface);
-          if (
-            style.overflow === 'hidden' &&
-            Number.parseFloat(style.borderRadius) > 0
-          )
-            break;
-          surface = surface.parentElement;
-        }
-        if (surface === null)
-          throw new Error('Clipped content-card surface missing');
-        const style = getComputedStyle(surface);
-        return {
-          outlineOffset: Number.parseFloat(style.outlineOffset),
-          outlineStyle: style.outlineStyle,
-          outlineWidth: Number.parseFloat(style.outlineWidth),
-          overflow: style.overflow,
-        };
-      });
-      expect(focus.outlineStyle).toBe('solid');
-      expect(focus.outlineWidth).toBe(2);
-      expect(focus.outlineOffset).toBe(2);
-      expect(focus.overflow).toBe('hidden');
     }
   }
-});
-
-test('work collection cards keep secondary actions visible inside the card boundary', async ({
-  page,
-}) => {
-  await page.goto('/works/');
-
-  const researchCard = page.locator('[data-filter-item]').filter({
-    hasText: 'The Recursive Convergence Hypothesis',
-  });
-  const action = researchCard.getByRole('link', { name: 'View on SSRN' });
-
-  await expect(action).toBeVisible();
-
-  const bounds = await researchCard.evaluate((card) => {
-    const cardRect = card.getBoundingClientRect();
-    const actionElement = Array.from(card.querySelectorAll('a')).find((link) =>
-      link.textContent?.includes('View on SSRN'),
-    );
-    if (!actionElement) throw new Error('Missing View on SSRN action');
-    const actionRect = actionElement.getBoundingClientRect();
-
-    return {
-      actionBottom: actionRect.bottom,
-      cardBottom: cardRect.bottom,
-    };
-  });
-
-  expect(bounds.actionBottom).toBeLessThanOrEqual(bounds.cardBottom);
-});
-
-test('work collection summaries fit within four complete visible lines', async ({
-  page,
-}) => {
-  await page.goto('/works/');
-
-  const researchCard = page.locator('[data-filter-item]').filter({
-    hasText: 'The Recursive Convergence Hypothesis',
-  });
-  const description = researchCard.locator('p');
-
-  await expect(description).toHaveText(
-    'A framework for how ASI may converge on synthetic sentience through recursive self-improvement.',
-  );
-
-  const metrics = await description.evaluate((element) => {
-    const styles = getComputedStyle(element);
-    return {
-      height: element.getBoundingClientRect().height,
-      scrollHeight: element.scrollHeight,
-      lineHeight: Number.parseFloat(styles.lineHeight),
-      lineClamp: styles.webkitLineClamp,
-    };
-  });
-
-  expect(metrics.lineClamp).toBe('4');
-  expect(metrics.height).toBeLessThanOrEqual(metrics.lineHeight * 4 + 1);
-  expect(metrics.scrollHeight).toBeLessThanOrEqual(metrics.height + 1);
-});
-
-test('project cards summarize additional technologies with an explicit accessible count', async ({
-  page,
-}) => {
-  await page.goto('/works/');
-
-  const timesheetCard = page.locator('[data-filter-item]').filter({
-    hasText: 'Digital Squad Timesheet',
-  });
-  await expect(
-    timesheetCard.getByText('Next.js, React, TypeScript +11', { exact: true }),
-  ).toBeVisible();
-  await expect(
-    timesheetCard.getByText(
-      'Next.js, React, TypeScript, plus 11 more technologies',
-      { exact: true },
-    ),
-  ).toHaveCount(1);
-  await expect(timesheetCard).not.toContainText('TypeScript...');
 });
 
 test('Timesheet presents its complete technology stack as a semantic section after Overview', async ({

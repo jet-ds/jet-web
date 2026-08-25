@@ -230,6 +230,54 @@ for (const route of accessibilityRoutes) {
   }
 }
 
+test('collection cards keep one keyboard-visible dominant action', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'chromium');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+
+  for (const width of [320, 1440]) {
+    await page.setViewportSize({ width, height: 900 });
+
+    for (const route of ['/blog/', '/works/']) {
+      await page.goto(route);
+      const card = page.locator('main [data-content-card]').first();
+      const action = card.locator(':scope > a[href]');
+      await expect(action).toHaveCount(1);
+      await expect(card.locator('a[href]')).toHaveCount(1);
+      await action.hover();
+      const reducedMotionScale = await action
+        .locator('[data-content-card-media]')
+        .getByRole('img')
+        .evaluate((element) => getComputedStyle(element).scale);
+      expect(reducedMotionScale).toMatch(/^(?:none|1)$/u);
+
+      await focusWithKeyboard(page, action);
+      const focus = await card.evaluate((element) => {
+        const style = getComputedStyle(element);
+        return {
+          outlineOffset: Number.parseFloat(style.outlineOffset),
+          outlineStyle: style.outlineStyle,
+          outlineWidth: Number.parseFloat(style.outlineWidth),
+        };
+      });
+      expect(focus).toEqual({
+        outlineOffset: 2,
+        outlineStyle: 'solid',
+        outlineWidth: 2,
+      });
+
+      const overflow = await page.evaluate(() => ({
+        clientWidth: document.documentElement.clientWidth,
+        scrollWidth: document.documentElement.scrollWidth,
+      }));
+      expect(overflow.scrollWidth).toBeLessThanOrEqual(
+        overflow.clientWidth + 1,
+      );
+    }
+  }
+});
+
 test('Egregore introduction, ready, and response states remain accessible by keyboard', async ({
   page,
 }, testInfo) => {

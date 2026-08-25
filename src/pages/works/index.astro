@@ -5,18 +5,14 @@ import PageWrapper from '../../components/layout/PageWrapper.astro';
 import Container from '../../components/ui/Container.astro';
 import WorkCard from '../../components/works/WorkCard.astro';
 import CollectionFilterEnhancement from '../../components/filters/CollectionFilterEnhancement.astro';
-import { isPublished } from '../../content/policy';
-import { sortWorks } from '../../utils/sortByDate';
+import { resolveWorksCollection } from '../../features/collections/resolveCollections';
 
-const allWorks = await getCollection('works', ({ data }) => isPublished(data));
-const sortedWorks = sortWorks(allWorks);
-const featuredWorks = sortedWorks.filter((work) => work.data.featured);
-const regularWorks = sortedWorks.filter((work) => !work.data.featured);
+const sortedWorks = resolveWorksCollection(await getCollection('works'));
 const workCounts = {
   all: sortedWorks.length,
-  research: sortedWorks.filter((work) => work.data.type === 'research').length,
-  project: sortedWorks.filter((work) => work.data.type === 'project').length,
-  other: sortedWorks.filter((work) => work.data.type === 'other').length,
+  research: sortedWorks.filter((work) => work.kind === 'research').length,
+  project: sortedWorks.filter((work) => work.kind === 'project').length,
+  other: sortedWorks.filter((work) => work.kind === 'other').length,
 };
 const workTypes = [
   { value: 'research', label: 'Research', count: workCounts.research },
@@ -98,65 +94,11 @@ const pageSubheading =
         }
 
         {
-          featuredWorks.length > 0 && (
-            <section data-filter-section class="mb-xl">
-              <h2 class="text-2xl font-bold mb-m flex items-center gap-2xs">
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  class="h-6 w-6 text-accent-base"
-                  viewBox="0 0 20 20"
-                  fill="currentColor"
-                >
-                  <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                </svg>
-                Featured
-              </h2>
-              <div class="grid gap-m md:grid-cols-2 lg:grid-cols-3">
-                {featuredWorks.map((work) => (
-                  <WorkCard
-                    slug={work.id}
-                    title={work.data.title}
-                    shortTitle={work.data.shortTitle}
-                    description={work.data.description}
-                    summary={work.data.summary}
-                    type={work.data.type}
-                    date={work.data.date}
-                    tags={work.data.tags}
-                    featured={work.data.featured}
-                    image={work.data.image}
-                    venue={work.data.venue}
-                    technologies={work.data.technologies}
-                    links={work.data.links}
-                  />
-                ))}
-              </div>
-            </section>
-          )
-        }
-
-        {
-          regularWorks.length > 0 && (
+          sortedWorks.length > 0 && (
             <section data-filter-section>
-              {featuredWorks.length > 0 && (
-                <h2 class="text-2xl font-bold leading-tight mb-m">All Works</h2>
-              )}
-              <div class="grid gap-m md:grid-cols-2 lg:grid-cols-3">
-                {regularWorks.map((work) => (
-                  <WorkCard
-                    slug={work.id}
-                    title={work.data.title}
-                    shortTitle={work.data.shortTitle}
-                    description={work.data.description}
-                    summary={work.data.summary}
-                    type={work.data.type}
-                    date={work.data.date}
-                    tags={work.data.tags}
-                    featured={work.data.featured}
-                    image={work.data.image}
-                    venue={work.data.venue}
-                    technologies={work.data.technologies}
-                    links={work.data.links}
-                  />
+              <div class="grid grid-cols-1 gap-l md:grid-cols-2">
+                {sortedWorks.map((work) => (
+                  <WorkCard record={work} />
                 ))}
               </div>
             </section>

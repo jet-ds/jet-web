@@ -5,14 +5,18 @@ import PageWrapper from '../../components/layout/PageWrapper.astro';
 import Container from '../../components/ui/Container.astro';
 import BlogCard from '../../components/blog/BlogCard.astro';
 import CollectionFilterEnhancement from '../../components/filters/CollectionFilterEnhancement.astro';
-import { isPublished } from '../../content/policy';
-import { sortBlogPosts } from '../../utils/sortByDate';
-import { getAllTags, getTagCounts } from '../../utils/filterByTag';
+import { resolveBlogCollection } from '../../features/collections/resolveCollections';
 
-const allPosts = await getCollection('blog', ({ data }) => isPublished(data));
-const sortedPosts = sortBlogPosts(allPosts);
-const allTags = getAllTags(sortedPosts);
-const tagCounts = getTagCounts(sortedPosts);
+const sortedPosts = resolveBlogCollection(await getCollection('blog'));
+const allTags = Array.from(
+  new Set(sortedPosts.flatMap((post) => post.search?.tags ?? [])),
+).sort((left, right) => left.toLowerCase().localeCompare(right.toLowerCase()));
+const tagCounts = Object.fromEntries(
+  allTags.map((tag) => [
+    tag,
+    sortedPosts.filter((post) => post.search?.tags.includes(tag)).length,
+  ]),
+);
 const pageDescription =
   "Explore Jet Sanchez's articles on AI, agentic software development, local-first tools, technical workflows, and the systems shaping modern work.";
 const pageSubheading =
@@ -95,19 +99,9 @@ const pageSubheading =
 
         {
           sortedPosts.length > 0 ? (
-            <div class="grid gap-l md:grid-cols-2 lg:grid-cols-2">
+            <div class="grid grid-cols-1 gap-l md:grid-cols-2">
               {sortedPosts.map((post) => (
-                <BlogCard
-                  slug={post.id}
-                  title={post.data.title}
-                  shortTitle={post.data.shortTitle}
-                  description={post.data.description}
-                  summary={post.data.summary}
-                  pubDate={post.data.pubDate}
-                  tags={post.data.tags}
-                  image={post.data.image}
-                  content={post.body}
-                />
+                <BlogCard record={post} />
               ))}
             </div>
           ) : (
