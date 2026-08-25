@@ -347,6 +347,86 @@ const fixtures = [
 ] satisfies readonly StructuredDataFixture[];
 
 describe('structured data', () => {
+  it('builds a finite ItemList from an ordered page collection', () => {
+    const schema = buildStructuredData({
+      type: 'itemlist',
+      id: 'https://example.com/blog/#blog-posts',
+      url: 'https://example.com/blog/',
+      name: 'Example blog posts',
+      items: [
+        {
+          url: 'https://example.com/blog/first-entry/',
+          entityId: 'https://example.com/blog/first-entry/#blogposting',
+        },
+        {
+          url: 'https://example.com/blog/second-entry/',
+          entityId: 'https://example.com/blog/second-entry/#blogposting',
+        },
+      ],
+    } satisfies Extract<StructuredDataProps, { type: 'itemlist' }>);
+
+    expect(schema).toEqual({
+      '@context': 'https://schema.org',
+      '@type': 'ItemList',
+      '@id': 'https://example.com/blog/#blog-posts',
+      url: 'https://example.com/blog/',
+      name: 'Example blog posts',
+      itemListElement: [
+        {
+          '@type': 'ListItem',
+          position: 1,
+          url: 'https://example.com/blog/first-entry/',
+          item: {
+            '@id': 'https://example.com/blog/first-entry/#blogposting',
+          },
+        },
+        {
+          '@type': 'ListItem',
+          position: 2,
+          url: 'https://example.com/blog/second-entry/',
+          item: {
+            '@id': 'https://example.com/blog/second-entry/#blogposting',
+          },
+        },
+      ],
+    });
+  });
+
+  it('preserves an empty ItemList and rejects duplicate item URLs', () => {
+    expect(
+      buildStructuredData({
+        type: 'itemlist',
+        id: 'https://example.com/works/#works-collection',
+        url: 'https://example.com/works/',
+        name: 'Example works',
+        items: [],
+      } satisfies Extract<StructuredDataProps, { type: 'itemlist' }>),
+    ).toMatchObject({
+      '@id': 'https://example.com/works/#works-collection',
+      name: 'Example works',
+      itemListElement: [],
+    });
+
+    expect(() =>
+      buildStructuredData({
+        type: 'itemlist',
+        id: 'https://example.com/works/#works-collection',
+        url: 'https://example.com/works/',
+        name: 'Example works',
+        items: [
+          {
+            url: 'https://example.com/works/repeated/',
+            entityId: 'https://example.com/works/repeated/#creativework',
+          },
+          {
+            url: 'https://example.com/works/repeated/',
+            entityId: 'https://example.com/works/repeated/#creativework',
+          },
+        ],
+      } satisfies Extract<StructuredDataProps, { type: 'itemlist' }>),
+    ).toThrow(/duplicate item URL/iu);
+  });
+
   it('uses the slashful root identity for default schemas and the About Person', () => {
     expect(buildStructuredData({ type: 'person' }).url).toBe(
       'https://jetsanchez.com/',

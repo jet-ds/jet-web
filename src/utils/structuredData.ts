@@ -124,6 +124,17 @@ type CreativeWorkProps = {
   tags?: readonly string[];
 };
 
+type ItemListProps = {
+  type: 'itemlist';
+  id: string;
+  url: string;
+  name: string;
+  items: readonly {
+    url: string;
+    entityId: string;
+  }[];
+};
+
 export type StructuredDataProps =
   | WebsiteProps
   | BlogPostingProps
@@ -133,7 +144,8 @@ export type StructuredDataProps =
   | WebPageProps
   | SoftwareProps
   | ScholarlyArticleProps
-  | CreativeWorkProps;
+  | CreativeWorkProps
+  | ItemListProps;
 
 function buildWebsiteSchema(
   props: Extract<StructuredDataProps, { type: 'website' }>,
@@ -403,6 +415,31 @@ function buildCreativeWorkSchema(
   };
 }
 
+function buildItemListSchema(
+  props: Extract<StructuredDataProps, { type: 'itemlist' }>,
+): JsonLd {
+  const itemUrls = props.items.map(({ url }) => url);
+  if (new Set(itemUrls).size !== itemUrls.length) {
+    throw new Error('ItemList contains a duplicate item URL.');
+  }
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    '@id': props.id,
+    url: props.url,
+    name: props.name,
+    itemListElement: props.items.map(({ url, entityId }, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      url,
+      item: {
+        '@id': entityId,
+      },
+    })),
+  };
+}
+
 function assertNever(value: never): never {
   throw new Error(`Unsupported structured-data type: ${String(value)}`);
 }
@@ -427,6 +464,8 @@ export function buildStructuredData(props: StructuredDataProps): JsonLd {
       return buildScholarlyArticleSchema(props);
     case 'creativework':
       return buildCreativeWorkSchema(props);
+    case 'itemlist':
+      return buildItemListSchema(props);
     default:
       return assertNever(props);
   }

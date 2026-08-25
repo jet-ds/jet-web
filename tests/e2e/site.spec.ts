@@ -52,6 +52,12 @@ type JsonLdSchema = {
   itemReviewed?: { '@type'?: string; name?: string };
   datePublished?: string;
   dateModified?: string;
+  itemListElement?: Array<{
+    '@type'?: string;
+    position?: number;
+    url?: string;
+    item?: { '@id'?: string };
+  }>;
 };
 
 type CorpusContent = {
@@ -167,6 +173,22 @@ async function contentCardRoutes(page: Page, route: string): Promise<string[]> {
   expect(response?.status()).toBe(200);
   return page
     .locator('main article a[href^="/blog/"], main article a[href^="/works/"]')
+    .evaluateAll((anchors) =>
+      anchors.flatMap((anchor) => {
+        const href = anchor.getAttribute('href');
+        return href === null ? [] : [href];
+      }),
+    );
+}
+
+async function sectionContentCardUrls(
+  page: Page,
+  heading: string,
+): Promise<string[]> {
+  return page
+    .getByRole('heading', { name: heading, exact: true })
+    .locator('xpath=ancestor::section[1]')
+    .locator('article a[href]')
     .evaluateAll((anchors) =>
       anchors.flatMap((anchor) => {
         const href = anchor.getAttribute('href');
@@ -1095,6 +1117,94 @@ test('content discovery surfaces exactly match tracked publication state', async
       .map(({ route }) => new URL(route, SITE.siteUrl).toString())
       .sort(),
   );
+});
+
+test('collection ItemLists match the rendered server card sequence', async ({
+  page,
+}) => {
+  const collections = [
+    {
+      route: '/',
+      lists: [
+        {
+          id: '#latest-articles',
+          name: 'Latest Articles',
+          renderedUrls: async () =>
+            (await sectionContentCardUrls(page, 'Latest Articles')).map(
+              (href) => new URL(href, SITE.siteUrl).toString(),
+            ),
+        },
+        {
+          id: '#latest-works',
+          name: 'Selected Works',
+          renderedUrls: async () =>
+            (await sectionContentCardUrls(page, 'Selected Works')).map((href) =>
+              new URL(href, SITE.siteUrl).toString(),
+            ),
+        },
+      ],
+    },
+    {
+      route: '/blog/',
+      lists: [
+        {
+          id: '#blog-posts',
+          name: 'Blog Posts',
+          renderedUrls: async () =>
+            (await contentCardRoutes(page, '/blog/')).map((href) =>
+              new URL(href, SITE.siteUrl).toString(),
+            ),
+        },
+      ],
+    },
+    {
+      route: '/works/',
+      lists: [
+        {
+          id: '#works-collection',
+          name: 'Works',
+          renderedUrls: async () =>
+            (await contentCardRoutes(page, '/works/')).map((href) =>
+              new URL(href, SITE.siteUrl).toString(),
+            ),
+        },
+      ],
+    },
+  ] as const;
+
+  for (const { route, lists } of collections) {
+    await page.goto(route);
+    const schemas = await readSchemas(page);
+
+    for (const { id, name, renderedUrls } of lists) {
+      const expectedUrls = await renderedUrls();
+      const schema = schemas.find(
+        (candidate) =>
+          candidate['@type'] === 'ItemList' &&
+          candidate['@id'] === `${new URL(route, SITE.siteUrl)}${id}`,
+      );
+      const elements = schema?.itemListElement ?? [];
+
+      expect(schema).toMatchObject({ name });
+      expect(elements.map(({ '@type': type }) => type)).toEqual(
+        expectedUrls.map(() => 'ListItem'),
+      );
+      expect(elements.map(({ position }) => position)).toEqual(
+        expectedUrls.map((_, index) => index + 1),
+      );
+      expect(elements.map(({ url }) => url)).toEqual(expectedUrls);
+      expect(new Set(elements.map(({ url }) => url)).size).toBe(
+        expectedUrls.length,
+      );
+      expect(
+        elements.every(({ item }) =>
+          /#(?:blogposting|scholarlyarticle|creativework)$/u.test(
+            item?.['@id'] ?? '',
+          ),
+        ),
+      ).toBe(true);
+    }
+  }
 });
 
 test('assistant corpus identities exactly match tracked eligibility', async ({

@@ -5,6 +5,8 @@ import PageWrapper from '../../components/layout/PageWrapper.astro';
 import Container from '../../components/ui/Container.astro';
 import BlogCard from '../../components/blog/BlogCard.astro';
 import BlogSearchEnhancement from '../../components/blog/BlogSearchEnhancement.astro';
+import StructuredData from '../../components/seo/StructuredData.astro';
+import { SITE } from '../../config/site';
 import { resolveBlogCollection } from '../../features/collections/resolveCollections';
 import type { SearchableBlogRecord } from '../../features/blog-search/searchBlogPosts';
 
@@ -27,9 +29,23 @@ const pageDescription =
   "Explore Jet Sanchez's articles on AI, agentic software development, local-first tools, technical workflows, and the systems shaping modern work.";
 const pageSubheading =
   'Explore my articles on AI, agentic software development, local-first tools, technical workflows, and the systems shaping modern work.';
+const blogUrl = new URL('/blog/', SITE.siteUrl).toString();
+const blogItems = sortedPosts.map((post) => {
+  const url = new URL(post.href, SITE.siteUrl).toString();
+  return { url, entityId: `${url}#blogposting` };
+});
 ---
 
 <BaseLayout title="Blog" description={pageDescription}>
+  <StructuredData
+    slot="structured-data"
+    type="itemlist"
+    id={`${blogUrl}#blog-posts`}
+    url={blogUrl}
+    name="Blog Posts"
+    items={blogItems}
+  />
+
   <PageWrapper spacing="compact">
     <Container size="lg">
       <div data-blog-search>

@@ -5,6 +5,8 @@ import PageWrapper from '../../components/layout/PageWrapper.astro';
 import Container from '../../components/ui/Container.astro';
 import WorkCard from '../../components/works/WorkCard.astro';
 import CollectionFilterEnhancement from '../../components/filters/CollectionFilterEnhancement.astro';
+import StructuredData from '../../components/seo/StructuredData.astro';
+import { SITE } from '../../config/site';
 import { resolveWorksCollection } from '../../features/collections/resolveCollections';
 
 const sortedWorks = resolveWorksCollection(await getCollection('works'));
@@ -25,9 +27,25 @@ const pageDescription =
   "Explore Jet Sanchez's research papers, software projects, and applied AI experiments spanning agentic systems, AI governance, and emerging technology.";
 const pageSubheading =
   'Explore my research papers, software projects, and applied AI experiments spanning agentic systems, AI governance, and emerging technology.';
+const worksUrl = new URL('/works/', SITE.siteUrl).toString();
+const workItems = sortedWorks.map((work) => {
+  const url = new URL(work.href, SITE.siteUrl).toString();
+  const entityFragment =
+    work.kind === 'research' ? 'scholarlyarticle' : 'creativework';
+  return { url, entityId: `${url}#${entityFragment}` };
+});
 ---
 
 <BaseLayout title="Works" description={pageDescription}>
+  <StructuredData
+    slot="structured-data"
+    type="itemlist"
+    id={`${worksUrl}#works-collection`}
+    url={worksUrl}
+    name="Works"
+    items={workItems}
+  />
+
   <PageWrapper spacing="compact">
     <Container size="lg">
       <div

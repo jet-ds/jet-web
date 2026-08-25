@@ -14,6 +14,7 @@ import {
   resolveHomepageBlog,
   resolveHomepageWorks,
 } from '../features/collections/resolveCollections';
+import type { CollectionDisplayRecord } from '../features/collections/types';
 
 const homepageUrl = `${SITE.siteUrl}/`;
 const profile = await getEntry('profile', 'jet-sanchez');
@@ -29,6 +30,20 @@ const latestPosts = resolveHomepageBlog(allBlogPosts, 3);
 
 const allWorks = await getCollection('works');
 const selectedWorks = resolveHomepageWorks(allWorks, 3);
+
+function toItemListItems(records: readonly CollectionDisplayRecord[]) {
+  return records.map((record) => {
+    const url = new URL(record.href, SITE.siteUrl).toString();
+    const entityFragment =
+      record.kind === 'blog'
+        ? 'blogposting'
+        : record.kind === 'research'
+          ? 'scholarlyarticle'
+          : 'creativework';
+
+    return { url, entityId: `${url}#${entityFragment}` };
+  });
+}
 ---
 
 <BaseLayout
@@ -56,6 +71,24 @@ const selectedWorks = resolveHomepageWorks(allWorks, 3);
     email={SITE.email}
     url={homepageUrl}
     sameAs={Object.values(SOCIAL_LINKS).filter((url) => url)}
+  />
+
+  <StructuredData
+    slot="structured-data"
+    type="itemlist"
+    id={`${homepageUrl}#latest-articles`}
+    url={homepageUrl}
+    name="Latest Articles"
+    items={toItemListItems(latestPosts)}
+  />
+
+  <StructuredData
+    slot="structured-data"
+    type="itemlist"
+    id={`${homepageUrl}#latest-works`}
+    url={homepageUrl}
+    name="Selected Works"
+    items={toItemListItems(selectedWorks)}
   />
 
   <!-- Hero Section -->
