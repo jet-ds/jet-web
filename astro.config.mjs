@@ -28,6 +28,9 @@ export default defineConfig({
     }),
   ],
   vite: {
+    build: {
+      target: ['chrome111', 'safari16.4', 'firefox128'],
+    },
     plugins: [tailwindcss()],
   },
   image: {

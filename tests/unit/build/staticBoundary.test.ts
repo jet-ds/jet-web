@@ -35,6 +35,12 @@ describe('static production boundary', () => {
     expect(astroConfig).not.toContain('adapter:');
   });
 
+  it('emits browser syntax for the declared support floor', () => {
+    expect(astroConfig).toMatch(
+      /target:\s*\[\s*'chrome111',\s*'safari16\.4',\s*'firefox128',?\s*\]/u,
+    );
+  });
+
   it('keeps the local assistant static while hosted-chat artifacts remain absent', () => {
     expect(existsSync('src/pages/api/chat.ts')).toBe(false);
     expect(existsSync('src/pages/chatbot.astro')).toBe(true);
