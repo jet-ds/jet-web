@@ -43,20 +43,30 @@ function installMotionPreference(reducedMotion: boolean) {
   }));
 }
 
-function renderWithFallback(items: readonly CollectionDisplayRecord[]) {
+function renderWithFallback(
+  items: readonly CollectionDisplayRecord[],
+  focusedFallbackIndex?: number,
+) {
   const host = document.createElement('div');
   host.setAttribute('data-home-collection-carousel', '');
 
   const fallback = document.createElement('div');
   fallback.setAttribute('data-carousel-fallback', '');
-  const fallbackLink = document.createElement('a');
-  fallbackLink.href = items[0]?.href ?? '/blog/';
-  fallbackLink.textContent = 'Static collection destination';
-  fallback.append(fallbackLink);
+  const fallbackLinks = items.map((item, index) => {
+    const link = document.createElement('a');
+    link.href = item.href;
+    link.textContent = `Static collection destination ${index + 1}`;
+    fallback.append(link);
+    return link;
+  });
+  const fallbackLink = fallbackLinks[0];
 
   const mount = document.createElement('div');
   host.append(fallback, mount);
   document.body.append(host);
+  if (focusedFallbackIndex !== undefined) {
+    fallbackLinks[focusedFallbackIndex]?.focus();
+  }
 
   const rendered = render(
     <DepthCarousel label="Invented articles" items={items} />,
@@ -109,6 +119,25 @@ describe('DepthCarousel', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Item 2 of 3');
     fireEvent.keyDown(screen.getByRole('link'), { key: 'ArrowLeft' });
     expect(screen.getByRole('status')).toHaveTextContent('Item 1 of 3');
+  });
+
+  it('moves focus to the active destination when ArrowRight promotes the focused receded card', () => {
+    render(
+      <DepthCarousel label="Invented articles" items={inventedItems(5)} />,
+    );
+    const receded = screen.getByRole('button', {
+      name: 'Bring item 2 of 5 forward',
+    });
+
+    receded.focus();
+    fireEvent.keyDown(receded, { key: 'ArrowRight' });
+
+    expect(screen.getByRole('status')).toHaveTextContent('Item 2 of 5');
+    expect(screen.getByRole('link')).toHaveAttribute(
+      'href',
+      '/blog/invented-2/',
+    );
+    expect(screen.getByRole('link')).toHaveFocus();
   });
 
   it('keeps one active destination while receded selection and indicators use the real five-item total', () => {
@@ -175,6 +204,15 @@ describe('DepthCarousel', () => {
     );
   });
 
+  it('does not mount an interactive stage for an empty collection', () => {
+    render(<DepthCarousel label="Empty invented works" items={[]} />);
+
+    expect(
+      screen.queryByRole('region', { name: 'Empty invented works' }),
+    ).not.toBeInTheDocument();
+    expect(screen.queryByRole('status')).not.toBeInTheDocument();
+  });
+
   it('changes circular position immediately for reduced-motion visitors', () => {
     installMotionPreference(true);
     render(
@@ -199,12 +237,26 @@ describe('DepthCarousel', () => {
     expect(fallback).toHaveAttribute('aria-hidden', 'true');
     expect(fallbackLink).not.toBeVisible();
     expect(screen.getAllByRole('link')).toHaveLength(1);
+    expect(screen.getByRole('link')).not.toHaveFocus();
 
     unmount();
     expect(fallback).not.toHaveAttribute('hidden');
     expect(fallback).not.toHaveAttribute('inert');
     expect(fallback).not.toHaveAttribute('aria-hidden');
     expect(fallbackLink).toBeVisible();
+  });
+
+  it('transfers a focused fallback destination to the matching enhanced destination after handoff', async () => {
+    const { fallback } = renderWithFallback(inventedItems(3), 1);
+
+    await waitFor(() => expect(fallback).toHaveAttribute('hidden'));
+
+    expect(screen.getByRole('status')).toHaveTextContent('Item 2 of 3');
+    expect(screen.getByRole('link')).toHaveAttribute(
+      'href',
+      '/blog/invented-2/',
+    );
+    expect(screen.getByRole('link')).toHaveFocus();
   });
 
   it('restores the fallback when a later enhanced render fails', async () => {

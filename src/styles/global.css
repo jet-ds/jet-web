@@ -445,8 +445,10 @@
   .depth-carousel__stage {
     position: relative;
     isolation: isolate;
+    box-sizing: content-box;
     width: min(100%, 44rem);
-    aspect-ratio: 3 / 2;
+    aspect-ratio: 16 / 9;
+    padding-block-end: 6.75rem;
     overflow: clip;
     perspective: 75rem;
     transform-style: preserve-3d;
@@ -460,11 +462,11 @@
 
   .depth-carousel__layer {
     position: absolute;
-    top: 50%;
+    top: 0;
     left: 50%;
     width: min(100%, 30rem);
     aspect-ratio: 16 / 9;
-    translate: -50% -50%;
+    translate: -50% 0;
     overflow: hidden;
     border: 1px solid var(--color-border-default);
     border-radius: 0.75rem;
@@ -647,7 +649,14 @@
 
   @media (min-width: 48rem) {
     .depth-carousel__stage {
+      box-sizing: border-box;
       aspect-ratio: 16 / 9;
+      padding-block-end: 0;
+    }
+
+    .depth-carousel__layer {
+      top: 50%;
+      translate: -50% -50%;
     }
 
     .depth-carousel__layer[data-carousel-depth='3'] {

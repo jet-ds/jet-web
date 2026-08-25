@@ -27,6 +27,26 @@ function findFallback(element: Element | null): HTMLElement | null {
   return fallback instanceof HTMLElement ? fallback : null;
 }
 
+function findFocusedFallbackIndex(
+  fallback: HTMLElement | null,
+  items: DepthCarouselProps['items'],
+): number | null {
+  const focused = document.activeElement;
+  if (
+    fallback === null ||
+    !(focused instanceof HTMLElement) ||
+    !fallback.contains(focused)
+  ) {
+    return null;
+  }
+
+  const destination = focused.closest('a[href]');
+  if (!(destination instanceof HTMLAnchorElement)) return null;
+  const href = destination.getAttribute('href');
+  const index = items.findIndex((item) => item.href === href);
+  return index >= 0 ? index : null;
+}
+
 function concealFallback(fallback: HTMLElement | null): void {
   if (fallback === null) return;
   const focused = document.activeElement;
@@ -53,22 +73,22 @@ function restoreFallbackFrom(element: Element | null): void {
   restoreFallback(findFallback(element));
 }
 
-function useReducedMotionPreference(): boolean {
-  const [reducedMotion, setReducedMotion] = useState(
-    () => window.matchMedia('(prefers-reduced-motion: reduce)').matches,
+function useMediaQuery(queryText: string): boolean {
+  const [matches, setMatches] = useState(
+    () => window.matchMedia(queryText).matches,
   );
 
   useEffect(() => {
-    const query = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const query = window.matchMedia(queryText);
     const handleChange = (event: MediaQueryListEvent) => {
-      setReducedMotion(event.matches);
+      setMatches(event.matches);
     };
-    setReducedMotion(query.matches);
+    setMatches(query.matches);
     query.addEventListener('change', handleChange);
     return () => query.removeEventListener('change', handleChange);
-  }, []);
+  }, [queryText]);
 
-  return reducedMotion;
+  return matches;
 }
 
 interface CarouselBoundaryProps {
@@ -165,21 +185,30 @@ function DepthCarouselStage({ label, items }: DepthCarouselProps) {
   const fallbackRef = useRef<HTMLElement | null>(null);
   const dragOccurred = useRef(false);
   const focusActiveAfterSelection = useRef(false);
-  const reducedMotion = useReducedMotionPreference();
+  const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
+  const desktopLayout = useMediaQuery('(min-width: 48rem)');
   const itemCount = items.length;
 
   useLayoutEffect(() => {
     fallbackRef.current = findFallback(rootRef.current);
+    const focusedFallbackIndex = findFocusedFallbackIndex(
+      fallbackRef.current,
+      items,
+    );
+    if (focusedFallbackIndex !== null) {
+      focusActiveAfterSelection.current = true;
+      setActiveIndex(focusedFallbackIndex);
+    }
     concealFallback(fallbackRef.current);
     setReady(true);
     return () => restoreFallback(fallbackRef.current);
-  }, []);
+  }, [items]);
 
   useLayoutEffect(() => {
-    if (!focusActiveAfterSelection.current) return;
+    if (!ready || !focusActiveAfterSelection.current) return;
     focusActiveAfterSelection.current = false;
     activeLinkRef.current?.focus();
-  }, [activeIndex]);
+  }, [activeIndex, ready]);
 
   const move = useCallback(
     (delta: number) => {
@@ -191,9 +220,17 @@ function DepthCarouselStage({ label, items }: DepthCarouselProps) {
   const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     if (event.key === 'ArrowLeft') {
       event.preventDefault();
+      const nextIndex = wrapIndex(activeIndex, -1, itemCount);
+      focusActiveAfterSelection.current =
+        event.currentTarget.getAttribute('data-carousel-layer-item') ===
+        items[nextIndex]?.id;
       move(-1);
     } else if (event.key === 'ArrowRight') {
       event.preventDefault();
+      const nextIndex = wrapIndex(activeIndex, 1, itemCount);
+      focusActiveAfterSelection.current =
+        event.currentTarget.getAttribute('data-carousel-layer-item') ===
+        items[nextIndex]?.id;
       move(1);
     }
   };
@@ -239,11 +276,23 @@ function DepthCarouselStage({ label, items }: DepthCarouselProps) {
       >
         {layerIndices.map((itemIndex, depth) => {
           const item = items[itemIndex];
+          const x = desktopLayout
+            ? [0, 46, 84, 116][depth]
+            : [0, 8, 16, 24][depth];
+          const y = desktopLayout
+            ? [0, 12, 22, 32][depth]
+            : [0, 54, 108, 162][depth];
+          const scale = desktopLayout
+            ? [1, 0.94, 0.88, 0.82][depth]
+            : [1, 0.96, 0.92, 0.88][depth];
+          const rotateY = desktopLayout
+            ? [0, -6, -10, -13][depth]
+            : [0, -3, -5, -7][depth];
           const motionState = {
-            x: [0, 46, 84, 116][depth],
-            y: [0, 12, 22, 32][depth],
-            scale: [1, 0.94, 0.88, 0.82][depth],
-            rotateY: [0, -6, -10, -13][depth],
+            x,
+            y,
+            scale,
+            rotateY,
             opacity: [1, 0.9, 0.76, 0.62][depth],
             filter: [
               'brightness(1) saturate(1) blur(0px)',

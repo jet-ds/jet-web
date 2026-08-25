@@ -6,7 +6,10 @@ import {
   type Locator,
   type Page,
 } from '@playwright/test';
-import { publishedContent } from '../support/publishedContent';
+import {
+  publishedContent,
+  resolvedPublishedCollections,
+} from '../support/publishedContent';
 
 const suggestedQuestions = [
   'What does Jet write about agentic work?',
@@ -484,7 +487,12 @@ test('Home carousel enhancement exposes one accessible destination per collectio
   await page.goto('/');
 
   const carousels = page.locator('[data-home-collection-carousel]');
-  await expect(carousels).toHaveCount(2);
+  const homepage = resolvedPublishedCollections().homepage;
+  const expectedCarouselCount = [
+    homepage.some(({ kind }) => kind === 'blog'),
+    homepage.some(({ kind }) => kind !== 'blog'),
+  ].filter(Boolean).length;
+  await expect(carousels).toHaveCount(expectedCarouselCount);
   for (const carousel of await carousels.all()) {
     await expect(carousel.locator('[data-carousel-fallback]')).toHaveAttribute(
       'aria-hidden',
