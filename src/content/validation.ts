@@ -47,6 +47,30 @@ function normalizeHttpsUrl(value: unknown): string | undefined {
   }
 }
 
+export function isImmutableContentImageUrl(
+  value: string,
+  collection: 'blog' | 'works',
+): boolean {
+  try {
+    const url = new URL(value);
+    return (
+      url.protocol === 'https:' &&
+      url.hostname.endsWith('.public.blob.vercel-storage.com') &&
+      url.username === '' &&
+      url.password === '' &&
+      url.port === '' &&
+      url.search === '' &&
+      url.hash === '' &&
+      new RegExp(
+        `^/images/${collection}/[^/]+-[0-9a-f]{8}\\.(?:jpe?g|png|webp|avif|gif)$`,
+        'iu',
+      ).test(url.pathname)
+    );
+  } catch {
+    return false;
+  }
+}
+
 function validStatus(value: unknown): value is PublicationStatus {
   return value === 'draft' || value === 'published';
 }

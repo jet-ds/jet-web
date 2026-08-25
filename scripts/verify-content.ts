@@ -248,7 +248,7 @@ function schemaErrors(record: ParsedContentRecord): ContentPolicyError[] {
   return result.error.issues.map((issue) => ({
     code: 'schema-invalid',
     path: record.validation.path,
-    message: `${issue.path.join('.') || 'frontmatter'}: ${issue.message}`,
+    message: `${record.validation.canonicalId} ${issue.path.join('.') || 'frontmatter'}: ${issue.message}`,
   }));
 }
 

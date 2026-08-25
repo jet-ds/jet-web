@@ -10,7 +10,10 @@ import BlogCard from '../components/blog/BlogCard.astro';
 import WorkCard from '../components/works/WorkCard.astro';
 import Grainient from '../components/ui/Grainient';
 import { SITE, SOCIAL_LINKS } from '../config/site';
-import { isPublished } from '../content/policy';
+import {
+  resolveHomepageBlog,
+  resolveHomepageWorks,
+} from '../features/collections/resolveCollections';
 
 const homepageUrl = `${SITE.siteUrl}/`;
 const profile = await getEntry('profile', 'jet-sanchez');
@@ -20,20 +23,29 @@ if (profile === undefined) {
   );
 }
 
-// Fetch latest blog posts (limit to 3)
-const allBlogPosts = await getCollection('blog', ({ data }) =>
-  isPublished(data),
-);
-const latestPosts = allBlogPosts
-  .sort((a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime())
-  .slice(0, 3);
+function requireEntry<T extends { id: string }>(
+  entries: readonly T[],
+  id: string,
+): T {
+  const entry = entries.find((candidate) => candidate.id === id);
+  if (entry === undefined) {
+    throw new Error(`Resolved Homepage content is missing its source: ${id}.`);
+  }
+  return entry;
+}
 
-// Fetch featured works
-const allWorks = await getCollection('works', ({ data }) => isPublished(data));
-const featuredWorks = allWorks
-  .filter((work) => work.data.featured === true)
-  .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
-  .slice(0, 3);
+// Keep the pre-carousel grids at three while canonical resolution owns membership.
+const allBlogPosts = await getCollection('blog');
+const latestPosts = resolveHomepageBlog(allBlogPosts, 3).map((record) => ({
+  record,
+  entry: requireEntry(allBlogPosts, record.id),
+}));
+
+const allWorks = await getCollection('works');
+const featuredWorks = resolveHomepageWorks(allWorks, 3).map((record) => ({
+  record,
+  entry: requireEntry(allWorks, record.id),
+}));
 ---
 
 <BaseLayout
@@ -134,10 +146,10 @@ const featuredWorks = allWorks
       {
         latestPosts.length > 0 ? (
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-m">
-            {latestPosts.map((post) => (
+            {latestPosts.map(({ record, entry: post }) => (
               <BlogCard
                 variant="compact"
-                slug={post.id}
+                slug={record.id}
                 title={post.data.title}
                 shortTitle={post.data.shortTitle}
                 description={post.data.description}
@@ -175,10 +187,10 @@ const featuredWorks = allWorks
       {
         featuredWorks.length > 0 ? (
           <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-m">
-            {featuredWorks.map((work) => (
+            {featuredWorks.map(({ record, entry: work }) => (
               <WorkCard
                 variant="compact"
-                slug={work.id}
+                slug={record.id}
                 title={work.data.title}
                 shortTitle={work.data.shortTitle}
                 description={work.data.description}
@@ -186,7 +198,6 @@ const featuredWorks = allWorks
                 type={work.data.type}
                 date={work.data.date}
                 tags={work.data.tags}
-                featured={work.data.featured}
                 image={work.data.image}
                 venue={work.data.venue}
                 technologies={work.data.technologies}

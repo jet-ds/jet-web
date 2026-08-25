@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest';
+import { blogSchema, worksSchema } from '../../../src/schemas/content';
 import {
   assertGeneratedAssistantSources,
   type ContentPolicyError,
@@ -30,6 +31,225 @@ function expectRule(
 }
 
 describe('content validation', () => {
+  const immutableBlogImage = {
+    url: 'https://assets.public.blob.vercel-storage.com/images/blog/invented-post-a1b2c3d4.webp',
+    alt: 'An invented editorial illustration',
+    width: 1920,
+    height: 1080,
+  } as const;
+
+  const immutableWorkImage = {
+    url: 'https://assets.public.blob.vercel-storage.com/images/works/invented-work-a1b2c3d4.png',
+    darkUrl:
+      'https://assets.public.blob.vercel-storage.com/images/works/invented-work-dark-e5f6a7b8.png',
+    alt: 'An invented project interface in light and dark themes',
+    width: 1920,
+    height: 1080,
+  } as const;
+
+  const publishedBlog = {
+    title: 'Invented post',
+    description: 'A full description for an invented post.',
+    summary: 'A complete summary for an invented post.',
+    pubDate: '2026-08-20',
+    status: 'published',
+    assistant: false,
+    image: immutableBlogImage,
+  } as const;
+
+  const publishedWork = {
+    title: 'Invented work',
+    description: 'A full description for an invented work.',
+    summary: 'A complete summary for an invented work.',
+    type: 'project',
+    date: '2026-08-20',
+    status: 'published',
+    assistant: false,
+    image: immutableWorkImage,
+  } as const;
+
+  it('allows incomplete Blog and Work drafts but requires published summaries and images', () => {
+    expect(
+      blogSchema.safeParse({
+        title: 'Draft post',
+        description: 'Draft description.',
+        pubDate: '2026-08-20',
+        status: 'draft',
+        assistant: false,
+      }).success,
+    ).toBe(true);
+    expect(
+      worksSchema.safeParse({
+        title: 'Draft work',
+        description: 'Draft description.',
+        type: 'project',
+        date: '2026-08-20',
+        status: 'draft',
+        assistant: false,
+      }).success,
+    ).toBe(true);
+
+    const incompleteBlog = blogSchema.safeParse({
+      ...publishedBlog,
+      summary: undefined,
+      image: undefined,
+    });
+    const incompleteWork = worksSchema.safeParse({
+      ...publishedWork,
+      summary: undefined,
+      image: undefined,
+    });
+
+    expect(incompleteBlog.success).toBe(false);
+    expect(incompleteWork.success).toBe(false);
+    if (!incompleteBlog.success && !incompleteWork.success) {
+      expect(incompleteBlog.error.issues.map(({ path }) => path)).toEqual([
+        ['summary'],
+        ['image'],
+      ]);
+      expect(incompleteWork.error.issues.map(({ path }) => path)).toEqual([
+        ['summary'],
+        ['image'],
+      ]);
+    }
+  });
+
+  it.each([
+    {
+      name: 'mutable Blog URL',
+      schema: blogSchema,
+      input: {
+        ...publishedBlog,
+        image: {
+          ...immutableBlogImage,
+          url: 'https://example.com/images/blog/invented-post.webp',
+        },
+      },
+      path: ['image', 'url'],
+    },
+    {
+      name: 'non-HTTPS Blog Blob URL',
+      schema: blogSchema,
+      input: {
+        ...publishedBlog,
+        image: {
+          ...immutableBlogImage,
+          url: 'http://assets.public.blob.vercel-storage.com/images/blog/invented-post-a1b2c3d4.webp',
+        },
+      },
+      path: ['image', 'url'],
+    },
+    {
+      name: 'query-bearing Blog Blob URL',
+      schema: blogSchema,
+      input: {
+        ...publishedBlog,
+        image: {
+          ...immutableBlogImage,
+          url: `${immutableBlogImage.url}?version=2`,
+        },
+      },
+      path: ['image', 'url'],
+    },
+    {
+      name: 'mutable Work dark URL',
+      schema: worksSchema,
+      input: {
+        ...publishedWork,
+        image: {
+          ...immutableWorkImage,
+          darkUrl: 'https://example.com/images/works/invented-work-dark.png',
+        },
+      },
+      path: ['image', 'darkUrl'],
+    },
+    {
+      name: 'empty Blog alt text',
+      schema: blogSchema,
+      input: {
+        ...publishedBlog,
+        image: { ...immutableBlogImage, alt: '   ' },
+      },
+      path: ['image', 'alt'],
+    },
+    {
+      name: 'wrong Blog width',
+      schema: blogSchema,
+      input: {
+        ...publishedBlog,
+        image: { ...immutableBlogImage, width: 1280 },
+      },
+      path: ['image', 'width'],
+    },
+    {
+      name: 'wrong Work height',
+      schema: worksSchema,
+      input: {
+        ...publishedWork,
+        image: { ...immutableWorkImage, height: 720 },
+      },
+      path: ['image', 'height'],
+    },
+  ])('rejects a published record with $name', ({ schema, input, path }) => {
+    const result = schema.safeParse(input);
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues).toContainEqual(
+        expect.objectContaining({ path }),
+      );
+    }
+  });
+
+  it('requires declared dimensions whenever draft image frontmatter exists', () => {
+    const result = worksSchema.safeParse({
+      title: 'Draft work',
+      description: 'Draft description.',
+      type: 'project',
+      date: '2026-08-20',
+      status: 'draft',
+      assistant: false,
+      image: {
+        url: 'https://draft.invalid/image.png',
+        alt: 'Draft image',
+      },
+    });
+
+    expect(result.success).toBe(false);
+    if (!result.success) {
+      expect(result.error.issues.map(({ path }) => path)).toEqual([
+        ['image', 'width'],
+        ['image', 'height'],
+      ]);
+    }
+  });
+
+  it.each([0, -1, 1.5, Number.NaN, Number.POSITIVE_INFINITY])(
+    'rejects invalid homepagePriority %s',
+    (homepagePriority) => {
+      expect(
+        worksSchema.safeParse({
+          ...publishedWork,
+          homepagePriority,
+        }).success,
+      ).toBe(false);
+    },
+  );
+
+  it('accepts a positive integer homepagePriority while retaining featured compatibility', () => {
+    const result = worksSchema.safeParse({
+      ...publishedWork,
+      homepagePriority: 2,
+      featured: true,
+    });
+
+    expect(result.success).toBe(true);
+    if (result.success) {
+      expect(result.data.homepagePriority).toBe(2);
+      expect(result.data.featured).toBe(true);
+    }
+  });
+
   it.each([
     {
       name: 'missing status',

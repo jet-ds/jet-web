@@ -22,11 +22,18 @@ function blogData(
   return {
     title: 'Synthetic assistant source',
     description: 'A synthetic fixture for the Astro corpus adapter.',
+    summary: 'An invented summary for the Astro corpus adapter.',
     pubDate: new Date('2026-01-01T00:00:00.000Z'),
     author: 'Jet Sanchez',
     tags: ['synthetic'],
     status,
     assistant,
+    image: {
+      url: 'https://assets.public.blob.vercel-storage.com/images/blog/synthetic-assistant-a1b2c3d4.png',
+      alt: 'An invented synthetic assistant illustration',
+      width: 1920,
+      height: 1080,
+    },
   };
 }
 

@@ -29,11 +29,18 @@ function source(
       title: slug === 'metadata' ? 'Astral title' : `Title ${slug}`,
       description:
         slug === 'metadata' ? 'Nebular description' : `Description ${slug}`,
+      summary: `An invented summary for ${slug}.`,
       pubDate: new Date('2026-01-01T00:00:00.000Z'),
       author: 'Jet Sanchez',
       tags,
       status: 'published',
       assistant: true,
+      image: {
+        url: `https://assets.public.blob.vercel-storage.com/images/blog/${slug}-a1b2c3d4.png`,
+        alt: `An invented illustration for ${slug}`,
+        width: 1920,
+        height: 1080,
+      },
     },
   };
 }

@@ -37,11 +37,18 @@ function source(): AssistantSourceEntry {
     data: {
       title: 'Repository fixture',
       description: 'Tests the static repository.',
+      summary: 'An invented summary for the static repository fixture.',
       pubDate: new Date('2026-01-01T00:00:00.000Z'),
       author: 'Jet Sanchez',
       tags: ['repository'],
       status: 'published',
       assistant: true,
+      image: {
+        url: 'https://assets.public.blob.vercel-storage.com/images/blog/repository-fixture-a1b2c3d4.png',
+        alt: 'An invented static repository illustration',
+        width: 1920,
+        height: 1080,
+      },
     },
   };
 }
