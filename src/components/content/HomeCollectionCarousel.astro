@@ -1,0 +1,31 @@
+---
+import type { CollectionDisplayRecord } from '../../features/collections/types';
+import DepthCarousel from '../../features/depth-carousel/DepthCarousel';
+import BlogCard from '../blog/BlogCard.astro';
+import WorkCard from '../works/WorkCard.astro';
+
+interface Props {
+  label: string;
+  items: readonly CollectionDisplayRecord[];
+}
+
+const { label, items } = Astro.props;
+---
+
+<div data-home-collection-carousel data-carousel-label={label}>
+  <div data-carousel-fallback>
+    <div class="grid grid-cols-1 gap-m md:grid-cols-2 lg:grid-cols-3">
+      {
+        items.map((record) =>
+          record.kind === 'blog' ? (
+            <BlogCard variant="compact" headingLevel={3} record={record} />
+          ) : (
+            <WorkCard variant="compact" headingLevel={3} record={record} />
+          ),
+        )
+      }
+    </div>
+  </div>
+
+  <DepthCarousel client:only="react" label={label} items={items} />
+</div>

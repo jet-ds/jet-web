@@ -477,6 +477,26 @@ test('Home call to action keeps opaque AA surfaces and full touch targets', asyn
   }
 });
 
+test('Home carousel enhancement exposes one accessible destination per collection', async ({
+  page,
+}) => {
+  await page.emulateMedia({ reducedMotion: 'reduce' });
+  await page.goto('/');
+
+  const carousels = page.locator('[data-home-collection-carousel]');
+  await expect(carousels).toHaveCount(2);
+  for (const carousel of await carousels.all()) {
+    await expect(carousel.locator('[data-carousel-fallback]')).toHaveAttribute(
+      'aria-hidden',
+      'true',
+    );
+    await expect(carousel.getByRole('region')).toBeVisible();
+    await expect(carousel.getByRole('link')).toHaveCount(1);
+  }
+
+  await expectNoSeriousAxeViolations(page, 'Homepage depth carousels');
+});
+
 test('reduced motion disables and disposes the Grainient canvas', async ({
   page,
 }) => {

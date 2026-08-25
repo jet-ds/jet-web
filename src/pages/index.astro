@@ -6,8 +6,7 @@ import Section from '../components/layout/Section.astro';
 import Container from '../components/ui/Container.astro';
 import Card from '../components/ui/Card.astro';
 import Button from '../components/ui/Button.astro';
-import BlogCard from '../components/blog/BlogCard.astro';
-import WorkCard from '../components/works/WorkCard.astro';
+import HomeCollectionCarousel from '../components/content/HomeCollectionCarousel.astro';
 import Grainient from '../components/ui/Grainient';
 import { SITE, SOCIAL_LINKS } from '../config/site';
 import {
@@ -24,12 +23,11 @@ if (profile === undefined) {
   );
 }
 
-// Keep the pre-carousel grids at three while canonical resolution owns membership.
 const allBlogPosts = await getCollection('blog');
-const latestPosts = resolveHomepageBlog(allBlogPosts, 3);
+const latestPosts = resolveHomepageBlog(allBlogPosts);
 
 const allWorks = await getCollection('works');
-const selectedWorks = resolveHomepageWorks(allWorks, 3);
+const selectedWorks = resolveHomepageWorks(allWorks);
 
 function toItemListItems(records: readonly CollectionDisplayRecord[]) {
   return records.map((record) => {
@@ -87,7 +85,7 @@ function toItemListItems(records: readonly CollectionDisplayRecord[]) {
     type="itemlist"
     id={`${homepageUrl}#latest-works`}
     url={homepageUrl}
-    name="Selected Works"
+    name="Latest Works"
     items={toItemListItems(selectedWorks)}
   />
 
@@ -161,11 +159,7 @@ function toItemListItems(records: readonly CollectionDisplayRecord[]) {
 
       {
         latestPosts.length > 0 ? (
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-m">
-            {latestPosts.map((record) => (
-              <BlogCard variant="compact" headingLevel={3} record={record} />
-            ))}
-          </div>
+          <HomeCollectionCarousel label="Latest Articles" items={latestPosts} />
         ) : (
           <Card>
             <p class="text-center text-text-tertiary py-l">
@@ -177,12 +171,12 @@ function toItemListItems(records: readonly CollectionDisplayRecord[]) {
     </Container>
   </Section>
 
-  <!-- Selected Works -->
+  <!-- Latest Works -->
   <Section spacing="default">
     <Container size="lg">
       <div class="flex justify-between items-center mb-l">
         <h2 class="text-3xl font-bold leading-tight text-text-primary">
-          Selected Works
+          Latest Works
         </h2>
         <Button href="/works/" variant="ghost"
           ><span>View all <span class="text-accent-base">→</span></span></Button
@@ -191,11 +185,7 @@ function toItemListItems(records: readonly CollectionDisplayRecord[]) {
 
       {
         selectedWorks.length > 0 ? (
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-m">
-            {selectedWorks.map((record) => (
-              <WorkCard variant="compact" headingLevel={3} record={record} />
-            ))}
-          </div>
+          <HomeCollectionCarousel label="Latest Works" items={selectedWorks} />
         ) : (
           <Card>
             <p class="text-center text-text-tertiary py-l">

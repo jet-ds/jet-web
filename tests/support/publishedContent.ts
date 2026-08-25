@@ -173,10 +173,7 @@ export function resolvedPublishedCollections(): ResolvedPublishedCollections {
     });
 
   return {
-    homepage: [
-      ...resolveHomepageBlog(blogs, 3),
-      ...resolveHomepageWorks(works, 3),
-    ],
+    homepage: [...resolveHomepageBlog(blogs), ...resolveHomepageWorks(works)],
     blog: resolveBlogCollection(blogs),
     works: resolveWorksCollection(works),
   };
