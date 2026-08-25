@@ -140,6 +140,25 @@ describe('DepthCarousel', () => {
     expect(screen.getByRole('link')).toHaveFocus();
   });
 
+  it('moves focus to the new active destination after an opposite Arrow from the deepest receded card', () => {
+    render(
+      <DepthCarousel label="Invented articles" items={inventedItems(5)} />,
+    );
+    const deepestReceded = screen.getByRole('button', {
+      name: 'Bring item 4 of 5 forward',
+    });
+
+    deepestReceded.focus();
+    fireEvent.keyDown(deepestReceded, { key: 'ArrowLeft' });
+
+    expect(screen.getByRole('status')).toHaveTextContent('Item 5 of 5');
+    expect(screen.getByRole('link')).toHaveAttribute(
+      'href',
+      '/blog/invented-5/',
+    );
+    expect(screen.getByRole('link')).toHaveFocus();
+  });
+
   it('keeps one active destination while receded selection and indicators use the real five-item total', () => {
     render(
       <DepthCarousel label="Invented articles" items={inventedItems(5)} />,

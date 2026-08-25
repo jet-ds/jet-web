@@ -24,6 +24,27 @@ async function carouselRoots(page: Page) {
   return roots;
 }
 
+async function waitForCarouselEnhancement(page: Page) {
+  await carouselRoots(page);
+  for (const { label } of expectedCarouselSections()) {
+    const root = carouselRoot(page, label);
+    const fallback = root.locator('[data-carousel-fallback]');
+    await expect(root.getByRole('region')).toBeVisible();
+    await expect(fallback).toHaveAttribute('hidden', '');
+    await expect(fallback).toHaveAttribute('inert', '');
+    await expect(fallback).toHaveAttribute('aria-hidden', 'true');
+  }
+}
+
+async function crossPostEnhancementBoundary(page: Page) {
+  await page.evaluate(
+    () =>
+      new Promise<void>((resolve) => {
+        requestAnimationFrame(() => queueMicrotask(resolve));
+      }),
+  );
+}
+
 function carouselRoot(page: Page, label: string) {
   return page.locator(
     `[data-home-collection-carousel][data-carousel-label="${label}"]`,
@@ -211,6 +232,41 @@ test('owns arrow keys on focus and presents visible full-size controls', async (
   }
 });
 
+for (const focusCase of [
+  { width: 1024, height: 768, depth: 3, label: 'desktop deepest' },
+  { width: 430, height: 932, depth: 2, label: 'mobile deepest' },
+] as const) {
+  test(`${focusCase.label} receded ArrowLeft preserves focus on the new active destination`, async ({
+    page,
+  }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.setViewportSize(focusCase);
+    await page.goto('/');
+    await carouselRoots(page);
+    const section = expectedCarouselSections().find(
+      ({ records }) => records.length >= 5,
+    );
+    test.skip(
+      section === undefined,
+      'No canonical homepage collection currently has five records',
+    );
+    if (section === undefined) return;
+    const region = carouselRoot(page, section.label).getByRole('region');
+    const receded = region.locator(
+      `button[data-carousel-depth="${focusCase.depth}"]`,
+    );
+
+    await receded.focus();
+    await page.keyboard.press('ArrowLeft');
+
+    await expect(region.getByRole('link')).toHaveAttribute(
+      'href',
+      section.records.at(-1)?.href ?? '',
+    );
+    await expect(region.getByRole('link')).toBeFocused();
+  });
+}
+
 test('commits a deliberate horizontal gesture without navigation or wheel capture', async ({
   page,
 }) => {
@@ -383,6 +439,22 @@ test('reduced motion keeps manual circular state changes and an idle stage', asy
 test('enhancement mounts without console, page, or hydration warnings', async ({
   page,
 }) => {
+  let releaseChunk: () => void = () => undefined;
+  let signalChunkRequest: () => void = () => undefined;
+  const chunkGate = new Promise<void>((resolve) => {
+    releaseChunk = resolve;
+  });
+  const chunkRequested = new Promise<void>((resolve) => {
+    signalChunkRequest = resolve;
+  });
+  await page.route(
+    /\/_astro\/DepthCarousel\..+\.js(?:\?.*)?$/u,
+    async (route) => {
+      signalChunkRequest();
+      await chunkGate;
+      await route.continue();
+    },
+  );
   const messages: string[] = [];
   page.on('console', (message) => {
     if (message.type() === 'error' || message.type() === 'warning') {
@@ -392,8 +464,29 @@ test('enhancement mounts without console, page, or hydration warnings', async ({
   page.on('pageerror', (error) => messages.push(`pageerror: ${error.message}`));
 
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/');
+  const navigation = page.goto('/');
+  await chunkRequested;
   await carouselRoots(page);
+  let enhancementCompleted = false;
+  const enhancement = waitForCarouselEnhancement(page).then(() => {
+    enhancementCompleted = true;
+  });
+  try {
+    for (const { label } of expectedCarouselSections()) {
+      const root = carouselRoot(page, label);
+      await expect(root.getByRole('region')).toHaveCount(0);
+      await expect(
+        root.locator('[data-carousel-fallback]'),
+      ).not.toHaveAttribute('hidden', '');
+    }
+    await page.evaluate(() => Promise.resolve());
+    expect(enhancementCompleted).toBe(false);
+  } finally {
+    releaseChunk();
+    await navigation;
+  }
+  await enhancement;
+  await crossPostEnhancementBoundary(page);
   await expect(page.locator('canvas')).toHaveCount(0);
   expect(messages).toEqual([]);
 });

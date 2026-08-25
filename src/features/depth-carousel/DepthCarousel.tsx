@@ -220,17 +220,15 @@ function DepthCarouselStage({ label, items }: DepthCarouselProps) {
   const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     if (event.key === 'ArrowLeft') {
       event.preventDefault();
-      const nextIndex = wrapIndex(activeIndex, -1, itemCount);
-      focusActiveAfterSelection.current =
-        event.currentTarget.getAttribute('data-carousel-layer-item') ===
-        items[nextIndex]?.id;
+      focusActiveAfterSelection.current = event.currentTarget.hasAttribute(
+        'data-carousel-layer-item',
+      );
       move(-1);
     } else if (event.key === 'ArrowRight') {
       event.preventDefault();
-      const nextIndex = wrapIndex(activeIndex, 1, itemCount);
-      focusActiveAfterSelection.current =
-        event.currentTarget.getAttribute('data-carousel-layer-item') ===
-        items[nextIndex]?.id;
+      focusActiveAfterSelection.current = event.currentTarget.hasAttribute(
+        'data-carousel-layer-item',
+      );
       move(1);
     }
   };
