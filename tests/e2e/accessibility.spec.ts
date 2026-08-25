@@ -620,54 +620,56 @@ test('mobile disclosure follows sequential focus order and restores focus', asyn
   await expect(dock.locator(':focus')).toHaveCount(0);
 });
 
-test('mobile article navigation is keyboard-operable, fragment-based, and keeps prose links readable', async ({
+test('Blog and Works prose links retain readable hover and focus contrast in both themes', async ({
   page,
 }, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile-chromium');
+  test.skip(testInfo.project.name !== 'chromium');
+  await page.emulateMedia({ reducedMotion: 'reduce' });
 
-  const candidates = publishedContent()
-    .filter(({ kind }) => kind === 'blog')
-    .map(({ route }) => route);
-  let found = false;
-  for (const route of candidates) {
-    await page.goto(route);
-    if ((await page.locator('article.prose-content a[href]').count()) > 0) {
-      found = true;
-      break;
+  let inspectedKinds = 0;
+  for (const kind of ['blog', 'work'] as const) {
+    const candidates = publishedContent()
+      .filter(({ kind: contentKind }) =>
+        kind === 'blog' ? contentKind === 'blog' : contentKind !== 'blog',
+      )
+      .map(({ route }) => route);
+    let proseLink: Locator | null = null;
+    for (const route of candidates) {
+      await page.goto(route);
+      const candidate = page.locator('article.prose-content a[href]').first();
+      if (await candidate.count()) {
+        proseLink = candidate;
+        break;
+      }
+    }
+    if (proseLink === null) continue;
+    inspectedKinds += 1;
+
+    for (const theme of ['light', 'dark'] as const) {
+      await page.evaluate((nextTheme) => {
+        localStorage.setItem('theme', nextTheme);
+      }, theme);
+      await page.goto(page.url());
+      proseLink = page.locator('article.prose-content a[href]').first();
+      await page.mouse.move(0, 0);
+      await proseLink.hover();
+      const hoverColors = await proseLink.evaluate((element) => ({
+        foreground: getComputedStyle(element).color,
+        background: getComputedStyle(document.body).backgroundColor,
+      }));
+      expect(
+        contrastRatio(hoverColors.foreground, hoverColors.background),
+      ).toBeGreaterThanOrEqual(4.5);
+
+      await proseLink.focus();
+      const focusColors = await proseLink.evaluate((element) => ({
+        foreground: getComputedStyle(element).color,
+        background: getComputedStyle(document.body).backgroundColor,
+      }));
+      expect(
+        contrastRatio(focusColors.foreground, focusColors.background),
+      ).toBeGreaterThanOrEqual(4.5);
     }
   }
-  if (!found)
-    throw new Error('Expected a published Blog article with prose links');
-
-  const toggle = page.getByRole('button', { name: /On this page/u });
-  await expect(toggle).toBeVisible();
-  await toggle.focus();
-  await page.keyboard.press('Enter');
-  await expect(toggle).toHaveAttribute('aria-expanded', 'true');
-
-  const controlledId = await toggle.getAttribute('aria-controls');
-  if (!controlledId)
-    throw new Error('Article navigation disclosure lacks aria-controls');
-  const panel = page.locator(`#${controlledId}`);
-  await expect(panel).toBeVisible();
-  const fragmentLink = panel.getByRole('link').first();
-  const fragment = await fragmentLink.getAttribute('href');
-  expect(fragment).toMatch(/^#[^\s]+$/u);
-  await fragmentLink.click();
-  await expect(toggle).toHaveAttribute('aria-expanded', 'false');
-  await expect(page).toHaveURL(new RegExp(`${fragment}$`, 'u'));
-
-  const proseLink = page.locator('article.prose-content a[href]').first();
-  for (const theme of ['light', 'dark'] as const) {
-    await page.evaluate((nextTheme) => {
-      document.documentElement.classList.toggle('dark', nextTheme === 'dark');
-    }, theme);
-    const colors = await proseLink.evaluate((element) => ({
-      foreground: getComputedStyle(element).color,
-      background: getComputedStyle(document.body).backgroundColor,
-    }));
-    expect(
-      contrastRatio(colors.foreground, colors.background),
-    ).toBeGreaterThanOrEqual(4.5);
-  }
+  expect(inspectedKinds).toBeGreaterThan(0);
 });

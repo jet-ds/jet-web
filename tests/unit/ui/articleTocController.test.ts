@@ -6,6 +6,23 @@ interface ObservedEntry {
   isIntersecting: boolean;
 }
 
+function setHeadingPosition(
+  heading: HTMLElement,
+  { top, height }: { top: number; height: number },
+) {
+  vi.spyOn(heading, 'getBoundingClientRect').mockReturnValue({
+    bottom: top + height,
+    height,
+    left: 0,
+    right: 0,
+    toJSON: () => ({}),
+    top,
+    width: 320,
+    x: 0,
+    y: top,
+  });
+}
+
 class TestIntersectionObserver {
   static instances: TestIntersectionObserver[] = [];
 
@@ -110,6 +127,7 @@ describe('installArticleTocController', () => {
     links[1].click();
     expect(toggle).toHaveAttribute('aria-expanded', 'false');
     expect(panel.hidden).toBe(true);
+    expect(document.activeElement).toBe(second);
 
     cleanup();
   });
@@ -140,5 +158,29 @@ describe('installArticleTocController', () => {
 
     firstCleanup();
     secondCleanup();
+  });
+
+  it('selects a represented section from its leading viewport position even when the heading is taller than the viewport', () => {
+    const cleanup = installArticleTocController(document);
+    const first = document.querySelector<HTMLElement>('#represented-first')!;
+    const second = document.querySelector<HTMLElement>('#represented-second')!;
+    Object.defineProperty(window, 'innerHeight', {
+      configurable: true,
+      value: 390,
+    });
+    setHeadingPosition(first, { top: -80, height: 32 });
+    setHeadingPosition(second, { top: 110, height: 460 });
+
+    window.dispatchEvent(new Event('scroll'));
+
+    for (const link of document.querySelectorAll<HTMLAnchorElement>(
+      '[data-article-toc] a[href="#represented-second"]',
+    ))
+      expect(link).toHaveAttribute('aria-current', 'location');
+    expect(
+      document.querySelector('[data-article-toc-current]'),
+    ).toHaveTextContent('Second section');
+
+    cleanup();
   });
 });

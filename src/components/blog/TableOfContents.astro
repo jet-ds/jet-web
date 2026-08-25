@@ -96,7 +96,17 @@ const mobilePanelId = 'article-toc-mobile-panel';
   }
 
   .toc-link {
-    @apply text-text-tertiary hover:text-brand-text transition-colors;
+    @apply text-text-tertiary transition-colors;
+  }
+
+  .toc-link:hover,
+  .toc-link:focus-visible {
+    @apply text-brand-text underline;
+  }
+
+  .toc-link:focus-visible {
+    outline: 2px solid var(--color-brand-base);
+    outline-offset: 2px;
   }
 
   .toc-link.active {

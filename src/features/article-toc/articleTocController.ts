@@ -4,6 +4,7 @@ const LINK_SELECTOR = 'a[href^="#"]';
 const TOGGLE_SELECTOR = '[data-article-toc-toggle]';
 const PANEL_SELECTOR = '[data-article-toc-panel]';
 const CURRENT_SELECTOR = '[data-article-toc-current]';
+const NAVIGATION_DISCLOSURE_SELECTOR = '[aria-controls="site-navigation-dock"]';
 
 interface ControllerState {
   cleanup: () => void;
@@ -29,6 +30,37 @@ function setDisclosure(
 ) {
   toggle.setAttribute('aria-expanded', String(expanded));
   panel.hidden = !expanded;
+  panel.style.removeProperty('max-height');
+
+  if (!expanded) return;
+  const dockDisclosure = panel.ownerDocument.querySelector<HTMLElement>(
+    NAVIGATION_DISCLOSURE_SELECTOR,
+  );
+  if (dockDisclosure === null) return;
+
+  const availableHeight =
+    dockDisclosure.getBoundingClientRect().top -
+    panel.getBoundingClientRect().top;
+  if (availableHeight > 0)
+    panel.style.maxHeight = `${Math.floor(availableHeight)}px`;
+}
+
+function focusHeading(heading: HTMLElement): () => void {
+  const hadTabIndex = heading.hasAttribute('tabindex');
+  const tabIndex = heading.getAttribute('tabindex');
+  if (!hadTabIndex) heading.setAttribute('tabindex', '-1');
+  heading.focus({ preventScroll: true });
+
+  const restore = () => {
+    heading.removeEventListener('blur', restore);
+    if (hadTabIndex) {
+      if (tabIndex !== null) heading.setAttribute('tabindex', tabIndex);
+    } else {
+      heading.removeAttribute('tabindex');
+    }
+  };
+  heading.addEventListener('blur', restore, { once: true });
+  return restore;
 }
 
 function initializeArticleToc(document: Document): () => void {
@@ -79,18 +111,33 @@ function initializeArticleToc(document: Document): () => void {
     }
   };
 
-  const observer = new IntersectionObserver(
-    (entries) => {
-      const current = entries.find((entry) => entry.isIntersecting);
-      const id = current?.target.id;
-      if (id !== undefined) setActiveHeading(id);
-    },
-    { rootMargin: '-100px 0px -66%', threshold: 1 },
-  );
-  for (const heading of headings) observer.observe(heading);
-  setActiveHeading(headings[0].id);
+  const activeHeadingAtReadingPosition = () => {
+    const readingLine = window.innerHeight * 0.3;
+    return (
+      [...headings]
+        .reverse()
+        .find(
+          (heading) => heading.getBoundingClientRect().top <= readingLine,
+        ) ?? headings[0]
+    );
+  };
 
-  const cleanups: Array<() => void> = [() => observer.disconnect()];
+  const updateActiveHeading = () =>
+    setActiveHeading(activeHeadingAtReadingPosition().id);
+
+  const observer = new IntersectionObserver(updateActiveHeading, {
+    threshold: 0,
+  });
+  for (const heading of headings) observer.observe(heading);
+  updateActiveHeading();
+
+  window.addEventListener('scroll', updateActiveHeading, { passive: true });
+  window.addEventListener('resize', updateActiveHeading);
+  const cleanups: Array<() => void> = [
+    () => observer.disconnect(),
+    () => window.removeEventListener('scroll', updateActiveHeading),
+    () => window.removeEventListener('resize', updateActiveHeading),
+  ];
   for (const navigation of navigations) {
     const toggle = navigation.querySelector<HTMLButtonElement>(TOGGLE_SELECTOR);
     const controls = toggle?.getAttribute('aria-controls');
@@ -110,7 +157,13 @@ function initializeArticleToc(document: Document): () => void {
       for (const link of navigation.querySelectorAll<HTMLAnchorElement>(
         LINK_SELECTOR,
       )) {
-        const onSelection = () => setDisclosure(toggle, panel, false);
+        const onSelection = () => {
+          setDisclosure(toggle, panel, false);
+          const id = fragmentId(link);
+          const heading = id === null ? null : document.getElementById(id);
+          if (heading instanceof HTMLElement)
+            cleanups.push(focusHeading(heading));
+        };
         link.addEventListener('click', onSelection);
         cleanups.push(() => link.removeEventListener('click', onSelection));
       }

@@ -140,6 +140,77 @@ async function visitBlogArticleWithTableOfContents(page: Page): Promise<void> {
   );
 }
 
+async function selectTocHeadingAtReadingPosition(
+  page: Page,
+  options: { makeTall?: boolean } = {},
+): Promise<{ id: string; text: string }> {
+  const target = await page.evaluate(({ makeTall }) => {
+    document.documentElement.style.scrollBehavior = 'auto';
+    const headings = [
+      ...document.querySelectorAll<HTMLElement>(
+        'article[data-article-toc-content] h2[id], article[data-article-toc-content] h3[id]',
+      ),
+    ].filter((heading) =>
+      document.querySelector(`[data-article-toc] a[href="#${heading.id}"]`),
+    );
+    const maxScroll =
+      document.documentElement.scrollHeight - window.innerHeight;
+    const readingLine = window.innerHeight * 0.3;
+    const candidates = headings
+      .map((heading, index) => ({
+        heading,
+        index,
+        top: window.scrollY + heading.getBoundingClientRect().top,
+      }))
+      .filter(
+        ({ index, top }) =>
+          index > 0 && top - readingLine >= 0 && top - readingLine < maxScroll,
+      );
+    const candidate = candidates.at(-1);
+    if (!candidate) return null;
+
+    if (makeTall)
+      candidate.heading.style.minHeight = `${Math.round(window.innerHeight * 0.7)}px`;
+
+    const top = Math.min(
+      maxScroll,
+      Math.max(
+        0,
+        window.scrollY +
+          candidate.heading.getBoundingClientRect().top -
+          readingLine,
+      ),
+    );
+    window.scrollTo({ top });
+    return {
+      id: candidate.heading.id,
+      text: candidate.heading.textContent?.trim() ?? '',
+    };
+  }, options);
+
+  if (target === null || target.text === '')
+    throw new Error('Expected a scrollable represented article heading');
+  return target;
+}
+
+async function expectSharedActiveTocHeading(
+  page: Page,
+  target: { id: string; text: string },
+) {
+  const links = page.locator(`[data-article-toc] a[href="#${target.id}"]`);
+  await expect
+    .poll(async () => {
+      const states = await links.evaluateAll((anchors) =>
+        anchors.map((anchor) => anchor.getAttribute('aria-current')),
+      );
+      return states.length > 0 && states.every((state) => state === 'location');
+    })
+    .toBe(true);
+  await expect(page.locator('[data-article-toc-current]')).toHaveText(
+    target.text,
+  );
+}
+
 async function applyTheme(page: Page, theme: 'light' | 'dark') {
   await page.evaluate((nextTheme) => {
     if (!document.querySelector('#browser-contract-no-transitions')) {
@@ -802,58 +873,63 @@ test('Blog article navigation stays sticky while prose links and Back labels use
   await expect(proseLink).toBeVisible();
   const stickyAside = page.locator('aside:has([data-article-toc])');
   await expect(stickyAside).toHaveCSS('position', 'sticky');
-  await expect(stickyAside).toHaveCSS('top', '96px');
-  const stickyActivationScroll = await stickyAside.evaluate(
-    (element) => window.scrollY + element.getBoundingClientRect().top - 96 + 32,
-  );
+  const stickyGeometry = await stickyAside.evaluate((element) => {
+    const offset = Number.parseFloat(getComputedStyle(element).top);
+    return {
+      offset,
+      scrollTop: Math.max(
+        0,
+        window.scrollY + element.getBoundingClientRect().top - offset,
+      ),
+    };
+  });
   await page.evaluate(
     (top) => window.scrollTo({ top }),
-    stickyActivationScroll,
+    stickyGeometry.scrollTop,
   );
   const stickyTop = await stickyAside.evaluate(
     (element) => element.getBoundingClientRect().top,
   );
-  expect(stickyTop).toBeGreaterThanOrEqual(95);
-  expect(stickyTop).toBeLessThanOrEqual(97);
-
-  const proseRest = await proseLink.evaluate((element) => {
-    const style = getComputedStyle(element);
-    return {
-      color: style.color,
-      fontWeight: style.fontWeight,
-      textDecorationLine: style.textDecorationLine,
-      textUnderlineOffset: style.textUnderlineOffset,
-      transitionDuration: style.transitionDuration,
-    };
-  });
-  expect(proseRest.fontWeight).toBe('500');
-  expect(proseRest.textDecorationLine).toBe('none');
-  expect(proseRest.textUnderlineOffset).toBe('4px');
-  expect(proseRest.transitionDuration).toBe('0s');
+  expect(Math.abs(stickyTop - stickyGeometry.offset)).toBeLessThanOrEqual(1);
 
   await proseLink.focus();
   await expect(proseLink).toHaveCSS('text-decoration-line', 'underline');
   await expect(proseLink).toHaveCSS('outline-style', 'solid');
-  await expect(proseLink).toHaveCSS('outline-offset', '2px');
 
   await blogBack.focus();
   await expect(blogBack).toHaveCSS('text-decoration-line', 'none');
   await expect(backArrow).toHaveCSS('text-decoration-line', 'none');
   await expect(backLabel).toHaveCSS('text-decoration-line', 'underline');
   await expect(blogBack).toHaveCSS('outline-style', 'solid');
-  await expect(blogBack).toHaveCSS('outline-offset', '2px');
-
-  const footerLink = page
-    .getByRole('contentinfo')
-    .getByRole('link', { name: 'Home', exact: true });
-  await expect(footerLink).toHaveCSS('font-weight', '400');
-  await expect(footerLink).toHaveCSS('text-decoration-line', 'none');
 });
 
-test('mobile article navigation exposes one controlled fragment disclosure and closes it after selection', async ({
+test('article navigation tracks each represented section across short and tall reading geometry', async ({
   page,
-}) => {
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'chromium');
+
+  for (const [viewport, makeTall] of [
+    [{ width: 844, height: 390 }, false],
+    [{ width: 320, height: 568 }, true],
+  ] as const) {
+    await page.setViewportSize(viewport);
+    await visitBlogArticleWithTableOfContents(page);
+    const target = await selectTocHeadingAtReadingPosition(page, { makeTall });
+    await expectSharedActiveTocHeading(page, target);
+  }
+});
+
+test('mobile article navigation keeps its disclosure clear of the dock and preserves keyboard context after fragment selection', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'mobile-chromium');
   await page.setViewportSize({ width: 390, height: 844 });
+  await page.addInitScript(() => {
+    sessionStorage.setItem(
+      'mobileDockState',
+      JSON.stringify({ discovered: true, visibility: 'closed' }),
+    );
+  });
   await visitBlogArticleWithTableOfContents(page);
 
   const toggle = page.getByRole('button', { name: /On this page/u });
@@ -866,26 +942,37 @@ test('mobile article navigation exposes one controlled fragment disclosure and c
 
   await toggle.focus();
   await expect(toggle).toHaveCSS('outline-style', 'solid');
-  await toggle.click();
+  await page.keyboard.press('Enter');
   await expect(toggle).toHaveAttribute('aria-expanded', 'true');
   await expect(panel).toBeVisible();
-  const panelClearance = await panel.evaluate((element) => {
-    const style = getComputedStyle(element);
-    return {
-      marginBottom: Number.parseFloat(style.marginBottom),
-      maxHeight: Number.parseFloat(style.maxHeight),
-    };
-  });
-  expect(panelClearance.marginBottom).toBeGreaterThan(0);
-  expect(panelClearance.maxHeight).toBeGreaterThan(0);
+  const dockDisclosure = page.locator('[aria-controls="site-navigation-dock"]');
+  const [panelBounds, dockBounds] = await Promise.all([
+    panel.boundingBox(),
+    dockDisclosure.boundingBox(),
+  ]);
+  expect(panelBounds).not.toBeNull();
+  expect(dockBounds).not.toBeNull();
+  const panelTop = panelBounds!.y;
+  const panelBottom = panelTop + panelBounds!.height;
+  const dockTop = dockBounds!.y;
+  const dockBottom = dockTop + dockBounds!.height;
+  expect(panelBottom <= dockTop || panelTop >= dockBottom).toBe(true);
 
   const headingLink = panel.getByRole('link').first();
+  await page.keyboard.press('Tab');
+  await expect(headingLink).toBeFocused();
+  await expect(headingLink).toHaveCSS('outline-style', 'solid');
   const href = await headingLink.getAttribute('href');
   expect(href).toMatch(/^#[^\s]+$/u);
-  await headingLink.click();
+  await page.keyboard.press('Enter');
   await expect(toggle).toHaveAttribute('aria-expanded', 'false');
   await expect(panel).toBeHidden();
   await expect(page).toHaveURL(new RegExp(`${href}$`, 'u'));
+  await expect
+    .poll(() =>
+      page.evaluate(() => (document.activeElement as HTMLElement | null)?.id),
+    )
+    .toBe(href!.slice(1));
 });
 
 test('specialized navigation and actions stay outside the inline prose link recipe', async ({

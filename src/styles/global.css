@@ -820,7 +820,7 @@
 
 .prose-content :where(a):not(:where([class~='not-prose'] *)):hover,
 .prose-content :where(a):not(:where([class~='not-prose'] *)):focus-visible {
-  color: var(--color-accent-hover);
+  color: var(--color-accent-text);
   text-decoration: underline;
 }
 
