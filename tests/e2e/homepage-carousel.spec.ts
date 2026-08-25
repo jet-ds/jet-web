@@ -233,8 +233,20 @@ test('owns arrow keys on focus and presents visible full-size controls', async (
 });
 
 for (const focusCase of [
-  { width: 1024, height: 768, depth: 3, label: 'desktop deepest' },
-  { width: 430, height: 932, depth: 2, label: 'mobile deepest' },
+  {
+    width: 1024,
+    height: 768,
+    depth: 3,
+    minimumRecords: 5,
+    label: 'desktop deepest',
+  },
+  {
+    width: 430,
+    height: 932,
+    depth: 2,
+    minimumRecords: 4,
+    label: 'mobile deepest',
+  },
 ] as const) {
   test(`${focusCase.label} receded ArrowLeft preserves focus on the new active destination`, async ({
     page,
@@ -244,11 +256,11 @@ for (const focusCase of [
     await page.goto('/');
     await carouselRoots(page);
     const section = expectedCarouselSections().find(
-      ({ records }) => records.length >= 5,
+      ({ records }) => records.length >= focusCase.minimumRecords,
     );
     test.skip(
       section === undefined,
-      'No canonical homepage collection currently has five records',
+      `No canonical homepage collection currently has ${focusCase.minimumRecords} records`,
     );
     if (section === undefined) return;
     const region = carouselRoot(page, section.label).getByRole('region');
@@ -439,22 +451,7 @@ test('reduced motion keeps manual circular state changes and an idle stage', asy
 test('enhancement mounts without console, page, or hydration warnings', async ({
   page,
 }) => {
-  let releaseChunk: () => void = () => undefined;
-  let signalChunkRequest: () => void = () => undefined;
-  const chunkGate = new Promise<void>((resolve) => {
-    releaseChunk = resolve;
-  });
-  const chunkRequested = new Promise<void>((resolve) => {
-    signalChunkRequest = resolve;
-  });
-  await page.route(
-    /\/_astro\/DepthCarousel\..+\.js(?:\?.*)?$/u,
-    async (route) => {
-      signalChunkRequest();
-      await chunkGate;
-      await route.continue();
-    },
-  );
+  const sections = expectedCarouselSections();
   const messages: string[] = [];
   page.on('console', (message) => {
     if (message.type() === 'error' || message.type() === 'warning') {
@@ -464,28 +461,49 @@ test('enhancement mounts without console, page, or hydration warnings', async ({
   page.on('pageerror', (error) => messages.push(`pageerror: ${error.message}`));
 
   await page.emulateMedia({ reducedMotion: 'reduce' });
-  const navigation = page.goto('/');
-  await chunkRequested;
-  await carouselRoots(page);
-  let enhancementCompleted = false;
-  const enhancement = waitForCarouselEnhancement(page).then(() => {
-    enhancementCompleted = true;
-  });
-  try {
-    for (const { label } of expectedCarouselSections()) {
-      const root = carouselRoot(page, label);
-      await expect(root.getByRole('region')).toHaveCount(0);
-      await expect(
-        root.locator('[data-carousel-fallback]'),
-      ).not.toHaveAttribute('hidden', '');
+  if (sections.length === 0) {
+    await page.goto('/');
+    await carouselRoots(page);
+  } else {
+    let releaseChunk: () => void = () => undefined;
+    let signalChunkRequest: () => void = () => undefined;
+    const chunkGate = new Promise<void>((resolve) => {
+      releaseChunk = resolve;
+    });
+    const chunkRequested = new Promise<void>((resolve) => {
+      signalChunkRequest = resolve;
+    });
+    await page.route(
+      /\/_astro\/DepthCarousel\..+\.js(?:\?.*)?$/u,
+      async (route) => {
+        signalChunkRequest();
+        await chunkGate;
+        await route.continue();
+      },
+    );
+    const navigation = page.goto('/');
+    await chunkRequested;
+    await carouselRoots(page);
+    let enhancementCompleted = false;
+    const enhancement = waitForCarouselEnhancement(page).then(() => {
+      enhancementCompleted = true;
+    });
+    try {
+      for (const { label } of sections) {
+        const root = carouselRoot(page, label);
+        await expect(root.getByRole('region')).toHaveCount(0);
+        await expect(
+          root.locator('[data-carousel-fallback]'),
+        ).not.toHaveAttribute('hidden', '');
+      }
+      await page.evaluate(() => Promise.resolve());
+      expect(enhancementCompleted).toBe(false);
+    } finally {
+      releaseChunk();
+      await navigation;
     }
-    await page.evaluate(() => Promise.resolve());
-    expect(enhancementCompleted).toBe(false);
-  } finally {
-    releaseChunk();
-    await navigation;
+    await enhancement;
   }
-  await enhancement;
   await crossPostEnhancementBoundary(page);
   await expect(page.locator('canvas')).toHaveCount(0);
   expect(messages).toEqual([]);
