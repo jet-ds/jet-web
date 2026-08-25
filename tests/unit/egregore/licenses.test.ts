@@ -16,6 +16,9 @@ import { GET as getLiteRtLicense } from '../../../src/pages/assistant/runtime/li
 import { GET as getThirdPartyNotices } from '../../../src/pages/licenses/THIRD_PARTY_NOTICES.md';
 import { GET as getApacheLicense } from '../../../src/pages/licenses/apache-2.0.txt';
 import { GET as getMiniSearchLicense } from '../../../src/pages/licenses/minisearch-7.2.0-MIT.txt';
+import { GET as getReactMarkdownLicense } from '../../../src/pages/licenses/react-markdown-10.1.0-MIT.txt';
+import { GET as getRemarkGfmLicense } from '../../../src/pages/licenses/remark-gfm-4.0.1-MIT.txt';
+import { GET as getRendererDependencyLicenses } from '../../../src/pages/licenses/egregore-markdown-renderer-dependencies.txt';
 import { GET as getStemmerLicense } from '../../../src/pages/licenses/stemmer-2.0.1-MIT.txt';
 
 const packagePins = {
@@ -47,7 +50,93 @@ const packagePins = {
     tarballSha256:
       'e94a3698cc7c6efcd2a9f29e94868c64c03416e86a1eea355bb3e5b059608900',
   },
+  'node_modules/react-markdown': {
+    version: '10.1.0',
+    integrity:
+      'sha512-qKxVopLT/TyA6BX3Ue5NwabOsAzm0Q7kAPwq6L+wWDwisYs7R8vZ0nRXqq6rkueboxpkjvLGU9fWifiX/ZZFxQ==',
+  },
+  'node_modules/remark-gfm': {
+    version: '4.0.1',
+    integrity:
+      'sha512-1quofZ2RQ9EWdeN34S79+KExV1764+wCUGop5CPL1WGdD0ocPpu91lzPGbwWMECpEpd42kJGQwzRfyov9j4yNg==',
+  },
 } as const;
+
+const markdownRendererPackages = [
+  '@ungap/structured-clone',
+  'bail',
+  'ccount',
+  'comma-separated-tokens',
+  'decode-named-character-reference',
+  'devlop',
+  'escape-string-regexp',
+  'estree-util-is-identifier-name',
+  'extend',
+  'hast-util-to-jsx-runtime',
+  'hast-util-whitespace',
+  'html-url-attributes',
+  'inline-style-parser',
+  'is-plain-obj',
+  'longest-streak',
+  'markdown-table',
+  'mdast-util-find-and-replace',
+  'mdast-util-from-markdown',
+  'mdast-util-gfm',
+  'mdast-util-gfm-autolink-literal',
+  'mdast-util-gfm-footnote',
+  'mdast-util-gfm-strikethrough',
+  'mdast-util-gfm-table',
+  'mdast-util-gfm-task-list-item',
+  'mdast-util-phrasing',
+  'mdast-util-to-hast',
+  'mdast-util-to-markdown',
+  'mdast-util-to-string',
+  'micromark',
+  'micromark-core-commonmark',
+  'micromark-extension-gfm',
+  'micromark-extension-gfm-autolink-literal',
+  'micromark-extension-gfm-footnote',
+  'micromark-extension-gfm-strikethrough',
+  'micromark-extension-gfm-table',
+  'micromark-extension-gfm-tagfilter',
+  'micromark-extension-gfm-task-list-item',
+  'micromark-factory-destination',
+  'micromark-factory-label',
+  'micromark-factory-space',
+  'micromark-factory-title',
+  'micromark-factory-whitespace',
+  'micromark-util-character',
+  'micromark-util-chunked',
+  'micromark-util-classify-character',
+  'micromark-util-combine-extensions',
+  'micromark-util-decode-numeric-character-reference',
+  'micromark-util-decode-string',
+  'micromark-util-encode',
+  'micromark-util-html-tag-name',
+  'micromark-util-normalize-identifier',
+  'micromark-util-resolve-all',
+  'micromark-util-sanitize-uri',
+  'micromark-util-subtokenize',
+  'property-information',
+  'react-markdown',
+  'remark-gfm',
+  'remark-parse',
+  'remark-rehype',
+  'space-separated-tokens',
+  'style-to-js',
+  'style-to-object',
+  'trim-lines',
+  'trough',
+  'unified',
+  'unist-util-is',
+  'unist-util-position',
+  'unist-util-stringify-position',
+  'unist-util-visit',
+  'unist-util-visit-parents',
+  'vfile',
+  'vfile-message',
+  'zwitch',
+] as const;
 
 const expectedAssets = {
   'litertlm_wasm_asyncify_internal.js': [
@@ -100,6 +189,11 @@ describe('Egregore distributed license contract', () => {
       'utf8',
     );
     const stemmer = readFileSync('LICENSES/stemmer-2.0.1-MIT.txt', 'utf8');
+    const reactMarkdown = readFileSync(
+      'LICENSES/react-markdown-10.1.0-MIT.txt',
+      'utf8',
+    );
+    const remarkGfm = readFileSync('LICENSES/remark-gfm-4.0.1-MIT.txt', 'utf8');
 
     expect(Buffer.byteLength(apache)).toBe(11_358);
     expect(sha256(apache)).toBe(
@@ -115,6 +209,12 @@ describe('Egregore distributed license contract', () => {
       readFileSync('node_modules/minisearch/LICENSE.txt', 'utf8'),
     );
     expect(stemmer).toBe(readFileSync('node_modules/stemmer/license', 'utf8'));
+    expect(reactMarkdown).toBe(
+      readFileSync('node_modules/react-markdown/license', 'utf8'),
+    );
+    expect(remarkGfm).toBe(
+      readFileSync('node_modules/remark-gfm/license', 'utf8'),
+    );
   });
 
   it('serves every public notice route from the distributed bundle', async () => {
@@ -123,6 +223,12 @@ describe('Egregore distributed license contract', () => {
       [getApacheLicense, EGREGORE_LICENSE_BUNDLE.apache],
       [getMiniSearchLicense, EGREGORE_LICENSE_BUNDLE.minisearch],
       [getStemmerLicense, EGREGORE_LICENSE_BUNDLE.stemmer],
+      [getReactMarkdownLicense, EGREGORE_LICENSE_BUNDLE.reactMarkdown],
+      [getRemarkGfmLicense, EGREGORE_LICENSE_BUNDLE.remarkGfm],
+      [
+        getRendererDependencyLicenses,
+        EGREGORE_LICENSE_BUNDLE.markdownRendererDependencies,
+      ],
       [getLiteRtLicense, EGREGORE_LICENSE_BUNDLE.apache],
     ] as const;
 
@@ -133,6 +239,42 @@ describe('Egregore distributed license contract', () => {
       );
       expect(await response.text()).toBe(expected);
     }
+  });
+
+  it('covers every package in the audited browser renderer graph', () => {
+    const bundle = EGREGORE_LICENSE_BUNDLE.markdownRendererDependencies;
+
+    for (const name of markdownRendererPackages) {
+      const packageRoot = `node_modules/${name}`;
+      const packageJson = JSON.parse(
+        readFileSync(`${packageRoot}/package.json`, 'utf8'),
+      ) as { version: string };
+      const licensePath = [
+        'license',
+        'LICENSE',
+        'license.md',
+        'LICENSE.md',
+        'license.txt',
+        'LICENSE.txt',
+      ].find((filename) => {
+        try {
+          statSync(`${packageRoot}/${filename}`);
+          return true;
+        } catch {
+          return false;
+        }
+      });
+
+      expect(licensePath, name).toBeDefined();
+      expect(bundle).toContain(`${name}@${packageJson.version}`);
+      expect(bundle).toContain(
+        readFileSync(`${packageRoot}/${licensePath}`, 'utf8').trim(),
+      );
+    }
+    expect(bundle).toContain('ISC License');
+    expect(bundle).toContain(
+      'Copyright (c) 2021, Andrea Giammarchi, @WebReflection',
+    );
   });
 
   it('pins the exact model, package graph, and served LiteRT-LM asset bytes', () => {
@@ -158,7 +300,9 @@ describe('Egregore distributed license contract', () => {
     const notices = EGREGORE_LICENSE_BUNDLE.notices;
     expect(notices).toMatch(/^# Egregore third-party notices$/mu);
     expect(notices).toContain('currently used by Egregore');
-    expect(notices).toContain('unchanged from the 2.1.0 release record');
+    expect(notices).toContain(
+      'pinned LiteRT-LM model and runtime bytes remain unchanged',
+    );
     for (const [path, expected] of Object.entries(packagePins)) {
       expect(lock.packages[path]).toMatchObject({
         version: expected.version,
@@ -166,7 +310,9 @@ describe('Egregore distributed license contract', () => {
       });
       expect(notices).toContain(expected.version);
       expect(notices).toContain(expected.integrity);
-      expect(notices).toContain(expected.tarballSha256);
+      if ('tarballSha256' in expected) {
+        expect(notices).toContain(expected.tarballSha256);
+      }
     }
 
     expect(new Set(LITERT_LM_WASM_ASSETS)).toEqual(

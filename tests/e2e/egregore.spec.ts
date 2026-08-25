@@ -18,6 +18,7 @@ const CORPUS_PATHS = [
   '/assistant/corpus/index.json',
 ] as const;
 const RUNTIME_ROOT = '/assistant/runtime/litert-lm/0.14.0/';
+const REMOTE_MARKDOWN_IMAGE_URL = 'https://egregore.invalid/remote.png';
 const LITERT_ASSETS = new Set([
   'litertlm_wasm_internal.js',
   'litertlm_wasm_internal.wasm',
@@ -36,6 +37,7 @@ const SOURCE_SENTINEL = 'EGREGORE_SOURCE_SENTINEL_4a6c1b';
 type FakeScenario =
   | 'default'
   | 'published-corpus'
+  | 'markdown-safety'
   | 'checking'
   | 'unsupported'
   | 'load-failure'
@@ -550,6 +552,49 @@ async function installCorpusMismatch(
 }
 
 test.describe('Egregore consent and local privacy', () => {
+  test('keeps model-authored remote images inert without weakening load consent', async ({
+    page,
+  }) => {
+    const requests: Request[] = [];
+    let remoteImageRequests = 0;
+    page.on('request', (request) => requests.push(request));
+    await page.route(REMOTE_MARKDOWN_IMAGE_URL, async (route) => {
+      remoteImageRequests += 1;
+      await route.abort();
+    });
+
+    await page.goto(fakePath('markdown-safety'));
+    await expect.poll(() => runtimeAuditReady(page)).toBe(true);
+    await expect(
+      page.getByRole('button', { name: 'Check compatibility' }),
+    ).toBeVisible();
+    expect(await runtimeMethods(page)).toEqual([]);
+    expect(
+      requests.filter((request) => {
+        const url = request.url();
+        return (
+          CORPUS_PATHS.some((path) => url.includes(path)) ||
+          url.includes(RUNTIME_ROOT) ||
+          /huggingface|\.litertlm|litert[-_.]?lm/iu.test(url)
+        );
+      }),
+    ).toEqual([]);
+
+    await page.getByRole('button', { name: 'Check compatibility' }).click();
+    await page.getByRole('button', { name: /Load Egregore/ }).click();
+    await expect(
+      page.getByRole('textbox', { name: 'Ask Egregore' }),
+    ).toBeEnabled();
+    await submitQuestionAndWait(page, 'Render the fixed safety response.');
+
+    const response = page.locator('[aria-label="Conversation"] article').last();
+    await expect(
+      response.getByText('remote diagram', { exact: true }),
+    ).toBeVisible();
+    await expect(response.locator('img')).toHaveCount(0);
+    expect(remoteImageRequests).toBe(0);
+  });
+
   test('does not construct or fetch assistant resources before explicit load consent', async ({
     page,
   }) => {

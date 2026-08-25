@@ -68,6 +68,7 @@ import { createRuntimeError } from './runtime/types';
 import { rankAndPackContext } from './selection/rankAndPack';
 import type { ConversationTurn } from './state/types';
 import { useEgregore, type EgregoreDependencies } from './state/useEgregore';
+import { AssistantResponse } from './response/AssistantResponse';
 
 const suggestedQuestions = [
   'What does Jet write about agentic work?',
@@ -1275,7 +1276,7 @@ export default function EgregoreExperience({
                         >
                           {turn.content ? (
                             turn.role === 'assistant' ? (
-                              <CitedResponse turn={turn} />
+                              <AssistantResponse turn={turn} />
                             ) : (
                               <p className="whitespace-pre-wrap leading-relaxed">
                                 {turn.content}
@@ -1407,37 +1408,6 @@ function LifecycleStatus({ status }: { status: EgregoreLifecycleStatus }) {
         )}
       </span>
     </div>
-  );
-}
-
-function CitedResponse({ turn }: { turn: ConversationTurn }) {
-  const citations = new Map(
-    turn.citations.map((citation) => [citation.id, citation.source]),
-  );
-  const parts = turn.content.split(/(\[S\d+\])/g);
-
-  return (
-    <p className="whitespace-pre-wrap leading-relaxed">
-      {parts.map((part, index) => {
-        const match = /^\[(S\d+)\]$/.exec(part);
-        const source =
-          match === null ? undefined : citations.get(match[1] as `S${number}`);
-        return source === undefined ? (
-          part
-        ) : (
-          <a
-            key={`${part}-${index}`}
-            href={source.canonicalUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-semibold text-accent-text underline decoration-accent-base/50 underline-offset-2 hover:decoration-accent-base"
-            aria-label={`${part} ${source.title}`}
-          >
-            {part}
-          </a>
-        );
-      })}
-    </p>
   );
 }
 

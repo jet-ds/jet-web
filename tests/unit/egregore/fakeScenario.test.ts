@@ -82,6 +82,7 @@ describe('Egregore fake browser scenarios', () => {
     expect(FAKE_SCENARIOS).toEqual([
       'default',
       'published-corpus',
+      'markdown-safety',
       'checking',
       'unsupported',
       'load-failure',
@@ -164,6 +165,21 @@ describe('Egregore fake browser scenarios', () => {
       capabilityDelayMs: 50,
       knowledgeSource: 'published',
     });
+    expect(
+      getFakeScenarioConfiguration('markdown-safety').responseChunks.join(''),
+    ).toBe(
+      'Safe text ![remote diagram](https://egregore.invalid/remote.png), <script>unsafe()</script>, and [blocked](javascript:unsafe()).',
+    );
+    expect(
+      resolveFakeScenario({
+        testBuild: true,
+        hostname: '127.0.0.1',
+        search: '?runtime=fake&scenario=markdown-safety&response=QUERY_PAYLOAD',
+      }),
+    ).toEqual({ scenario: 'markdown-safety', slowStream: false });
+    expect(
+      getFakeScenarioConfiguration('markdown-safety').responseChunks.join(''),
+    ).not.toContain('QUERY_PAYLOAD');
   });
 
   it('records a content-free resource lifecycle', async () => {

@@ -30,7 +30,8 @@ const canonicalUrl = new URL(EGREGORE_IDENTITY.licensePath, SITE.siteUrl).toStri
             </h1>
             <p class="text-base leading-relaxed text-text-secondary">
               Egregore uses a pinned Gemma 4 E2B model and a small set of
-              browser runtime and retrieval libraries. This page keeps their
+              browser runtime, retrieval libraries, and constrained Markdown
+              renderer. This page keeps their
               exact identities, licenses, and notices available in one stable
               place.
             </p>
@@ -61,7 +62,7 @@ const canonicalUrl = new URL(EGREGORE_IDENTITY.licensePath, SITE.siteUrl).toStri
 
         <section aria-labelledby="bundle-licenses" class="space-y-s">
           <h2 id="bundle-licenses" class="text-3xl font-bold text-text-primary">
-            Runtime and retrieval libraries
+            Runtime, retrieval, and response libraries
           </h2>
           <ul class="grid gap-xs">
             <li>
@@ -80,6 +81,24 @@ const canonicalUrl = new URL(EGREGORE_IDENTITY.licensePath, SITE.siteUrl).toStri
               <Card surface="subtle">
                 <p class="font-semibold text-text-primary">stemmer 2.0.1</p>
                 <p class="mt-2xs text-sm text-text-secondary"><Link href="/licenses/stemmer-2.0.1-MIT.txt" variant="primary">MIT license</Link></p>
+              </Card>
+            </li>
+            <li>
+              <Card surface="subtle">
+                <p class="font-semibold text-text-primary">react-markdown 10.1.0</p>
+                <p class="mt-2xs text-sm text-text-secondary"><Link href="/licenses/react-markdown-10.1.0-MIT.txt" variant="primary">MIT license</Link></p>
+              </Card>
+            </li>
+            <li>
+              <Card surface="subtle">
+                <p class="font-semibold text-text-primary">remark-gfm 4.0.1</p>
+                <p class="mt-2xs text-sm text-text-secondary"><Link href="/licenses/remark-gfm-4.0.1-MIT.txt" variant="primary">MIT license</Link></p>
+              </Card>
+            </li>
+            <li>
+              <Card surface="subtle">
+                <p class="font-semibold text-text-primary">Markdown renderer dependency graph</p>
+                <p class="mt-2xs text-sm text-text-secondary"><Link href="/licenses/egregore-markdown-renderer-dependencies.txt" variant="primary">Complete MIT and ISC license bundle</Link></p>
               </Card>
             </li>
           </ul>

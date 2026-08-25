@@ -359,6 +359,38 @@ test('Egregore introduction, ready, and response states remain accessible by key
   await expect(composer).toHaveValue('');
 });
 
+test('Egregore inert Markdown media remains axe-clean through keyboard activation', async ({
+  page,
+}, testInfo) => {
+  test.skip(testInfo.project.name !== 'chromium');
+  await page.goto('/chatbot/?runtime=fake&scenario=markdown-safety');
+
+  const compatibility = page.getByRole('button', {
+    name: 'Check compatibility',
+  });
+  await focusWithKeyboard(page, compatibility);
+  await page.keyboard.press('Enter');
+  const load = page.getByRole('button', { name: /Load Egregore/ });
+  await focusWithKeyboard(page, load);
+  await page.keyboard.press('Enter');
+
+  const composer = page.getByRole('textbox', { name: 'Ask Egregore' });
+  await composer.fill('Render the fixed safety response.');
+  await focusWithKeyboard(
+    page,
+    page.getByRole('button', { name: 'Send message' }),
+  );
+  await page.keyboard.press('Enter');
+  await expect(composer).toBeEnabled();
+
+  const response = page.locator('[aria-label="Conversation"] article').last();
+  await expect(
+    response.getByText('remote diagram', { exact: true }),
+  ).toBeVisible();
+  await expect(response.locator('img')).toHaveCount(0);
+  await expectNoSeriousAxeViolations(page, 'inert Markdown media response');
+});
+
 test('Egregore recoverable error is axe-clean and keyboard operable', async ({
   page,
 }, testInfo) => {

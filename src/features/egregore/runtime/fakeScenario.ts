@@ -5,6 +5,7 @@ import { serializeSourcePayload } from '../sourcePayload';
 export const FAKE_SCENARIOS = [
   'default',
   'published-corpus',
+  'markdown-safety',
   'checking',
   'unsupported',
   'load-failure',
@@ -78,6 +79,12 @@ function getFakeScenarioDetails(scenario: FakeScenario): FakeScenarioDetails {
       return {
         responseChunks: DEFAULT_RESPONSE_CHUNKS,
         capabilityDelayMs: 60_000,
+      };
+    case 'markdown-safety':
+      return {
+        responseChunks: [
+          'Safe text ![remote diagram](https://egregore.invalid/remote.png), <script>unsafe()</script>, and [blocked](javascript:unsafe()).',
+        ],
       };
     case 'unsupported':
       return {

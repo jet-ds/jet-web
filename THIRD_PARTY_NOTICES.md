@@ -1,6 +1,6 @@
 # Egregore third-party notices
 
-This index covers the exact browser model, runtime, runtime assets, and retrieval libraries currently used by Egregore. The component pins and license bytes remain unchanged from the 2.1.0 release record. Complete license texts are available from the public [Apache 2.0 license](/licenses/apache-2.0.txt) endpoint and the [Model and open-source licenses](https://jetsanchez.com/licenses/egregore/) surface.
+This index covers the exact browser model, runtime, runtime assets, retrieval libraries, and constrained Markdown renderer currently used by Egregore. The pinned LiteRT-LM model and runtime bytes remain unchanged; this notice adds the reviewed renderer graph. Complete license texts are available from the public license endpoints and the [Model and open-source licenses](https://jetsanchez.com/licenses/egregore/) surface.
 
 ## Apache License 2.0 artifacts
 
@@ -74,6 +74,28 @@ The site serves these exact, unmodified files under `/assistant/runtime/litert-l
 - License: [MIT license](/licenses/stemmer-2.0.1-MIT.txt)
 - `Copyright (c) 2014 Titus Wormer <tituswormer@gmail.com>`
 
+### `react-markdown@10.1.0`
+
+- Version: `10.1.0`
+- Lock integrity: `sha512-qKxVopLT/TyA6BX3Ue5NwabOsAzm0Q7kAPwq6L+wWDwisYs7R8vZ0nRXqq6rkueboxpkjvLGU9fWifiX/ZZFxQ==`
+- Exact license SHA-256: `f6196c64e144f9a6fa9154c3a80bc8b89615a9567934b83a8951879f06ba2aef`
+- License: [MIT license](/licenses/react-markdown-10.1.0-MIT.txt)
+- `Copyright (c) Espen Hovlandsdal`
+
+### `remark-gfm@4.0.1`
+
+- Version: `4.0.1`
+- Lock integrity: `sha512-1quofZ2RQ9EWdeN34S79+KExV1764+wCUGop5CPL1WGdD0ocPpu91lzPGbwWMECpEpd42kJGQwzRfyov9j4yNg==`
+- Exact license SHA-256: `dd1081884a92952802f4803110a6bb543acea9a814c786d58605b4c1219b5ebb`
+- License: [MIT license](/licenses/remark-gfm-4.0.1-MIT.txt)
+- `Copyright (c) Titus Wormer <tituswormer@gmail.com>`
+
+### Constrained Markdown renderer dependency graph
+
+The reviewed browser renderer contains 73 runtime packages: the two direct packages above plus 71 transitive packages. Seventy-two packages are MIT-licensed. `@ungap/structured-clone@1.3.0` is ISC-licensed and retains `Copyright (c) 2021, Andrea Giammarchi, @WebReflection`. The complete [renderer dependency license bundle](/licenses/egregore-markdown-renderer-dependencies.txt) names every exact package version and groups the 21 unique authoritative license byte sets without omitting any copyright or permission notice.
+
+- Exact combined license-bundle SHA-256: `edd3692451ecbfeeddfb1d83a0ec08e20a7e9f5984b96d4ff72c9eb7b86b0489`
+
 ## Notice and modification status
 
-No upstream `NOTICE` file was present in the reviewed model repository, exact npm packages, or named upstream trees. No upstream `NOTICE` text is invented. The eight publicly served LiteRT-LM assets are copied without modification. A future patch, rebuild, model conversion, mirror, package upgrade, or authoritative upstream SBOM/notice inventory triggers a fresh audit.
+No upstream `NOTICE` file was present in the reviewed model repository, exact npm packages, renderer graph, or named upstream trees. No upstream `NOTICE` text is invented. The eight publicly served LiteRT-LM assets are copied without modification, and their identities are not changed by the renderer addition. A future patch, rebuild, model conversion, mirror, package upgrade, or authoritative upstream SBOM/notice inventory triggers a fresh audit.
