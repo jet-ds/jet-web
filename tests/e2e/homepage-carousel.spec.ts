@@ -49,6 +49,196 @@ async function activeHref(region: Locator): Promise<string> {
   return href ?? '';
 }
 
+interface GeometryFrame {
+  height: number;
+  width: number;
+  x: number;
+  y: number;
+}
+
+interface TransitionSample {
+  incoming: GeometryFrame | null;
+  outgoing: GeometryFrame | null;
+  receding: GeometryFrame | null;
+}
+
+interface TransitionEvidence {
+  activeTarget: GeometryFrame;
+  before: TransitionSample;
+  samples: TransitionSample[];
+}
+
+function frameDistance(
+  first: GeometryFrame | null,
+  second: GeometryFrame | null,
+): number {
+  if (first === null || second === null) return Number.POSITIVE_INFINITY;
+  return Math.hypot(
+    first.x - second.x,
+    first.y - second.y,
+    first.width - second.width,
+    first.height - second.height,
+  );
+}
+
+async function installTransitionRecorder(
+  region: Locator,
+  incomingId: string,
+  trigger: 'next' | 'pointerup',
+): Promise<void> {
+  await region.evaluate(
+    (root, { incomingId: selectedId, trigger }) => {
+      type ReleaseOwner = HTMLElement & {
+        __carouselTransition?: {
+          done: boolean;
+          evidence?: TransitionEvidence;
+        };
+      };
+      const owner = root as ReleaseOwner;
+      const itemSelector = (id: string) =>
+        `[data-carousel-layer-item="${CSS.escape(id)}"]`;
+      const frame = (element: Element | null): GeometryFrame | null => {
+        if (!(element instanceof HTMLElement)) return null;
+        const bounds = element.getBoundingClientRect();
+        return {
+          height: bounds.height,
+          width: bounds.width,
+          x: bounds.x,
+          y: bounds.y,
+        };
+      };
+      const active = root.querySelector('[data-carousel-depth="0"]');
+      const outgoingId = active?.getAttribute('data-carousel-layer-item');
+      const activeTarget = frame(active);
+      if (
+        outgoingId === null ||
+        outgoingId === undefined ||
+        activeTarget === null
+      )
+        throw new Error('Trajectory recorder needs active card geometry.');
+      const recedingId = root
+        .querySelector('[data-carousel-depth="2"]')
+        ?.getAttribute('data-carousel-layer-item');
+      const readSample = (): TransitionSample => ({
+        incoming: frame(root.querySelector(itemSelector(selectedId))),
+        outgoing: frame(root.querySelector(itemSelector(outgoingId))),
+        receding:
+          recedingId === null || recedingId === undefined
+            ? null
+            : frame(root.querySelector(itemSelector(recedingId))),
+      });
+      owner.__carouselTransition = { done: false };
+      const record = () => {
+        const before = readSample();
+        const samples: TransitionSample[] = [];
+        const sample = () => {
+          samples.push(readSample());
+          if (samples.length < 48) {
+            requestAnimationFrame(sample);
+            return;
+          }
+          owner.__carouselTransition = {
+            done: true,
+            evidence: { activeTarget, before, samples },
+          };
+        };
+        requestAnimationFrame(sample);
+      };
+      if (trigger === 'pointerup') {
+        document.addEventListener('pointerup', record, {
+          capture: true,
+          once: true,
+        });
+        return;
+      }
+      const next = [...root.querySelectorAll<HTMLButtonElement>('button')].find(
+        (button) => button.getAttribute('aria-label')?.startsWith('Next '),
+      );
+      if (next === undefined) throw new Error('Next control is missing.');
+      record();
+      next.click();
+    },
+    { incomingId, trigger },
+  );
+}
+
+async function readTransitionEvidence(
+  region: Locator,
+): Promise<TransitionEvidence> {
+  await expect
+    .poll(() =>
+      region.evaluate(
+        (root) =>
+          (
+            root as HTMLElement & {
+              __carouselTransition?: { done: boolean };
+            }
+          ).__carouselTransition?.done ?? false,
+      ),
+    )
+    .toBe(true);
+  return region.evaluate((root) => {
+    const evidence = (
+      root as HTMLElement & {
+        __carouselTransition?: { evidence?: TransitionEvidence };
+      }
+    ).__carouselTransition?.evidence;
+    if (evidence === undefined)
+      throw new Error('Carousel transition evidence is missing.');
+    return evidence;
+  });
+}
+
+function expectContinuousSelection(evidence: TransitionEvidence) {
+  const incomingBefore = evidence.before.incoming;
+  const outgoingBefore = evidence.before.outgoing;
+  const recedingBefore = evidence.before.receding;
+  expect(incomingBefore).not.toBeNull();
+  expect(outgoingBefore).not.toBeNull();
+  const travel = frameDistance(incomingBefore, evidence.activeTarget);
+  expect(travel).toBeGreaterThan(12);
+
+  const first = evidence.samples[0];
+  expect(frameDistance(first?.incoming ?? null, incomingBefore)).toBeLessThan(
+    travel * 0.4,
+  );
+  expect(
+    evidence.samples.some((sample) => {
+      const fromStart = frameDistance(sample.incoming, incomingBefore);
+      const fromFinish = frameDistance(sample.incoming, evidence.activeTarget);
+      return fromStart > travel * 0.15 && fromFinish > travel * 0.15;
+    }),
+  ).toBe(true);
+  expect(
+    frameDistance(
+      evidence.samples.at(-1)?.incoming ?? null,
+      evidence.activeTarget,
+    ),
+  ).toBeLessThan(2);
+
+  expect(first?.outgoing).not.toBeNull();
+  expect(frameDistance(first?.outgoing ?? null, outgoingBefore)).toBeLessThan(
+    24,
+  );
+  expect(
+    evidence.samples.some(
+      (sample) => frameDistance(sample.outgoing, outgoingBefore) > 12,
+    ),
+  ).toBe(true);
+
+  if (recedingBefore !== null) {
+    expect(first?.receding).not.toBeNull();
+    expect(frameDistance(first?.receding ?? null, recedingBefore)).toBeLessThan(
+      24,
+    );
+    expect(
+      evidence.samples.some(
+        (sample) => frameDistance(sample.receding, recedingBefore) > 8,
+      ),
+    ).toBe(true);
+  }
+}
+
 async function expectAssistiveOnly(status: Locator): Promise<void> {
   const box = await status.boundingBox();
   expect(box?.width ?? Infinity).toBeLessThanOrEqual(1);
@@ -418,6 +608,79 @@ test('loops manually while preserving one active destination and keyboard focus'
 });
 
 test(
+  'keeps incoming, outgoing, and receding cards continuous after control selection',
+  { tag: '@desktop' },
+  async ({ page }) => {
+    const articleSection = homepageSections().find(
+      ({ label, records }) =>
+        label === 'Latest Articles' && records.length >= 3,
+    );
+    expect(articleSection).toBeDefined();
+    if (articleSection === undefined) return;
+
+    await page.goto('/');
+    await waitForCarousels(page);
+    const region = carouselRoot(page, articleSection.label).getByRole('region');
+    await region.scrollIntoViewIfNeeded();
+    const incomingId = articleSection.records[1]?.id;
+    expect(incomingId).toBeDefined();
+    if (incomingId === undefined) return;
+
+    await installTransitionRecorder(region, incomingId, 'next');
+    expectContinuousSelection(await readTransitionEvidence(region));
+    await expect(region.locator('[data-carousel-depth="0"]')).toHaveAttribute(
+      'data-carousel-layer-item',
+      incomingId,
+    );
+  },
+);
+
+test(
+  'keeps the same canonical cards on continuous trajectories after drag resolution',
+  { tag: '@desktop' },
+  async ({ page }) => {
+    const articleSection = homepageSections().find(
+      ({ label, records }) =>
+        label === 'Latest Articles' && records.length >= 3,
+    );
+    expect(articleSection).toBeDefined();
+    if (articleSection === undefined) return;
+
+    await page.goto('/');
+    await waitForCarousels(page);
+    const region = carouselRoot(page, articleSection.label).getByRole('region');
+    await region.scrollIntoViewIfNeeded();
+    const active = region.locator('[data-carousel-depth="0"]');
+    const activeBox = await active.boundingBox();
+    expect(activeBox).not.toBeNull();
+    if (activeBox === null) return;
+    const incomingId = articleSection.records[1]?.id;
+    expect(incomingId).toBeDefined();
+    if (incomingId === undefined) return;
+
+    await installTransitionRecorder(region, incomingId, 'pointerup');
+    await page.mouse.move(
+      activeBox.x + activeBox.width / 2,
+      activeBox.y + activeBox.height / 2,
+    );
+    await page.mouse.down();
+    await page.mouse.move(
+      activeBox.x + activeBox.width / 2 - 72,
+      activeBox.y + activeBox.height / 2 + 18,
+      { steps: 8 },
+    );
+    await page.mouse.up();
+
+    const evidence = await readTransitionEvidence(region);
+    expectContinuousSelection(evidence);
+    await expect(region.locator('[data-carousel-depth="0"]')).toHaveAttribute(
+      'data-carousel-layer-item',
+      incomingId,
+    );
+  },
+);
+
+test(
   'lets the active card lead connected depth motion without moving fixed chrome',
   { tag: '@desktop' },
   async ({ page }) => {
@@ -463,6 +726,7 @@ test(
       await page.mouse.move(centerX, centerY);
       await page.mouse.down();
       await page.mouse.move(centerX - 72, centerY + 18, { steps: 8 });
+      await page.waitForTimeout(50);
       const [
         stageDuring,
         activeDuring,
@@ -556,6 +820,7 @@ test(
       await page.mouse.move(centerX, centerY);
       await page.mouse.down();
       await page.mouse.move(centerX - 30, centerY + 18, { steps: 6 });
+      await page.waitForTimeout(50);
       const [activeDuring, recededDuring] = await Promise.all([
         active.boundingBox(),
         receded.boundingBox(),
@@ -651,7 +916,7 @@ test(
       for (const { label, records } of homepageSections()) {
         const region = carouselRoot(page, label).getByRole('region');
         const visibleLayers = region.locator(
-          '[data-carousel-layer-item]:visible',
+          '[data-carousel-layer-item][data-carousel-visible="true"]:visible',
         );
         const expectedReceded = viewport.width < 768 ? 2 : 3;
         await expect(visibleLayers).toHaveCount(
@@ -813,10 +1078,52 @@ test(
       expect(await active.boundingBox()).toEqual(before);
       expect(await summary.textContent()).toContain(records[0]?.summary);
 
-      await active.focus();
+      await region.getByRole('link').focus();
       await expect(summary).toHaveCSS('opacity', '1');
       await expect(facts).toHaveCSS('opacity', '1');
       expect(await active.boundingBox()).toEqual(before);
+
+      for (const [itemIndex, record] of records.entries()) {
+        if (itemIndex > 0) {
+          await region
+            .getByRole('button', {
+              name: `Go to item ${itemIndex + 1} of ${records.length}`,
+            })
+            .click();
+          await expect(active).toHaveAttribute(
+            'data-carousel-layer-item',
+            record.id,
+          );
+        }
+        await active.hover();
+        await expect(summary).toHaveCSS('opacity', '1');
+        await expect(facts).toHaveCSS('opacity', '1');
+        const [cardBox, headingBox, summaryBox, factsBox] = await Promise.all([
+          active.boundingBox(),
+          heading.boundingBox(),
+          summary.boundingBox(),
+          facts.boundingBox(),
+        ]);
+        expect(cardBox).not.toBeNull();
+        expect(headingBox).not.toBeNull();
+        expect(summaryBox).not.toBeNull();
+        expect(factsBox).not.toBeNull();
+        if (
+          cardBox === null ||
+          headingBox === null ||
+          summaryBox === null ||
+          factsBox === null
+        )
+          continue;
+        expect(
+          summaryBox.y - (headingBox.y + headingBox.height),
+        ).toBeGreaterThanOrEqual(6);
+        expect(headingBox.y).toBeGreaterThanOrEqual(cardBox.y);
+        expect(summaryBox.y).toBeGreaterThanOrEqual(cardBox.y);
+        expect(factsBox.y + factsBox.height).toBeLessThanOrEqual(
+          cardBox.y + cardBox.height,
+        );
+      }
     }
 
     await page.setViewportSize({ width: 390, height: 844 });
@@ -872,17 +1179,20 @@ test(
         .evaluateAll((controls) =>
           controls
             .filter((control) => control.checkVisibility())
-            .map((control) => control.getAttribute('data-carousel-depth')),
+            .map((control) =>
+              control
+                .closest('[data-carousel-depth]')
+                ?.getAttribute('data-carousel-depth'),
+            ),
         );
       expect(recededDepths.length).toBeGreaterThan(0);
 
       for (const depth of recededDepths) {
-        expect(depth).not.toBeNull();
-        const control = region.locator(
-          `button[data-carousel-depth="${depth ?? ''}"]`,
-        );
+        expect(depth).toBeDefined();
+        const layer = region.locator(`[data-carousel-depth="${depth ?? ''}"]`);
+        const control = layer.getByRole('button', { name: /^Bring item /u });
         await expect(control).toBeVisible();
-        const itemId = await control.getAttribute('data-carousel-layer-item');
+        const itemId = await layer.getAttribute('data-carousel-layer-item');
         expect(itemId).not.toBeNull();
         const previousHref = await activeHref(region);
         const target = await findUnobstructed44PixelTarget(control);
@@ -926,10 +1236,11 @@ test('honors reduced motion and remains idle without autoplay', async ({
               .filter((animation) => animation.playState === 'running').length,
         ),
       ).toBe(0);
-      await expect(region.locator('[data-carousel-heading]')).toHaveCSS(
-        'transition-duration',
-        '0s',
-      );
+      await expect(
+        region
+          .locator('[data-carousel-depth="0"]')
+          .locator('[data-carousel-heading]'),
+      ).toHaveCSS('transition-duration', '0s');
     }
 
     await region.getByRole('button', { name: /^Previous /u }).click();

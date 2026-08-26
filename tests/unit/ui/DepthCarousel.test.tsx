@@ -324,7 +324,7 @@ describe('DepthCarousel', () => {
 
   it('restores the fallback when a later enhanced render fails', async () => {
     const items = inventedItems(3);
-    Object.defineProperty(items[1], 'title', {
+    Object.defineProperty(items[1].image, 'alt', {
       configurable: true,
       get: () => {
         throw new Error('Invented later render failure');

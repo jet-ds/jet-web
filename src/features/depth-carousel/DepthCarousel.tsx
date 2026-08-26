@@ -12,7 +12,6 @@ import {
 import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, type PanInfo } from 'framer-motion';
 import {
-  getRecededIndices,
   resolveHorizontalDragDelta,
   resolveRecededSelection,
   wrapIndex,
@@ -33,6 +32,8 @@ const CONNECTED_DRAG_Y = [1, 0.4, 0.26, 0.16] as const;
 const MAX_CROSS_AXIS_DRAG = 28;
 const VERTICAL_INTENT_THRESHOLD = 12;
 const VERTICAL_INTENT_RATIO = 1.25;
+const HIDDEN_FORWARD_DEPTH = 4;
+const MAX_VISIBLE_DEPTH = 3;
 
 interface DragOffset {
   x: number;
@@ -41,6 +42,53 @@ interface DragOffset {
 
 function clampCrossAxis(offsetY: number): number {
   return Math.max(-MAX_CROSS_AXIS_DRAG, Math.min(MAX_CROSS_AXIS_DRAG, offsetY));
+}
+
+function getVisualDepth(
+  itemIndex: number,
+  activeIndex: number,
+  itemCount: number,
+): number {
+  const forwardDepth = wrapIndex(itemIndex, -activeIndex, itemCount);
+  if (forwardDepth <= MAX_VISIBLE_DEPTH) return forwardDepth;
+  return HIDDEN_FORWARD_DEPTH;
+}
+
+function getLayerMotion(
+  depth: number,
+  desktopLayout: boolean,
+  dragOffset: DragOffset,
+) {
+  if (depth === HIDDEN_FORWARD_DEPTH) {
+    return {
+      x: desktopLayout ? 228 : 32,
+      y: desktopLayout ? 40 : 216,
+      scale: desktopLayout ? 0.76 : 0.84,
+      rotateY: desktopLayout ? -17 : -9,
+      opacity: 0,
+      filter: 'brightness(0.56) saturate(0.46) blur(1.6px)',
+    };
+  }
+
+  const x = desktopLayout ? DESKTOP_X[depth] : MOBILE_X[depth];
+  const y = desktopLayout ? DESKTOP_Y[depth] : MOBILE_Y[depth];
+  const scale = desktopLayout ? DESKTOP_SCALE[depth] : MOBILE_SCALE[depth];
+  const rotateY = desktopLayout
+    ? DESKTOP_ROTATE_Y[depth]
+    : MOBILE_ROTATE_Y[depth];
+  return {
+    x: x + dragOffset.x * CONNECTED_DRAG_X[depth],
+    y: y + dragOffset.y * CONNECTED_DRAG_Y[depth],
+    scale,
+    rotateY,
+    opacity: [1, 0.9, 0.76, 0.62][depth],
+    filter: [
+      'brightness(1) saturate(1) blur(0px)',
+      'brightness(0.86) saturate(0.8) blur(0.4px)',
+      'brightness(0.74) saturate(0.66) blur(0.8px)',
+      'brightness(0.64) saturate(0.54) blur(1.2px)',
+    ][depth],
+  };
 }
 
 function findFallback(element: Element | null): HTMLElement | null {
@@ -175,6 +223,7 @@ function ThemeImage({
         className={`${imageClass} dark:hidden`}
         loading={loading}
         decoding="async"
+        draggable="false"
       />
       <img
         src={item.image.darkUrl}
@@ -184,6 +233,7 @@ function ThemeImage({
         className={`hidden ${imageClass} dark:block`}
         loading={loading}
         decoding="async"
+        draggable="false"
       />
     </>
   ) : (
@@ -195,6 +245,7 @@ function ThemeImage({
       className={imageClass}
       loading={loading}
       decoding="async"
+      draggable="false"
     />
   );
 }
@@ -210,7 +261,6 @@ function DepthCarouselStage({ label, items }: DepthCarouselProps) {
   const [dragOffset, setDragOffset] = useState<DragOffset>({ x: 0, y: 0 });
   const [ready, setReady] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
-  const activeLinkRef = useRef<HTMLAnchorElement>(null);
   const fallbackRef = useRef<HTMLElement | null>(null);
   const dragOccurred = useRef(false);
   const verticalIntent = useRef(false);
@@ -237,7 +287,9 @@ function DepthCarouselStage({ label, items }: DepthCarouselProps) {
   useLayoutEffect(() => {
     if (!ready || !focusActiveAfterSelection.current) return;
     focusActiveAfterSelection.current = false;
-    activeLinkRef.current?.focus();
+    rootRef.current
+      ?.querySelector<HTMLAnchorElement>('[data-carousel-active]')
+      ?.focus();
   }, [activeIndex, ready]);
 
   const move = useCallback(
@@ -250,20 +302,18 @@ function DepthCarouselStage({ label, items }: DepthCarouselProps) {
   const handleKeyDown = (event: KeyboardEvent<HTMLElement>) => {
     if (event.key === 'ArrowLeft') {
       event.preventDefault();
-      focusActiveAfterSelection.current = event.currentTarget.hasAttribute(
-        'data-carousel-layer-item',
-      );
+      focusActiveAfterSelection.current =
+        event.currentTarget.closest('[data-carousel-layer-item]') !== null;
       move(-1);
     } else if (event.key === 'ArrowRight') {
       event.preventDefault();
-      focusActiveAfterSelection.current = event.currentTarget.hasAttribute(
-        'data-carousel-layer-item',
-      );
+      focusActiveAfterSelection.current =
+        event.currentTarget.closest('[data-carousel-layer-item]') !== null;
       move(1);
     }
   };
 
-  const handleDragEnd = (
+  const handlePanEnd = (
     _event: MouseEvent | TouchEvent | PointerEvent,
     info: PanInfo,
   ) => {
@@ -278,8 +328,6 @@ function DepthCarouselStage({ label, items }: DepthCarouselProps) {
     });
   };
 
-  const recededIndices = getRecededIndices(activeIndex, itemCount, 3);
-  const layerIndices = [activeIndex, ...recededIndices];
   const isDragging = dragOffset.x !== 0 || dragOffset.y !== 0;
 
   return (
@@ -307,63 +355,57 @@ function DepthCarouselStage({ label, items }: DepthCarouselProps) {
         )}
 
         <div className="depth-carousel__stage" data-carousel-stage>
-          {layerIndices.map((itemIndex, depth) => {
-            const item = items[itemIndex];
-            const x = desktopLayout ? DESKTOP_X[depth] : MOBILE_X[depth];
-            const y = desktopLayout ? DESKTOP_Y[depth] : MOBILE_Y[depth];
-            const scale = desktopLayout
-              ? DESKTOP_SCALE[depth]
-              : MOBILE_SCALE[depth];
-            const rotateY = desktopLayout
-              ? DESKTOP_ROTATE_Y[depth]
-              : MOBILE_ROTATE_Y[depth];
-            const motionState = {
-              x: x + dragOffset.x * CONNECTED_DRAG_X[depth],
-              y: y + dragOffset.y * CONNECTED_DRAG_Y[depth],
-              scale,
-              rotateY,
-              opacity: [1, 0.9, 0.76, 0.62][depth],
-              filter: [
-                'brightness(1) saturate(1) blur(0px)',
-                'brightness(0.86) saturate(0.8) blur(0.4px)',
-                'brightness(0.74) saturate(0.66) blur(0.8px)',
-                'brightness(0.64) saturate(0.54) blur(1.2px)',
-              ][depth],
-            };
+          {items.map((item, itemIndex) => {
+            const depth = getVisualDepth(itemIndex, activeIndex, itemCount);
+            const visible = depth >= 0 && depth <= MAX_VISIBLE_DEPTH;
+            const motionState = getLayerMotion(
+              depth,
+              desktopLayout,
+              dragOffset,
+            );
             const transition = reducedMotion
               ? { duration: 0 }
               : isDragging
                 ? { duration: 0 }
                 : { type: 'spring' as const, stiffness: 250, damping: 28 };
-            const shared = {
-              animate: motionState,
-              className: 'depth-carousel__layer',
-              'data-carousel-depth': depth,
-              'data-carousel-layer-item': item.id,
-              initial: false as const,
-              style: { zIndex: 10 - depth },
-              transition,
-            };
 
-            if (depth === 0) {
-              return (
+            return (
+              <motion.div
+                key={item.id}
+                animate={motionState}
+                aria-hidden={visible ? undefined : 'true'}
+                className={`depth-carousel__layer${
+                  depth === 0 ? ' depth-carousel__active' : ''
+                }`}
+                data-carousel-depth={depth}
+                data-carousel-kind={depth === 0 ? item.kind : undefined}
+                data-carousel-layer-item={item.id}
+                data-carousel-visible={visible ? 'true' : undefined}
+                inert={visible ? undefined : true}
+                initial={false}
+                style={{
+                  pointerEvents: visible ? 'auto' : 'none',
+                  zIndex: 10 - Math.min(depth, HIDDEN_FORWARD_DEPTH),
+                }}
+                transition={transition}
+              >
                 <motion.a
-                  key={item.id}
-                  {...shared}
-                  className={`${shared.className} depth-carousel__active`}
-                  ref={activeLinkRef}
-                  href={item.href}
-                  data-carousel-active
-                  data-carousel-kind={item.kind}
-                  drag={itemCount > 1 ? 'x' : false}
-                  dragConstraints={{ left: -112, right: 112 }}
-                  dragElastic={0.08}
-                  dragMomentum={false}
-                  onDragStart={() => {
+                  className={`depth-carousel__surface${
+                    depth === 0 ? ' depth-carousel__active-surface' : ''
+                  }`}
+                  href={depth === 0 ? item.href : undefined}
+                  aria-hidden={depth === 0 ? undefined : 'true'}
+                  data-carousel-active={depth === 0 ? '' : undefined}
+                  inert={depth === 0 ? undefined : true}
+                  tabIndex={depth === 0 ? undefined : -1}
+                  draggable={false}
+                  onPanStart={() => {
+                    if (depth !== 0) return;
                     dragOccurred.current = true;
                     verticalIntent.current = false;
                   }}
-                  onDrag={(_event, info) => {
+                  onPan={(_event, info) => {
+                    if (depth !== 0) return;
                     const verticalDistance = Math.abs(info.offset.y);
                     const horizontalDistance = Math.abs(info.offset.x);
                     if (
@@ -381,82 +423,99 @@ function DepthCarouselStage({ label, items }: DepthCarouselProps) {
                       y: clampCrossAxis(info.offset.y),
                     });
                   }}
-                  onDragEnd={handleDragEnd}
-                  onKeyDown={handleKeyDown}
+                  onPanEnd={(event, info) => {
+                    if (depth === 0) handlePanEnd(event, info);
+                  }}
+                  onKeyDown={depth === 0 ? handleKeyDown : undefined}
                   onClick={(event: ReactMouseEvent<HTMLAnchorElement>) => {
-                    if (!dragOccurred.current) return;
+                    if (depth !== 0 || !dragOccurred.current) return;
                     event.preventDefault();
                     event.stopPropagation();
                   }}
                 >
-                  <ThemeImage alt={item.image.alt} depth={depth} item={item} />
-                  <div
+                  <ThemeImage
+                    alt={depth === 0 ? item.image.alt : ''}
+                    depth={depth}
+                    item={item}
+                  />
+                  <motion.div
+                    animate={{ opacity: depth === 0 ? 1 : 0 }}
+                    aria-hidden={depth === 0 ? undefined : 'true'}
                     className="depth-carousel__overlay"
                     data-carousel-overlay
-                    data-carousel-active-meta
+                    data-carousel-active-meta={depth === 0 ? '' : undefined}
+                    initial={false}
+                    transition={
+                      reducedMotion
+                        ? { duration: 0 }
+                        : { duration: 0.28, ease: 'easeOut' }
+                    }
                   >
-                    <div
-                      className="depth-carousel__heading-group"
-                      data-carousel-heading
-                    >
-                      {item.kind !== 'blog' && (
-                        <p className="depth-carousel__eyebrow">
-                          {getKindLabel(item.kind)}
-                        </p>
-                      )}
-                      <h3 className="depth-carousel__title">{item.title}</h3>
-                    </div>
-                    <div
-                      className="depth-carousel__details"
-                      data-carousel-details
-                    >
-                      <p
-                        className="depth-carousel__summary"
-                        data-carousel-summary
+                    <div className="depth-carousel__content">
+                      <div
+                        className="depth-carousel__heading-group"
+                        data-carousel-heading
                       >
-                        {item.summary}
-                      </p>
-                      <ul className="depth-carousel__facts" data-carousel-facts>
-                        {item.facts.map((fact, factIndex) => (
-                          <li
-                            key={fact}
-                            data-carousel-touch-secondary={
-                              item.kind !== 'blog' && factIndex > 0
-                                ? ''
-                                : undefined
-                            }
+                        {item.kind !== 'blog' && (
+                          <p className="depth-carousel__eyebrow">
+                            {getKindLabel(item.kind)}
+                          </p>
+                        )}
+                        <h3 className="depth-carousel__title">{item.title}</h3>
+                      </div>
+                      <div className="depth-carousel__details-clip">
+                        <div
+                          className="depth-carousel__details"
+                          data-carousel-details
+                        >
+                          <p
+                            className="depth-carousel__summary"
+                            data-carousel-summary
                           >
-                            {fact}
-                          </li>
-                        ))}
-                      </ul>
+                            {item.summary}
+                          </p>
+                          <ul
+                            className="depth-carousel__facts"
+                            data-carousel-facts
+                          >
+                            {item.facts.map((fact, factIndex) => (
+                              <li
+                                key={fact}
+                                data-carousel-touch-secondary={
+                                  item.kind !== 'blog' && factIndex > 0
+                                    ? ''
+                                    : undefined
+                                }
+                              >
+                                {fact}
+                              </li>
+                            ))}
+                          </ul>
+                        </div>
+                      </div>
                     </div>
-                  </div>
+                  </motion.div>
                 </motion.a>
-              );
-            }
-
-            return (
-              <motion.button
-                key={item.id}
-                {...shared}
-                type="button"
-                aria-label={`Bring item ${itemIndex + 1} of ${itemCount} forward`}
-                onKeyDown={handleKeyDown}
-                onClick={(event: ReactMouseEvent<HTMLButtonElement>) => {
-                  focusActiveAfterSelection.current = event.detail === 0;
-                  setActiveIndex((current) =>
-                    resolveRecededSelection(
-                      current,
-                      itemIndex,
-                      itemCount,
-                      false,
-                    ),
-                  );
-                }}
-              >
-                <ThemeImage alt="" depth={depth} item={item} />
-              </motion.button>
+                {visible && depth !== 0 && (
+                  <button
+                    className="depth-carousel__promotion"
+                    type="button"
+                    aria-label={`Bring item ${itemIndex + 1} of ${itemCount} forward`}
+                    onKeyDown={handleKeyDown}
+                    onClick={(event: ReactMouseEvent<HTMLButtonElement>) => {
+                      focusActiveAfterSelection.current = event.detail === 0;
+                      setActiveIndex((current) =>
+                        resolveRecededSelection(
+                          current,
+                          itemIndex,
+                          itemCount,
+                          false,
+                        ),
+                      );
+                    }}
+                  />
+                )}
+              </motion.div>
             );
           })}
         </div>
