@@ -232,20 +232,6 @@ describe('DepthCarousel', () => {
     expect(screen.queryByRole('status')).not.toBeInTheDocument();
   });
 
-  it('changes circular position immediately for reduced-motion visitors', () => {
-    installMotionPreference(true);
-    render(
-      <DepthCarousel label="Invented articles" items={inventedItems(5)} />,
-    );
-
-    const carousel = screen.getByRole('region', { name: 'Invented articles' });
-    expect(carousel).toHaveAttribute('data-reduced-motion', 'true');
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Previous invented articles item' }),
-    );
-    expect(screen.getByRole('status')).toHaveTextContent('Item 5 of 5');
-  });
-
   it('hands off one accessible collection after commit and restores the fallback on teardown', async () => {
     const { fallback, fallbackLink, unmount } = renderWithFallback(
       inventedItems(3),

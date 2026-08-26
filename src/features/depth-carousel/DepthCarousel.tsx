@@ -258,7 +258,6 @@ function DepthCarouselStage({ label, items }: DepthCarouselProps) {
       hidden={!ready}
       className="depth-carousel"
       data-depth-carousel
-      data-reduced-motion={reducedMotion ? 'true' : 'false'}
     >
       <motion.div
         className="depth-carousel__stage"
@@ -348,7 +347,7 @@ function DepthCarouselStage({ label, items }: DepthCarouselProps) {
         })}
       </motion.div>
 
-      <div className="depth-carousel__companion">
+      <div className="depth-carousel__companion" data-carousel-role="companion">
         {activeItem.kind !== 'blog' && (
           <p className="depth-carousel__eyebrow">
             {activeItem.kind === 'research'

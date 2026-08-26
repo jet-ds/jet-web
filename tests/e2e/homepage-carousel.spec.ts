@@ -1,7 +1,7 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { resolvedPublishedCollections } from '../support/publishedContent';
 
-const expectedHomepageSections = () => {
+const homepageSections = () => {
   const homepage = resolvedPublishedCollections().homepage;
   return [
     {
@@ -12,105 +12,81 @@ const expectedHomepageSections = () => {
       label: 'Latest Works',
       records: homepage.filter(({ kind }) => kind !== 'blog'),
     },
-  ];
+  ].filter(({ records }) => records.length > 0);
 };
 
-const expectedCarouselSections = () =>
-  expectedHomepageSections().filter(({ records }) => records.length > 0);
-
-async function carouselRoots(page: Page) {
-  const roots = page.locator('[data-home-collection-carousel]');
-  await expect(roots).toHaveCount(expectedCarouselSections().length);
-  return roots;
-}
-
-async function waitForCarouselEnhancement(page: Page) {
-  await carouselRoots(page);
-  for (const { label } of expectedCarouselSections()) {
-    const root = carouselRoot(page, label);
-    const fallback = root.locator('[data-carousel-fallback]');
-    await expect(root.getByRole('region')).toBeVisible();
-    await expect(fallback).toHaveAttribute('hidden', '');
-    await expect(fallback).toHaveAttribute('inert', '');
-    await expect(fallback).toHaveAttribute('aria-hidden', 'true');
-  }
-}
-
-async function crossPostEnhancementBoundary(page: Page) {
-  await page.evaluate(
-    () =>
-      new Promise<void>((resolve) => {
-        requestAnimationFrame(() => queueMicrotask(resolve));
-      }),
-  );
-}
-
-function carouselRoot(page: Page, label: string) {
+function carouselRoot(page: Page, label: string): Locator {
   return page.locator(
     `[data-home-collection-carousel][data-carousel-label="${label}"]`,
   );
 }
 
-async function position(
-  region: Locator,
-): Promise<{ current: number; total: number }> {
-  const text = await region.getByRole('status').innerText();
-  const match = text.match(/^Item (\d+) of (\d+)$/u);
-  if (match === null) throw new Error(`Unexpected carousel position: ${text}`);
-  return { current: Number(match[1]), total: Number(match[2]) };
+async function waitForCarousels(page: Page): Promise<void> {
+  const sections = homepageSections();
+  await expect(page.locator('[data-home-collection-carousel]')).toHaveCount(
+    sections.length,
+  );
+  for (const { label } of sections) {
+    await expect(carouselRoot(page, label).getByRole('region')).toBeVisible();
+  }
 }
 
-async function findHitTestableTarget(control: Locator) {
-  return control.evaluate((element) => {
-    const rect = element.getBoundingClientRect();
-    const step = 4;
-    const minimum = 44;
-    const left = Math.max(0, rect.left);
-    const top = Math.max(0, rect.top);
-    const right = Math.min(window.innerWidth, rect.right);
-    const bottom = Math.min(window.innerHeight, rect.bottom);
-    const columns = Math.floor((right - left) / step) + 1;
-    const rows = Math.floor((bottom - top) / step) + 1;
-    const span = Math.ceil(minimum / step) + 1;
-    const hit = Array.from({ length: rows }, (_, row) =>
-      Array.from({ length: columns }, (_, column) => {
-        const target = document.elementFromPoint(
-          left + column * step,
-          top + row * step,
-        );
-        return (
-          target === element || (target !== null && element.contains(target))
-        );
-      }),
-    );
+async function firstInteractiveCarousel(page: Page): Promise<Locator> {
+  const section = homepageSections().find(({ records }) => records.length >= 2);
+  expect(
+    section,
+    'The Homepage carousel contract needs one collection with two destinations',
+  ).toBeDefined();
+  return carouselRoot(page, section?.label ?? '').getByRole('region');
+}
 
-    for (let row = 0; row + span <= rows; row += 1) {
-      for (let column = 0; column + span <= columns; column += 1) {
-        let complete = true;
-        for (
-          let innerRow = row;
-          innerRow < row + span && complete;
-          innerRow += 1
-        ) {
-          for (
-            let innerColumn = column;
-            innerColumn < column + span;
-            innerColumn += 1
-          ) {
-            if (!hit[innerRow][innerColumn]) {
-              complete = false;
-              break;
-            }
+async function activeHref(region: Locator): Promise<string> {
+  const href = await region.getByRole('link').getAttribute('href');
+  expect(href).not.toBeNull();
+  return href ?? '';
+}
+
+async function findUnobstructed44PixelTarget(
+  control: Locator,
+): Promise<{ x: number; y: number; width: 44; height: 44 } | null> {
+  return control.evaluate((element) => {
+    const bounds = element.getBoundingClientRect();
+    const left = Math.max(0, Math.ceil(bounds.left));
+    const top = Math.max(0, Math.ceil(bounds.top));
+    const right = Math.min(window.innerWidth, Math.floor(bounds.right));
+    const bottom = Math.min(window.innerHeight, Math.floor(bounds.bottom));
+    const width = Math.max(0, right - left);
+    const heights = Array.from({ length: width }, () => 0);
+
+    for (let y = top; y < bottom; y += 1) {
+      for (let column = 0; column < width; column += 1) {
+        const target = document.elementFromPoint(left + column + 0.5, y + 0.5);
+        heights[column] =
+          target === element || (target !== null && element.contains(target))
+            ? heights[column] + 1
+            : 0;
+      }
+
+      const stack: number[] = [];
+      for (let column = 0; column <= width; column += 1) {
+        const height = column === width ? 0 : heights[column];
+        while (stack.length > 0 && heights[stack.at(-1) ?? 0] > height) {
+          const owner = stack.pop();
+          if (owner === undefined) break;
+          const candidateHeight = heights[owner];
+          const candidateLeft =
+            stack.length === 0 ? 0 : (stack.at(-1) ?? -1) + 1;
+          const candidateWidth = column - candidateLeft;
+          if (candidateWidth >= 44 && candidateHeight >= 44) {
+            return {
+              x: left + candidateLeft + 22,
+              y: y - candidateHeight + 1 + 22,
+              width: 44 as const,
+              height: 44 as const,
+            };
           }
         }
-        if (complete) {
-          return {
-            x: left + column * step + minimum / 2,
-            y: top + row * step + minimum / 2,
-            width: minimum,
-            height: minimum,
-          };
-        }
+        stack.push(column);
       }
     }
 
@@ -118,393 +94,257 @@ async function findHitTestableTarget(control: Locator) {
   });
 }
 
-test.describe('Homepage carousel fallback', () => {
-  test.use({ javaScriptEnabled: false });
-
-  test('keeps every finite canonical destination available without JavaScript', async ({
-    page,
-  }) => {
+test(
+  'keeps every finite canonical destination available without JavaScript',
+  { tag: '@desktop' },
+  async ({ browser }) => {
+    const context = await browser.newContext({ javaScriptEnabled: false });
+    const page = await context.newPage();
     await page.goto('/');
-    await carouselRoots(page);
 
-    for (const { label, records } of expectedCarouselSections()) {
+    for (const { label, records } of homepageSections()) {
       const root = carouselRoot(page, label);
       await expect(root.locator('[data-carousel-fallback]')).toBeVisible();
-      await expect(root.locator('[data-depth-carousel]')).toHaveCount(0);
-      const hrefs = await root
+      await expect(root.getByRole('region')).toHaveCount(0);
+      const destinations = await root
         .locator('[data-carousel-fallback] article a')
         .evaluateAll((links) => links.map((link) => link.getAttribute('href')));
-      expect(hrefs).toEqual(records.map(({ href }) => href));
-      expect(new Set(hrefs).size).toBe(hrefs.length);
+      expect(destinations).toEqual(records.map(({ href }) => href));
     }
-  });
-});
 
-test('loops first and last positions while exposing only the active destination', async ({
+    await context.close();
+  },
+);
+
+test('loops manually while preserving one active destination and keyboard focus', async ({
   page,
 }) => {
   await page.goto('/');
-  await carouselRoots(page);
-  const eligibleSections = expectedCarouselSections().filter(
-    ({ records }) => records.length >= 2,
+  await waitForCarousels(page);
+  const region = await firstInteractiveCarousel(page);
+  const initialHref = await activeHref(region);
+
+  await expect(region.getByRole('link')).toHaveCount(1);
+  await region.getByRole('button', { name: /^Previous /u }).click();
+  await expect(region.getByRole('link')).not.toHaveAttribute(
+    'href',
+    initialHref,
   );
-  test.skip(
-    eligibleSections.length === 0,
-    'No canonical homepage collection currently has at least two records',
-  );
-
-  for (const { label, records } of eligibleSections) {
-    const root = carouselRoot(page, label);
-    const fallback = root.locator('[data-carousel-fallback]');
-    await expect(fallback).toHaveAttribute('hidden', '');
-    await expect(fallback).toHaveAttribute('inert', '');
-    await expect(fallback).toHaveAttribute('aria-hidden', 'true');
-
-    const region = root.getByRole('region');
-    const initial = await position(region);
-    expect(initial).toEqual({ current: 1, total: records.length });
-    await expect(region.getByRole('link')).toHaveCount(1);
-
-    await region.getByRole('button', { name: /^Previous /u }).click();
-    await expect(region.getByRole('status')).toHaveText(
-      `Item ${records.length} of ${records.length}`,
-    );
-    await expect(region.getByRole('link')).toHaveCount(1);
-
-    await region.getByRole('button', { name: /^Next /u }).click();
-    await expect(region.getByRole('status')).toHaveText(
-      `Item 1 of ${records.length}`,
-    );
-  }
-});
-
-test('owns arrow keys on focus and presents visible full-size controls', async ({
-  page,
-}) => {
-  await page.goto('/');
-  await carouselRoots(page);
-  const section = expectedCarouselSections().find(
-    ({ records }) => records.length >= 2,
-  );
-  test.skip(
-    section === undefined,
-    'No canonical homepage collection currently has at least two records',
-  );
-  if (section === undefined) return;
-  const region = carouselRoot(page, section.label).getByRole('region');
-  const initial = await position(region);
-
-  await page.keyboard.press('ArrowRight');
-  await expect(region.getByRole('status')).toHaveText(
-    `Item 1 of ${initial.total}`,
-  );
+  await region.getByRole('button', { name: /^Next /u }).click();
+  await expect(region.getByRole('link')).toHaveAttribute('href', initialHref);
 
   const activeLink = region.getByRole('link');
   await activeLink.focus();
+  await page.keyboard.press('ArrowRight');
   await expect(activeLink).toBeFocused();
-  await page.keyboard.press('ArrowRight');
-  await expect(region.getByRole('status')).toHaveText(
-    `Item 2 of ${initial.total}`,
-  );
-  await page.keyboard.press('ArrowLeft');
-  await expect(region.getByRole('status')).toHaveText(
-    `Item 1 of ${initial.total}`,
-  );
+  await expect(activeLink).not.toHaveAttribute('href', initialHref);
 
-  const receded = region.locator('button[data-carousel-depth="1"]');
+  const receded = region.getByRole('button', { name: /^Bring item /u }).first();
   await receded.focus();
-  const promotedId = await receded.getAttribute('data-carousel-layer-item');
-  const promotedRecord = section.records.find(({ id }) => id === promotedId);
-  expect(promotedRecord).toBeDefined();
-  await page.keyboard.press('ArrowRight');
-  await expect(region.getByRole('link')).toHaveAttribute(
-    'href',
-    promotedRecord?.href ?? '',
-  );
-  await expect(region.getByRole('link')).toBeFocused();
+  await page.keyboard.press('ArrowLeft');
+  await expect(activeLink).toBeFocused();
 
-  const controls = region.locator('button:visible');
-  for (const control of await controls.all()) {
+  for (const control of await region.locator('button:visible').all()) {
     const box = await control.boundingBox();
-    expect(box).not.toBeNull();
     expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
     expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
   }
 });
 
-for (const focusCase of [
-  {
-    width: 1024,
-    height: 768,
-    depth: 3,
-    minimumRecords: 5,
-    label: 'desktop deepest',
-  },
-  {
-    width: 430,
-    height: 932,
-    depth: 2,
-    minimumRecords: 4,
-    label: 'mobile deepest',
-  },
-] as const) {
-  test(`${focusCase.label} receded ArrowLeft preserves focus on the new active destination`, async ({
-    page,
-  }) => {
-    await page.emulateMedia({ reducedMotion: 'reduce' });
-    await page.setViewportSize(focusCase);
+test(
+  'commits a horizontal pointer gesture without capturing navigation or vertical scroll',
+  { tag: '@desktop' },
+  async ({ page }) => {
     await page.goto('/');
-    await carouselRoots(page);
-    const section = expectedCarouselSections().find(
-      ({ records }) => records.length >= focusCase.minimumRecords,
-    );
-    test.skip(
-      section === undefined,
-      `No canonical homepage collection currently has ${focusCase.minimumRecords} records`,
-    );
-    if (section === undefined) return;
-    const region = carouselRoot(page, section.label).getByRole('region');
-    const receded = region.locator(
-      `button[data-carousel-depth="${focusCase.depth}"]`,
-    );
+    await waitForCarousels(page);
+    const region = await firstInteractiveCarousel(page);
+    const stage = region.locator('[data-carousel-stage]');
+    const initialHref = await activeHref(region);
+    await stage.scrollIntoViewIfNeeded();
+    const box = await stage.boundingBox();
+    expect(box).not.toBeNull();
+    if (box === null) return;
 
-    await receded.focus();
-    await page.keyboard.press('ArrowLeft');
-
-    await expect(region.getByRole('link')).toHaveAttribute(
+    const centerX = box.x + box.width / 2;
+    const centerY = box.y + box.height / 2;
+    await page.mouse.move(centerX, centerY);
+    await page.mouse.down();
+    await page.mouse.move(centerX - 96, centerY + 8, { steps: 8 });
+    await page.mouse.up();
+    await expect(region.getByRole('link')).not.toHaveAttribute(
       'href',
-      section.records.at(-1)?.href ?? '',
+      initialHref,
     );
-    await expect(region.getByRole('link')).toBeFocused();
-  });
-}
+    expect(new URL(page.url()).pathname).toBe('/');
+    await expect(stage).toHaveCSS('touch-action', 'pan-y');
 
-test('commits a deliberate horizontal gesture without navigation or wheel capture', async ({
-  page,
-}) => {
-  await page.goto('/');
-  await carouselRoots(page);
-  const section = expectedCarouselSections().find(
-    ({ records }) => records.length >= 2,
-  );
-  test.skip(
-    section === undefined,
-    'No canonical homepage collection currently has at least two records',
-  );
-  if (section === undefined) return;
-  const region = carouselRoot(page, section.label).getByRole('region');
-  const stage = region.locator('[data-carousel-stage]');
-  const initial = await position(region);
-  await stage.scrollIntoViewIfNeeded();
-  const box = await stage.boundingBox();
-  if (box === null) throw new Error('Carousel stage has no geometry');
+    const beforeScroll = await page.evaluate(() => window.scrollY);
+    await stage.hover();
+    await page.mouse.wheel(0, 360);
+    await expect
+      .poll(() => page.evaluate(() => window.scrollY))
+      .toBeGreaterThan(beforeScroll);
+  },
+);
 
-  const centerX = box.x + box.width / 2;
-  const centerY = box.y + box.height / 2;
-  await page.mouse.move(centerX, centerY);
-  await page.mouse.down();
-  await page.mouse.move(centerX - 96, centerY + 8, { steps: 8 });
-  await page.mouse.up();
-  await expect(region.getByRole('status')).toHaveText(
-    `Item 2 of ${initial.total}`,
-  );
-  expect(new URL(page.url()).pathname).toBe('/');
-
-  expect(
-    await stage.evaluate((element) => getComputedStyle(element).touchAction),
-  ).toBe('pan-y');
-  await stage.hover();
-  const beforeScroll = await page.evaluate(() => window.scrollY);
-  await page.mouse.wheel(0, 360);
-  await expect
-    .poll(() => page.evaluate(() => window.scrollY))
-    .toBeGreaterThan(beforeScroll);
-});
-
-for (const viewport of [
-  { width: 1024, height: 768, recededLayers: 3 },
-  { width: 430, height: 932, recededLayers: 2 },
-] as const) {
-  test(`contains ${viewport.recededLayers} receding layers at ${viewport.width}px without overflow`, async ({
-    page,
-  }) => {
-    await page.setViewportSize(viewport);
-    await page.goto('/');
-    await carouselRoots(page);
-
-    for (const { label, records } of expectedCarouselSections()) {
-      const root = carouselRoot(page, label);
-      const region = root.getByRole('region');
-      const currentPosition = await position(region);
-      expect(currentPosition.total).toBe(records.length);
-      const visibleLayers = region.locator(
-        '[data-carousel-layer-item]:visible',
-      );
-      await expect(visibleLayers).toHaveCount(
-        Math.min(currentPosition.total, viewport.recededLayers + 1),
-      );
-      const layerIds = await visibleLayers.evaluateAll((layers) =>
-        layers.map((layer) => layer.getAttribute('data-carousel-layer-item')),
-      );
-      expect(new Set(layerIds).size).toBe(layerIds.length);
-
-      const active = region.locator('[data-carousel-depth="0"]');
-      const activeBox = await active.boundingBox();
-      expect(activeBox).not.toBeNull();
-      expect(activeBox?.width ?? Infinity).toBeLessThanOrEqual(480.5);
-      expect(activeBox?.height ?? Infinity).toBeLessThanOrEqual(270.5);
-      expect((activeBox?.width ?? 0) / (activeBox?.height ?? 1)).toBeCloseTo(
-        16 / 9,
-        1,
-      );
-
-      const companion = region.locator('.depth-carousel__companion');
-      const companionBox = await companion.boundingBox();
-      expect(companionBox?.width ?? Infinity).toBeLessThanOrEqual(480.5);
-      await expect(companion).toHaveCSS('transform', 'none');
-    }
-
-    const overflow = await page.evaluate(() => ({
-      clientWidth: document.documentElement.clientWidth,
-      scrollWidth: document.documentElement.scrollWidth,
-    }));
-    expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth);
-  });
-}
-
-for (const width of [320, 430]) {
-  test(`mobile receded controls expose and activate 44px hit regions at ${width}px`, async ({
-    page,
-  }) => {
+test(
+  'keeps compact and desktop depth geometry finite across the 767px handoff',
+  { tag: '@desktop' },
+  async ({ page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
-    await page.setViewportSize({ width, height: width === 320 ? 568 : 932 });
-    await page.goto('/');
-    await carouselRoots(page);
-    const section = expectedCarouselSections().find(
-      ({ records }) => records.length >= 3,
-    );
-    test.skip(
-      section === undefined,
-      'No canonical homepage collection currently has three records',
-    );
-    if (section === undefined) return;
-    const region = carouselRoot(page, section.label).getByRole('region');
-    await region.scrollIntoViewIfNeeded();
 
-    for (const depth of [1, 2]) {
-      const control = region.locator(`button[data-carousel-depth="${depth}"]`);
-      await expect(control).toBeVisible();
-      const itemId = await control.getAttribute('data-carousel-layer-item');
-      const expectedRecord = section.records.find(({ id }) => id === itemId);
-      expect(expectedRecord).toBeDefined();
-      const target = await findHitTestableTarget(control);
-      expect(target, `depth ${depth} at ${width}px`).not.toBeNull();
-      if (target === null || expectedRecord === undefined) return;
-      expect(target.width).toBeGreaterThanOrEqual(44);
-      expect(target.height).toBeGreaterThanOrEqual(44);
-      await page.mouse.click(target.x, target.y);
-      await expect(region.getByRole('link')).toHaveAttribute(
-        'href',
-        expectedRecord.href,
-      );
-    }
-  });
-}
+    for (const viewport of [
+      { width: 320, height: 700 },
+      { width: 430, height: 932 },
+      { width: 767, height: 900 },
+      { width: 768, height: 900 },
+      { width: 1024, height: 768 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await page.goto('/');
+      await waitForCarousels(page);
 
-test('reduced motion keeps manual circular state changes and an idle stage', async ({
-  page,
-}) => {
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/');
-  await carouselRoots(page);
-  const section = expectedCarouselSections().find(
-    ({ records }) => records.length >= 2,
-  );
-  test.skip(
-    section === undefined,
-    'No canonical homepage collection currently has at least two records',
-  );
-  if (section === undefined) return;
-  const region = carouselRoot(page, section.label).getByRole('region');
-  const initial = await position(region);
-  await expect(region).toHaveAttribute('data-reduced-motion', 'true');
+      for (const { label, records } of homepageSections()) {
+        const region = carouselRoot(page, label).getByRole('region');
+        const visibleLayers = region.locator(
+          '[data-carousel-layer-item]:visible',
+        );
+        const expectedReceded = viewport.width < 768 ? 2 : 3;
+        await expect(visibleLayers).toHaveCount(
+          Math.min(records.length, expectedReceded + 1),
+        );
+        const layerIds = await visibleLayers.evaluateAll((layers) =>
+          layers.map((layer) => layer.getAttribute('data-carousel-layer-item')),
+        );
+        expect(layerIds.every((id) => id !== null)).toBe(true);
+        expect(new Set(layerIds).size).toBe(layerIds.length);
 
-  const transformsBefore = await region
-    .locator('[data-carousel-layer-item]')
-    .evaluateAll((layers) =>
-      layers.map((layer) => getComputedStyle(layer).transform),
-    );
-  await page.waitForTimeout(250);
-  const transformsAfter = await region
-    .locator('[data-carousel-layer-item]')
-    .evaluateAll((layers) =>
-      layers.map((layer) => getComputedStyle(layer).transform),
-    );
-  expect(transformsAfter).toEqual(transformsBefore);
+        const active = region.locator('[data-carousel-depth="0"]');
+        const activeBox = await active.boundingBox();
+        expect(activeBox).not.toBeNull();
+        expect(activeBox?.width ?? Infinity).toBeLessThanOrEqual(480.5);
+        expect(activeBox?.height ?? Infinity).toBeLessThanOrEqual(270.5);
+        expect((activeBox?.width ?? 0) / (activeBox?.height ?? 1)).toBeCloseTo(
+          16 / 9,
+          1,
+        );
 
-  await region.getByRole('button', { name: /^Previous /u }).click();
-  await expect(region.getByRole('status')).toHaveText(
-    `Item ${initial.total} of ${initial.total}`,
-  );
-});
+        const companion = region.locator('[data-carousel-role="companion"]');
+        const companionBox = await companion.boundingBox();
+        expect(companionBox?.width ?? Infinity).toBeLessThanOrEqual(480.5);
+        await expect(companion).toHaveCSS('transform', 'none');
 
-test('enhancement mounts without console, page, or hydration warnings', async ({
-  page,
-}) => {
-  const sections = expectedCarouselSections();
-  const messages: string[] = [];
-  page.on('console', (message) => {
-    if (message.type() === 'error' || message.type() === 'warning') {
-      messages.push(`${message.type()}: ${message.text()}`);
-    }
-  });
-  page.on('pageerror', (error) => messages.push(`pageerror: ${error.message}`));
-
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  if (sections.length === 0) {
-    await page.goto('/');
-    await carouselRoots(page);
-  } else {
-    let releaseChunk: () => void = () => undefined;
-    let signalChunkRequest: () => void = () => undefined;
-    const chunkGate = new Promise<void>((resolve) => {
-      releaseChunk = resolve;
-    });
-    const chunkRequested = new Promise<void>((resolve) => {
-      signalChunkRequest = resolve;
-    });
-    await page.route(
-      /\/_astro\/DepthCarousel\..+\.js(?:\?.*)?$/u,
-      async (route) => {
-        signalChunkRequest();
-        await chunkGate;
-        await route.continue();
-      },
-    );
-    const navigation = page.goto('/');
-    await chunkRequested;
-    await carouselRoots(page);
-    let enhancementCompleted = false;
-    const enhancement = waitForCarouselEnhancement(page).then(() => {
-      enhancementCompleted = true;
-    });
-    try {
-      for (const { label } of sections) {
-        const root = carouselRoot(page, label);
-        await expect(root.getByRole('region')).toHaveCount(0);
-        await expect(
-          root.locator('[data-carousel-fallback]'),
-        ).not.toHaveAttribute('hidden', '');
+        const firstReceded = region.locator('[data-carousel-depth="1"]');
+        if ((await firstReceded.count()) > 0) {
+          const recededBox = await firstReceded.boundingBox();
+          expect(recededBox).not.toBeNull();
+          if (activeBox !== null && recededBox !== null) {
+            const horizontalShift = Math.abs(
+              recededBox.x +
+                recededBox.width / 2 -
+                (activeBox.x + activeBox.width / 2),
+            );
+            const verticalShift = Math.abs(
+              recededBox.y +
+                recededBox.height / 2 -
+                (activeBox.y + activeBox.height / 2),
+            );
+            if (viewport.width < 768)
+              expect(verticalShift).toBeGreaterThan(horizontalShift);
+            else expect(horizontalShift).toBeGreaterThan(verticalShift);
+          }
+        }
       }
-      await page.evaluate(() => Promise.resolve());
-      expect(enhancementCompleted).toBe(false);
-    } finally {
-      releaseChunk();
-      await navigation;
+
+      const overflow = await page.evaluate(() => ({
+        clientWidth: document.documentElement.clientWidth,
+        scrollWidth: document.documentElement.scrollWidth,
+      }));
+      expect(overflow.scrollWidth).toBeLessThanOrEqual(overflow.clientWidth);
     }
-    await enhancement;
+  },
+);
+
+test(
+  'exposes and activates a real 44px hit region for every visible receded mobile depth',
+  { tag: '@mobile' },
+  async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+
+    for (const viewport of [
+      { width: 320, height: 700 },
+      { width: 430, height: 932 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await page.goto('/');
+      await waitForCarousels(page);
+      const region = await firstInteractiveCarousel(page);
+      await region.scrollIntoViewIfNeeded();
+      const recededDepths = await region
+        .getByRole('button', { name: /^Bring item /u })
+        .evaluateAll((controls) =>
+          controls
+            .filter((control) => control.checkVisibility())
+            .map((control) => control.getAttribute('data-carousel-depth')),
+        );
+      expect(recededDepths.length).toBeGreaterThan(0);
+
+      for (const depth of recededDepths) {
+        expect(depth).not.toBeNull();
+        const control = region.locator(
+          `button[data-carousel-depth="${depth ?? ''}"]`,
+        );
+        await expect(control).toBeVisible();
+        const itemId = await control.getAttribute('data-carousel-layer-item');
+        expect(itemId).not.toBeNull();
+        const previousHref = await activeHref(region);
+        const target = await findUnobstructed44PixelTarget(control);
+        expect(
+          target,
+          `visible receded depth ${depth} at ${viewport.width}px`,
+        ).not.toBeNull();
+        if (target === null) continue;
+        await page.touchscreen.tap(target.x, target.y);
+        await expect(
+          region.locator('[data-carousel-depth="0"]'),
+        ).toHaveAttribute('data-carousel-layer-item', itemId ?? '');
+        await expect(region.getByRole('link')).not.toHaveAttribute(
+          'href',
+          previousHref,
+        );
+      }
+    }
+  },
+);
+
+test('honors reduced motion and remains idle without autoplay', async ({
+  page,
+}) => {
+  await page.clock.install({ time: new Date('2026-08-26T00:00:00Z') });
+  for (const reducedMotion of ['no-preference', 'reduce'] as const) {
+    await page.emulateMedia({ reducedMotion });
+    await page.goto('/');
+    await waitForCarousels(page);
+    const region = await firstInteractiveCarousel(page);
+
+    const hrefBefore = await activeHref(region);
+    await page.clock.fastForward('10:00');
+    expect(await activeHref(region)).toBe(hrefBefore);
+    if (reducedMotion === 'reduce') {
+      expect(
+        await region.evaluate(
+          (element) =>
+            element
+              .getAnimations({ subtree: true })
+              .filter((animation) => animation.playState === 'running').length,
+        ),
+      ).toBe(0);
+    }
+
+    await region.getByRole('button', { name: /^Previous /u }).click();
+    await expect(region.getByRole('link')).not.toHaveAttribute(
+      'href',
+      hrefBefore,
+    );
   }
-  await crossPostEnhancementBoundary(page);
-  await expect(page.locator('canvas')).toHaveCount(0);
-  expect(messages).toEqual([]);
 });

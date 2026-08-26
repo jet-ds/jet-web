@@ -79,27 +79,30 @@ describe('Egregore fake browser scenarios', () => {
       }),
     ).toBeNull();
 
-    expect(FAKE_SCENARIOS).toEqual([
-      'default',
-      'published-corpus',
-      'markdown-safety',
-      'checking',
-      'unsupported',
-      'load-failure',
-      'generation-failure',
-      'reset-failure',
-      'unload-failure',
-      'loading',
-      'unloading',
-      'cached',
-      'crossfade',
-      'long-stream',
-      'stop-recovery',
-      'citations',
-      'zero-citation',
-      'exhaustion',
-      'late-event',
-    ]);
+    expect(new Set(FAKE_SCENARIOS).size).toBe(FAKE_SCENARIOS.length);
+    expect(new Set(FAKE_SCENARIOS)).toEqual(
+      new Set([
+        'default',
+        'published-corpus',
+        'markdown-safety',
+        'checking',
+        'unsupported',
+        'load-failure',
+        'generation-failure',
+        'reset-failure',
+        'unload-failure',
+        'loading',
+        'unloading',
+        'cached',
+        'crossfade',
+        'long-stream',
+        'stop-recovery',
+        'citations',
+        'zero-citation',
+        'exhaustion',
+        'late-event',
+      ]),
+    );
   });
 
   it('maps the allowlist to fixed behavior without accepting payload configuration', () => {

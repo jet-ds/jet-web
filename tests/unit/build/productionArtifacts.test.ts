@@ -14,8 +14,11 @@ import { afterEach, describe, expect, it } from 'vitest';
 
 import {
   assertProductionArtifactsContainNoFakeRuntime,
+  assertProductionEgregoreViewportContract,
+  assertProductionNavigationProjection,
   findForbiddenProductionArtifacts,
 } from '../../../scripts/verify-production-artifacts';
+import { NAV_ITEMS, SITE } from '../../../src/config/site';
 import {
   LITERT_LM_WASM_ASSETS,
   resolveLiteRtAssetPath,
@@ -103,9 +106,51 @@ function writeRendererLicenseArtifacts(directory: string): void {
   }
 }
 
+function writeNavigationProjection(directory: string): void {
+  writeFileSync(
+    join(directory, 'index.html'),
+    [
+      '<noscript><nav>',
+      ...NAV_ITEMS.map(({ href, label }) => `<a href="${href}">${label}</a>`),
+      '</nav></noscript>',
+      '<footer>',
+      ...NAV_ITEMS.map(({ href, label }) => `<a href="${href}">${label}</a>`),
+      '</footer>',
+      '<script type="application/ld+json">',
+      JSON.stringify({
+        '@context': 'https://schema.org',
+        '@type': 'SiteNavigationElement',
+        hasPart: NAV_ITEMS.map(({ href, label }) => ({
+          '@type': 'WebPage',
+          name: label,
+          url: new URL(href, SITE.siteUrl).toString(),
+        })),
+      }),
+      '</script>',
+    ].join('\n'),
+  );
+}
+
+function writeEgregoreViewportContract(directory: string): void {
+  const componentDirectory = join(directory, '_astro');
+  const pageDirectory = join(directory, 'chatbot');
+  mkdirSync(componentDirectory, { recursive: true });
+  mkdirSync(pageDirectory, { recursive: true });
+  writeFileSync(
+    join(pageDirectory, 'index.html'),
+    '<astro-island component-url="/_astro/EgregoreExperience.fixture.js"></astro-island>',
+  );
+  writeFileSync(
+    join(componentDirectory, 'EgregoreExperience.fixture.js'),
+    '({className:"egregore-shell h-[100svh]","data-egregore-role":"shell"})',
+  );
+}
+
 function writeExactProductionSurface(directory: string): void {
   writePreMarkdownProductionSurface(directory);
   writeRendererLicenseArtifacts(directory);
+  writeNavigationProjection(directory);
+  writeEgregoreViewportContract(directory);
   const pagePath = join(directory, 'licenses', 'egregore', 'index.html');
   writeFileSync(
     pagePath,
@@ -264,6 +309,102 @@ describe('ordinary production artifact containment', () => {
     expect(result.status).toBe(1);
     expect(result.stderr).toContain(
       `PRODUCTION_RUNTIME_ARTIFACT_MISMATCH:assistant/runtime/litert-lm/0.14.0/${asset}`,
+    );
+  });
+
+  it('rejects a shared navigation surface that diverges from NAV_ITEMS', () => {
+    const directory = temporaryBuildDirectory();
+    writeNavigationProjection(directory);
+    const indexPath = join(directory, 'index.html');
+    writeFileSync(
+      indexPath,
+      readFileSync(indexPath, 'utf8').replace(
+        `<a href="${NAV_ITEMS[0].href}">${NAV_ITEMS[0].label}</a>`,
+        '',
+      ),
+    );
+
+    expect(() => assertProductionNavigationProjection(directory)).toThrow(
+      /PRODUCTION_NAVIGATION_PROJECTION_INCOMPLETE:noscript/u,
+    );
+  });
+
+  it('rejects a shared navigation destination with the wrong accessible label', () => {
+    const directory = temporaryBuildDirectory();
+    writeNavigationProjection(directory);
+    const indexPath = join(directory, 'index.html');
+    writeFileSync(
+      indexPath,
+      readFileSync(indexPath, 'utf8').replace(
+        `<a href="${NAV_ITEMS[0].href}">${NAV_ITEMS[0].label}</a>`,
+        `<a href="${NAV_ITEMS[0].href}">Not ${NAV_ITEMS[0].label}</a>`,
+      ),
+    );
+
+    expect(() => assertProductionNavigationProjection(directory)).toThrow(
+      /PRODUCTION_NAVIGATION_PROJECTION_INCOMPLETE:noscript/u,
+    );
+  });
+
+  it('rejects reordered shared navigation links', () => {
+    const directory = temporaryBuildDirectory();
+    writeNavigationProjection(directory);
+    const indexPath = join(directory, 'index.html');
+    const first = `<a href="${NAV_ITEMS[0].href}">${NAV_ITEMS[0].label}</a>`;
+    const second = `<a href="${NAV_ITEMS[1].href}">${NAV_ITEMS[1].label}</a>`;
+    writeFileSync(
+      indexPath,
+      readFileSync(indexPath, 'utf8').replace(
+        `${first}\n${second}`,
+        `${second}\n${first}`,
+      ),
+    );
+
+    expect(() => assertProductionNavigationProjection(directory)).toThrow(
+      /PRODUCTION_NAVIGATION_PROJECTION_INCOMPLETE:noscript/u,
+    );
+  });
+
+  it('rejects reordered JSON-LD navigation records', () => {
+    const directory = temporaryBuildDirectory();
+    writeNavigationProjection(directory);
+    const indexPath = join(directory, 'index.html');
+    const html = readFileSync(indexPath, 'utf8');
+    const first = JSON.stringify({
+      '@type': 'WebPage',
+      name: NAV_ITEMS[0].label,
+      url: new URL(NAV_ITEMS[0].href, SITE.siteUrl).toString(),
+    });
+    const second = JSON.stringify({
+      '@type': 'WebPage',
+      name: NAV_ITEMS[1].label,
+      url: new URL(NAV_ITEMS[1].href, SITE.siteUrl).toString(),
+    });
+    writeFileSync(
+      indexPath,
+      html.replace(`${first},${second}`, `${second},${first}`),
+    );
+
+    expect(() => assertProductionNavigationProjection(directory)).toThrow(
+      /PRODUCTION_NAVIGATION_PROJECTION_INCOMPLETE:json-ld/u,
+    );
+  });
+
+  it('rejects an emitted Egregore shell without standardized 100svh ownership', () => {
+    const directory = temporaryBuildDirectory();
+    writeEgregoreViewportContract(directory);
+    const componentPath = join(
+      directory,
+      '_astro',
+      'EgregoreExperience.fixture.js',
+    );
+    writeFileSync(
+      componentPath,
+      readFileSync(componentPath, 'utf8').replace('h-[100svh]', 'h-screen'),
+    );
+
+    expect(() => assertProductionEgregoreViewportContract(directory)).toThrow(
+      /PRODUCTION_EGREGORE_VIEWPORT_CONTRACT_MISSING:.*:100svh/u,
     );
   });
 

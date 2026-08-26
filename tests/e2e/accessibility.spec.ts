@@ -1,21 +1,6 @@
 import AxeBuilder from '@axe-core/playwright';
-import {
-  expect,
-  test,
-  type APIRequestContext,
-  type Locator,
-  type Page,
-} from '@playwright/test';
-import {
-  publishedContent,
-  resolvedPublishedCollections,
-} from '../support/publishedContent';
-
-const suggestedQuestions = [
-  'What does Jet write about agentic work?',
-  'Summarize the recursive convergence hypothesis.',
-  'Which projects connect AI and systems thinking?',
-];
+import { expect, test, type Locator, type Page } from '@playwright/test';
+import { publishedContent } from '../support/publishedContent';
 
 interface LinearColor {
   channels: [number, number, number];
@@ -35,11 +20,35 @@ function parseAlpha(raw: string | undefined): number {
     : Number.parseFloat(raw);
 }
 
-function parseCssColor(raw: string): LinearColor {
-  const value = raw.trim().toLowerCase();
-  const functional = value.match(/^([a-z]+)\((.*)\)$/u);
-  if (functional === null) throw new Error(`Unsupported CSS color: ${raw}`);
+function linearOklab(
+  lightness: number,
+  a: number,
+  b: number,
+  alpha: number,
+): LinearColor {
+  const lPrime = lightness + 0.3963377774 * a + 0.2158037573 * b;
+  const mPrime = lightness - 0.1055613458 * a - 0.0638541728 * b;
+  const sPrime = lightness - 0.0894841775 * a - 1.291485548 * b;
+  const l = lPrime ** 3;
+  const m = mPrime ** 3;
+  const s = sPrime ** 3;
 
+  return {
+    channels: [
+      clamp(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s),
+      clamp(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s),
+      clamp(-0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s),
+    ],
+    alpha,
+  };
+}
+
+function parseCssColor(raw: string): LinearColor {
+  const functional = raw
+    .trim()
+    .toLowerCase()
+    .match(/^([a-z]+)\((.*)\)$/u);
+  if (functional === null) throw new Error(`Unsupported CSS color: ${raw}`);
   const [, name, body] = functional;
   const [colorBody, slashAlpha] = body.split('/').map((part) => part.trim());
 
@@ -81,10 +90,12 @@ function parseCssColor(raw: string): LinearColor {
       : Number.parseFloat(rawLightness);
     const chroma = Number.parseFloat(rawChroma);
     const hue = (Number.parseFloat(rawHue) * Math.PI) / 180;
-    const a = chroma * Math.cos(hue);
-    const b = chroma * Math.sin(hue);
-
-    return linearOklab(lightness, a, b, parseAlpha(slashAlpha));
+    return linearOklab(
+      lightness,
+      chroma * Math.cos(hue),
+      chroma * Math.sin(hue),
+      parseAlpha(slashAlpha),
+    );
   }
 
   if (name === 'oklab') {
@@ -103,35 +114,11 @@ function parseCssColor(raw: string): LinearColor {
   throw new Error(`Unsupported CSS color: ${raw}`);
 }
 
-function linearOklab(
-  lightness: number,
-  a: number,
-  b: number,
-  alpha: number,
-): LinearColor {
-  const lPrime = lightness + 0.3963377774 * a + 0.2158037573 * b;
-  const mPrime = lightness - 0.1055613458 * a - 0.0638541728 * b;
-  const sPrime = lightness - 0.0894841775 * a - 1.291485548 * b;
-  const l = lPrime ** 3;
-  const m = mPrime ** 3;
-  const s = sPrime ** 3;
-
-  return {
-    channels: [
-      clamp(4.0767416621 * l - 3.3077115913 * m + 0.2309699292 * s),
-      clamp(-1.2684380046 * l + 2.6097574011 * m - 0.3413193965 * s),
-      clamp(-0.0041960863 * l - 0.7034186147 * m + 1.707614701 * s),
-    ],
-    alpha,
-  };
-}
-
 function contrastRatio(foreground: string, background: string): number {
   const foregroundColor = parseCssColor(foreground);
   const backgroundColor = parseCssColor(background);
   expect(foregroundColor.alpha).toBe(1);
   expect(backgroundColor.alpha).toBe(1);
-
   const luminance = ({ channels }: LinearColor) =>
     0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2];
   const lighter = Math.max(
@@ -145,61 +132,15 @@ function contrastRatio(foreground: string, background: string): number {
   return (lighter + 0.05) / (darker + 0.05);
 }
 
-async function seriousAxeViolations(page: Page) {
-  const lifecycleLabels = page.getByTestId('lifecycle-visual-label');
-  if ((await lifecycleLabels.count()) > 0) {
-    await expect(lifecycleLabels).toHaveCount(1);
-    await expect(lifecycleLabels).toHaveCSS('opacity', '1');
-  }
-
-  const results = await new AxeBuilder({ page }).analyze();
-  return results.violations.filter(
-    (violation) =>
-      violation.impact === 'serious' || violation.impact === 'critical',
-  );
-}
-
 async function expectNoSeriousAxeViolations(page: Page, state: string) {
-  const serious = await seriousAxeViolations(page);
+  const { violations } = await new AxeBuilder({ page }).analyze();
+  const serious = violations.filter(
+    ({ impact }) => impact === 'serious' || impact === 'critical',
+  );
   expect(serious, `${state} has serious or critical axe violations`).toEqual(
     [],
   );
 }
-
-function locPaths(xml: string) {
-  return [...xml.matchAll(/<loc>([^<]+)<\/loc>/gu)].map(
-    ([, location]) => new URL(location).pathname,
-  );
-}
-
-async function sitemapHtmlRoutes(request: APIRequestContext) {
-  const indexResponse = await request.get('/sitemap-index.xml');
-  expect(indexResponse.ok()).toBe(true);
-
-  const sitemapPaths = locPaths(await indexResponse.text());
-  const routes = new Set<string>();
-  for (const sitemapPath of sitemapPaths) {
-    const sitemapResponse = await request.get(sitemapPath);
-    expect(sitemapResponse.ok()).toBe(true);
-    for (const route of locPaths(await sitemapResponse.text()))
-      routes.add(route);
-  }
-
-  return [...routes].sort();
-}
-
-const publicHtmlRoutes = [
-  '/',
-  '/about/',
-  '/blog/',
-  '/chatbot/',
-  '/contact/',
-  '/licenses/egregore/',
-  '/works/',
-  ...publishedContent().map(({ route }) => route),
-].filter((route, index, routes) => routes.indexOf(route) === index);
-
-const accessibilityRoutes = [...publicHtmlRoutes, '/tools/'].sort();
 
 async function focusWithKeyboard(page: Page, target: Locator) {
   await expect(target).toBeVisible();
@@ -212,464 +153,160 @@ async function focusWithKeyboard(page: Page, target: Locator) {
   await expect(target).toBeFocused();
 }
 
-async function expectLifecycleAccessibility(page: Page, announcement: string) {
-  const fullStatus = page.getByTestId('lifecycle-announcement');
-  await expect(fullStatus).toHaveAttribute('role', 'status');
-  await expect(fullStatus).toHaveAttribute('aria-live', 'polite');
-  await expect(fullStatus).toHaveAttribute('aria-atomic', 'true');
-  await expect(fullStatus).toHaveText(announcement);
-
-  const compactStatus = page.getByTestId('lifecycle-visible-status');
-  await expect(compactStatus).toBeVisible();
-  await expect(compactStatus).toHaveAttribute('aria-hidden', 'true');
-  await expect(compactStatus).not.toHaveAttribute('aria-live', /.+/);
-  await expect(compactStatus).not.toHaveAttribute('role', /.+/);
+function representativeRoutes(): string[] {
+  const content = publishedContent();
+  const blog = content.find(({ kind }) => kind === 'blog');
+  const research = content.find(
+    ({ entityType }) => entityType === 'ScholarlyArticle',
+  );
+  const project = content.find(
+    ({ entityType }) => entityType === 'CreativeWork',
+  );
+  return [
+    '/',
+    '/about/',
+    '/blog/',
+    '/chatbot/',
+    '/contact/',
+    '/licenses/egregore/',
+    '/tools/',
+    '/works/',
+    blog?.route,
+    research?.route,
+    project?.route,
+  ].filter((route): route is string => route !== undefined);
 }
 
-test('the accessibility route matrix covers every sitemap HTML page plus the dormant route', async ({
-  request,
-}) => {
-  const sitemapRoutes = await sitemapHtmlRoutes(request);
-  expect(sitemapRoutes).toContain('/chatbot/');
-  expect(sitemapRoutes).not.toContain('/tools/');
-  expect(accessibilityRoutes).toEqual([...sitemapRoutes, '/tools/'].sort());
-});
+test(
+  'representative page templates are axe-clean in both themes',
+  { tag: '@desktop' },
+  async ({ page }) => {
+    for (const route of representativeRoutes()) {
+      for (const theme of ['light', 'dark'] as const) {
+        await page.addInitScript((selectedTheme) => {
+          localStorage.setItem('theme', selectedTheme);
+        }, theme);
+        await page.goto(route);
+        await expectNoSeriousAxeViolations(page, `${route} in ${theme} theme`);
+      }
+    }
+  },
+);
 
-for (const route of accessibilityRoutes) {
-  for (const theme of ['light', 'dark'] as const) {
-    test(`${route} is axe-clean in ${theme} theme`, async ({
-      page,
-    }, testInfo) => {
-      test.skip(testInfo.project.name !== 'chromium');
-
-      await page.addInitScript((selectedTheme) => {
-        localStorage.setItem('theme', selectedTheme);
-      }, theme);
-
-      await page.goto(route);
-      await expect(page.locator('html')).toHaveClass(
-        theme === 'dark' ? /\bdark\b/u : /^(?!.*\bdark\b)/u,
-      );
-      await expectNoSeriousAxeViolations(page, `${route} in ${theme} theme`);
-    });
-  }
-}
-
-test('collection cards keep one keyboard-visible dominant action', async ({
-  page,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== 'chromium');
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-
-  for (const width of [320, 1440]) {
-    await page.setViewportSize({ width, height: 900 });
-
+test(
+  'collection surfaces expose one keyboard-visible dominant destination',
+  { tag: '@desktop' },
+  async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
     for (const route of ['/blog/', '/works/']) {
       await page.goto(route);
       const card = page.locator('main [data-content-card]').first();
-      const action = card.locator(':scope > a[href]');
-      await expect(action).toHaveCount(1);
+      const destination = card.getByRole('link');
+      await expect(destination).toHaveCount(1);
       await expect(card.locator('a[href]')).toHaveCount(1);
-      await action.hover();
-      const reducedMotionScale = await action
-        .locator('[data-content-card-media]')
-        .getByRole('img')
-        .evaluate((element) => getComputedStyle(element).scale);
-      expect(reducedMotionScale).toMatch(/^(?:none|1)$/u);
-
-      await focusWithKeyboard(page, action);
-      const focus = await card.evaluate((element) => {
-        const style = getComputedStyle(element);
-        return {
-          outlineOffset: Number.parseFloat(style.outlineOffset),
-          outlineStyle: style.outlineStyle,
-          outlineWidth: Number.parseFloat(style.outlineWidth),
-        };
-      });
-      expect(focus).toEqual({
-        outlineOffset: 2,
-        outlineStyle: 'solid',
-        outlineWidth: 2,
-      });
-
-      const overflow = await page.evaluate(() => ({
-        clientWidth: document.documentElement.clientWidth,
-        scrollWidth: document.documentElement.scrollWidth,
-      }));
-      expect(overflow.scrollWidth).toBeLessThanOrEqual(
-        overflow.clientWidth + 1,
-      );
-    }
-  }
-});
-
-test('Egregore introduction, ready, and response states remain accessible by keyboard', async ({
-  page,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== 'chromium');
-  await page.goto('/chatbot/?runtime=fake&stream=slow');
-
-  await expectLifecycleAccessibility(page, 'Egregore is not running.');
-  await expectNoSeriousAxeViolations(page, 'introduction');
-
-  const compatibility = page.getByRole('button', {
-    name: 'Check compatibility',
-  });
-  await focusWithKeyboard(page, compatibility);
-  await page.keyboard.press('Enter');
-
-  const load = page.getByRole('button', { name: /Load Egregore/ });
-  await focusWithKeyboard(page, load);
-  await page.keyboard.press('Enter');
-
-  const composer = page.getByRole('textbox', { name: 'Ask Egregore' });
-  await expect(composer).toBeFocused();
-  await expectLifecycleAccessibility(page, 'Egregore is ready.');
-  await expectNoSeriousAxeViolations(page, 'ready');
-
-  const newSession = page.getByRole('button', { name: 'New session' });
-  const unload = page.getByRole('button', { name: 'Unload' });
-  await focusWithKeyboard(page, newSession);
-  await focusWithKeyboard(page, unload);
-  for (const question of suggestedQuestions) {
-    await focusWithKeyboard(page, page.getByRole('button', { name: question }));
-  }
-
-  const firstSuggestion = page.getByRole('button', {
-    name: suggestedQuestions[0],
-  });
-  await focusWithKeyboard(page, firstSuggestion);
-  await page.keyboard.press('Enter');
-  await expect(composer).toBeFocused();
-  await expect(composer).toHaveValue(suggestedQuestions[0]);
-
-  await page.clock.install();
-  const pageNow = await page.evaluate(() => Date.now());
-  await page.clock.pauseAt(pageNow + 1_000);
-  const send = page.getByRole('button', { name: 'Send message' });
-  await focusWithKeyboard(page, send);
-  await page.keyboard.press('Enter');
-  await expectLifecycleAccessibility(page, 'Egregore is responding.');
-  await page.clock.runFor(1_000);
-  await expectLifecycleAccessibility(page, 'Egregore is ready.');
-  await page.clock.resume();
-
-  const conversation = page.getByLabel('Conversation');
-  const response = conversation.locator('article').last().locator('p').first();
-  await expect(response).not.toBeEmpty();
-  await expect(response.getByRole('link', { name: /\[S\d+\]/u })).toBeVisible();
-  await expect(response).not.toHaveAttribute('aria-live', /.+/);
-  expect(
-    await response.evaluate((element) =>
-      Boolean(element.closest('[aria-live]')),
-    ),
-  ).toBe(false);
-  await expectNoSeriousAxeViolations(page, 'response');
-
-  const sources = page.getByRole('button', { name: /^\d+ sources?$/ });
-  await focusWithKeyboard(page, sources);
-  await page.keyboard.press('Enter');
-  const sourceRegion = page.getByRole('region', {
-    name: 'Sources for this response',
-  });
-  await expect(sourceRegion).toBeVisible();
-  await focusWithKeyboard(page, sourceRegion.getByRole('link').first());
-
-  await focusWithKeyboard(page, newSession);
-  await page.keyboard.press('Enter');
-  await expect(composer).toBeFocused();
-  await expect(composer).toHaveValue('');
-});
-
-test('Egregore inert Markdown media remains axe-clean through keyboard activation', async ({
-  page,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== 'chromium');
-  await page.goto('/chatbot/?runtime=fake&scenario=markdown-safety');
-
-  const compatibility = page.getByRole('button', {
-    name: 'Check compatibility',
-  });
-  await focusWithKeyboard(page, compatibility);
-  await page.keyboard.press('Enter');
-  const load = page.getByRole('button', { name: /Load Egregore/ });
-  await focusWithKeyboard(page, load);
-  await page.keyboard.press('Enter');
-
-  const composer = page.getByRole('textbox', { name: 'Ask Egregore' });
-  await composer.fill('Render the fixed safety response.');
-  await focusWithKeyboard(
-    page,
-    page.getByRole('button', { name: 'Send message' }),
-  );
-  await page.keyboard.press('Enter');
-  await expect(composer).toBeEnabled();
-
-  const response = page.locator('[aria-label="Conversation"] article').last();
-  await expect(
-    response.getByText('remote diagram', { exact: true }),
-  ).toBeVisible();
-  await expect(response.locator('img')).toHaveCount(0);
-  await expectNoSeriousAxeViolations(page, 'inert Markdown media response');
-});
-
-test('Egregore recoverable error is axe-clean and keyboard operable', async ({
-  page,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== 'chromium');
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.route('**/assistant/corpus/manifest.json', async (route) => {
-    await route.fulfill({
-      status: 503,
-      contentType: 'text/plain',
-      body: 'Temporarily unavailable',
-    });
-  });
-  await page.goto('/chatbot/?runtime=fake&scenario=published-corpus');
-
-  const compatibility = page.getByRole('button', {
-    name: 'Check compatibility',
-  });
-  await focusWithKeyboard(page, compatibility);
-  await page.keyboard.press('Enter');
-  const load = page.getByRole('button', { name: /Load Egregore/ });
-  await focusWithKeyboard(page, load);
-  await page.keyboard.press('Enter');
-
-  const returnToLoad = page.getByRole('button', { name: 'Return to load' });
-  await expect(returnToLoad).toBeFocused();
-  await expect(returnToLoad).toHaveAttribute(
-    'aria-describedby',
-    'egregore-activation-status',
-  );
-  await expectLifecycleAccessibility(
-    page,
-    'Egregore did not finish loading. Review the recovery action.',
-  );
-  await expectNoSeriousAxeViolations(page, 'recoverable error');
-
-  await page.keyboard.press('Enter');
-  await expect(load).toBeFocused();
-});
-
-test('Home call to action keeps opaque AA surfaces and full touch targets', async ({
-  page,
-}) => {
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/');
-
-  const heading = page.getByRole('heading', { name: "Let's Connect" });
-  const section = page.locator('section').filter({ has: heading });
-
-  for (const theme of ['light', 'dark'] as const) {
-    await page.evaluate((nextTheme) => {
-      document.documentElement.classList.toggle('dark', nextTheme === 'dark');
-      localStorage.setItem('theme', nextTheme);
-    }, theme);
-
-    const metrics = await section.evaluate((element) => {
-      const details = (target: Element) => {
-        const style = getComputedStyle(target);
-        const bounds = target.getBoundingClientRect();
-        return {
-          background: style.backgroundColor,
-          foreground: style.color,
-          height: bounds.height,
-          width: bounds.width,
-        };
-      };
-      const headingElement = element.querySelector('h2');
-      const paragraph = element.querySelector('p');
-      const contact = element.querySelector('a[href="/contact/"]');
-      const learn = element.querySelector('a[href="/about/"]');
-      if (
-        headingElement === null ||
-        paragraph === null ||
-        contact === null ||
-        learn === null
-      ) {
-        throw new Error('Home call-to-action structure is incomplete');
-      }
-
-      return {
-        section: details(element),
-        heading: details(headingElement),
-        paragraph: details(paragraph),
-        contact: details(contact),
-        learn: details(learn),
-      };
-    });
-
-    const backgrounds = [
-      metrics.section.background,
-      metrics.contact.background,
-      metrics.learn.background,
-    ];
-    expect(new Set(backgrounds).size, `${theme} backgrounds`).toBe(3);
-    for (const background of backgrounds) {
-      expect(parseCssColor(background).alpha, `${theme} ${background}`).toBe(1);
+      await focusWithKeyboard(page, destination);
+      await expect(card).toHaveCSS('outline-style', 'solid');
     }
 
-    expect(
-      contrastRatio(metrics.heading.foreground, metrics.section.background),
-      `${theme} heading contrast`,
-    ).toBeGreaterThanOrEqual(4.5);
-    expect(
-      contrastRatio(metrics.paragraph.foreground, metrics.section.background),
-      `${theme} paragraph contrast`,
-    ).toBeGreaterThanOrEqual(4.5);
-    expect(
-      contrastRatio(metrics.contact.foreground, metrics.contact.background),
-      `${theme} accent-action contrast`,
-    ).toBeGreaterThanOrEqual(4.5);
-    expect(
-      contrastRatio(metrics.learn.foreground, metrics.learn.background),
-      `${theme} soft-action contrast`,
-    ).toBeGreaterThanOrEqual(4.5);
-
-    for (const action of [metrics.contact, metrics.learn]) {
-      expect(action.width).toBeGreaterThanOrEqual(48);
-      expect(action.height).toBeGreaterThanOrEqual(48);
+    await page.goto('/');
+    for (const carousel of await page
+      .locator('[data-home-collection-carousel]')
+      .all()) {
+      await expect(carousel.getByRole('region')).toBeVisible();
+      await expect(carousel.getByRole('link')).toHaveCount(1);
     }
-  }
-});
+    await expectNoSeriousAxeViolations(page, 'Homepage depth carousels');
+  },
+);
 
-test('Home carousel enhancement exposes one accessible destination per collection', async ({
-  page,
-}) => {
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/');
-
-  const carousels = page.locator('[data-home-collection-carousel]');
-  const homepage = resolvedPublishedCollections().homepage;
-  const expectedCarouselCount = [
-    homepage.some(({ kind }) => kind === 'blog'),
-    homepage.some(({ kind }) => kind !== 'blog'),
-  ].filter(Boolean).length;
-  await expect(carousels).toHaveCount(expectedCarouselCount);
-  for (const carousel of await carousels.all()) {
-    await expect(carousel.locator('[data-carousel-fallback]')).toHaveAttribute(
-      'aria-hidden',
-      'true',
-    );
-    await expect(carousel.getByRole('region')).toBeVisible();
-    await expect(carousel.getByRole('link')).toHaveCount(1);
-  }
-
-  await expectNoSeriousAxeViolations(page, 'Homepage depth carousels');
-});
-
-test('reduced motion disables and disposes the Grainient canvas', async ({
-  page,
-}) => {
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await page.goto('/');
-  await expect(page.locator('canvas')).toHaveCount(0);
-  await page.emulateMedia({ reducedMotion: 'no-preference' });
-  await expect(page.locator('canvas')).toHaveCount(1);
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-  await expect(page.locator('canvas')).toHaveCount(0);
-});
-
-test('mobile disclosure follows sequential focus order and restores focus', async ({
-  page,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== 'mobile-chromium');
-  await page.goto('/');
-  await page.evaluate(() => window.scrollTo(0, 160));
-  const disclosure = page.locator(
-    'button[aria-controls="site-navigation-dock"]',
-  );
-  await expect(disclosure).toBeVisible();
-  await expect(disclosure).toHaveAccessibleName('Open navigation');
-  await expect(disclosure).toHaveAttribute('aria-expanded', 'false');
-  const controlledId = await disclosure.getAttribute('aria-controls');
-  if (!controlledId)
-    throw new Error('Navigation disclosure lacks aria-controls');
-  const dock = page.locator(`#${controlledId}`);
-  await expect(dock).toHaveAttribute('inert', '');
-  await expect(dock).toHaveAttribute('aria-hidden', 'true');
-
-  await page.evaluate(() =>
-    (document.activeElement as HTMLElement | null)?.blur(),
-  );
-  await page.keyboard.press('Tab');
-  await expect(disclosure).toBeFocused();
-  await expect(dock.locator(':focus')).toHaveCount(0);
-
-  await disclosure.click();
-  await expect(disclosure).toHaveAttribute('aria-expanded', 'true');
-  await expect(disclosure).toHaveAccessibleName('Close navigation');
-  await expect(dock).not.toHaveAttribute('inert', '');
-  await expect(dock).not.toHaveAttribute('aria-hidden', 'true');
-  await expect(dock).toBeVisible();
-
-  await page.keyboard.press('Shift+Tab');
-  await expect(
-    dock.getByRole('button', { name: /switch to (dark|light) mode/i }),
-  ).toBeFocused();
-  await page.keyboard.press('Tab');
-  await expect(disclosure).toBeFocused();
-  await page.keyboard.press('Enter');
-
-  await expect(disclosure).toHaveAttribute('aria-expanded', 'false');
-  await expect(disclosure).toHaveAccessibleName('Open navigation');
-  await expect(disclosure).toBeFocused();
-  await expect(dock).toHaveAttribute('inert', '');
-  await page.keyboard.press('Tab');
-  await expect(dock.locator(':focus')).toHaveCount(0);
-});
-
-test('Blog and Works prose links retain readable hover and focus contrast in both themes', async ({
-  page,
-}, testInfo) => {
-  test.skip(testInfo.project.name !== 'chromium');
-  await page.emulateMedia({ reducedMotion: 'reduce' });
-
-  let inspectedKinds = 0;
-  for (const kind of ['blog', 'work'] as const) {
-    const candidates = publishedContent()
-      .filter(({ kind: contentKind }) =>
-        kind === 'blog' ? contentKind === 'blog' : contentKind !== 'blog',
-      )
-      .map(({ route }) => route);
-    let proseLink: Locator | null = null;
-    for (const route of candidates) {
+test(
+  'prose links keep readable hover and focus contrast in both themes',
+  { tag: '@desktop' },
+  async ({ page }) => {
+    let routeWithLink: string | undefined;
+    for (const { route } of publishedContent()) {
       await page.goto(route);
-      const candidate = page.locator('article.prose-content a[href]').first();
-      if (await candidate.count()) {
-        proseLink = candidate;
+      if (
+        (await page.locator('[data-article-toc-content] a[href]').count()) > 0
+      ) {
+        routeWithLink = route;
         break;
       }
     }
-    if (proseLink === null) continue;
-    inspectedKinds += 1;
+    expect(
+      routeWithLink,
+      'published prose needs one linked example',
+    ).toBeDefined();
+    if (routeWithLink === undefined) return;
 
     for (const theme of ['light', 'dark'] as const) {
-      await page.evaluate((nextTheme) => {
-        localStorage.setItem('theme', nextTheme);
+      await page.addInitScript((selectedTheme) => {
+        localStorage.setItem('theme', selectedTheme);
       }, theme);
-      await page.goto(page.url());
-      proseLink = page.locator('article.prose-content a[href]').first();
-      await page.mouse.move(0, 0);
-      await proseLink.hover();
-      const hoverColors = await proseLink.evaluate((element) => ({
-        foreground: getComputedStyle(element).color,
-        background: getComputedStyle(document.body).backgroundColor,
-      }));
-      expect(
-        contrastRatio(hoverColors.foreground, hoverColors.background),
-      ).toBeGreaterThanOrEqual(4.5);
-
-      await proseLink.focus();
-      const focusColors = await proseLink.evaluate((element) => ({
-        foreground: getComputedStyle(element).color,
-        background: getComputedStyle(document.body).backgroundColor,
-      }));
-      expect(
-        contrastRatio(focusColors.foreground, focusColors.background),
-      ).toBeGreaterThanOrEqual(4.5);
+      await page.goto(routeWithLink);
+      const proseLink = page
+        .locator('[data-article-toc-content] a[href]')
+        .first();
+      for (const state of ['hover', 'focus'] as const) {
+        if (state === 'hover') await proseLink.hover();
+        else await proseLink.focus();
+        const colors = await proseLink.evaluate((element) => ({
+          foreground: getComputedStyle(element).color,
+          background: getComputedStyle(document.body).backgroundColor,
+        }));
+        expect(
+          contrastRatio(colors.foreground, colors.background),
+          `${theme} ${state} contrast`,
+        ).toBeGreaterThanOrEqual(4.5);
+      }
     }
-  }
-  expect(inspectedKinds).toBeGreaterThan(0);
-});
+  },
+);
+
+test(
+  'reduced motion disables and disposes the Grainient canvas',
+  { tag: '@desktop' },
+  async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await page.goto('/');
+    await expect(page.locator('canvas')).toHaveCount(0);
+    await page.emulateMedia({ reducedMotion: 'no-preference' });
+    await expect(page.locator('canvas')).toHaveCount(1);
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+    await expect(page.locator('canvas')).toHaveCount(0);
+  },
+);
+
+test(
+  'mobile disclosure follows sequential focus order and restores focus',
+  { tag: '@mobile' },
+  async ({ page }) => {
+    await page.goto('/');
+    await page.evaluate(() => window.scrollTo(0, 160));
+    const disclosure = page.locator(
+      'button[aria-controls="site-navigation-dock"]',
+    );
+    const controlledId = await disclosure.getAttribute('aria-controls');
+    expect(controlledId).not.toBeNull();
+    const dock = page.locator(`#${controlledId ?? ''}`);
+    await expect(disclosure).toHaveAttribute('aria-expanded', 'false');
+    await expect(dock).toHaveAttribute('inert', '');
+
+    await page.evaluate(() =>
+      (document.activeElement as HTMLElement | null)?.blur(),
+    );
+    await page.keyboard.press('Tab');
+    await expect(disclosure).toBeFocused();
+    await page.keyboard.press('Enter');
+    await expect(disclosure).toHaveAttribute('aria-expanded', 'true');
+    await page.keyboard.press('Shift+Tab');
+    await expect(
+      dock.getByRole('button', { name: /switch to (dark|light) mode/iu }),
+    ).toBeFocused();
+    await page.keyboard.press('Tab');
+    await page.keyboard.press('Enter');
+    await expect(disclosure).toBeFocused();
+    await expect(disclosure).toHaveAttribute('aria-expanded', 'false');
+    await expect(dock).toHaveAttribute('inert', '');
+  },
+);

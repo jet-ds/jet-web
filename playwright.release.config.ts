@@ -1,14 +1,12 @@
 import { defineConfig, devices } from '@playwright/test';
 
-const forceFreshServer = process.env.PLAYWRIGHT_FORCE_FRESH_SERVER === '1';
-
 export default defineConfig({
   testDir: './tests/e2e',
   outputDir: 'test-results/playwright',
   fullyParallel: false,
   workers: process.env.CI ? 2 : 3,
-  forbidOnly: Boolean(process.env.CI),
-  failOnFlakyTests: Boolean(process.env.CI),
+  forbidOnly: true,
+  failOnFlakyTests: true,
   retries: 0,
   reporter: process.env.CI ? 'github' : 'list',
   use: {
@@ -22,7 +20,7 @@ export default defineConfig({
       PUBLIC_EGREGORE_E2E: '1',
     },
     url: 'http://127.0.0.1:4321',
-    reuseExistingServer: !process.env.CI && !forceFreshServer,
+    reuseExistingServer: false,
   },
   projects: [
     {
@@ -31,9 +29,14 @@ export default defineConfig({
       use: { ...devices['Desktop Chrome'] },
     },
     {
-      name: 'mobile-chromium',
-      grepInvert: /@desktop/u,
-      use: { ...devices['Pixel 7'] },
+      name: 'firefox',
+      grepInvert: /@mobile/u,
+      use: { ...devices['Desktop Firefox'] },
+    },
+    {
+      name: 'webkit',
+      grepInvert: /@mobile/u,
+      use: { ...devices['Desktop Safari'] },
     },
   ],
 });

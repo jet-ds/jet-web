@@ -5,9 +5,11 @@ import {
   fireEvent,
   render,
   screen,
+  within,
 } from '@testing-library/react';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import LiquidGlassDock from '../../../src/components/navigation/LiquidGlassDock';
+import { NAV_ITEMS } from '../../../src/config/site';
 
 const media = vi.hoisted(() => ({
   compact: true,
@@ -113,6 +115,24 @@ describe('LiquidGlassDock', () => {
     ).toHaveAttribute('aria-expanded', 'false');
     expect(dock()).toHaveAttribute('inert');
     expect(dock()).toHaveAttribute('aria-hidden', 'true');
+  });
+
+  it('projects the shared navigation contract into exact accessible dock links', () => {
+    renderDock();
+
+    expect(
+      within(dock())
+        .getAllByRole('link')
+        .map((link) => ({
+          href: link.getAttribute('href'),
+          label: link.getAttribute('aria-label'),
+        })),
+    ).toEqual(
+      NAV_ITEMS.map(({ href, label }) => ({
+        href,
+        label,
+      })),
+    );
   });
 
   it('discovers an immersive compact dock immediately and retains that discovery for an ordinary remount', () => {

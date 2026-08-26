@@ -131,9 +131,19 @@ function useLiveReducedMotion(): boolean {
   return prefersReducedMotion;
 }
 
-function waitForFakeDelay(delayMs: number): Promise<void> {
+function waitForFakeDelay(
+  delayMs: number,
+  phase: 'capability' | 'load' | 'unload' | 'chunk',
+): Promise<void> {
   return new Promise((resolve) => {
-    window.setTimeout(resolve, delayMs);
+    window.setTimeout(() => {
+      window.dispatchEvent(
+        new CustomEvent('egregore:e2e-scheduler-release', {
+          detail: { phase },
+        }),
+      );
+      resolve();
+    }, delayMs);
   });
 }
 
@@ -186,25 +196,25 @@ function createTestBuildDependencies(): EgregoreDependencies {
       (slowFakeStream || resolvedFakeScenario.slowStream ? 120 : 0);
     const scheduler = {
       waitForChunk: async () => {
-        if (chunkDelayMs > 0) await waitForFakeDelay(chunkDelayMs);
+        if (chunkDelayMs > 0) await waitForFakeDelay(chunkDelayMs, 'chunk');
       },
       ...(configuration.capabilityDelayMs === undefined
         ? {}
         : {
             waitForCapability: async () =>
-              waitForFakeDelay(configuration.capabilityDelayMs!),
+              waitForFakeDelay(configuration.capabilityDelayMs!, 'capability'),
           }),
       ...(configuration.loadDelayMs === undefined
         ? {}
         : {
             waitForLoad: async () =>
-              waitForFakeDelay(configuration.loadDelayMs!),
+              waitForFakeDelay(configuration.loadDelayMs!, 'load'),
           }),
       ...(configuration.unloadDelayMs === undefined
         ? {}
         : {
             waitForUnload: async () =>
-              waitForFakeDelay(configuration.unloadDelayMs!),
+              waitForFakeDelay(configuration.unloadDelayMs!, 'unload'),
           }),
     };
     let completedAssemblies = 0;
@@ -847,6 +857,7 @@ export default function EgregoreExperience({
   return (
     <section
       className="egregore-shell relative flex h-[100svh] flex-col overflow-hidden bg-bg-base text-text-primary min-[48rem]:min-h-[40rem]"
+      data-egregore-role="shell"
       onPointerDownCapture={handlePointerDownCapture}
       onKeyDownCapture={handleInteractionKeyDownCapture}
     >
@@ -1243,6 +1254,7 @@ export default function EgregoreExperience({
                 <div
                   ref={conversationScrollerRef}
                   data-testid="conversation-scroller"
+                  data-egregore-role="conversation"
                   className="egregore-scroll-surface h-full min-h-0 overflow-y-auto px-gutter py-m"
                   aria-label="Conversation"
                   onScroll={handleConversationScroll}
@@ -1379,6 +1391,7 @@ function LifecycleStatus({ status }: { status: EgregoreLifecycleStatus }) {
   return (
     <div
       data-testid="lifecycle-visible-status"
+      data-egregore-role="lifecycle"
       aria-hidden="true"
       className="inline-flex w-fit shrink-0 items-center gap-2xs text-xs font-medium text-text-secondary"
     >
@@ -1584,6 +1597,7 @@ function Composer({
         </p>
       )}
       <form
+        data-egregore-role="composer"
         onSubmit={onSubmit}
         className="mx-auto flex w-full max-w-[var(--container-3xl)] items-end gap-xs rounded-2xl border border-border-default bg-surface-base p-2xs shadow-[0_16px_48px_rgba(31,39,50,0.12)] transition-colors focus-within:border-brand-base"
       >

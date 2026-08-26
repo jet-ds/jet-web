@@ -213,6 +213,7 @@ export default function LiquidGlassDock({
     <>
       <motion.div
         id="site-navigation-dock"
+        data-navigation-role="dock"
         inert={isDockClosedOnMobile ? true : undefined}
         aria-hidden={isDockClosedOnMobile ? true : undefined}
         className="site-navigation-dock fixed bottom-[var(--navigation-dock-offset)] left-1/2 z-50 lg:bottom-auto lg:top-[var(--navigation-dock-offset)]"

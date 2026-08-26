@@ -32,7 +32,13 @@ export type PublishedContent = {
   assistant: boolean;
   entityType: 'BlogPosting' | 'ScholarlyArticle' | 'CreativeWork';
   openGraphType: 'article' | 'website';
-  image?: { width?: number; height?: number };
+  image?: {
+    url: string;
+    darkUrl?: string;
+    alt: string;
+    width?: number;
+    height?: number;
+  };
   links?: Array<{ label: string; url: string }>;
   identifier?: string;
   author?: string;

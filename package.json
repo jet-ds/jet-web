@@ -19,6 +19,7 @@
     "qualify:egregore:warm": "cross-env PLAYWRIGHT_NO_COPY_PROMPT=1 RUN_REAL_MODEL=1 EGREGORE_REAL_MODEL_MODE=warm-resume playwright test --config=playwright.real-model.config.ts --project=chrome-real-model",
     "smoke:egregore": "cross-env PLAYWRIGHT_NO_COPY_PROMPT=1 RUN_REAL_MODEL=1 EGREGORE_REAL_MODEL_MODE=smoke playwright test --config=playwright.real-model.config.ts --project=chrome-real-model",
     "verify:browser": "playwright test",
+    "verify:release-browsers": "playwright test --config=playwright.release.config.ts",
     "verify:production": "playwright test --config=playwright.production.config.ts",
     "verify:all": "npm run verify && npm run verify:browser",
     "verify:content": "tsx scripts/verify-content.ts",

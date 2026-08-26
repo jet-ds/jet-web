@@ -3,6 +3,7 @@ import { relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
 import { EGREGORE_IDENTITY } from '../src/config/egregore';
+import { NAV_ITEMS, SITE } from '../src/config/site';
 import {
   LITERT_LM_WASM_ASSETS,
   resolveLiteRtAssetPath,
@@ -12,6 +13,7 @@ export const FORBIDDEN_PRODUCTION_ARTIFACT_MARKERS = [
   'FakeRuntime',
   'runtime=fake',
   '__EGREGORE_E2E__',
+  'egregore:e2e-scheduler-release',
   'egregore:qualification-observation',
   'qualificationObserver',
   'retrieval-context-selection-start',
@@ -193,6 +195,174 @@ export function assertProductionRuntimeArtifacts(
   }
 }
 
+interface AnchorProjection {
+  href: string;
+  label: string;
+}
+
+function decodeHtml(value: string): string {
+  const namedEntities: Readonly<Record<string, string>> = {
+    amp: '&',
+    apos: "'",
+    gt: '>',
+    lt: '<',
+    quot: '"',
+  };
+  return value.replace(
+    /&(?:#(\d+)|#x([\da-f]+)|([a-z]+));/giu,
+    (entity, decimal: string, hexadecimal: string, named: string) => {
+      if (decimal !== undefined)
+        return String.fromCodePoint(Number.parseInt(decimal, 10));
+      if (hexadecimal !== undefined)
+        return String.fromCodePoint(Number.parseInt(hexadecimal, 16));
+      return namedEntities[named.toLowerCase()] ?? entity;
+    },
+  );
+}
+
+function readQuotedAttribute(
+  attributes: string,
+  attribute: string,
+): string | null {
+  const match = attributes.match(
+    new RegExp(`(?:^|\\s)${attribute}\\s*=\\s*(["'])(.*?)\\1`, 'iu'),
+  );
+  return match === null ? null : decodeHtml(match[2]);
+}
+
+export function assertProductionEgregoreViewportContract(
+  directory = resolve('dist'),
+): void {
+  const root = resolve(directory);
+  const pagePath = resolve(root, 'chatbot/index.html');
+  if (!existsSync(pagePath)) {
+    throw new Error(
+      'PRODUCTION_EGREGORE_VIEWPORT_CONTRACT_MISSING:chatbot/index.html',
+    );
+  }
+
+  const html = readFileSync(pagePath, 'utf8');
+  const componentPaths = [
+    ...html.matchAll(/<astro-island\b([^>]*)>/giu),
+  ].flatMap(([, attributes]) => {
+    const componentUrl = readQuotedAttribute(attributes, 'component-url');
+    return componentUrl?.startsWith('/_astro/') === true
+      ? [componentUrl.slice(1)]
+      : [];
+  });
+  const owner = componentPaths.find((componentPath) => {
+    const emittedPath = resolve(root, componentPath);
+    if (!existsSync(emittedPath)) return false;
+    const component = readFileSync(emittedPath, 'utf8');
+    return (
+      component.includes('data-egregore-role') &&
+      component.includes('egregore-shell')
+    );
+  });
+  if (owner === undefined) {
+    throw new Error('PRODUCTION_EGREGORE_VIEWPORT_CONTRACT_MISSING:component');
+  }
+
+  const component = readFileSync(resolve(root, owner), 'utf8');
+  if (!component.includes('h-[100svh]')) {
+    throw new Error(
+      `PRODUCTION_EGREGORE_VIEWPORT_CONTRACT_MISSING:${owner}:100svh`,
+    );
+  }
+}
+
+function extractAnchorProjections(surface: string): AnchorProjection[] {
+  return [...surface.matchAll(/<a\b([^>]*)>([\s\S]*?)<\/a>/giu)].flatMap(
+    ([, attributes, innerHtml]) => {
+      const href = readQuotedAttribute(attributes, 'href');
+      if (href === null) return [];
+      const explicitLabel = readQuotedAttribute(attributes, 'aria-label');
+      const label = decodeHtml(innerHtml.replace(/<[^>]*>/gu, ' '))
+        .replace(/\s+/gu, ' ')
+        .trim();
+      return [{ href, label: explicitLabel ?? label }];
+    },
+  );
+}
+
+function assertNavigationLinks(
+  surface: string,
+  surfaceName: 'footer' | 'noscript',
+): void {
+  const expected = NAV_ITEMS.map(({ href, label }) => ({ href, label }));
+  const expectedHrefs = new Set<string>(expected.map(({ href }) => href));
+  const expectedLabels = new Set<string>(expected.map(({ label }) => label));
+  const projected = extractAnchorProjections(surface).filter(
+    ({ href, label }) => expectedHrefs.has(href) || expectedLabels.has(label),
+  );
+  if (JSON.stringify(projected) !== JSON.stringify(expected)) {
+    throw new Error(
+      `PRODUCTION_NAVIGATION_PROJECTION_INCOMPLETE:${surfaceName}`,
+    );
+  }
+}
+
+function expectNavigationProjection(
+  projected: readonly { name: string; url: string }[],
+): void {
+  const expected = NAV_ITEMS.map(({ href, label }) => ({
+    name: label,
+    url: new URL(href, SITE.siteUrl).toString(),
+  }));
+  if (JSON.stringify(projected) !== JSON.stringify(expected)) {
+    throw new Error('PRODUCTION_NAVIGATION_PROJECTION_INCOMPLETE:json-ld');
+  }
+}
+
+export function assertProductionNavigationProjection(
+  directory = resolve('dist'),
+): void {
+  const indexPath = resolve(directory, 'index.html');
+  if (!existsSync(indexPath)) {
+    throw new Error('PRODUCTION_NAVIGATION_ARTIFACT_MISSING:index.html');
+  }
+  const html = readFileSync(indexPath, 'utf8');
+  const noscript = html.match(/<noscript\b[^>]*>([\s\S]*?)<\/noscript>/u)?.[1];
+  const footer = html.match(/<footer\b[^>]*>([\s\S]*?)<\/footer>/u)?.[1];
+  if (noscript === undefined)
+    throw new Error('PRODUCTION_NAVIGATION_SURFACE_MISSING:noscript');
+  if (footer === undefined)
+    throw new Error('PRODUCTION_NAVIGATION_SURFACE_MISSING:footer');
+  assertNavigationLinks(noscript, 'noscript');
+  assertNavigationLinks(footer, 'footer');
+
+  const navigationSchema = [
+    ...html.matchAll(
+      /<script\b[^>]*type=["']application\/ld\+json["'][^>]*>([\s\S]*?)<\/script>/gu,
+    ),
+  ]
+    .map((match) => {
+      try {
+        return JSON.parse(match[1]) as {
+          '@type'?: unknown;
+          hasPart?: unknown;
+        };
+      } catch {
+        return null;
+      }
+    })
+    .find((schema) => schema?.['@type'] === 'SiteNavigationElement');
+  if (navigationSchema === undefined || navigationSchema === null)
+    throw new Error('PRODUCTION_NAVIGATION_SURFACE_MISSING:json-ld');
+
+  const projected = Array.isArray(navigationSchema.hasPart)
+    ? navigationSchema.hasPart.flatMap((record) => {
+        if (typeof record !== 'object' || record === null) return [];
+        const name = Reflect.get(record, 'name');
+        const url = Reflect.get(record, 'url');
+        return typeof name === 'string' && typeof url === 'string'
+          ? [{ name, url }]
+          : [];
+      })
+    : [];
+  expectNavigationProjection(projected);
+}
+
 if (
   process.argv[1] &&
   resolve(process.argv[1]) === fileURLToPath(import.meta.url)
@@ -202,6 +372,8 @@ if (
     assertProductionArtifactsContainNoFakeRuntime(directory);
     assertProductionLicenseArtifacts(directory);
     assertProductionRuntimeArtifacts(directory);
+    assertProductionEgregoreViewportContract(directory);
+    assertProductionNavigationProjection(directory);
     process.stdout.write(
       `Production artifacts contain no ${EGREGORE_IDENTITY.name} fake-runtime seam; the runtime and license surfaces are complete and byte-exact.\n`,
     );

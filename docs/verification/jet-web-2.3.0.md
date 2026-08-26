@@ -1,8 +1,8 @@
 # Jet Web 2.3.0 verification record
 
-**Status:** Task 1 dependency refresh evidence recorded on 2026-08-25. Audit
-counts in this document are dated observations of the installed dependency graph,
-not permanent security assertions.
+**Status:** Task 1 dependency refresh evidence and Task 10 pre-perturbation test
+contract evidence recorded. Counts in this document are dated observations, not
+permanent dependency, security, coverage, or suite-size assertions.
 
 ## Immutable baseline
 
@@ -201,3 +201,94 @@ recorded after the final-file-set rerun below.
 | `npm audit --omit=dev`                      | Passed; 0 known vulnerabilities.                                                                                                                                                                                                                          |
 | Exact root/version readback                 | Passed; reviewed matrix and protected pins matched.                                                                                                                                                                                                       |
 | `npm run verify` against the final file set | Passed: formatting and lint were clean; Astro checked 173 files with 0 diagnostics; 48 Vitest files and 556 tests passed; 10 documents and 92 links were verified; 16 pages built; production artifacts were complete and contained no fake-runtime seam. |
+
+## Task 10 pre-perturbation test-contract audit
+
+Before editing, every tracked test block was catalogued with its observable
+contract, narrowest adequate boundary, failure value, and a keep, merge, demote,
+delete, or refactor disposition. That temporary working inventory was reviewed
+but deliberately not retained as repository policy: it was evidence for this
+slice, while the surviving tests remain the executable contracts.
+
+### Dated suite observations
+
+| Boundary                       | Before compaction                                                                 | Reviewed candidate                                       | Interpretation                                                                                                                                                                                                            |
+| ------------------------------ | --------------------------------------------------------------------------------- | -------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Regular Vitest suite           | 57 files, 695 cases, 13.30 seconds                                                | 56 files, 693 cases, 9.30 seconds                        | Two fixed-current-record SEO cases and their duplicate image scan were removed or demoted to the shared schema owner; broad deterministic policy, resolver, runtime, license, build, CI, and deployment coverage remains. |
+| Routine browser source cases   | 177 across 5 files                                                                | 29 across the same 5 files                               | Browser ownership is limited to behavior that requires a real navigation, focus, pointer, responsive/computed-layout, animation, no-JavaScript, or composed accessibility boundary.                                       |
+| Routine browser project cases  | 354 total; 292 passed, 55 project-mismatch skips, 7 known failures in 1.9 minutes | 37 total; 37 passed, 0 skipped, 0 failed in 20.3 seconds | Project declarations now express desktop/mobile ownership without conditional mismatch skips; retries remain zero. These counts are observations, not preservation targets.                                               |
+| Production deployment boundary | 8 cases                                                                           | 8 cases                                                  | Production-only redirect/header behavior remains separate from built-site Playwright coverage.                                                                                                                            |
+| Real-model qualification       | One explicitly opt-in conditional skip                                            | One explicitly opt-in conditional skip                   | The approximately 2 GB operator qualification retains its documented manual value and remains outside routine CI.                                                                                                         |
+
+The candidate removes 3,620 net lines from the tracked diff before this record
+and replaces repetition with narrower artifact and configuration owners. Test
+count and line reduction were not goals: each deletion or merge had to leave a
+named durable contract at the lowest boundary that could detect a meaningful
+failure.
+
+### Surviving routine browser ownership
+
+| File                         | Source cases | Routine project cases | Browser-only failure value                                                                                                                                                                                                                                             |
+| ---------------------------- | -----------: | --------------------: | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `accessibility.spec.ts`      |            5 |                     5 | Representative theme-aware axe scans, keyboard-visible dominant destinations, rendered link contrast, Grainient disposal under reduced motion, and sequential mobile disclosure focus.                                                                                 |
+| `collection-filters.spec.ts` |            3 |                     6 | No-JavaScript collection availability, real URL/history behavior for Blog search, and native Works filter state across desktop and mobile.                                                                                                                             |
+| `egregore.spec.ts`           |            9 |                     9 | Inert model-authored markup; whole-browser consent, request-privacy, and lazy-runtime staging; responsive lifecycle geometry; representative recovery; persisted dock choice; reduced motion; cancel/reload; sticky conversation following; and ClientRouter teardown. |
+| `homepage-carousel.spec.ts`  |            6 |                     8 | Canonically ordered no-JavaScript destinations, finite manual looping and focus, pointer/scroll arbitration, responsive transformed geometry, real mobile hit/actionability at each visible depth, and idle/reduced-motion behavior.                                   |
+| `site.spec.ts`               |            6 |                     9 | Compact navigation/dock separation, responsive hub geometry, desktop sticky reading navigation, mobile disclosure/dock/fragment focus, persisted theme/navigation state, and theme-aware image readiness.                                                              |
+
+Assertions about exact current entries, fixed card counts, incidental copy,
+private CSS classes or wrappers, collaborator call order, historical pixel
+bands, and duplicated fake-runtime scenarios were deleted, merged, or moved to
+deterministic owners. The regular suite was treated conservatively: the only
+deleted file, `tests/unit/seo/contentMetadata.test.ts`, encoded a fixed title
+inventory and historical length heuristic; its general image requirement
+already belongs to the shared content schema.
+
+### Carry resolution and operational owners
+
+| Prior carry                                      | Root-cause disposition                                                                                                                                                                                     |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Hidden Homepage fallback selected as a card      | Tests now select the active public destination and observable card geometry instead of enhancement-hidden markup.                                                                                          |
+| Theme-aware Work image assertion                 | The browser owner observes a ready, visible image through a theme transition rather than requiring a particular number of image nodes.                                                                     |
+| Legacy Egregore renderer/license inventory       | The retained tests derive the runtime and notice surface from the current release contract; built artifacts remain the operational owner.                                                                  |
+| Parallel Egregore load failures and timing waits | One fresh foreground server owns each run, and test-owned release signals synchronize fake-runtime lifecycle changes without cadence sleeps or larger timeouts.                                            |
+| Exact fake-scenario method order                 | Authorization and method membership are asserted at the deterministic boundary; the browser privacy traversal separately proves pre-load, post-load/pre-prompt, and post-prompt staging.                   |
+| Chromium CDP `lvh`/`svh` emulation               | Current Chromium no longer honors that synthetic override. The emitted Egregore artifact now proves the standardized `100svh` shell contract, while real small-viewport browser geometry proves usability. |
+| Reused or detached Playwright server             | `PLAYWRIGHT_FORCE_FRESH_SERVER=1` disables reuse, and both routine and release configurations own a foreground build-and-preview process with zero retries.                                                |
+
+`playwright.release.config.ts` adds an explicit current Chromium, Firefox, and
+WebKit release matrix. Routine CI remains Chromium plus mobile Chromium. Static
+configuration tests bind the release project names to their actual engines,
+zero retries, and the build-owned server command/environment. Built-artifact
+tests also derive the ordered no-script, Footer, dock, and JSON-LD navigation
+projections from `NAV_ITEMS`, including wrong-label and divergent-destination
+regressions, rather than freezing current page copy in a browser test.
+
+### RED, GREEN, and contract revalidation
+
+The repaired candidate was challenged with temporary local mutations before
+approval. Eager conversation creation during `Load Egregore`, reversed
+no-JavaScript carousel destinations, and autoplay for ordinary motion
+preferences each failed its intended focused browser assertion. Restoring the
+product contracts returned all three cases green. The final assertions require
+conversation creation, token counting, and generation to remain absent until
+the visitor sends a prompt; compare fallback destinations to resolver-derived
+canonical order; and prove ten minutes of idle stability for both ordinary and
+reduced-motion visitors while preserving manual operation.
+
+Two independent reviewers rejected earlier candidates where browser-only
+privacy, recovery, responsive geometry, mobile actionability, navigation
+projection, and history contracts had been over-demoted or privately coupled.
+After bounded repairs and repeated targeted review, both reviewers approved the
+same frozen candidate with no remaining findings. The pre-commit Node 24 gates
+on that candidate are recorded below; subsequent isolated perturbation and
+multi-engine qualification are recorded in the final Task 10 section.
+
+| Pre-commit gate                | Result                                                                                                                                                                                                                                                                                                                                                 |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Focused mutation RED           | 3 of 3 intentional defects detected at their intended browser owners.                                                                                                                                                                                                                                                                                  |
+| Focused repaired browser cases | 3 of 3 passed.                                                                                                                                                                                                                                                                                                                                         |
+| Focused deterministic owners   | 3 files and 91 tests passed.                                                                                                                                                                                                                                                                                                                           |
+| Complete `npm run verify`      | Passed on Node `v24.19.0` and npm `11.12.1` in 25.15 seconds: formatting and lint were clean; Astro checked 198 files with 0 diagnostics; 56 Vitest files and 693 tests passed in 9.30 seconds; 11 documents and 92 relative links passed; content policy verified 9 entries and 9 assistant sources; 16 pages built; and production artifacts passed. |
+| Forced-fresh routine browser   | Passed 37 of 37 on the first attempt with 0 skips in 20.3 seconds (20.62 seconds wall time); the build-owned server exited and left no port `4321` listener.                                                                                                                                                                                           |
+| Browser listing and skip scan  | 37 routine project cases in 5 files; 0 routine skips or orphaned project cases. The sole skip is the documented manual real-model opt-in.                                                                                                                                                                                                              |
