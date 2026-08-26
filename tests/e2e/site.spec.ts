@@ -1,30 +1,19 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import { classifyGoogleAnalyticsRequest } from '../support/googleAnalyticsTraffic';
 import { publishedContent } from '../support/publishedContent';
-
-function isGoogleAnalyticsHost(hostname: string): boolean {
-  return (
-    hostname === 'www.googletagmanager.com' ||
-    hostname === 'analytics.google.com' ||
-    hostname === 'google-analytics.com' ||
-    hostname.endsWith('.google-analytics.com') ||
-    hostname === 'stats.g.doubleclick.net'
-  );
-}
 
 async function interceptGoogleAnalytics(page: Page): Promise<string[]> {
   const requests: string[] = [];
   await page.route('**/*', async (route) => {
     const url = new URL(route.request().url());
-    if (!isGoogleAnalyticsHost(url.hostname)) {
+    const requestKind = classifyGoogleAnalyticsRequest(url);
+    if (requestKind === null) {
       await route.continue();
       return;
     }
     requests.push(url.href);
-    const isLibrary =
-      url.hostname === 'www.googletagmanager.com' &&
-      url.pathname === '/gtag/js';
     await route.fulfill(
-      isLibrary
+      requestKind === 'library'
         ? { status: 200, contentType: 'application/javascript', body: '' }
         : { status: 204 },
     );
@@ -373,11 +362,30 @@ test('theme-aware Work imagery is ready before its first theme switch', async ({
 test('non-Production documents send no analytics traffic on direct or ClientRouter navigation', async ({
   page,
 }) => {
+  await page.addInitScript(() => {
+    Reflect.set(window, '__nonProductionPageLoadCount', 0);
+    document.addEventListener('astro:page-load', () => {
+      const current = Reflect.get(window, '__nonProductionPageLoadCount');
+      Reflect.set(
+        window,
+        '__nonProductionPageLoadCount',
+        typeof current === 'number' ? current + 1 : 1,
+      );
+    });
+  });
   const analyticsRequests = await interceptGoogleAnalytics(page);
+  const pageLoadCount = () =>
+    page.evaluate(() => Reflect.get(window, '__nonProductionPageLoadCount'));
 
   await page.goto('/');
+  await expect.poll(pageLoadCount).toBe(1);
+  await page.waitForTimeout(300);
+  expect(analyticsRequests).toEqual([]);
+
   await page.getByRole('link', { name: 'About', exact: true }).first().click();
   await expect(page).toHaveURL(/\/about\/$/u);
+  await expect.poll(pageLoadCount).toBe(2);
+  await page.waitForTimeout(300);
 
   expect(analyticsRequests).toEqual([]);
 });

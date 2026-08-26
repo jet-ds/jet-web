@@ -30,10 +30,9 @@ const shouldEmitAnalytics =
         let controller = Reflect.get(window, controllerKey);
 
         if (controller === undefined) {
-          let configured = false;
           let optedOut = false;
-          let pageViewPending = false;
           let partytownReady = false;
+          const pendingPageViews = [];
 
           const processControl = () => {
             const url = new URL(window.location.href);
@@ -58,33 +57,37 @@ const shouldEmitAnalytics =
               .split(';')
               .some((cookie) => cookie.trim() === `${optOutCookie}=1`);
             Reflect.set(window, `ga-disable-${measurementId}`, optedOut);
+            if (optedOut) pendingPageViews.length = 0;
           };
 
-          const sendPageView = () => {
+          const flushPendingPageViews = () => {
             processControl();
-            if (optedOut) return;
+            if (optedOut || !partytownReady || pendingPageViews.length === 0)
+              return;
 
             const gtag = Reflect.get(window, 'gtag');
             if (typeof gtag !== 'function') return;
 
-            if (!configured) {
-              gtag('js', new Date());
+            gtag('js', new Date());
+            while (pendingPageViews.length > 0) {
+              const pageView = pendingPageViews.shift();
               gtag('config', measurementId, { send_page_view: false });
-              configured = true;
+              gtag('event', 'page_view', pageView);
             }
-            gtag('event', 'page_view', {
+          };
+
+          const snapshotPageView = () =>
+            Object.freeze({
               page_location: window.location.href,
               page_path: window.location.pathname,
               page_title: document.title,
             });
-          };
 
           const onPageLoad = () => {
             processControl();
-            pageViewPending = !optedOut;
-            if (!partytownReady || !pageViewPending) return;
-            pageViewPending = false;
-            sendPageView();
+            if (optedOut) return;
+            pendingPageViews.push(snapshotPageView());
+            flushPendingPageViews();
           };
 
           const onAfterSwap = () => {
@@ -94,17 +97,19 @@ const shouldEmitAnalytics =
 
           const onPartytownReady = () => {
             partytownReady = true;
-            configured = false;
-            if (!pageViewPending) return;
-            pageViewPending = false;
-            sendPageView();
+            flushPendingPageViews();
+          };
+
+          const subscribeToPinnedPartytownReady = (listener) => {
+            // The @astrojs/partytown@2.1.7 lock resolves Qwik Partytown 0.13.2; revalidate this adapter on updates.
+            document.addEventListener('pt0', listener);
           };
 
           controller = { processControl };
           Reflect.set(window, controllerKey, controller);
           document.addEventListener('astro:after-swap', onAfterSwap);
           document.addEventListener('astro:page-load', onPageLoad);
-          document.addEventListener('pt0', onPartytownReady);
+          subscribeToPinnedPartytownReady(onPartytownReady);
         }
 
         controller.processControl();

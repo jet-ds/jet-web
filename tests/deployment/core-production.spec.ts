@@ -7,6 +7,7 @@ import {
 import { SITE } from '../../src/config/site';
 import { ANALYTICS_OPT_OUT_COOKIE } from '../../src/features/analytics/trackingPolicy';
 import { establishDeploymentProtectionBypass } from '../support/deploymentProtection';
+import { classifyGoogleAnalyticsRequest } from '../support/googleAnalyticsTraffic';
 import {
   publishedAssistantSources,
   publishedContent,
@@ -40,16 +41,6 @@ type JsonLdSchema = {
 type CorpusContent = {
   documents: Array<{ id: string; canonicalUrl: string }>;
 };
-
-function isAnalyticsHost(hostname: string): boolean {
-  return (
-    hostname === 'www.googletagmanager.com' ||
-    hostname === 'analytics.google.com' ||
-    hostname === 'google-analytics.com' ||
-    hostname.endsWith('.google-analytics.com') ||
-    hostname === 'stats.g.doubleclick.net'
-  );
-}
 
 function occurrences(value: string, target: string): number {
   return value.split(target).length - 1;
@@ -112,16 +103,14 @@ test('Production reads back the site-wide analytics device control', async ({
   const analyticsRequests: URL[] = [];
   await page.route('**/*', async (route) => {
     const url = new URL(route.request().url());
-    if (!isAnalyticsHost(url.hostname)) {
+    const requestKind = classifyGoogleAnalyticsRequest(url);
+    if (requestKind === null) {
       await route.continue();
       return;
     }
     analyticsRequests.push(url);
-    const isLibrary =
-      url.hostname === 'www.googletagmanager.com' &&
-      url.pathname === '/gtag/js';
     await route.fulfill(
-      isLibrary
+      requestKind === 'library'
         ? { status: 200, contentType: 'application/javascript', body: '' }
         : { status: 204 },
     );
