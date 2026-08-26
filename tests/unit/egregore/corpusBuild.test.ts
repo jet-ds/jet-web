@@ -104,6 +104,7 @@ function profileEntry(
       assistant: true,
       role: 'Marketing Engineer & AI Researcher',
       organization: 'Digital Squad',
+      organizationUrl: 'https://digitalsquad.com/',
       researchAreas: ['Artificial Intelligence'],
       technicalFocus: ['Marketing Engineering'],
       connectText: 'Connect about applied AI.',

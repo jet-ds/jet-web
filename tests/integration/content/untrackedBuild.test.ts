@@ -61,6 +61,7 @@ status: published
 assistant: true
 role: Marketing Engineer & AI Researcher
 organization: Digital Squad
+organizationUrl: https://digitalsquad.com/
 researchAreas:
   - Artificial Intelligence
 technicalFocus:

@@ -49,6 +49,10 @@ const activeSocialLinks = Object.entries(SOCIAL_LINKS)
     familyName={SITE.familyName}
     alternateName={SITE.alternateNames}
     jobTitle={profile.data.role}
+    worksFor={{
+      name: profile.data.organization,
+      url: profile.data.organizationUrl,
+    }}
     email={SITE.email}
     url={`${SITE.siteUrl}/`}
     pageUrl={`${SITE.siteUrl}/about/`}

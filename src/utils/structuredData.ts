@@ -47,7 +47,7 @@ type ReviewProps = {
   isPartOfId: string;
 };
 
-type PersonProps = {
+export type PersonProps = {
   type: 'person';
   id?: string;
   url?: string;
@@ -58,6 +58,7 @@ type PersonProps = {
   alternateName?: readonly string[];
   email?: string;
   jobTitle?: string;
+  worksFor?: { name: string; url: string };
   sameAs?: readonly string[];
 };
 
@@ -258,6 +259,14 @@ function buildPersonSchema(
     email: props.email || SITE.email,
     url,
     ...(props.jobTitle && { jobTitle: props.jobTitle }),
+    ...(props.worksFor && {
+      worksFor: {
+        '@type': 'Organization',
+        '@id': `${props.worksFor.url}#organization`,
+        name: props.worksFor.name,
+        url: props.worksFor.url,
+      },
+    }),
     ...(sameAs.length > 0 && { sameAs: [...sameAs] }),
     ...(props.pageUrl && {
       mainEntityOfPage: {
