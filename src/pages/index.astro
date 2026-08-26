@@ -149,75 +149,119 @@ function toItemListItems(records: readonly CollectionDisplayRecord[]) {
     </Container>
   </Section>
 
-  <!-- Latest Blog Posts -->
-  <Section spacing="default" background="subtle">
-    <Container size="lg">
-      <div class="flex justify-between items-center mb-l">
-        <h2 class="text-3xl font-bold leading-tight text-text-primary">
-          Latest Articles
-        </h2>
-        <Button href="/blog/" variant="ghost"
-          ><span>View all <span class="text-accent-base">→</span></span></Button
+  <div data-home-reveal-scope>
+    <!-- Latest Blog Posts -->
+    <Section spacing="default" background="subtle">
+      <Container size="lg">
+        <div
+          class="mb-l flex flex-col items-center gap-2xs text-center"
+          data-home-reveal="text"
         >
-      </div>
-
-      {
-        latestPosts.length > 0 ? (
-          <HomeCollectionCarousel label="Latest Articles" items={latestPosts} />
-        ) : (
-          <Card>
-            <p class="text-center text-text-tertiary py-l">
-              No blog posts yet. Check back soon!
-            </p>
-          </Card>
-        )
-      }
-    </Container>
-  </Section>
-
-  <!-- Latest Works -->
-  <Section spacing="default">
-    <Container size="lg">
-      <div class="flex justify-between items-center mb-l">
-        <h2 class="text-3xl font-bold leading-tight text-text-primary">
-          Latest Works
-        </h2>
-        <Button href="/works/" variant="ghost"
-          ><span>View all <span class="text-accent-base">→</span></span></Button
-        >
-      </div>
-
-      {
-        selectedWorks.length > 0 ? (
-          <HomeCollectionCarousel label="Latest Works" items={selectedWorks} />
-        ) : (
-          <Card>
-            <p class="text-center text-text-tertiary py-l">
-              No selected works yet. Check back soon!
-            </p>
-          </Card>
-        )
-      }
-    </Container>
-  </Section>
-
-  <!-- Call to Action -->
-  <Section spacing="default" background="brand">
-    <Container size="md">
-      <div class="text-center">
-        <h2 class="text-3xl font-bold mb-s text-text-primary">Let's Connect</h2>
-        <p class="text-lg text-text-secondary mb-l">
-          Interested in collaborating or have questions? Feel free to reach out!
-        </p>
-        <div class="flex flex-wrap justify-center gap-s">
-          <Button href="/contact/" variant="accent" density="immersive"
-            >Contact me</Button
-          >
-          <Button href="/about/" variant="brand" density="immersive"
-            >Learn more</Button
+          <h2 class="text-3xl font-bold leading-tight text-text-primary">
+            Latest Articles
+          </h2>
+          <Button href="/blog/" variant="ghost"
+            ><span>View all <span class="text-accent-base">→</span></span
+            ></Button
           >
         </div>
-      </div>
-    </Container>
-  </Section>
+
+        <div data-home-reveal="component">
+          {
+            latestPosts.length > 0 ? (
+              <HomeCollectionCarousel
+                label="Latest Articles"
+                items={latestPosts}
+              />
+            ) : (
+              <Card>
+                <p class="text-center text-text-tertiary py-l">
+                  No blog posts yet. Check back soon!
+                </p>
+              </Card>
+            )
+          }
+        </div>
+      </Container>
+    </Section>
+
+    <!-- Latest Works -->
+    <Section spacing="default">
+      <Container size="lg">
+        <div
+          class="mb-l flex flex-col items-center gap-2xs text-center"
+          data-home-reveal="text"
+        >
+          <h2 class="text-3xl font-bold leading-tight text-text-primary">
+            Latest Works
+          </h2>
+          <Button href="/works/" variant="ghost"
+            ><span>View all <span class="text-accent-base">→</span></span
+            ></Button
+          >
+        </div>
+
+        <div data-home-reveal="component">
+          {
+            selectedWorks.length > 0 ? (
+              <HomeCollectionCarousel
+                label="Latest Works"
+                items={selectedWorks}
+              />
+            ) : (
+              <Card>
+                <p class="text-center text-text-tertiary py-l">
+                  No selected works yet. Check back soon!
+                </p>
+              </Card>
+            )
+          }
+        </div>
+      </Container>
+    </Section>
+
+    <!-- Call to Action -->
+    <Section spacing="default" background="brand">
+      <Container size="md">
+        <div class="text-center">
+          <h2
+            class="text-3xl font-bold mb-s text-text-primary"
+            data-home-reveal="text"
+            data-home-reveal-group="cta"
+            data-home-reveal-order="0"
+          >
+            Let's Connect
+          </h2>
+          <p
+            class="text-lg text-text-secondary mb-l"
+            data-home-reveal="text"
+            data-home-reveal-group="cta"
+            data-home-reveal-order="1"
+          >
+            Interested in collaborating or have questions? Feel free to reach
+            out!
+          </p>
+          <div
+            class="flex flex-wrap justify-center gap-s"
+            data-home-reveal="component"
+            data-home-reveal-group="cta"
+            data-home-reveal-order="2"
+          >
+            <Button href="/contact/" variant="accent" density="immersive"
+              >Contact me</Button
+            >
+            <Button href="/about/" variant="brand" density="immersive"
+              >Learn more</Button
+            >
+          </div>
+        </div>
+      </Container>
+    </Section>
+  </div>
+
+  <script>
+    import { installHomeRevealController } from '../features/home-reveal/homeRevealController';
+
+    installHomeRevealController(document);
+  </script>
 </BaseLayout>

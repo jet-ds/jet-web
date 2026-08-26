@@ -13,13 +13,35 @@ import { ChevronLeft, ChevronRight } from 'lucide-react';
 import { motion, type PanInfo } from 'framer-motion';
 import {
   getRecededIndices,
-  resolveDragDelta,
+  resolveHorizontalDragDelta,
   resolveRecededSelection,
   wrapIndex,
 } from './carouselState';
 import type { DepthCarouselProps } from './types';
 
 const ENHANCEMENT_ATTRIBUTE = 'data-carousel-enhancement-active';
+const DESKTOP_X = [0, 72, 132, 180] as const;
+const DESKTOP_Y = [0, 10, 20, 30] as const;
+const MOBILE_X = [0, 8, 16, 24] as const;
+const MOBILE_Y = [0, 54, 108, 162] as const;
+const DESKTOP_SCALE = [1, 0.94, 0.88, 0.82] as const;
+const MOBILE_SCALE = [1, 0.96, 0.92, 0.88] as const;
+const DESKTOP_ROTATE_Y = [0, -7, -11, -14] as const;
+const MOBILE_ROTATE_Y = [0, -3, -5, -7] as const;
+const CONNECTED_DRAG_X = [1, 0.34, 0.22, 0.14] as const;
+const CONNECTED_DRAG_Y = [1, 0.4, 0.26, 0.16] as const;
+const MAX_CROSS_AXIS_DRAG = 28;
+const VERTICAL_INTENT_THRESHOLD = 12;
+const VERTICAL_INTENT_RATIO = 1.25;
+
+interface DragOffset {
+  x: number;
+  y: number;
+}
+
+function clampCrossAxis(offsetY: number): number {
+  return Math.max(-MAX_CROSS_AXIS_DRAG, Math.min(MAX_CROSS_AXIS_DRAG, offsetY));
+}
 
 function findFallback(element: Element | null): HTMLElement | null {
   const owner = element?.closest('[data-home-collection-carousel]');
@@ -177,13 +199,21 @@ function ThemeImage({
   );
 }
 
+function getKindLabel(kind: DepthCarouselProps['items'][number]['kind']) {
+  if (kind === 'research') return 'Research';
+  if (kind === 'project') return 'Project';
+  return 'Work';
+}
+
 function DepthCarouselStage({ label, items }: DepthCarouselProps) {
   const [activeIndex, setActiveIndex] = useState(0);
+  const [dragOffset, setDragOffset] = useState<DragOffset>({ x: 0, y: 0 });
   const [ready, setReady] = useState(false);
   const rootRef = useRef<HTMLDivElement>(null);
   const activeLinkRef = useRef<HTMLAnchorElement>(null);
   const fallbackRef = useRef<HTMLElement | null>(null);
   const dragOccurred = useRef(false);
+  const verticalIntent = useRef(false);
   const focusActiveAfterSelection = useRef(false);
   const reducedMotion = useMediaQuery('(prefers-reduced-motion: reduce)');
   const desktopLayout = useMediaQuery('(min-width: 48rem)');
@@ -237,7 +267,11 @@ function DepthCarouselStage({ label, items }: DepthCarouselProps) {
     _event: MouseEvent | TouchEvent | PointerEvent,
     info: PanInfo,
   ) => {
-    const delta = resolveDragDelta(info.offset.x, info.offset.y);
+    setDragOffset({ x: 0, y: 0 });
+    const delta = verticalIntent.current
+      ? 0
+      : resolveHorizontalDragDelta(info.offset.x, info.velocity.x);
+    verticalIntent.current = false;
     if (delta !== 0) move(delta);
     window.requestAnimationFrame(() => {
       dragOccurred.current = false;
@@ -246,7 +280,7 @@ function DepthCarouselStage({ label, items }: DepthCarouselProps) {
 
   const recededIndices = getRecededIndices(activeIndex, itemCount, 3);
   const layerIndices = [activeIndex, ...recededIndices];
-  const activeItem = items[activeIndex];
+  const isDragging = dragOffset.x !== 0 || dragOffset.y !== 0;
 
   return (
     <div
@@ -259,178 +293,240 @@ function DepthCarouselStage({ label, items }: DepthCarouselProps) {
       className="depth-carousel"
       data-depth-carousel
     >
-      <motion.div
-        className="depth-carousel__stage"
-        data-carousel-stage
-        drag={itemCount > 1 ? 'x' : false}
-        dragConstraints={{ left: 0, right: 0 }}
-        dragElastic={0.14}
-        dragMomentum={false}
-        onDragStart={() => {
-          dragOccurred.current = true;
-        }}
-        onDragEnd={handleDragEnd}
-      >
-        {layerIndices.map((itemIndex, depth) => {
-          const item = items[itemIndex];
-          const x = desktopLayout
-            ? [0, 46, 84, 116][depth]
-            : [0, 8, 16, 24][depth];
-          const y = desktopLayout
-            ? [0, 12, 22, 32][depth]
-            : [0, 54, 108, 162][depth];
-          const scale = desktopLayout
-            ? [1, 0.94, 0.88, 0.82][depth]
-            : [1, 0.96, 0.92, 0.88][depth];
-          const rotateY = desktopLayout
-            ? [0, -6, -10, -13][depth]
-            : [0, -3, -5, -7][depth];
-          const motionState = {
-            x,
-            y,
-            scale,
-            rotateY,
-            opacity: [1, 0.9, 0.76, 0.62][depth],
-            filter: [
-              'brightness(1) saturate(1) blur(0px)',
-              'brightness(0.88) saturate(0.82) blur(0.4px)',
-              'brightness(0.76) saturate(0.68) blur(0.8px)',
-              'brightness(0.66) saturate(0.56) blur(1.2px)',
-            ][depth],
-          };
-          const transition = reducedMotion
-            ? { duration: 0 }
-            : { type: 'spring' as const, stiffness: 240, damping: 28 };
-          const shared = {
-            animate: motionState,
-            className: 'depth-carousel__layer',
-            'data-carousel-depth': depth,
-            'data-carousel-layer-item': item.id,
-            initial: false as const,
-            style: { zIndex: 10 - depth },
-            transition,
-          };
-
-          if (depth === 0) {
-            return (
-              <motion.div key={item.id} {...shared}>
-                <ThemeImage alt={item.image.alt} depth={depth} item={item} />
-              </motion.div>
-            );
-          }
-
-          return (
-            <motion.button
-              key={item.id}
-              {...shared}
-              type="button"
-              aria-label={`Bring item ${itemIndex + 1} of ${itemCount} forward`}
-              onKeyDown={handleKeyDown}
-              onClick={(event: ReactMouseEvent<HTMLButtonElement>) => {
-                const wasDrag = dragOccurred.current;
-                focusActiveAfterSelection.current =
-                  !wasDrag && event.detail === 0;
-                setActiveIndex((current) =>
-                  resolveRecededSelection(
-                    current,
-                    itemIndex,
-                    itemCount,
-                    wasDrag,
-                  ),
-                );
-                dragOccurred.current = false;
-              }}
-            >
-              <ThemeImage alt="" depth={depth} item={item} />
-            </motion.button>
-          );
-        })}
-      </motion.div>
-
-      <div className="depth-carousel__companion" data-carousel-role="companion">
-        {activeItem.kind !== 'blog' && (
-          <p className="depth-carousel__eyebrow">
-            {activeItem.kind === 'research'
-              ? 'Research'
-              : activeItem.kind === 'project'
-                ? 'Project'
-                : 'Work'}
-          </p>
-        )}
-        <h3 className="depth-carousel__title">
-          <a
-            ref={activeLinkRef}
-            href={activeItem.href}
+      <div className="depth-carousel__layout">
+        {itemCount > 1 && (
+          <button
+            type="button"
+            className="action action--outline action--compact action--icon depth-carousel__control depth-carousel__control--previous"
+            aria-label={`Previous ${label.toLocaleLowerCase()} item`}
             onKeyDown={handleKeyDown}
+            onClick={() => move(-1)}
           >
-            {activeItem.title}
-          </a>
-        </h3>
-        <p className="depth-carousel__summary">{activeItem.summary}</p>
-        <ul className="depth-carousel__facts">
-          {activeItem.facts.map((fact) => (
-            <li key={fact}>{fact}</li>
-          ))}
-        </ul>
-      </div>
+            <ChevronLeft aria-hidden="true" size={20} />
+          </button>
+        )}
 
-      <p
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
-        className="depth-carousel__position"
-      >
-        Item {activeIndex + 1} of {itemCount}
-      </p>
+        <div className="depth-carousel__stage" data-carousel-stage>
+          {layerIndices.map((itemIndex, depth) => {
+            const item = items[itemIndex];
+            const x = desktopLayout ? DESKTOP_X[depth] : MOBILE_X[depth];
+            const y = desktopLayout ? DESKTOP_Y[depth] : MOBILE_Y[depth];
+            const scale = desktopLayout
+              ? DESKTOP_SCALE[depth]
+              : MOBILE_SCALE[depth];
+            const rotateY = desktopLayout
+              ? DESKTOP_ROTATE_Y[depth]
+              : MOBILE_ROTATE_Y[depth];
+            const motionState = {
+              x: x + dragOffset.x * CONNECTED_DRAG_X[depth],
+              y: y + dragOffset.y * CONNECTED_DRAG_Y[depth],
+              scale,
+              rotateY,
+              opacity: [1, 0.9, 0.76, 0.62][depth],
+              filter: [
+                'brightness(1) saturate(1) blur(0px)',
+                'brightness(0.86) saturate(0.8) blur(0.4px)',
+                'brightness(0.74) saturate(0.66) blur(0.8px)',
+                'brightness(0.64) saturate(0.54) blur(1.2px)',
+              ][depth],
+            };
+            const transition = reducedMotion
+              ? { duration: 0 }
+              : isDragging
+                ? { duration: 0 }
+                : { type: 'spring' as const, stiffness: 250, damping: 28 };
+            const shared = {
+              animate: motionState,
+              className: 'depth-carousel__layer',
+              'data-carousel-depth': depth,
+              'data-carousel-layer-item': item.id,
+              initial: false as const,
+              style: { zIndex: 10 - depth },
+              transition,
+            };
 
-      {itemCount > 1 && (
-        <div className="depth-carousel__navigation">
-          <div className="depth-carousel__control-row">
+            if (depth === 0) {
+              return (
+                <motion.a
+                  key={item.id}
+                  {...shared}
+                  className={`${shared.className} depth-carousel__active`}
+                  ref={activeLinkRef}
+                  href={item.href}
+                  data-carousel-active
+                  data-carousel-kind={item.kind}
+                  drag={itemCount > 1 ? 'x' : false}
+                  dragConstraints={{ left: -112, right: 112 }}
+                  dragElastic={0.08}
+                  dragMomentum={false}
+                  onDragStart={() => {
+                    dragOccurred.current = true;
+                    verticalIntent.current = false;
+                  }}
+                  onDrag={(_event, info) => {
+                    const verticalDistance = Math.abs(info.offset.y);
+                    const horizontalDistance = Math.abs(info.offset.x);
+                    if (
+                      verticalDistance > VERTICAL_INTENT_THRESHOLD &&
+                      verticalDistance >
+                        horizontalDistance * VERTICAL_INTENT_RATIO
+                    ) {
+                      verticalIntent.current = true;
+                      setDragOffset({ x: 0, y: 0 });
+                      return;
+                    }
+                    if (verticalIntent.current) return;
+                    setDragOffset({
+                      x: info.offset.x,
+                      y: clampCrossAxis(info.offset.y),
+                    });
+                  }}
+                  onDragEnd={handleDragEnd}
+                  onKeyDown={handleKeyDown}
+                  onClick={(event: ReactMouseEvent<HTMLAnchorElement>) => {
+                    if (!dragOccurred.current) return;
+                    event.preventDefault();
+                    event.stopPropagation();
+                  }}
+                >
+                  <ThemeImage alt={item.image.alt} depth={depth} item={item} />
+                  <div
+                    className="depth-carousel__overlay"
+                    data-carousel-overlay
+                    data-carousel-active-meta
+                  >
+                    <div
+                      className="depth-carousel__heading-group"
+                      data-carousel-heading
+                    >
+                      {item.kind !== 'blog' && (
+                        <p className="depth-carousel__eyebrow">
+                          {getKindLabel(item.kind)}
+                        </p>
+                      )}
+                      <h3 className="depth-carousel__title">{item.title}</h3>
+                    </div>
+                    <div
+                      className="depth-carousel__details"
+                      data-carousel-details
+                    >
+                      <p
+                        className="depth-carousel__summary"
+                        data-carousel-summary
+                      >
+                        {item.summary}
+                      </p>
+                      <ul className="depth-carousel__facts" data-carousel-facts>
+                        {item.facts.map((fact, factIndex) => (
+                          <li
+                            key={fact}
+                            data-carousel-touch-secondary={
+                              item.kind !== 'blog' && factIndex > 0
+                                ? ''
+                                : undefined
+                            }
+                          >
+                            {fact}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                </motion.a>
+              );
+            }
+
+            return (
+              <motion.button
+                key={item.id}
+                {...shared}
+                type="button"
+                aria-label={`Bring item ${itemIndex + 1} of ${itemCount} forward`}
+                onKeyDown={handleKeyDown}
+                onClick={(event: ReactMouseEvent<HTMLButtonElement>) => {
+                  focusActiveAfterSelection.current = event.detail === 0;
+                  setActiveIndex((current) =>
+                    resolveRecededSelection(
+                      current,
+                      itemIndex,
+                      itemCount,
+                      false,
+                    ),
+                  );
+                }}
+              >
+                <ThemeImage alt="" depth={depth} item={item} />
+              </motion.button>
+            );
+          })}
+        </div>
+
+        {itemCount > 1 && (
+          <>
             <button
               type="button"
-              className="action action--outline action--compact action--icon depth-carousel__control"
-              aria-label={`Previous ${label.toLocaleLowerCase()} item`}
-              onKeyDown={handleKeyDown}
-              onClick={() => move(-1)}
-            >
-              <ChevronLeft aria-hidden="true" size={20} />
-            </button>
-            <button
-              type="button"
-              className="action action--outline action--compact action--icon depth-carousel__control"
+              className="action action--outline action--compact action--icon depth-carousel__control depth-carousel__control--next"
               aria-label={`Next ${label.toLocaleLowerCase()} item`}
               onKeyDown={handleKeyDown}
               onClick={() => move(1)}
             >
               <ChevronRight aria-hidden="true" size={20} />
             </button>
-          </div>
-          <div
-            className="depth-carousel__indicators"
-            aria-label={`${label} positions`}
-          >
-            {items.map((item, itemIndex) => (
-              <button
-                key={item.id}
-                type="button"
-                className="depth-carousel__indicator"
-                aria-label={`Go to item ${itemIndex + 1} of ${itemCount}`}
-                aria-current={itemIndex === activeIndex ? 'step' : undefined}
-                onKeyDown={handleKeyDown}
-                onClick={() => setActiveIndex(itemIndex)}
-              >
-                <span aria-hidden="true" />
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
+            <div
+              className="depth-carousel__indicators"
+              aria-label={`${label} positions`}
+              data-carousel-indicators
+            >
+              {items.map((item, itemIndex) => (
+                <button
+                  key={item.id}
+                  type="button"
+                  className="depth-carousel__indicator"
+                  aria-label={`Go to item ${itemIndex + 1} of ${itemCount}`}
+                  aria-current={itemIndex === activeIndex ? 'step' : undefined}
+                  onKeyDown={handleKeyDown}
+                  onClick={() => setActiveIndex(itemIndex)}
+                >
+                  <span aria-hidden="true" />
+                </button>
+              ))}
+            </div>
+          </>
+        )}
+      </div>
+
+      <p
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+        className="sr-only"
+      >
+        Item {activeIndex + 1} of {itemCount}
+      </p>
     </div>
   );
 }
 
+function CarouselSentinel() {
+  return (
+    <div
+      className="depth-carousel__sentinel"
+      data-carousel-sentinel
+      aria-hidden="true"
+      inert
+    />
+  );
+}
+
 export default function DepthCarousel(props: DepthCarouselProps) {
-  if (props.items.length === 0) return null;
+  const [enhance, setEnhance] = useState(false);
+
+  useEffect(() => {
+    if (props.items.length > 0) setEnhance(true);
+  }, [props.items.length]);
+
+  if (!enhance) return <CarouselSentinel />;
+
   return (
     <CarouselBoundary>
       <DepthCarouselStage {...props} />

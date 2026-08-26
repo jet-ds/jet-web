@@ -1,6 +1,7 @@
 ---
 import type { CollectionDisplayRecord } from '../../features/collections/types';
 import DepthCarousel from '../../features/depth-carousel/DepthCarousel';
+import type { DepthCarouselItem } from '../../features/depth-carousel/types';
 import BlogCard from '../blog/BlogCard.astro';
 import WorkCard from '../works/WorkCard.astro';
 
@@ -10,9 +11,23 @@ interface Props {
 }
 
 const { label, items } = Astro.props;
+const carouselItems: DepthCarouselItem[] = items.map((item) => ({
+  id: item.id,
+  href: item.href,
+  kind: item.kind,
+  title: item.title,
+  summary: item.summary,
+  image: item.image,
+  date: item.date,
+  facts: item.facts,
+}));
 ---
 
-<div data-home-collection-carousel data-carousel-label={label}>
+<div
+  class="home-collection-carousel"
+  data-home-collection-carousel
+  data-carousel-label={label}
+>
   <div data-carousel-fallback>
     <div class="grid grid-cols-1 gap-m md:grid-cols-2 lg:grid-cols-3">
       {
@@ -27,5 +42,5 @@ const { label, items } = Astro.props;
     </div>
   </div>
 
-  <DepthCarousel client:only="react" label={label} items={items} />
+  <DepthCarousel client:visible label={label} items={carouselItems} />
 </div>

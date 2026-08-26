@@ -3,17 +3,22 @@ import {
   fireEvent,
   render,
   screen,
+  within,
   waitFor,
 } from '@testing-library/react';
+import { renderToString } from 'react-dom/server';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import DepthCarousel from '../../../src/features/depth-carousel/DepthCarousel';
-import type { CollectionDisplayRecord } from '../../../src/features/collections/types';
+import type { DepthCarouselItem } from '../../../src/features/depth-carousel/types';
 
-function inventedItems(count: number): CollectionDisplayRecord[] {
+function inventedItems(
+  count: number,
+  kind: DepthCarouselItem['kind'] = 'blog',
+): DepthCarouselItem[] {
   return Array.from({ length: count }, (_, index) => ({
     id: `invented-${index + 1}`,
-    href: `/blog/invented-${index + 1}/`,
-    kind: 'blog' as const,
+    href: `/${kind === 'blog' ? 'blog' : 'works'}/invented-${index + 1}/`,
+    kind,
     title: `Invented item ${index + 1}`,
     summary: `Complete invented summary ${index + 1}.`,
     image: {
@@ -44,7 +49,7 @@ function installMotionPreference(reducedMotion: boolean) {
 }
 
 function renderWithFallback(
-  items: readonly CollectionDisplayRecord[],
+  items: readonly DepthCarouselItem[],
   focusedFallbackIndex?: number,
 ) {
   const host = document.createElement('div');
@@ -84,6 +89,59 @@ describe('DepthCarousel', () => {
     vi.restoreAllMocks();
     vi.unstubAllGlobals();
     document.body.replaceChildren();
+  });
+
+  it('server-renders one inert sentinel without a second collection', () => {
+    const markup = renderToString(
+      <DepthCarousel label="Invented articles" items={inventedItems(3)} />,
+    );
+
+    expect(markup).toContain('data-carousel-sentinel');
+    expect(markup).toContain('aria-hidden="true"');
+    expect(markup).toContain('inert=""');
+    expect(markup).not.toContain('role="region"');
+    expect(markup).not.toContain('/blog/invented-1/');
+    expect(markup).not.toContain('Invented item 1');
+  });
+
+  it('keeps the complete active Blog content inside its one canonical destination', () => {
+    render(
+      <DepthCarousel label="Invented articles" items={inventedItems(3)} />,
+    );
+
+    const destination = screen.getByRole('link');
+    expect(destination).toHaveAttribute('href', '/blog/invented-1/');
+    expect(
+      within(destination).getByRole('heading', { name: 'Invented item 1' }),
+    ).toBeInTheDocument();
+    expect(
+      within(destination).getByText('Complete invented summary 1.'),
+    ).toBeInTheDocument();
+    expect(
+      within(destination).getByText('January 1, 2026'),
+    ).toBeInTheDocument();
+    expect(within(destination).getByText('1 min read')).toBeInTheDocument();
+  });
+
+  it('keeps Work type, title, summary, and facts inside its active destination', () => {
+    render(
+      <DepthCarousel
+        label="Invented works"
+        items={inventedItems(3, 'research')}
+      />,
+    );
+
+    const destination = screen.getByRole('link');
+    expect(within(destination).getByText('Research')).toBeInTheDocument();
+    expect(
+      within(destination).getByRole('heading', { name: 'Invented item 1' }),
+    ).toBeInTheDocument();
+    expect(
+      within(destination).getByText('Complete invented summary 1.'),
+    ).toBeInTheDocument();
+    expect(
+      within(destination).getByText('January 1, 2026'),
+    ).toBeInTheDocument();
   });
 
   it('wraps previous and next controls and announces the dynamic position', () => {

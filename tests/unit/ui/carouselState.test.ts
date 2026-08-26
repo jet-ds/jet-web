@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
   getRecededIndices,
   resolveDragDelta,
+  resolveHorizontalDragDelta,
   resolveRecededSelection,
   wrapIndex,
 } from '../../../src/features/depth-carousel/carouselState';
@@ -47,6 +48,21 @@ describe('depth carousel state', () => {
     'commits only deliberate horizontal drag ($x, $y)',
     ({ x, y, expected }) => {
       expect(resolveDragDelta(x, y)).toBe(expected);
+    },
+  );
+
+  it.each([
+    { x: -47, velocityX: 0, expected: 0 },
+    { x: 47, velocityX: 0, expected: 0 },
+    { x: -48, velocityX: 0, expected: 1 },
+    { x: 48, velocityX: 0, expected: -1 },
+    { x: -12, velocityX: -600, expected: 1 },
+    { x: 12, velocityX: 600, expected: -1 },
+    { x: -12, velocityX: 599, expected: 0 },
+  ])(
+    'commits release from horizontal distance or velocity ($x, $velocityX)',
+    ({ x, velocityX, expected }) => {
+      expect(resolveHorizontalDragDelta(x, velocityX)).toBe(expected);
     },
   );
 });

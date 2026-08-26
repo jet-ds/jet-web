@@ -1,4 +1,5 @@
 const DRAG_COMMIT_THRESHOLD = 48;
+const DRAG_VELOCITY_THRESHOLD = 600;
 const HORIZONTAL_INTENT_RATIO = 1.25;
 
 function requireItemCount(itemCount: number): void {
@@ -44,6 +45,19 @@ export function resolveDragDelta(offsetX: number, offsetY: number): -1 | 0 | 1 {
     return 0;
   }
   return offsetX < 0 ? 1 : -1;
+}
+
+export function resolveHorizontalDragDelta(
+  offsetX: number,
+  velocityX: number,
+): -1 | 0 | 1 {
+  if (Math.abs(offsetX) >= DRAG_COMMIT_THRESHOLD) {
+    return offsetX < 0 ? 1 : -1;
+  }
+  if (Math.abs(velocityX) >= DRAG_VELOCITY_THRESHOLD) {
+    return velocityX < 0 ? 1 : -1;
+  }
+  return 0;
 }
 
 export function resolveRecededSelection(

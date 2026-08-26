@@ -222,8 +222,15 @@ test(
     for (const carousel of await page
       .locator('[data-home-collection-carousel]')
       .all()) {
+      const sentinel = carousel.locator('[data-carousel-sentinel]');
+      if ((await sentinel.count()) > 0) await sentinel.scrollIntoViewIfNeeded();
       await expect(carousel.getByRole('region')).toBeVisible();
       await expect(carousel.getByRole('link')).toHaveCount(1);
+      const position = carousel.getByRole('status');
+      const positionBox = await position.boundingBox();
+      expect(positionBox?.width ?? Infinity).toBeLessThanOrEqual(1);
+      expect(positionBox?.height ?? Infinity).toBeLessThanOrEqual(1);
+      await expect(position).toHaveCSS('clip-path', 'inset(50%)');
     }
     await expectNoSeriousAxeViolations(page, 'Homepage depth carousels');
   },
