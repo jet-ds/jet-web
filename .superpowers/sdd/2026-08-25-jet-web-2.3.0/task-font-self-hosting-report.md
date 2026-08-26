@@ -44,6 +44,19 @@ An initial Egregore run failed only because it overlapped the OG capture's indep
 
 `feat(fonts): self-host site typography`
 
-## Concern
+## Node 24 verification review (2026-08-26)
 
-The available shell runtime was Node `26.0.0`, while the repository specifies Node 24.x; npm emitted an `EBADENGINE` warning during installation. The focused checks nevertheless passed, but a Node 24 re-run remains advisable in the intended release environment.
+All commands in this review ran with `/Users/jet/.cache/codex-runtimes/codex-primary-runtime/dependencies/node/bin` first in `PATH`:
+
+- `node --version` — `v24.19.0`.
+- `npx prettier --check package.json package-lock.json src/styles/fonts.css src/styles/global.css src/components/layout/BaseLayout.astro THIRD_PARTY_NOTICES.md tests/e2e/egregore.spec.ts` — pass.
+- `npm run check` — pass: 0 errors, 0 warnings, 0 hints.
+- `npm run test -- tests/unit/egregore/licenses.test.ts` — pass: 5/5.
+- `npm audit --omit=dev` and `npm audit` — both report 0 vulnerabilities.
+- `npm run build` — pass; build inspection again found no Google Fonts URL and emitted exactly the four expected local Latin WOFF2 assets.
+- `npm run capture:og -- --output=public/images/font-self-hosting-node24-check.jpg` — pass, including the existing font-readiness checks; the temporary output was moved outside the repository.
+- `PLAYWRIGHT_FORCE_FRESH_SERVER=1 npx playwright test tests/e2e/egregore.spec.ts --project=chromium` — pass: 7/7. The request allowlist therefore accepted only the post-self-hosting local font asset path, with the obsolete Google font exception absent.
+
+## Concern resolution
+
+The initial Node 26 provenance concern is resolved by the clean Node `v24.19.0` re-run above. Vite continues to emit its pre-existing esbuild deprecation warnings, but `astro check` reports 0 project diagnostics.
