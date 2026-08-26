@@ -3,12 +3,15 @@ import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import playwrightConfig from '../../../playwright.config';
 import productionPlaywrightConfig from '../../../playwright.production.config';
+import releasePlaywrightConfig from '../../../playwright.release.config';
 
 const packageJson = JSON.parse(readFileSync('package.json', 'utf8')) as {
   scripts: Record<string, string>;
   dependencies: Record<string, string>;
 };
 const astroConfig = readFileSync('astro.config.mjs', 'utf8');
+const foregroundPreviewCommand =
+  'npm run build && exec node node_modules/astro/bin/astro.mjs preview --host 127.0.0.1';
 
 type CheckIgnore = (path: string) => boolean;
 
@@ -33,6 +36,12 @@ describe('static production boundary', () => {
     expect(packageJson.dependencies['@astrojs/vercel']).toBeUndefined();
     expect(astroConfig).not.toContain("from '@astrojs/vercel'");
     expect(astroConfig).not.toContain('adapter:');
+  });
+
+  it('emits browser syntax for the declared support floor', () => {
+    expect(astroConfig).toMatch(
+      /target:\s*\[\s*'chrome111',\s*'safari16\.4',\s*'firefox128',?\s*\]/u,
+    );
   });
 
   it('keeps the local assistant static while hosted-chat artifacts remain absent', () => {
@@ -97,5 +106,62 @@ describe('static production boundary', () => {
     expect(productionPlaywrightConfig.outputDir).toBe(
       'test-results/playwright',
     );
+  });
+
+  it('keeps routine browser verification retry-free and exposes a fresh-server qualification switch', () => {
+    expect(playwrightConfig.retries).toBe(0);
+    expect(packageJson.scripts['verify:release-browsers']).toBe(
+      'playwright test --config=playwright.release.config.ts',
+    );
+
+    const probe = spawnSync(
+      process.execPath,
+      [
+        '--import',
+        'tsx',
+        '--eval',
+        "import('./playwright.config.ts').then(({ default: config }) => console.log(JSON.stringify(config.webServer)))",
+      ],
+      {
+        cwd: process.cwd(),
+        encoding: 'utf8',
+        env: {
+          ...process.env,
+          PLAYWRIGHT_FORCE_FRESH_SERVER: '1',
+        },
+      },
+    );
+    expect(probe.status, probe.stderr).toBe(0);
+    expect(JSON.parse(probe.stdout)).toMatchObject({
+      command: foregroundPreviewCommand,
+      env: {
+        ASTRO_PREVIEW_BACKGROUND: '1',
+        PUBLIC_EGREGORE_E2E: '1',
+      },
+      reuseExistingServer: false,
+    });
+  });
+
+  it('qualifies the release candidate in current Chromium, Firefox, and WebKit', () => {
+    expect(releasePlaywrightConfig.retries).toBe(0);
+    expect(
+      releasePlaywrightConfig.projects?.map(({ name, use }) => ({
+        name,
+        browser: (use as { defaultBrowserType?: string } | undefined)
+          ?.defaultBrowserType,
+      })),
+    ).toEqual([
+      { name: 'chromium', browser: 'chromium' },
+      { name: 'firefox', browser: 'firefox' },
+      { name: 'webkit', browser: 'webkit' },
+    ]);
+    expect(releasePlaywrightConfig.webServer).toMatchObject({
+      command: foregroundPreviewCommand,
+      env: {
+        ASTRO_PREVIEW_BACKGROUND: '1',
+        PUBLIC_EGREGORE_E2E: '1',
+      },
+      reuseExistingServer: false,
+    });
   });
 });

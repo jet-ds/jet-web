@@ -9,4 +9,13 @@ export const EGREGORE_LICENSE_BUNDLE = Object.freeze({
     'utf8',
   ),
   stemmer: readFileSync(resolve('LICENSES/stemmer-2.0.1-MIT.txt'), 'utf8'),
+  reactMarkdown: readFileSync(
+    resolve('LICENSES/react-markdown-10.1.0-MIT.txt'),
+    'utf8',
+  ),
+  remarkGfm: readFileSync(resolve('LICENSES/remark-gfm-4.0.1-MIT.txt'), 'utf8'),
+  markdownRendererDependencies: readFileSync(
+    resolve('LICENSES/egregore-markdown-renderer-dependencies.txt'),
+    'utf8',
+  ),
 });

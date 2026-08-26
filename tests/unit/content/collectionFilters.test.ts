@@ -5,20 +5,21 @@ function renderFilterFixture(): HTMLElement {
   document.body.innerHTML = `
     <div
       data-collection-filter
-      data-filter-param="tag"
-      data-filter-singular="post"
-      data-filter-plural="posts"
-      data-filter-context-template=' tagged with "{value}"'
+      data-filter-param="type"
+      data-filter-singular="work"
+      data-filter-plural="works"
+      data-filter-context-template=" in the {value} category"
     >
       <section data-filter-enhancement hidden>
-        <button type="button" data-filter-value="" aria-pressed="true">All (2)</button>
-        <button type="button" data-filter-value="tutorial" aria-pressed="false">tutorial (1)</button>
-        <button type="button" data-filter-value="missing" aria-pressed="false">missing (0)</button>
-        <p data-filter-status>2 posts</p>
+        <button type="button" data-filter-value="" aria-pressed="true">All (3)</button>
+        <button type="button" data-filter-value="research" aria-pressed="false">Research (2)</button>
+        <button type="button" data-filter-value="project" aria-pressed="false">Projects (1)</button>
+        <p data-filter-status>3 works</p>
       </section>
-      <section data-filter-section>
-        <article data-filter-item data-filter-values='["AI"]'>AI post</article>
-        <article data-filter-item data-filter-values='["tutorial"]'>Tutorial post</article>
+      <section>
+        <article data-filter-item data-filter-values='["research"]'>Newest research</article>
+        <article data-filter-item data-filter-values='["project"]'>Middle project</article>
+        <article data-filter-item data-filter-values='["research"]'>Oldest research</article>
       </section>
       <div data-filter-empty hidden>
         <p data-filter-empty-message></p>
@@ -37,31 +38,32 @@ beforeEach(() => {
 });
 
 describe('initializeCollectionFilters', () => {
-  it('restores and canonicalizes a direct query from rendered filter metadata', () => {
-    window.history.replaceState(null, '', '/blog/?tag=TUTORIAL');
+  it('restores and canonicalizes a direct Works type query', () => {
+    window.history.replaceState(null, '', '/works/?type=RESEARCH');
     const root = renderFilterFixture();
 
     initializeCollectionFilters();
 
     const items = root.querySelectorAll<HTMLElement>('[data-filter-item]');
-    expect(items[0].hidden).toBe(true);
-    expect(items[1].hidden).toBe(false);
+    expect(items[0].hidden).toBe(false);
+    expect(items[1].hidden).toBe(true);
+    expect(items[2].hidden).toBe(false);
     expect(
-      root.querySelector('[data-filter-value="tutorial"]'),
+      root.querySelector('[data-filter-value="research"]'),
     ).toHaveAttribute('aria-pressed', 'true');
     expect(root.querySelector('[data-filter-status]')).toHaveTextContent(
-      '1 post tagged with "tutorial"',
+      '2 works in the research category',
     );
     expect(
       root.querySelector<HTMLElement>('[data-filter-enhancement]')?.hidden,
     ).toBe(false);
-    expect(new URL(window.location.href).searchParams.get('tag')).toBe(
-      'tutorial',
+    expect(new URL(window.location.href).searchParams.get('type')).toBe(
+      'research',
     );
   });
 
   it('normalizes an invalid query to All without hiding static content', () => {
-    window.history.replaceState(null, '', '/blog/?tag=unknown');
+    window.history.replaceState(null, '', '/works/?type=unknown');
     const root = renderFilterFixture();
 
     initializeCollectionFilters();
@@ -75,39 +77,35 @@ describe('initializeCollectionFilters', () => {
     )) {
       expect(item.hidden).toBe(false);
     }
-    expect(new URL(window.location.href).searchParams.has('tag')).toBe(false);
+    expect(new URL(window.location.href).searchParams.has('type')).toBe(false);
   });
 
-  it('updates items, sections, empty state, and URL through native button clicks', () => {
-    window.history.replaceState(null, '', '/blog/');
+  it('changes only visibility and preserves canonical DOM order through native button clicks', () => {
+    window.history.replaceState(null, '', '/works/');
     const root = renderFilterFixture();
     initializeCollectionFilters();
 
     root
-      .querySelector<HTMLButtonElement>('[data-filter-value="missing"]')
+      .querySelector<HTMLButtonElement>('[data-filter-value="research"]')
       ?.click();
 
     expect(
-      root.querySelector<HTMLElement>('[data-filter-section]')?.hidden,
-    ).toBe(true);
+      Array.from(root.querySelectorAll('[data-filter-item]')).map(
+        (item) => item.textContent,
+      ),
+    ).toEqual(['Newest research', 'Middle project', 'Oldest research']);
     expect(root.querySelector<HTMLElement>('[data-filter-empty]')?.hidden).toBe(
-      false,
+      true,
     );
-    expect(root.querySelector('[data-filter-empty-message]')).toHaveTextContent(
-      'No posts found tagged with "missing".',
-    );
-    expect(new URL(window.location.href).searchParams.get('tag')).toBe(
-      'missing',
+    expect(new URL(window.location.href).searchParams.get('type')).toBe(
+      'research',
     );
 
     root.querySelector<HTMLButtonElement>('[data-filter-value=""]')?.click();
 
-    expect(
-      root.querySelector<HTMLElement>('[data-filter-section]')?.hidden,
-    ).toBe(false);
     expect(root.querySelector<HTMLElement>('[data-filter-empty]')?.hidden).toBe(
       true,
     );
-    expect(new URL(window.location.href).searchParams.has('tag')).toBe(false);
+    expect(new URL(window.location.href).searchParams.has('type')).toBe(false);
   });
 });

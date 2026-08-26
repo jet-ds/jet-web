@@ -1,0 +1,21 @@
+---
+import { shouldEmitProductionAnalytics } from '../../features/analytics/trackingPolicy';
+
+const enabled = shouldEmitProductionAnalytics({
+  vercelEnv: process.env.VERCEL_ENV,
+});
+---
+
+{
+  enabled && (
+    <button
+      type="button"
+      data-analytics-settings
+      aria-controls="analytics-consent"
+      aria-expanded="false"
+      class="action action--outline action--default"
+    >
+      Manage analytics preferences
+    </button>
+  )
+}

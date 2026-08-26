@@ -1,5 +1,6 @@
 @import 'tailwindcss';
-@config "../../tailwind.config.mjs";
+@import './fonts.css';
+@import './theme.css';
 @custom-variant dark (&:where(.dark, .dark *));
 
 @layer base {
@@ -26,6 +27,8 @@
       0.9764 0.0045 214.33
     ); /* neutral.1 - Elevated */
     --color-surface-overlay: oklch(1 0 0); /* White - Modals */
+    --color-carousel-vignette: oklch(0.3151 0.0143 256.78); /* neutral.11 */
+    --color-carousel-vignette-text: oklch(0.9764 0.0045 214.33); /* neutral.1 */
     --color-section-brand: oklch(
       0.9502 0.0069 247.9
     ); /* brand.2 - Broad blue sections */
@@ -183,6 +186,8 @@
     --color-surface-base: oklch(0.3151 0.0143 256.78); /* neutral.11 */
     --color-surface-raised: oklch(0.3536 0.0306 248.71); /* brand.10 */
     --color-surface-overlay: oklch(0.384 0.0392 251.63); /* brand.9 */
+    --color-carousel-vignette: oklch(0.27 0.0235 256.43); /* brand.11 */
+    --color-carousel-vignette-text: oklch(0.9764 0.0045 214.33); /* neutral.1 */
     --color-section-brand: oklch(
       0.3536 0.0306 248.71
     ); /* brand.10 - Broad blue sections */
@@ -256,6 +261,32 @@
   }
 
   .text-link:focus-visible {
+    outline: 2px solid var(--color-brand-base);
+    outline-offset: 2px;
+  }
+
+  .article-back-link {
+    align-items: center;
+    color: var(--color-brand-text);
+    display: inline-flex;
+    font-weight: 500;
+    gap: var(--space-3xs);
+    text-decoration: none;
+    text-underline-offset: 4px;
+    transition: color 150ms ease;
+  }
+
+  .article-back-link:hover,
+  .article-back-link:focus-visible {
+    color: var(--color-brand-hover);
+  }
+
+  .article-back-link:hover .article-back-link__label,
+  .article-back-link:focus-visible .article-back-link__label {
+    text-decoration: underline;
+  }
+
+  .article-back-link:focus-visible {
     outline: 2px solid var(--color-brand-base);
     outline-offset: 2px;
   }
@@ -434,6 +465,489 @@
     }
   }
 
+  .home-carousel-canvas {
+    position: relative;
+    overflow: clip;
+  }
+
+  .home-carousel-canvas__ui {
+    position: relative;
+    z-index: 30;
+  }
+
+  .home-collection-carousel {
+    position: relative;
+    width: 100%;
+    min-width: 0;
+  }
+
+  .home-collection-carousel__fallback {
+    position: relative;
+    z-index: 20;
+  }
+
+  [data-home-reveal] {
+    opacity: 1;
+    transform: none;
+  }
+
+  [data-home-reveal][data-home-reveal-state='pending'] {
+    opacity: 0;
+    transform: translate3d(0, 1.125rem, 0);
+  }
+
+  [data-home-reveal='component'][data-home-reveal-state='pending'] {
+    transform: translate3d(0, 1.75rem, 0) scale(0.99);
+  }
+
+  [data-home-reveal][data-home-reveal-state='revealed'] {
+    opacity: 1;
+    transform: none;
+    transition:
+      opacity 620ms cubic-bezier(0.22, 1, 0.36, 1),
+      transform 620ms cubic-bezier(0.22, 1, 0.36, 1);
+    transition-delay: calc(var(--home-reveal-order, 0) * 90ms);
+  }
+
+  [data-home-reveal-order='1'] {
+    --home-reveal-order: 1;
+  }
+
+  [data-home-reveal-order='2'] {
+    --home-reveal-order: 2;
+  }
+
+  .depth-carousel__sentinel {
+    position: absolute;
+    inset: 0 auto auto 0;
+    width: 100%;
+    height: 1px;
+    pointer-events: none;
+  }
+
+  .depth-carousel {
+    box-sizing: border-box;
+    width: 100%;
+    min-width: 0;
+    padding-inline: var(--space-gutter);
+    padding-block-end: var(--space-s);
+    overflow-x: clip;
+    overflow-y: visible;
+  }
+
+  .depth-carousel__layout {
+    display: grid;
+    width: 100%;
+    min-width: 0;
+    grid-template-areas:
+      'stage stage stage stage'
+      'dots dots dots dots'
+      '. previous next .';
+    grid-template-columns: 1fr auto auto 1fr;
+    align-items: center;
+    gap: var(--space-2xs);
+  }
+
+  .depth-carousel__stage {
+    position: relative;
+    z-index: 1;
+    isolation: isolate;
+    box-sizing: content-box;
+    grid-area: stage;
+    width: min(100%, 60rem);
+    aspect-ratio: 16 / 9;
+    margin-inline: auto;
+    padding-block-end: 7rem;
+    overflow: visible;
+    perspective: 75rem;
+    transform-style: preserve-3d;
+  }
+
+  .depth-carousel__layer {
+    position: absolute;
+    top: 0;
+    left: 50%;
+    display: block;
+    width: min(100%, 36rem);
+    aspect-ratio: 16 / 9;
+    translate: -50% 0;
+    overflow: hidden;
+    border: 0;
+    border-radius: 0.75rem;
+    background: var(--color-surface-raised);
+    box-shadow:
+      inset 0 0 0 1px var(--color-border-default),
+      0 1rem 2.5rem
+        color-mix(in oklch, var(--color-text-primary) 18%, transparent),
+      0 0.25rem 0.75rem
+        color-mix(in oklch, var(--color-brand-base) 16%, transparent);
+    transform-origin: center;
+    backface-visibility: hidden;
+  }
+
+  .depth-carousel__surface {
+    position: relative;
+    display: block;
+    width: 100%;
+    height: 100%;
+    padding: 0;
+    overflow: hidden;
+    border: 0;
+    border-radius: inherit;
+    color: inherit;
+    background: transparent;
+    text-align: inherit;
+    appearance: none;
+  }
+
+  .depth-carousel__promotion {
+    position: absolute;
+    z-index: 3;
+    inset: 0;
+    padding: 0;
+    border: 0;
+    border-radius: inherit;
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .depth-carousel__layer::after {
+    position: absolute;
+    z-index: 1;
+    inset: 0;
+    content: '';
+    pointer-events: none;
+    background: var(--color-brand-base);
+    opacity: 0;
+  }
+
+  .depth-carousel__layer[data-carousel-depth='1']::after {
+    opacity: 0.09;
+  }
+
+  .depth-carousel__layer[data-carousel-depth='2']::after {
+    opacity: 0.16;
+  }
+
+  .depth-carousel__layer[data-carousel-depth='3'] {
+    display: none;
+  }
+
+  .depth-carousel__layer[data-carousel-depth='3']::after {
+    opacity: 0.24;
+  }
+
+  .depth-carousel__surface:focus-visible,
+  .depth-carousel__promotion:focus-visible {
+    outline: 3px solid var(--color-accent-base);
+    outline-offset: -4px;
+  }
+
+  .depth-carousel__active {
+    color: var(--color-carousel-vignette-text);
+    touch-action: pan-y;
+  }
+
+  .depth-carousel__active-surface {
+    color: inherit;
+    text-decoration: none;
+    touch-action: pan-y;
+    cursor: grab;
+  }
+
+  .depth-carousel__active-surface:active {
+    cursor: grabbing;
+  }
+
+  .depth-carousel__image {
+    display: block;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  .depth-carousel__overlay {
+    --carousel-overlay-padding: clamp(0.875rem, 2.5vw, 1.5rem);
+
+    position: absolute;
+    z-index: 2;
+    inset: 0;
+    padding: var(--carousel-overlay-padding);
+    color: var(--color-carousel-vignette-text);
+    background: linear-gradient(
+      to top,
+      color-mix(in oklch, var(--color-carousel-vignette) 96%, transparent) 0%,
+      color-mix(in oklch, var(--color-carousel-vignette) 78%, transparent) 42%,
+      transparent 78%
+    );
+  }
+
+  .depth-carousel__heading-group,
+  .depth-carousel__summary,
+  .depth-carousel__facts {
+    transition:
+      opacity 220ms ease,
+      transform 220ms ease;
+  }
+
+  .depth-carousel__content {
+    --carousel-details-offset: 0px;
+
+    position: absolute;
+    right: var(--carousel-overlay-padding);
+    bottom: var(--carousel-overlay-padding);
+    left: var(--carousel-overlay-padding);
+    display: grid;
+    grid-template-rows: auto auto;
+    row-gap: var(--space-2xs);
+  }
+
+  .depth-carousel__heading-group {
+    transform: translate3d(0, var(--carousel-details-offset), 0);
+  }
+
+  .depth-carousel__details-clip {
+    min-height: 0;
+    overflow: hidden;
+  }
+
+  .depth-carousel__details {
+    display: grid;
+    min-height: 0;
+    gap: var(--space-3xs);
+  }
+
+  .depth-carousel__eyebrow {
+    color: var(--color-accent-base);
+    font-size: var(--step--2);
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+  }
+
+  .depth-carousel__title {
+    max-width: 30ch;
+    color: inherit;
+    font-size: clamp(1rem, 0.85rem + 0.75vw, var(--step-2));
+    font-weight: 700;
+    line-height: 1.15;
+    text-wrap: balance;
+  }
+
+  .depth-carousel__summary {
+    max-width: 58ch;
+    color: inherit;
+    font-size: var(--step--1);
+    line-height: 1.45;
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+
+  .depth-carousel__facts {
+    display: flex;
+    flex-wrap: wrap;
+    gap: var(--space-3xs) var(--space-s);
+    color: inherit;
+    font-size: var(--step--2);
+    font-weight: 500;
+    opacity: 0;
+    transform: translateY(0.5rem);
+  }
+
+  .depth-carousel__active:hover .depth-carousel__heading-group,
+  .depth-carousel__active:focus-within .depth-carousel__heading-group {
+    transform: translate3d(0, 0, 0);
+  }
+
+  .depth-carousel__active:hover .depth-carousel__summary,
+  .depth-carousel__active:hover .depth-carousel__facts,
+  .depth-carousel__active:focus-within .depth-carousel__summary,
+  .depth-carousel__active:focus-within .depth-carousel__facts {
+    opacity: 1;
+    transform: translateY(0);
+  }
+
+  .depth-carousel__control {
+    position: relative;
+    z-index: 20;
+    align-self: center;
+    justify-self: center;
+    color: var(--color-accent-base);
+  }
+
+  .depth-carousel__control--previous {
+    grid-area: previous;
+  }
+
+  .depth-carousel__control--next {
+    grid-area: next;
+  }
+
+  .depth-carousel__indicators {
+    position: relative;
+    z-index: 20;
+    display: flex;
+    grid-area: dots;
+    align-items: center;
+    justify-content: center;
+    gap: var(--space-2xs);
+  }
+
+  .depth-carousel__indicator {
+    display: inline-grid;
+    width: 2.75rem;
+    height: 2.75rem;
+    padding: 0;
+    place-items: center;
+    border: 0;
+    border-radius: 50%;
+    color: var(--color-brand-text);
+    background: transparent;
+    cursor: pointer;
+  }
+
+  .depth-carousel__indicator span {
+    width: 0.5rem;
+    height: 0.5rem;
+    border-radius: 50%;
+    background: var(--color-border-strong);
+    transition:
+      background-color 150ms ease,
+      scale 150ms ease;
+  }
+
+  .depth-carousel__indicator:hover span,
+  .depth-carousel__indicator[aria-current='step'] span {
+    background: var(--color-accent-base);
+    scale: 1.35;
+  }
+
+  .depth-carousel__indicator:focus-visible {
+    outline: 2px solid var(--color-brand-base);
+    outline-offset: -2px;
+  }
+
+  @media (min-width: 48rem) {
+    .depth-carousel__layout {
+      grid-template-areas:
+        'previous stage next'
+        '. dots .';
+      grid-template-columns: 2.75rem minmax(0, 60rem) 2.75rem;
+      justify-content: center;
+      column-gap: var(--space-s);
+    }
+
+    .depth-carousel__stage {
+      box-sizing: border-box;
+      height: clamp(20.25rem, 36vw, 23rem);
+      aspect-ratio: auto;
+      padding-block-end: 0;
+    }
+
+    .depth-carousel__layer {
+      top: 50%;
+      translate: -50% -50%;
+    }
+
+    .depth-carousel__layer[data-carousel-depth='3'] {
+      display: block;
+    }
+  }
+
+  @media (max-width: 47.999rem), (hover: none), (pointer: coarse) {
+    .depth-carousel__overlay {
+      display: flex;
+      min-height: 0;
+      flex-direction: column;
+      justify-content: flex-end;
+      gap: var(--space-3xs);
+    }
+
+    .depth-carousel__content {
+      position: static;
+      width: 100%;
+      grid-template-rows: auto 1fr;
+      row-gap: var(--space-3xs);
+    }
+
+    .depth-carousel__heading-group {
+      transform: none;
+    }
+
+    .depth-carousel__details-clip {
+      overflow: visible;
+    }
+
+    .depth-carousel__summary {
+      display: none;
+    }
+
+    .depth-carousel__facts {
+      opacity: 1;
+      transform: none;
+    }
+
+    .depth-carousel__active:not([data-carousel-kind='blog'])
+      [data-carousel-touch-secondary] {
+      display: none;
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    [data-home-reveal],
+    [data-home-reveal][data-home-reveal-state='pending'],
+    [data-home-reveal][data-home-reveal-state='revealed'] {
+      opacity: 1;
+      transform: none;
+      transition: none;
+    }
+
+    .depth-carousel__heading-group,
+    .depth-carousel__content,
+    .depth-carousel__summary,
+    .depth-carousel__facts,
+    .depth-carousel__indicator span {
+      transition: none;
+    }
+  }
+
+  @media (forced-colors: active) {
+    .depth-carousel__control,
+    .depth-carousel__control:hover {
+      color: ButtonText;
+      border-color: ButtonText;
+      background: ButtonFace;
+    }
+
+    .depth-carousel__layer {
+      box-shadow: none;
+    }
+
+    .depth-carousel__layer:not(:focus-visible) {
+      outline: 1px solid CanvasText;
+      outline-offset: -1px;
+    }
+
+    .depth-carousel__layer::after {
+      display: none;
+    }
+
+    .depth-carousel__overlay {
+      color: CanvasText;
+      background: linear-gradient(to top, Canvas 0 62%, transparent 100%);
+    }
+
+    .depth-carousel__indicator {
+      border: 1px solid ButtonText;
+    }
+
+    .depth-carousel__indicator[aria-current='step'] span {
+      background: Highlight;
+    }
+  }
+
   /* Prose/Typography customization for MDX content */
   .prose {
     @apply text-text-primary;
@@ -524,9 +1038,49 @@
   outline-offset: 2px;
 }
 
+/* Long-form Blog and Works prose uses the content-accent link family. */
+.prose-content :where(a):not(:where([class~='not-prose'] *)) {
+  color: var(--color-accent-text);
+  font-weight: 500;
+  text-decoration: none;
+  text-decoration-thickness: 1px;
+  text-underline-offset: 4px;
+  transition-property: color, text-decoration-color;
+  transition-duration: 150ms;
+  transition-timing-function: ease;
+}
+
+.prose-content :where(a):not(:where([class~='not-prose'] *)):hover,
+.prose-content :where(a):not(:where([class~='not-prose'] *)):focus-visible {
+  color: var(--color-accent-text);
+  text-decoration: underline;
+}
+
+.prose-content :where(a):not(:where([class~='not-prose'] *)):focus-visible {
+  outline: 2px solid var(--color-accent-base);
+  outline-offset: 2px;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .prose :where(a):not(:where([class~='not-prose'] *)) {
     transition: none;
+  }
+
+  .prose-content :where(a):not(:where([class~='not-prose'] *)),
+  .article-back-link {
+    transition: none;
+  }
+}
+
+@media (forced-colors: active) {
+  .prose-content :where(a):not(:where([class~='not-prose'] *)) {
+    color: LinkText;
+    text-decoration: underline;
+  }
+
+  .prose-content :where(a):not(:where([class~='not-prose'] *)):focus-visible,
+  .article-back-link:focus-visible {
+    outline-color: Highlight;
   }
 }
 

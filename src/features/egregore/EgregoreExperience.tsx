@@ -68,6 +68,7 @@ import { createRuntimeError } from './runtime/types';
 import { rankAndPackContext } from './selection/rankAndPack';
 import type { ConversationTurn } from './state/types';
 import { useEgregore, type EgregoreDependencies } from './state/useEgregore';
+import { AssistantResponse } from './response/AssistantResponse';
 
 const suggestedQuestions = [
   'What does Jet write about agentic work?',
@@ -130,9 +131,19 @@ function useLiveReducedMotion(): boolean {
   return prefersReducedMotion;
 }
 
-function waitForFakeDelay(delayMs: number): Promise<void> {
+function waitForFakeDelay(
+  delayMs: number,
+  phase: 'capability' | 'load' | 'unload' | 'chunk',
+): Promise<void> {
   return new Promise((resolve) => {
-    window.setTimeout(resolve, delayMs);
+    window.setTimeout(() => {
+      window.dispatchEvent(
+        new CustomEvent('egregore:e2e-scheduler-release', {
+          detail: { phase },
+        }),
+      );
+      resolve();
+    }, delayMs);
   });
 }
 
@@ -185,25 +196,25 @@ function createTestBuildDependencies(): EgregoreDependencies {
       (slowFakeStream || resolvedFakeScenario.slowStream ? 120 : 0);
     const scheduler = {
       waitForChunk: async () => {
-        if (chunkDelayMs > 0) await waitForFakeDelay(chunkDelayMs);
+        if (chunkDelayMs > 0) await waitForFakeDelay(chunkDelayMs, 'chunk');
       },
       ...(configuration.capabilityDelayMs === undefined
         ? {}
         : {
             waitForCapability: async () =>
-              waitForFakeDelay(configuration.capabilityDelayMs!),
+              waitForFakeDelay(configuration.capabilityDelayMs!, 'capability'),
           }),
       ...(configuration.loadDelayMs === undefined
         ? {}
         : {
             waitForLoad: async () =>
-              waitForFakeDelay(configuration.loadDelayMs!),
+              waitForFakeDelay(configuration.loadDelayMs!, 'load'),
           }),
       ...(configuration.unloadDelayMs === undefined
         ? {}
         : {
             waitForUnload: async () =>
-              waitForFakeDelay(configuration.unloadDelayMs!),
+              waitForFakeDelay(configuration.unloadDelayMs!, 'unload'),
           }),
     };
     let completedAssemblies = 0;
@@ -846,6 +857,7 @@ export default function EgregoreExperience({
   return (
     <section
       className="egregore-shell relative flex h-[100svh] flex-col overflow-hidden bg-bg-base text-text-primary min-[48rem]:min-h-[40rem]"
+      data-egregore-role="shell"
       onPointerDownCapture={handlePointerDownCapture}
       onKeyDownCapture={handleInteractionKeyDownCapture}
     >
@@ -1242,6 +1254,7 @@ export default function EgregoreExperience({
                 <div
                   ref={conversationScrollerRef}
                   data-testid="conversation-scroller"
+                  data-egregore-role="conversation"
                   className="egregore-scroll-surface h-full min-h-0 overflow-y-auto px-gutter py-m"
                   aria-label="Conversation"
                   onScroll={handleConversationScroll}
@@ -1275,7 +1288,7 @@ export default function EgregoreExperience({
                         >
                           {turn.content ? (
                             turn.role === 'assistant' ? (
-                              <CitedResponse turn={turn} />
+                              <AssistantResponse turn={turn} />
                             ) : (
                               <p className="whitespace-pre-wrap leading-relaxed">
                                 {turn.content}
@@ -1378,6 +1391,7 @@ function LifecycleStatus({ status }: { status: EgregoreLifecycleStatus }) {
   return (
     <div
       data-testid="lifecycle-visible-status"
+      data-egregore-role="lifecycle"
       aria-hidden="true"
       className="inline-flex w-fit shrink-0 items-center gap-2xs text-xs font-medium text-text-secondary"
     >
@@ -1407,37 +1421,6 @@ function LifecycleStatus({ status }: { status: EgregoreLifecycleStatus }) {
         )}
       </span>
     </div>
-  );
-}
-
-function CitedResponse({ turn }: { turn: ConversationTurn }) {
-  const citations = new Map(
-    turn.citations.map((citation) => [citation.id, citation.source]),
-  );
-  const parts = turn.content.split(/(\[S\d+\])/g);
-
-  return (
-    <p className="whitespace-pre-wrap leading-relaxed">
-      {parts.map((part, index) => {
-        const match = /^\[(S\d+)\]$/.exec(part);
-        const source =
-          match === null ? undefined : citations.get(match[1] as `S${number}`);
-        return source === undefined ? (
-          part
-        ) : (
-          <a
-            key={`${part}-${index}`}
-            href={source.canonicalUrl}
-            target="_blank"
-            rel="noopener noreferrer"
-            className="font-semibold text-accent-text underline decoration-accent-base/50 underline-offset-2 hover:decoration-accent-base"
-            aria-label={`${part} ${source.title}`}
-          >
-            {part}
-          </a>
-        );
-      })}
-    </p>
   );
 }
 
@@ -1614,6 +1597,7 @@ function Composer({
         </p>
       )}
       <form
+        data-egregore-role="composer"
         onSubmit={onSubmit}
         className="mx-auto flex w-full max-w-[var(--container-3xl)] items-end gap-xs rounded-2xl border border-border-default bg-surface-base p-2xs shadow-[0_16px_48px_rgba(31,39,50,0.12)] transition-colors focus-within:border-brand-base"
       >

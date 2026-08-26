@@ -18,6 +18,7 @@ const blogData: BlogFrontmatter = {
   seoTitle: 'Included local retrieval guide',
   seoDescription: 'A compact local retrieval guide.',
   description: 'A guide about durable local retrieval.',
+  summary: 'An invented summary of a durable local retrieval guide.',
   pubDate: new Date('2026-01-02T00:00:00.000Z'),
   updatedDate: new Date('2026-01-03T00:00:00.000Z'),
   author: 'Jet Sanchez',
@@ -25,7 +26,7 @@ const blogData: BlogFrontmatter = {
   status: 'published',
   assistant: true,
   image: {
-    url: 'https://example.com/blog.png',
+    url: 'https://assets.public.blob.vercel-storage.com/images/blog/included-guide-a1b2c3d4.png',
     alt: 'A local retrieval diagram',
     width: 1920,
     height: 1080,
@@ -37,15 +38,17 @@ const worksData: WorksFrontmatter = {
   seoTitle: 'Research Project',
   seoDescription: 'A compact research project summary.',
   description: 'A complete work fixture.',
+  summary: 'An invented summary of a complete research project.',
   type: 'research',
   date: new Date('2025-08-27T00:00:00.000Z'),
   tags: ['AI', 'research'],
   status: 'published',
   assistant: true,
-  featured: true,
   image: {
-    url: 'https://example.com/work.png',
+    url: 'https://assets.public.blob.vercel-storage.com/images/works/research-project-e5f6a7b8.png',
     alt: 'A research illustration',
+    width: 1920,
+    height: 1080,
   },
   links: [{ label: 'View paper', url: 'https://example.com/paper' }],
   venue: 'Example venue',
@@ -100,7 +103,8 @@ function profileEntry(
       status: 'published',
       assistant: true,
       role: 'Marketing Engineer & AI Researcher',
-      organization: 'Digital Squad',
+      organization: 'Example Organization',
+      organizationUrl: 'https://organization.example/',
       researchAreas: ['Artificial Intelligence'],
       technicalFocus: ['Marketing Engineering'],
       connectText: 'Connect about applied AI.',
@@ -445,13 +449,6 @@ describe('source hash contract', () => {
       }),
     ],
     [
-      'featured',
-      worksData,
-      changedWorks((value) => {
-        value.featured = false;
-      }),
-    ],
-    [
       'work image URL',
       worksData,
       changedWorks((value) => {
@@ -551,6 +548,7 @@ describe('source hash contract', () => {
       author: blogData.author,
       updatedDate: new Date(blogData.updatedDate!.toISOString()),
       pubDate: new Date(blogData.pubDate.toISOString()),
+      summary: blogData.summary,
       description: blogData.description,
       seoDescription: blogData.seoDescription,
       seoTitle: blogData.seoTitle,

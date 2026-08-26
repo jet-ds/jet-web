@@ -126,8 +126,15 @@ const doiUrl =
       <article>
         <!-- Back to works link -->
         <div class="mb-l">
-          <a href="/works/" class="text-link inline-flex items-center gap-1">
-            <span class="text-accent-base">←</span> Back to works
+          <a href="/works/" class="article-back-link">
+            <span
+              class="article-back-link__arrow text-accent-base"
+              data-link-role="icon"
+              aria-hidden="true">←</span
+            >
+            <span class="article-back-link__label" data-link-role="label"
+              >Back to works</span
+            >
           </a>
         </div>
 
@@ -163,17 +170,6 @@ const doiUrl =
           <p class="text-lg text-text-secondary mb-m">
             {description}
           </p>
-
-          <!-- Tags -->
-          {
-            tags.length > 0 && (
-              <div class="flex flex-wrap gap-2xs mb-m">
-                {tags.map((tag) => (
-                  <Tag>{tag}</Tag>
-                ))}
-              </div>
-            )
-          }
 
           <!-- Links -->
           {

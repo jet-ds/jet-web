@@ -1,0 +1,261 @@
+---
+import BaseLayout from '../components/layout/BaseLayout.astro';
+import PageWrapper from '../components/layout/PageWrapper.astro';
+import Container from '../components/ui/Container.astro';
+import Link from '../components/ui/Link.astro';
+import AnalyticsSettingsButton from '../components/seo/AnalyticsSettingsButton.astro';
+import { SITE } from '../config/site';
+
+const canonicalUrl = new URL('/privacy/', SITE.siteUrl).toString();
+---
+
+<BaseLayout
+  title="Privacy and Cookies"
+  description="How jetsanchez.com handles analytics, cookies, browser storage, hosting data, and the local-first Egregore experience."
+  canonicalURL={canonicalUrl}
+>
+  <PageWrapper spacing="default">
+    <Container size="md">
+      <article class="mx-auto max-w-[var(--container-3xl)] space-y-xl">
+        <header class="space-y-s">
+          <h1 class="text-5xl font-bold leading-tight text-text-primary">
+            Privacy and Cookies
+          </h1>
+          <p class="text-sm font-medium text-text-tertiary">
+            Effective August 26, 2026
+          </p>
+          <p class="text-lg leading-relaxed text-text-secondary">
+            This notice explains what information is involved when you visit
+            jetsanchez.com, how cookies and browser-held data are used, and the
+            choices available to you.
+          </p>
+        </header>
+
+        <section aria-labelledby="owner" class="space-y-s">
+          <h2 id="owner" class="text-2xl font-bold text-text-primary">
+            Who runs this site
+          </h2>
+          <p class="leading-relaxed text-text-secondary">
+            This is the personal website of {SITE.author}. Questions or privacy
+            requests can be sent to
+            <Link href={`mailto:${SITE.email}`} variant="primary">
+              {SITE.email}
+            </Link>.
+          </p>
+        </section>
+
+        <section aria-labelledby="hosting" class="space-y-s">
+          <h2 id="hosting" class="text-2xl font-bold text-text-primary">
+            Hosting and media delivery
+          </h2>
+          <p class="leading-relaxed text-text-secondary">
+            Vercel hosts and delivers this site and its public media. When your
+            browser requests a page or asset, Vercel may process ordinary
+            request information, such as your IP address, the requested address
+            and time, browser or device details, and security or diagnostic
+            information needed to deliver and protect the service.
+          </p>
+          <p class="leading-relaxed text-text-secondary">
+            Public images and other media may be delivered directly by Vercel.
+            They are published site content, not files submitted by visitors.
+            See the
+            <Link
+              href="https://vercel.com/legal/privacy-notice"
+              variant="primary"
+              external
+            >
+              Vercel Privacy Notice
+            </Link>
+            for more about its practices.
+          </p>
+        </section>
+
+        <section aria-labelledby="analytics" class="space-y-s">
+          <h2 id="analytics" class="text-2xl font-bold text-text-primary">
+            Analytics
+          </h2>
+          <p class="leading-relaxed text-text-secondary">
+            This site uses Google Analytics to understand, in aggregate, how
+            people find and use it. When active, it may collect or derive page
+            visits and interactions, referral or campaign information,
+            approximate location, and browser, operating-system, and device
+            categories. Google Analytics uses identifiers and may set cookies to
+            distinguish browsers and sessions.
+          </p>
+          <p class="leading-relaxed text-text-secondary">
+            Depending on your approximate region, analytics will wait for your
+            Allow choice before it starts. If your approximate location is
+            unavailable, it will also wait for a choice. Elsewhere, you can
+            reject analytics when asked, or change that choice here at any time.
+            The site’s control layer retains only your resulting preference, not
+            raw location data.
+          </p>
+          <p class="leading-relaxed text-text-secondary">
+            Choosing Reject stops future analytics measurement in this browser;
+            choosing Allow enables it. You can review or change your choice with
+            the settings control below.
+          </p>
+          <AnalyticsSettingsButton />
+          <p class="leading-relaxed text-text-secondary">
+            Read the
+            <Link
+              href="https://policies.google.com/privacy"
+              variant="primary"
+              external
+            >
+              Google Privacy Policy
+            </Link>
+            and Google’s
+            <Link
+              href="https://policies.google.com/technologies/cookies"
+              variant="primary"
+              external
+            >
+              explanation of analytics cookies
+            </Link>
+            for more information.
+          </p>
+        </section>
+
+        <section aria-labelledby="browser-storage" class="space-y-s">
+          <h2 id="browser-storage" class="text-2xl font-bold text-text-primary">
+            Cookies and browser storage
+          </h2>
+          <p class="leading-relaxed text-text-secondary">
+            Cookies and browser-held data help this site remember choices and
+            run local features. The main categories are:
+          </p>
+          <dl
+            class="divide-y divide-border-default rounded-xl border border-border-default bg-bg-subtle"
+          >
+            <div class="grid gap-2xs p-s sm:grid-cols-[12rem_1fr] sm:gap-s">
+              <dt class="font-semibold text-text-primary">
+                Analytics preference and cookies
+              </dt>
+              <dd class="leading-relaxed text-text-secondary">
+                Google Analytics may use cookies for visit and session
+                measurement. This site also remembers your analytics choice so
+                it can be applied when you return.
+              </dd>
+            </div>
+            <div class="grid gap-2xs p-s sm:grid-cols-[12rem_1fr] sm:gap-s">
+              <dt class="font-semibold text-text-primary">
+                Theme and interface preferences
+              </dt>
+              <dd class="leading-relaxed text-text-secondary">
+                Your light or dark theme and certain interface preferences may
+                be remembered to make the site easier to use.
+              </dd>
+            </div>
+            <div class="grid gap-2xs p-s sm:grid-cols-[12rem_1fr] sm:gap-s">
+              <dt class="font-semibold text-text-primary">
+                Egregore model and session data
+              </dt>
+              <dd class="leading-relaxed text-text-secondary">
+                Egregore may keep its downloaded model locally for reuse. Its
+                current conversation stays with the browser while you use it.
+              </dd>
+            </div>
+          </dl>
+        </section>
+
+        <section aria-labelledby="egregore" class="space-y-s">
+          <h2 id="egregore" class="text-2xl font-bold text-text-primary">
+            Egregore
+          </h2>
+          <p class="leading-relaxed text-text-secondary">
+            Egregore is a local-first assistant. Opening its page does not
+            download the model. Only the explicit “Load Egregore” action
+            downloads the model, which is about 2 GB and comes directly from
+            Hugging Face.
+          </p>
+          <p class="leading-relaxed text-text-secondary">
+            The model may be kept locally in your browser for reuse. Your
+            prompts, assembled context, responses, and conversation history are
+            processed in your browser and are not sent to a hosted inference
+            service. Hugging Face receives the download request only if you
+            choose to load the model.
+          </p>
+          <p class="leading-relaxed text-text-secondary">
+            The New session control can clear your current conversation. You can
+            also use Egregore’s Remove downloaded model control to remove the
+            locally kept model, or clear site data through your browser.
+          </p>
+          <p class="leading-relaxed text-text-secondary">
+            See the
+            <Link href="/licenses/egregore/" variant="primary">
+              Egregore model and open-source licenses
+            </Link>
+            for the model, runtime, and software notices.
+          </p>
+        </section>
+
+        <section aria-labelledby="external-links" class="space-y-s">
+          <h2 id="external-links" class="text-2xl font-bold text-text-primary">
+            External links
+          </h2>
+          <p class="leading-relaxed text-text-secondary">
+            Links to third-party websites, profiles, papers, and source material
+            take you to services with their own privacy practices. This notice
+            does not control what those services collect after you follow a
+            link.
+          </p>
+        </section>
+
+        <section aria-labelledby="retention" class="space-y-s">
+          <h2 id="retention" class="text-2xl font-bold text-text-primary">
+            Retention
+          </h2>
+          <p class="leading-relaxed text-text-secondary">
+            Analytics information is kept according to Google Analytics settings
+            and only as long as reasonably needed to understand site use,
+            investigate unusual traffic, and maintain the site. Vercel retains
+            hosting and security information under its own policies. Messages
+            you send by email may be kept as needed to reply and maintain an
+            appropriate record of the exchange.
+          </p>
+          <p class="leading-relaxed text-text-secondary">
+            Browser-held data follows the choices described above: preferences
+            remain until you change or clear them, and an Egregore model remains
+            until you remove it, clear site data, or your browser removes it.
+            Egregore conversations are not kept as hosted history.
+          </p>
+        </section>
+
+        <section aria-labelledby="rights" class="space-y-s">
+          <h2 id="rights" class="text-2xl font-bold text-text-primary">
+            Your choices and rights
+          </h2>
+          <p class="leading-relaxed text-text-secondary">
+            You can reject or change analytics, clear or block cookies and other
+            site data in your browser, and remove the Egregore model. Blocking
+            browser-held data may stop preferences or local features from
+            working as intended.
+          </p>
+          <p class="leading-relaxed text-text-secondary">
+            Depending on where you live, you may have rights to ask about,
+            access, correct, delete, restrict, or object to processing of your
+            personal information. Contact
+            <Link href={`mailto:${SITE.email}`} variant="primary">
+              {SITE.email}
+            </Link>
+            with enough detail to understand and respond to your request. For information
+            controlled by Google or Vercel, use the rights and contact routes in their
+            privacy notices.
+          </p>
+        </section>
+
+        <section aria-labelledby="changes" class="space-y-s">
+          <h2 id="changes" class="text-2xl font-bold text-text-primary">
+            Changes to this notice
+          </h2>
+          <p class="leading-relaxed text-text-secondary">
+            This notice may change when the site’s services or data practices
+            change. The effective date at the top will be updated when a revised
+            notice is published.
+          </p>
+        </section>
+      </article>
+    </Container>
+  </PageWrapper>
+</BaseLayout>

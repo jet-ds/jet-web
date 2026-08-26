@@ -1,0 +1,77 @@
+---
+import { getImage } from 'astro:assets';
+import type { CollectionDisplayRecord } from '../../features/collections/types';
+import DepthCarousel from '../../features/depth-carousel/DepthCarousel';
+import type { DepthCarouselItem } from '../../features/depth-carousel/types';
+import BlogCard from '../blog/BlogCard.astro';
+import WorkCard from '../works/WorkCard.astro';
+
+interface Props {
+  label: string;
+  items: readonly CollectionDisplayRecord[];
+}
+
+const { label, items } = Astro.props;
+const carouselImageWidth = 1152;
+const carouselImageHeight = 648;
+const homepageItems = items.map((item) => ({
+  ...item,
+  image: {
+    url: item.image.url,
+    alt: item.image.alt,
+    width: item.image.width,
+    height: item.image.height,
+  },
+}));
+const carouselItems: DepthCarouselItem[] = await Promise.all(
+  homepageItems.map(async (item) => {
+    const image = await getImage({
+      src: item.image.url,
+      width: carouselImageWidth,
+      height: carouselImageHeight,
+      quality: 80,
+    });
+
+    return {
+      id: item.id,
+      href: item.href,
+      kind: item.kind,
+      title: item.title,
+      summary: item.summary,
+      image: {
+        url: image.src,
+        alt: item.image.alt,
+        width: carouselImageWidth,
+        height: carouselImageHeight,
+      },
+      date: item.date,
+      facts: item.facts,
+    };
+  }),
+);
+---
+
+<div
+  class="home-collection-carousel"
+  data-home-collection-carousel
+  data-carousel-label={label}
+>
+  <div
+    class="home-collection-carousel__fallback mx-auto max-w-6xl px-gutter"
+    data-carousel-fallback
+  >
+    <div class="grid grid-cols-1 gap-m md:grid-cols-2 lg:grid-cols-3">
+      {
+        homepageItems.map((record) =>
+          record.kind === 'blog' ? (
+            <BlogCard variant="compact" headingLevel={3} record={record} />
+          ) : (
+            <WorkCard variant="compact" headingLevel={3} record={record} />
+          ),
+        )
+      }
+    </div>
+  </div>
+
+  <DepthCarousel client:visible label={label} items={carouselItems} />
+</div>

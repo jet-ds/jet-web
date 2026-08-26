@@ -6,11 +6,14 @@ import Section from '../components/layout/Section.astro';
 import Container from '../components/ui/Container.astro';
 import Card from '../components/ui/Card.astro';
 import Button from '../components/ui/Button.astro';
-import BlogCard from '../components/blog/BlogCard.astro';
-import WorkCard from '../components/works/WorkCard.astro';
+import HomeCollectionCarousel from '../components/content/HomeCollectionCarousel.astro';
 import Grainient from '../components/ui/Grainient';
 import { SITE, SOCIAL_LINKS } from '../config/site';
-import { isPublished } from '../content/policy';
+import {
+  resolveHomepageBlog,
+  resolveHomepageWorks,
+} from '../features/collections/resolveCollections';
+import type { CollectionDisplayRecord } from '../features/collections/types';
 
 const homepageUrl = `${SITE.siteUrl}/`;
 const profile = await getEntry('profile', 'jet-sanchez');
@@ -20,20 +23,25 @@ if (profile === undefined) {
   );
 }
 
-// Fetch latest blog posts (limit to 3)
-const allBlogPosts = await getCollection('blog', ({ data }) =>
-  isPublished(data),
-);
-const latestPosts = allBlogPosts
-  .sort((a, b) => b.data.pubDate.getTime() - a.data.pubDate.getTime())
-  .slice(0, 3);
+const allBlogPosts = await getCollection('blog');
+const latestPosts = resolveHomepageBlog(allBlogPosts);
 
-// Fetch featured works
-const allWorks = await getCollection('works', ({ data }) => isPublished(data));
-const featuredWorks = allWorks
-  .filter((work) => work.data.featured === true)
-  .sort((a, b) => b.data.date.getTime() - a.data.date.getTime())
-  .slice(0, 3);
+const allWorks = await getCollection('works');
+const selectedWorks = resolveHomepageWorks(allWorks);
+
+function toItemListItems(records: readonly CollectionDisplayRecord[]) {
+  return records.map((record) => {
+    const url = new URL(record.href, SITE.siteUrl).toString();
+    const entityFragment =
+      record.kind === 'blog'
+        ? 'blogposting'
+        : record.kind === 'research'
+          ? 'scholarlyarticle'
+          : 'creativework';
+
+    return { url, entityId: `${url}#${entityFragment}` };
+  });
+}
 ---
 
 <BaseLayout
@@ -58,9 +66,31 @@ const featuredWorks = allWorks
     familyName={SITE.familyName}
     alternateName={SITE.alternateNames}
     jobTitle={profile.data.role}
+    worksFor={{
+      name: profile.data.organization,
+      url: profile.data.organizationUrl,
+    }}
     email={SITE.email}
     url={homepageUrl}
     sameAs={Object.values(SOCIAL_LINKS).filter((url) => url)}
+  />
+
+  <StructuredData
+    slot="structured-data"
+    type="itemlist"
+    id={`${homepageUrl}#latest-articles`}
+    url={homepageUrl}
+    name="Latest Articles"
+    items={toItemListItems(latestPosts)}
+  />
+
+  <StructuredData
+    slot="structured-data"
+    type="itemlist"
+    id={`${homepageUrl}#latest-works`}
+    url={homepageUrl}
+    name="Latest Works"
+    items={toItemListItems(selectedWorks)}
   />
 
   <!-- Hero Section -->
@@ -119,109 +149,132 @@ const featuredWorks = allWorks
     </Container>
   </Section>
 
-  <!-- Latest Blog Posts -->
-  <Section spacing="default" background="subtle">
-    <Container size="lg">
-      <div class="flex justify-between items-center mb-l">
-        <h2 class="text-3xl font-bold leading-tight text-text-primary">
-          Latest Articles
-        </h2>
-        <Button href="/blog/" variant="ghost"
-          ><span>View all <span class="text-accent-base">→</span></span></Button
+  <div data-home-reveal-scope>
+    <!-- Blog -->
+    <Section
+      spacing="default"
+      background="subtle"
+      class="home-carousel-canvas"
+      data-home-carousel-canvas
+    >
+      <Container size="lg">
+        <div
+          class="home-carousel-canvas__ui mb-l flex flex-col items-center gap-2xs text-center"
+          data-home-reveal="text"
         >
-      </div>
-
-      {
-        latestPosts.length > 0 ? (
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-m">
-            {latestPosts.map((post) => (
-              <BlogCard
-                variant="compact"
-                slug={post.id}
-                title={post.data.title}
-                shortTitle={post.data.shortTitle}
-                description={post.data.description}
-                summary={post.data.summary}
-                pubDate={post.data.pubDate}
-                tags={post.data.tags}
-                image={post.data.image}
-                content={post.body}
-              />
-            ))}
-          </div>
-        ) : (
-          <Card>
-            <p class="text-center text-text-tertiary py-l">
-              No blog posts yet. Check back soon!
-            </p>
-          </Card>
-        )
-      }
-    </Container>
-  </Section>
-
-  <!-- Featured Works -->
-  <Section spacing="default">
-    <Container size="lg">
-      <div class="flex justify-between items-center mb-l">
-        <h2 class="text-3xl font-bold leading-tight text-text-primary">
-          Featured Works
-        </h2>
-        <Button href="/works/" variant="ghost"
-          ><span>View all <span class="text-accent-base">→</span></span></Button
-        >
-      </div>
-
-      {
-        featuredWorks.length > 0 ? (
-          <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-m">
-            {featuredWorks.map((work) => (
-              <WorkCard
-                variant="compact"
-                slug={work.id}
-                title={work.data.title}
-                shortTitle={work.data.shortTitle}
-                description={work.data.description}
-                summary={work.data.summary}
-                type={work.data.type}
-                date={work.data.date}
-                tags={work.data.tags}
-                featured={work.data.featured}
-                image={work.data.image}
-                venue={work.data.venue}
-                technologies={work.data.technologies}
-                links={work.data.links}
-              />
-            ))}
-          </div>
-        ) : (
-          <Card>
-            <p class="text-center text-text-tertiary py-l">
-              No featured works yet. Check back soon!
-            </p>
-          </Card>
-        )
-      }
-    </Container>
-  </Section>
-
-  <!-- Call to Action -->
-  <Section spacing="default" background="brand">
-    <Container size="md">
-      <div class="text-center">
-        <h2 class="text-3xl font-bold mb-s text-text-primary">Let's Connect</h2>
-        <p class="text-lg text-text-secondary mb-l">
-          Interested in collaborating or have questions? Feel free to reach out!
-        </p>
-        <div class="flex flex-wrap justify-center gap-s">
-          <Button href="/contact/" variant="accent" density="immersive"
-            >Contact me</Button
-          >
-          <Button href="/about/" variant="brand" density="immersive"
-            >Learn more</Button
+          <h2 class="text-3xl font-bold leading-tight text-text-primary">
+            Blog
+          </h2>
+          <Button href="/blog/" variant="ghost"
+            ><span>View all <span class="text-accent-base">→</span></span
+            ></Button
           >
         </div>
+      </Container>
+
+      <div data-home-reveal="component">
+        {
+          latestPosts.length > 0 ? (
+            <HomeCollectionCarousel
+              label="Latest Articles"
+              items={latestPosts}
+            />
+          ) : (
+            <Container size="lg">
+              <Card>
+                <p class="text-center text-text-tertiary py-l">
+                  No blog posts yet. Check back soon!
+                </p>
+              </Card>
+            </Container>
+          )
+        }
       </div>
-    </Container>
-  </Section>
+    </Section>
+
+    <!-- Works -->
+    <Section
+      spacing="default"
+      class="home-carousel-canvas"
+      data-home-carousel-canvas
+    >
+      <Container size="lg">
+        <div
+          class="home-carousel-canvas__ui mb-l flex flex-col items-center gap-2xs text-center"
+          data-home-reveal="text"
+        >
+          <h2 class="text-3xl font-bold leading-tight text-text-primary">
+            Works
+          </h2>
+          <Button href="/works/" variant="ghost"
+            ><span>View all <span class="text-accent-base">→</span></span
+            ></Button
+          >
+        </div>
+      </Container>
+
+      <div data-home-reveal="component">
+        {
+          selectedWorks.length > 0 ? (
+            <HomeCollectionCarousel
+              label="Latest Works"
+              items={selectedWorks}
+            />
+          ) : (
+            <Container size="lg">
+              <Card>
+                <p class="text-center text-text-tertiary py-l">
+                  No selected works yet. Check back soon!
+                </p>
+              </Card>
+            </Container>
+          )
+        }
+      </div>
+    </Section>
+
+    <!-- Call to Action -->
+    <Section spacing="default" background="brand">
+      <Container size="md">
+        <div class="text-center">
+          <h2
+            class="text-3xl font-bold mb-s text-text-primary"
+            data-home-reveal="text"
+            data-home-reveal-group="cta"
+            data-home-reveal-order="0"
+          >
+            Let's Connect
+          </h2>
+          <p
+            class="text-lg text-text-secondary mb-l"
+            data-home-reveal="text"
+            data-home-reveal-group="cta"
+            data-home-reveal-order="1"
+          >
+            Interested in collaborating or have questions? Feel free to reach
+            out!
+          </p>
+          <div
+            class="flex flex-wrap justify-center gap-s"
+            data-home-reveal="component"
+            data-home-reveal-group="cta"
+            data-home-reveal-order="2"
+          >
+            <Button href="/contact/" variant="accent" density="immersive"
+              >Contact me</Button
+            >
+            <Button href="/about/" variant="brand" density="immersive"
+              >Learn more</Button
+            >
+          </div>
+        </div>
+      </Container>
+    </Section>
+  </div>
+
+  <script>
+    import { installHomeRevealController } from '../features/home-reveal/homeRevealController';
+
+    installHomeRevealController(document);
+  </script>
 </BaseLayout>

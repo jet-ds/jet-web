@@ -1,66 +1,298 @@
 ---
-/**
- * Google Analytics 4 (GA4) Integration with Partytown
- *
- * Adds GA4 tracking to the page with:
- * - Partytown web worker execution (non-blocking)
- * - Single page_view tracking (no duplicates)
- * - ClientRouter integration for SPA navigation
- *
- * Configuration:
- * - send_page_view: false - Disables automatic page_view on gtag('config')
- * - Manual page_view via astro:page-load - Single tracking for all page loads
- *
- * Usage:
- * - Import in BaseLayout.astro and place in <head>
- * - Set measurementId prop from SITE.ga4MeasurementId
- */
+import {
+  ANALYTICS_CONTROL_PARAM,
+  ANALYTICS_OPT_OUT_COOKIE,
+  shouldEmitProductionAnalytics,
+} from '../../features/analytics/trackingPolicy';
+import {
+  ANALYTICS_CONSENT_COOKIE,
+  ANALYTICS_POLICY_COOKIE,
+} from '../../features/analytics/regionalPolicy';
 
 export interface Props {
   measurementId?: string;
 }
 
 const { measurementId } = Astro.props;
-
-// Don't render if no measurement ID provided
-if (!measurementId) {
-  console.warn('GA4: No measurement ID provided, skipping analytics');
-}
-
-// Optional: Skip analytics in development
-const isDevelopment = import.meta.env.DEV;
-const shouldSkipAnalytics = isDevelopment && import.meta.env.PUBLIC_DISABLE_ANALYTICS_DEV === 'true';
-
-if (shouldSkipAnalytics) {
-  console.log('GA4: Analytics disabled in development');
-}
+const shouldEmitAnalytics =
+  measurementId !== undefined &&
+  shouldEmitProductionAnalytics({ vercelEnv: process.env.VERCEL_ENV });
 ---
 
-{measurementId && !shouldSkipAnalytics && (
-  <>
-    <!-- Analytics Tracking -->
-    <script is:inline type="text/partytown" async src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`}></script>
-    <script is:inline type="text/partytown" define:vars={{ measurementId }}>
-      window.dataLayer = window.dataLayer || [];
-      // eslint-disable-next-line prefer-rest-params -- Google's standard dataLayer shim deliberately forwards its arguments object.
-      window.gtag = function() { dataLayer.push(arguments); };
-      gtag('js', new Date());
-      gtag('config', measurementId, { send_page_view: false });
-    </script>
+{
+  shouldEmitAnalytics && (
+    <script
+      is:inline
+      define:vars={{
+        measurementId,
+        controlParam: ANALYTICS_CONTROL_PARAM,
+        optOutCookie: ANALYTICS_OPT_OUT_COOKIE,
+        policyCookie: ANALYTICS_POLICY_COOKIE,
+        consentCookie: ANALYTICS_CONSENT_COOKIE,
+      }}
+    >
+      const controllerKey = '__jetAnalyticsController';
+      let controller = Reflect.get(window, controllerKey);
 
-    <!-- Page View Tracking -->
-    <script is:inline>
-      window.dataLayer = window.dataLayer || [];
-      // eslint-disable-next-line prefer-rest-params -- Google's standard dataLayer shim deliberately forwards its arguments object.
-      window.gtag = function() { dataLayer.push(arguments); };
+      if (controller === undefined) {
+        let policy = 'strict';
+        let consent;
+        let analyticsAllowed = false;
+        let analyticsStarted = false;
+        let partytownReady = false;
+        let settingsOpen = false;
+        let settingsTrigger;
+        const pendingPageViews = [];
 
-      document.addEventListener('astro:page-load', () => {
-        window.gtag('event', 'page_view', {
-          page_location: window.location.href,
-          page_path: window.location.pathname,
-          page_title: document.title,
+        const readCookie = (name) => {
+          const prefix = `${name}=`;
+          const entry = document.cookie
+            .split(';')
+            .map((cookie) => cookie.trim())
+            .find((cookie) => cookie.startsWith(prefix));
+          return entry?.slice(prefix.length);
+        };
+
+        const writeCookie = (name, value, maxAge) => {
+          document.cookie = `${name}=${value}; Max-Age=${maxAge}; Path=/; Secure; SameSite=Lax`;
+        };
+
+        const clearCookie = (name) => writeCookie(name, '', 0);
+
+        const processControl = () => {
+          const url = new URL(window.location.href);
+          const control = url.searchParams.get(controlParam);
+
+          if (control === 'off') {
+            writeCookie(optOutCookie, '1', 31536000);
+            writeCookie(consentCookie, 'reject', 15552000);
+          } else if (control === 'on') {
+            clearCookie(optOutCookie);
+            clearCookie(consentCookie);
+          }
+
+          if (control === 'off' || control === 'on') {
+            url.searchParams.delete(controlParam);
+            window.history.replaceState(
+              window.history.state,
+              '',
+              `${url.pathname}${url.search}${url.hash}`,
+            );
+          }
+
+          const storedPolicy = readCookie(policyCookie);
+          policy = storedPolicy === 'standard' ? 'standard' : 'strict';
+          const storedConsent = readCookie(consentCookie);
+          consent =
+            storedConsent === 'allow' || storedConsent === 'reject'
+              ? storedConsent
+              : undefined;
+          const emergencyOptOut = readCookie(optOutCookie) === '1';
+          analyticsAllowed =
+            !emergencyOptOut &&
+            consent !== 'reject' &&
+            (policy === 'standard' || consent === 'allow');
+
+          document.documentElement.dataset.analyticsPolicy = policy;
+          document.documentElement.dataset.analyticsConsent =
+            consent ?? 'unset';
+          Reflect.set(
+            window,
+            `ga-disable-${measurementId}`,
+            !analyticsAllowed,
+          );
+          if (!analyticsAllowed) pendingPageViews.length = 0;
+          return analyticsAllowed;
+        };
+
+        const activateAnalyticsScripts = () => {
+          if (!analyticsAllowed) return;
+          const library = document.querySelector(
+            '[data-jet-analytics-script="library"]',
+          );
+          const shim = document.querySelector(
+            '[data-jet-analytics-script="shim"]',
+          );
+          if (
+            !(library instanceof HTMLScriptElement) ||
+            !(shim instanceof HTMLScriptElement)
+          ) {
+            return;
+          }
+
+          library.type = 'text/partytown';
+          const librarySource = library.dataset.src;
+          if (librarySource !== undefined) library.src = librarySource;
+          shim.type = 'text/partytown';
+          analyticsStarted = true;
+        };
+
+        const renderConsent = (focusFirstAction = false) => {
+          const panel = document.querySelector(
+            '[data-analytics-consent-panel]',
+          );
+          if (!(panel instanceof HTMLElement)) return;
+
+          const shouldShow =
+            settingsOpen || (policy === 'strict' && consent === undefined);
+          for (const settingsButton of document.querySelectorAll(
+            '[data-analytics-settings]',
+          )) {
+            settingsButton.setAttribute(
+              'aria-expanded',
+              settingsOpen ? 'true' : 'false',
+            );
+          }
+          const closeButton = panel.querySelector('[data-analytics-close]');
+          if (closeButton instanceof HTMLElement) {
+            closeButton.hidden = !settingsOpen;
+          }
+          panel.hidden = !shouldShow;
+          if (!shouldShow || !focusFirstAction) return;
+
+          const firstAction = panel.querySelector(
+            '[data-analytics-choice="reject"]',
+          );
+          if (firstAction instanceof HTMLElement) firstAction.focus();
+        };
+
+        const flushPendingPageViews = () => {
+          processControl();
+          if (
+            !analyticsAllowed ||
+            !analyticsStarted ||
+            !partytownReady ||
+            pendingPageViews.length === 0
+          ) {
+            return;
+          }
+
+          const gtag = Reflect.get(window, 'gtag');
+          if (typeof gtag !== 'function') return;
+
+          gtag('js', new Date());
+          while (pendingPageViews.length > 0) {
+            const pageView = pendingPageViews.shift();
+            gtag('config', measurementId, { send_page_view: false });
+            gtag('event', 'page_view', pageView);
+          }
+        };
+
+        const snapshotPageView = () =>
+          Object.freeze({
+            page_location: window.location.href,
+            page_path: window.location.pathname,
+            page_title: document.title,
+          });
+
+        const reconcile = () => {
+          processControl();
+          renderConsent();
+        };
+
+        const onPageLoad = () => {
+          reconcile();
+          if (!analyticsAllowed) return;
+          pendingPageViews.push(snapshotPageView());
+          flushPendingPageViews();
+        };
+
+        const onAfterSwap = () => {
+          partytownReady = false;
+          settingsOpen = false;
+          settingsTrigger = undefined;
+          reconcile();
+        };
+
+        const onPartytownReady = () => {
+          partytownReady = true;
+          flushPendingPageViews();
+        };
+
+        const onDocumentClick = (event) => {
+          if (!(event.target instanceof Element)) return;
+          const settingsButton = event.target.closest(
+            '[data-analytics-settings]',
+          );
+          if (settingsButton !== null) {
+            settingsTrigger = settingsButton;
+            settingsOpen = true;
+            renderConsent(true);
+            return;
+          }
+
+          const closeButton = event.target.closest('[data-analytics-close]');
+          if (closeButton !== null) {
+            settingsOpen = false;
+            renderConsent();
+            if (settingsTrigger instanceof HTMLElement) {
+              settingsTrigger.focus();
+            }
+            return;
+          }
+
+          const choiceButton = event.target.closest(
+            '[data-analytics-choice]',
+          );
+          if (!(choiceButton instanceof HTMLElement)) return;
+          const choice = choiceButton.dataset.analyticsChoice;
+          if (choice === 'allow') {
+            writeCookie(consentCookie, 'allow', 15552000);
+            clearCookie(optOutCookie);
+            window.location.reload();
+            return;
+          }
+          if (choice === 'reject') {
+            writeCookie(consentCookie, 'reject', 15552000);
+            const focusTarget =
+              settingsTrigger ??
+              document.querySelector('[data-analytics-settings]') ??
+              document.querySelector('main');
+            settingsOpen = false;
+            processControl();
+            renderConsent();
+            if (focusTarget instanceof HTMLElement) {
+              if (focusTarget.matches('main')) focusTarget.tabIndex = -1;
+              focusTarget.focus();
+            }
+          }
+        };
+
+        const subscribeToPinnedPartytownReady = (listener) => {
+          // The @astrojs/partytown@2.1.7 lock resolves Qwik Partytown 0.13.2; revalidate this adapter on updates.
+          document.addEventListener('pt0', listener);
+        };
+
+        controller = { activateAnalyticsScripts, reconcile };
+        Reflect.set(window, controllerKey, controller);
+        document.addEventListener('click', onDocumentClick);
+        document.addEventListener('DOMContentLoaded', () => renderConsent(), {
+          once: true,
         });
-      });
+        document.addEventListener('astro:after-swap', onAfterSwap);
+        document.addEventListener('astro:page-load', onPageLoad);
+        subscribeToPinnedPartytownReady(onPartytownReady);
+      }
+
+      controller.reconcile();
     </script>
-  </>
-)}
+    <script
+      is:inline
+      type="text/plain"
+      data-jet-analytics-script="library"
+      data-src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`}
+    />
+    <script
+      is:inline
+      type="text/plain"
+      data-jet-analytics-script="shim"
+    >
+      window.dataLayer = window.dataLayer || [];
+      // eslint-disable-next-line prefer-rest-params -- Google's dataLayer shim forwards its arguments object.
+      window.gtag = function () { dataLayer.push(arguments); };
+    </script>
+    <script is:inline data-astro-rerun>
+      Reflect.get(window, '__jetAnalyticsController')?.activateAnalyticsScripts();
+    </script>
+  )
+}

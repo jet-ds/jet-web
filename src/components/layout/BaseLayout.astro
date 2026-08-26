@@ -4,6 +4,7 @@ import ThemeScript from '../ui/ThemeScript.astro';
 import SEO from '../seo/SEO.astro';
 import StructuredData from '../seo/StructuredData.astro';
 import GoogleAnalytics from '../seo/GoogleAnalytics.astro';
+import AnalyticsConsent from '../seo/AnalyticsConsent.astro';
 import DockWrapper from '../navigation/DockWrapper.astro';
 import Footer from './Footer.astro';
 import { NAV_ITEMS, SITE } from '../../config/site';
@@ -101,14 +102,6 @@ const navigationElements = NAV_ITEMS.map((item) => ({
     <!-- Site Navigation -->
     <StructuredData type="navigation" navigationElements={navigationElements} />
 
-    <!-- Fonts -->
-    <link rel="preconnect" href="https://fonts.googleapis.com" />
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
-    <link
-      href="https://fonts.googleapis.com/css2?family=Brawler:wght@400;700&family=Work+Sans:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;700&display=swap"
-      rel="stylesheet"
-    />
-
     <!-- Site Icons -->
     <link rel="icon" type="image/x-icon" href="/favicon.ico" />
     <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png" />
@@ -168,6 +161,7 @@ const navigationElements = NAV_ITEMS.map((item) => ({
     <main class:list={['flex-1', immersive ? 'min-h-0' : 'pt-0 md:pt-24']}>
       <slot />
     </main>
+    <AnalyticsConsent />
     {!immersive && <Footer />}
   </body>
 </html>

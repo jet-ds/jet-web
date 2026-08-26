@@ -4,31 +4,51 @@ import BaseLayout from '../../components/layout/BaseLayout.astro';
 import PageWrapper from '../../components/layout/PageWrapper.astro';
 import Container from '../../components/ui/Container.astro';
 import BlogCard from '../../components/blog/BlogCard.astro';
-import CollectionFilterEnhancement from '../../components/filters/CollectionFilterEnhancement.astro';
-import { isPublished } from '../../content/policy';
-import { sortBlogPosts } from '../../utils/sortByDate';
-import { getAllTags, getTagCounts } from '../../utils/filterByTag';
+import BlogSearchEnhancement from '../../components/blog/BlogSearchEnhancement.astro';
+import StructuredData from '../../components/seo/StructuredData.astro';
+import { SITE } from '../../config/site';
+import { resolveBlogCollection } from '../../features/collections/resolveCollections';
+import type { SearchableBlogRecord } from '../../features/blog-search/searchBlogPosts';
 
-const allPosts = await getCollection('blog', ({ data }) => isPublished(data));
-const sortedPosts = sortBlogPosts(allPosts);
-const allTags = getAllTags(sortedPosts);
-const tagCounts = getTagCounts(sortedPosts);
+const sortedPosts = resolveBlogCollection(await getCollection('blog'));
+const searchRecords: SearchableBlogRecord[] = sortedPosts.map((post) => {
+  if (!post.search) {
+    throw new Error(`Blog display record ${post.id} is missing search fields.`);
+  }
+  return {
+    id: post.id,
+    title: post.search.title,
+    shortTitle: post.search.shortTitle,
+    description: post.search.description,
+    summary: post.search.summary,
+    tags: post.search.tags,
+    pubDate: post.date,
+  };
+});
 const pageDescription =
   "Explore Jet Sanchez's articles on AI, agentic software development, local-first tools, technical workflows, and the systems shaping modern work.";
 const pageSubheading =
   'Explore my articles on AI, agentic software development, local-first tools, technical workflows, and the systems shaping modern work.';
+const blogUrl = new URL('/blog/', SITE.siteUrl).toString();
+const blogItems = sortedPosts.map((post) => {
+  const url = new URL(post.href, SITE.siteUrl).toString();
+  return { url, entityId: `${url}#blogposting` };
+});
 ---
 
 <BaseLayout title="Blog" description={pageDescription}>
+  <StructuredData
+    slot="structured-data"
+    type="itemlist"
+    id={`${blogUrl}#blog-posts`}
+    url={blogUrl}
+    name="Blog Posts"
+    items={blogItems}
+  />
+
   <PageWrapper spacing="compact">
     <Container size="lg">
-      <div
-        data-collection-filter
-        data-filter-param="tag"
-        data-filter-singular="post"
-        data-filter-plural="posts"
-        data-filter-context-template={' tagged with "{value}"'}
-      >
+      <div data-blog-search>
         <div class="mb-xl">
           <h1 class="text-5xl font-bold leading-tight mb-s">Blog</h1>
           <p class="text-xl text-text-tertiary max-w-[var(--container-2xl)]">
@@ -37,57 +57,67 @@ const pageSubheading =
         </div>
 
         {
-          sortedPosts.length > 0 && (
-            <section
-              data-filter-enhancement
-              hidden
-              aria-labelledby="blog-filter-heading"
-              class="mb-l"
-            >
-              <h2
-                id="blog-filter-heading"
-                class="text-2xl font-bold leading-tight mb-s"
-              >
-                Browse by tag
-              </h2>
-              <div
-                role="group"
-                aria-label="Filter posts by tag"
-                class="flex flex-wrap gap-2xs"
-              >
-                <button
-                  type="button"
-                  data-filter-value=""
-                  data-action-variant="filter"
-                  data-action-density="compact"
-                  aria-pressed="true"
-                  class="action action--filter action--compact rounded-full px-s text-sm"
+          searchRecords.length > 0 && (
+            <section data-blog-search-enhancement hidden class="mb-l">
+              <form role="search" class="max-w-[var(--container-xl)]">
+                <label
+                  for="blog-search-input"
+                  class="block text-base font-semibold text-text-primary mb-2xs"
                 >
-                  All
-                  <span class="text-xs">({sortedPosts.length})</span>
-                </button>
-                {allTags.map((tag) => (
+                  Search blog posts
+                </label>
+                <div class="flex flex-col gap-2xs sm:flex-row">
+                  <div class="relative min-w-0 flex-1">
+                    <svg
+                      data-blog-search-icon
+                      aria-hidden="true"
+                      focusable="false"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      class="pointer-events-none absolute left-s top-1/2 size-5 -translate-y-1/2 text-text-tertiary"
+                    >
+                      <circle cx="11" cy="11" r="8" />
+                      <path d="m21 21-4.3-4.3" />
+                    </svg>
+                    <input
+                      id="blog-search-input"
+                      data-blog-search-input
+                      type="search"
+                      name="q"
+                      autocomplete="off"
+                      aria-describedby="blog-search-instruction"
+                      class="min-h-11 w-full min-w-0 rounded-lg border border-border-default bg-surface-base py-2xs pr-s pl-xl text-text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-base"
+                    />
+                  </div>
                   <button
                     type="button"
-                    data-filter-value={tag}
-                    data-action-variant="filter"
-                    data-action-density="compact"
-                    aria-pressed="false"
-                    class="action action--filter action--compact rounded-full px-s text-sm"
+                    data-blog-search-clear
+                    data-action-variant="neutral"
+                    data-action-density="default"
+                    hidden
+                    class="action action--neutral action--default px-s"
                   >
-                    {tag}
-                    <span class="text-xs">({tagCounts[tag]})</span>
+                    Clear search
                   </button>
-                ))}
-              </div>
+                </div>
+                <p id="blog-search-instruction" class="sr-only">
+                  Search titles, summaries, and topics. Results update as you
+                  type.
+                </p>
+              </form>
               <p
-                data-filter-status
+                data-blog-search-status
                 role="status"
                 aria-live="polite"
                 aria-atomic="true"
                 class="mt-s text-sm text-text-tertiary"
               >
-                {sortedPosts.length} posts
+                {searchRecords.length}{' '}
+                {searchRecords.length === 1 ? 'post' : 'posts'}
               </p>
             </section>
           )
@@ -95,19 +125,18 @@ const pageSubheading =
 
         {
           sortedPosts.length > 0 ? (
-            <div class="grid gap-l md:grid-cols-2 lg:grid-cols-2">
+            <div
+              data-blog-search-list
+              class="grid grid-cols-1 gap-l md:grid-cols-2"
+            >
               {sortedPosts.map((post) => (
-                <BlogCard
-                  slug={post.id}
-                  title={post.data.title}
-                  shortTitle={post.data.shortTitle}
-                  description={post.data.description}
-                  summary={post.data.summary}
-                  pubDate={post.data.pubDate}
-                  tags={post.data.tags}
-                  image={post.data.image}
-                  content={post.body}
-                />
+                <div
+                  data-blog-search-item
+                  data-blog-search-id={post.id}
+                  class="h-full"
+                >
+                  <BlogCard headingLevel={2} record={post} />
+                </div>
               ))}
             </div>
           ) : (
@@ -119,11 +148,18 @@ const pageSubheading =
           )
         }
 
-        <div data-filter-empty hidden class="text-center py-xl">
-          <p data-filter-empty-message class="text-text-tertiary text-lg"></p>
+        <div data-blog-search-empty hidden class="text-center py-xl">
+          <p class="text-text-tertiary text-lg">
+            No posts match your search. Try a different title, summary, or
+            topic.
+          </p>
         </div>
 
-        <CollectionFilterEnhancement />
+        {
+          searchRecords.length > 0 && (
+            <BlogSearchEnhancement records={searchRecords} />
+          )
+        }
       </div>
     </Container>
   </PageWrapper>

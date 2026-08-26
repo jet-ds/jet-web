@@ -5,8 +5,15 @@ import { isAssistantEligible, isPublished } from '../../../src/content/policy';
 const baseBlog = {
   title: 'Example',
   description: 'Example description',
+  summary: 'A complete summary for an invented policy record.',
   pubDate: '2026-07-11',
   tags: [],
+  image: {
+    url: 'https://assets.public.blob.vercel-storage.com/images/blog/policy-example-a1b2c3d4.png',
+    alt: 'An invented policy test illustration',
+    width: 1920,
+    height: 1080,
+  },
 };
 
 describe('publication policy', () => {

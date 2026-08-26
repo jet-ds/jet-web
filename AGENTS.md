@@ -37,8 +37,10 @@ The production build is pure. `npm run build` may validate repository inputs and
 - Prefer Astro components for static presentation and React only for stateful browser interactions.
 - Content sources live in `src/data/blog/` and `src/data/works/`; loaders are defined in `src/content.config.ts`, with shared schemas in `src/schemas/content.ts`.
 - Use `getCollection()` and `getEntry()` for type-safe content access.
+- `src/features/collections/resolveCollections.ts` owns published Blog and Works membership, canonical ordering, Homepage selection, and serializable display records. Hubs, Homepage sections, detail navigation, `ItemList` schema, and generated discovery surfaces consume those resolved orders rather than defining local comparators.
 - Shared site metadata and navigation live in `src/config/site.ts`; `NAV_ITEMS` owns the shared route and label contract for the dock, no-script navigation, JSON-LD navigation, and Footer Quick Links.
 - `BaseLayout` owns the page-level WebPage schema. Content pages add their specific linked schema, such as BlogPosting, ScholarlyArticle, SoftwareApplication, or CreativeWork.
+- `/llms.txt` is generated from the publication-aware Blog and Works resolvers. Built-route structured-data verification discovers emitted HTML routes and validates their canonical, page-identity, visible-destination, and finite `ItemList` relationships without a named-route inventory.
 - Use trailing-slash canonical URLs throughout page metadata, navigation, sitemap output, and structured data.
 - Vercel serves the static Astro output. Do not add a server adapter or hosted generation fallback without a newly approved architecture decision.
 
@@ -53,11 +55,11 @@ The production build is pure. `npm run build` may validate repository inputs and
 
 ## Design system
 
-- Use semantic color tokens from `src/styles/global.css` and `tailwind.config.mjs`; do not hard-code the underlying OKLCH scale in components.
+- `src/styles/theme.css` is the CSS-first owner of Tailwind-generating palette, semantic color, font, fluid type, and fluid spacing tokens. `src/styles/global.css` owns runtime custom properties, base styles, and component recipes; do not hard-code the underlying OKLCH scale in components.
 - Keep semantic colors mapped to the established numbered OKLCH steps. `brand-base` is a solid interactive fill, while `brand-text` is the readable branded foreground for links and normal text; neither role is interchangeable. Dark code surfaces use the dedicated palette-derived `code-block-text` role.
 - Slate blue is the primary interactive family. Mustard is an accent for deliberate calls to action, progress, particles, and citation emphasis.
 - Use `section-brand` for broad blue section surfaces. Keep that role distinct from `brand-subtle`, which remains the `soft` action fill in both themes.
-- Use the framework-neutral `.text-link` recipe for inline prose destinations: branded medium-weight text, no resting underline, and the shared hover, focus-visible, and reduced-motion behavior. `Link.astro` primary links and Blog/Works `.prose` links consume it. Do not apply it to cards, navigation/footer, actions, the dock, citation markers, or source-disclosure controls.
+- Blog and Works long-form content anchors use the mustard `accent-text` prose recipe with its shared hover, focus-visible, dark-theme, forced-colors, and reduced-motion behavior. The framework-neutral `.text-link` recipe remains for its other inline-prose consumers, including `Link.astro` primary links. Do not apply either recipe to cards, navigation/footer, actions, the dock, citation markers, or source-disclosure controls.
 - Use the framework-neutral `.action` recipes for button-like controls in Astro, React, or plain HTML. Variants are `brand`, `accent`, `soft`, `neutral`, `outline`, `ghost`, `filter`, `stop`, and `disabled`; `filter` state is expressed with `aria-pressed`, never color alone.
 - Action densities are `compact` (44×44px minimum target, 8px radius), `default` (44×44px minimum target, 8px radius), and `immersive` (48×48px minimum target, 12px radius). Egregore primary lifecycle actions use `immersive`; small labels do not justify targets below 44×44px. `Button.astro` exposes the same taxonomy through `variant` and `density`.
 - Write visible action copy in sentence case while preserving product names, platform names, personal names, and acronyms.
@@ -79,12 +81,21 @@ assistant: false
 - Public content requires `status: published`.
 - Egregore inclusion requires both `status: published` and `assistant: true`.
 - Draft, untracked, malformed, or implicitly configured content must never enter the production site or assistant corpus.
-- Blog fields include title, optional short display title, description, optional card summary, optional search title and description overrides, publication date, author, tags, publication state, assistant eligibility, optional image metadata, and optional explicit review metadata.
+- Published Blog and Work records require a complete authored summary of at most 160 characters and immutable featured artwork with descriptive alternative text and verified `1920x1080` intrinsic dimensions. Drafts may remain incomplete.
+- Blog fields include title, optional short display title, description, required-on-publication card summary and image, optional search title and description overrides, publication date, author, tags, publication state, assistant eligibility, and optional explicit review metadata.
 - Review metadata currently identifies a movie and an integer rating on the five-star scale. It renders in the article header and as a linked `Review` JSON-LD entity; Blog and Home cards remain unrated editorial teasers.
-- Work fields include title, optional short display title, description, optional card summary, optional search title and description overrides, type, date, tags, publication state, assistant eligibility, optional featured/image/link fields, and type-specific research or project fields.
+- Work fields include title, optional short display title, description, required-on-publication card summary and image, type, date, tags, publication state, assistant eligibility, optional positive-integer `homepagePriority`, optional links, and type-specific research or project fields. Lower Homepage priorities sort first; the Works hub ignores priority.
 - Tags are human-facing labels rendered verbatim. Separate words with spaces rather than kebab-case hyphens; retain hyphens only when the term itself requires one, such as `Spider-Man` or `cross-country measurement`.
-- Every content image requires a stable URL and descriptive `alt` text. Blog images also record their verified intrinsic pixel `width` and `height` so custom OpenGraph metadata never borrows false default dimensions.
+- Every content image requires a stable URL, descriptive `alt` text, and verified intrinsic pixel `width` and `height` so cards and custom OpenGraph metadata never borrow false default dimensions.
 - Run `npm run verify:content` after changing frontmatter or content-policy code.
+
+## Collections and discovery
+
+- Blog and Works use the shared collection-card anatomy: fixed 16:9 media, optional content-type eyebrow, title, complete summary, and concise facts. Cards do not expose tag rows, partial metadata counters, Featured state, or external-action footers.
+- Blog server-renders the complete canonical newest-first collection and progressively enhances it with normalized, token-prefix fuzzy search over title, short title, description, summary, and tags. The canonical query parameter is `q`; clearing or invalid input restores canonical order.
+- Works server-renders one canonical newest-first collection. Type filtering changes visibility only and preserves order; `homepagePriority` affects Homepage selection only.
+- Homepage Blog and Works each resolve at most five unique records into a visible-triggered, finite, manually looping depth carousel with a complete static fallback. Keep the active card centered between mirrored receding rails, constrain drag to the full owning section canvas, and preserve vertical page scrolling. Only one collection tree is accessible at a time; there is no autoplay, cloned loop item, or duplicate canonical record.
+- Homepage and hub `ItemList` schemas use the exact canonical arrays rendered on those pages. Positions are one-based, finite, unique, and independent of client search, filtering, or carousel state.
 
 ## Image workflow
 
@@ -156,9 +167,16 @@ The released `2.2` runtime and interaction boundaries are in force:
 
 Preserve the released interaction model: a full-screen local-first experience, explicit compatibility and load actions, stable lifecycle controls, deterministic citations, keyboard-operable disclosures, responsive layouts, reduced-motion behavior, and the established semantic color roles. The [2.2.0 design](./docs/superpowers/specs/2026-07-18-jet-web-2.2.0-design.md) is the current product authority.
 
+Assistant responses render constrained Markdown through the dedicated response renderer. Raw HTML and model-authored images remain inert; links allow only HTTP(S), `mailto:`, and same-document fragments; unsupported nodes retain safe text where possible; and only validated source identifiers become citation links. Preserve arbitrary incomplete streamed text and the plain-text failure fallback without changing retrieval or model behavior.
+
 ## SEO and release behavior
 
 - Every public page needs a unique title, description, canonical URL, OpenGraph URL/image, Twitter metadata, and correct linked JSON-LD identities.
+- GA4 is emitted only by an explicit Vercel Production build. Local development, local builds/previews, CI, and Vercel Preview are excluded automatically and require no device toggle. Production document requests pass through root Vercel Routing Middleware, which maps only Vercel's approximate country signal to a coarse `strict`/`standard` policy cookie; EEA/UK/CH plus missing or unknown signals use the conservative strict policy. This is a site risk policy, not a legal-status determination, and this layer must never persist raw country, IP, city, or coordinates. Strict pages make no GA-family request before explicit consent. Keep the consent bar compact, non-modal, accessible, and equal-weight for Reject/Allow; keep the Production-gated settings control on `/privacy/` available for reopening or changing a choice. Do not add an Astro server adapter.
+- The hidden `?analytics=off`/`?analytics=on` control is only an emergency, persistent Production browser-profile fallback; it does not identify a physical Mac, is not visitor navigation or a normal test workflow, and does not replace carefully tested account-side internal-traffic filtering when a stable IP makes that appropriate. `off` rejects analytics; `on` clears the fallback so the regional policy applies again.
+- Every Playwright context that can navigate a Production origin must install the shared Google Analytics traffic block before its first navigation. This includes deployed readback and real-model runs that accept an external base URL. The dedicated isolated analytics fixture is the only exception: it intercepts and fulfills every analytics endpoint locally so no request reaches Google. Routine and release browser configurations exclude that Production-only fixture because their local non-Production build cannot exercise its branch.
+- `npm run verify:analytics` owns the isolated Production browser fixture. The separate `npm run verify:analytics:release` gate additionally runs `vercel build --prod` and verifies the packaged Routing Middleware artifact; keep that external-tool qualification outside ordinary `npm run verify`.
+- Search Console measures Google Search impressions and clicks rather than site visit events. Do not claim that application analytics controls or a physical-device filter remove ordinary searches from Search Console.
 - Canonical routes use trailing slashes. Slashless variants normalize with permanent redirects.
 - `/about/` remains index-follow, canonical, and present in the sitemap; `/about` redirects to it.
 - Retired `/blog/the-future-of-ai` and `/blog/building-with-astro/` routes remain intentional 404 responses and must not appear in internal links, RSS, or the sitemap.
@@ -179,7 +197,7 @@ Tests are organized by boundary:
 
 GitHub Actions owns two stable routine jobs, `verify` and `browser`. They run for pull requests, pushes to `main`, manual dispatch, and nightly at `17 18 * * *` (`02:17` Asia/Manila). Configure both as strict required checks on `main`. Keep the approximately 2 GB real-model qualification outside routine and nightly CI; run it only through the explicit release workflow.
 
-For ordinary changes, run the smallest focused RED test first, implement, rerun it GREEN, then run `npm run verify`. Add `npm run verify:browser`, build-purity, deployment, real-device, or production checks in proportion to the boundary changed. Do not claim a deployed behavior from an Astro preview test.
+For ordinary changes, run the smallest focused RED test first, implement, rerun it GREEN, then run `npm run verify`. Add `npm run verify:browser`, build-purity, deployment, or production checks in proportion to the boundary changed. Browser qualification at representative desktop and mobile viewports is the `2.3` release boundary; there is no physical-device gate. Do not claim a deployed behavior from an Astro preview test.
 
 Before deployment, verify light and dark modes, keyboard/focus behavior, responsive layouts, navigation, metadata, structured data, and the affected production route. Preserve existing user changes in a dirty worktree and do not broaden the commit beyond the approved task.
 
@@ -195,9 +213,10 @@ Before deployment, verify light and dark modes, keyboard/focus behavior, respons
 
 ## Canonical documentation
 
-- [Jet Web 2.2.0 design](./docs/superpowers/specs/2026-07-18-jet-web-2.2.0-design.md)
-- [Jet Web 2.2.0 implementation plan](./docs/superpowers/plans/2026-07-18-jet-web-2.2.0.md)
-- [Jet Web 2.2.0 verification record](./docs/verification/jet-web-2.2.0.md)
+- [Jet Web 2.3.0 design](./docs/superpowers/specs/2026-08-25-jet-web-2.3.0-design.md)
+- [Jet Web 2.3.0 implementation plan](./docs/superpowers/plans/2026-08-25-jet-web-2.3.0.md)
+- [Jet Web 2.3.0 verification record](./docs/verification/jet-web-2.3.0.md)
+- [Jet Web 2.2.0 Egregore product authority](./docs/superpowers/specs/2026-07-18-jet-web-2.2.0-design.md)
 - [Documentation archive](./docs/archive/README.md)
 
 Historical documents under `docs/archive/` are evidence, not current instructions. Do not cite an archived design as the active target when a canonical successor is listed.

@@ -79,26 +79,30 @@ describe('Egregore fake browser scenarios', () => {
       }),
     ).toBeNull();
 
-    expect(FAKE_SCENARIOS).toEqual([
-      'default',
-      'published-corpus',
-      'checking',
-      'unsupported',
-      'load-failure',
-      'generation-failure',
-      'reset-failure',
-      'unload-failure',
-      'loading',
-      'unloading',
-      'cached',
-      'crossfade',
-      'long-stream',
-      'stop-recovery',
-      'citations',
-      'zero-citation',
-      'exhaustion',
-      'late-event',
-    ]);
+    expect(new Set(FAKE_SCENARIOS).size).toBe(FAKE_SCENARIOS.length);
+    expect(new Set(FAKE_SCENARIOS)).toEqual(
+      new Set([
+        'default',
+        'published-corpus',
+        'markdown-safety',
+        'checking',
+        'unsupported',
+        'load-failure',
+        'generation-failure',
+        'reset-failure',
+        'unload-failure',
+        'loading',
+        'unloading',
+        'cached',
+        'crossfade',
+        'long-stream',
+        'stop-recovery',
+        'citations',
+        'zero-citation',
+        'exhaustion',
+        'late-event',
+      ]),
+    );
   });
 
   it('maps the allowlist to fixed behavior without accepting payload configuration', () => {
@@ -164,6 +168,21 @@ describe('Egregore fake browser scenarios', () => {
       capabilityDelayMs: 50,
       knowledgeSource: 'published',
     });
+    expect(
+      getFakeScenarioConfiguration('markdown-safety').responseChunks.join(''),
+    ).toBe(
+      'Safe text ![remote diagram](https://egregore.invalid/remote.png), <script>unsafe()</script>, and [blocked](javascript:unsafe()).',
+    );
+    expect(
+      resolveFakeScenario({
+        testBuild: true,
+        hostname: '127.0.0.1',
+        search: '?runtime=fake&scenario=markdown-safety&response=QUERY_PAYLOAD',
+      }),
+    ).toEqual({ scenario: 'markdown-safety', slowStream: false });
+    expect(
+      getFakeScenarioConfiguration('markdown-safety').responseChunks.join(''),
+    ).not.toContain('QUERY_PAYLOAD');
   });
 
   it('records a content-free resource lifecycle', async () => {

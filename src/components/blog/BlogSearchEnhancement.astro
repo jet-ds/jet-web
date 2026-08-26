@@ -1,0 +1,24 @@
+---
+import type { SearchableBlogRecord } from '../../features/blog-search/searchBlogPosts';
+
+interface Props {
+  records: readonly SearchableBlogRecord[];
+}
+
+const { records } = Astro.props;
+const serializedRecords = JSON.stringify(records).replace(/</gu, '\\u003c');
+---
+
+<script
+  is:inline
+  type="application/json"
+  data-blog-search-records
+  set:html={serializedRecords}
+/>
+
+<script>
+  import { initializeBlogSearch } from '../../features/blog-search/enhanceBlogSearch';
+
+  initializeBlogSearch();
+  document.addEventListener('astro:page-load', () => initializeBlogSearch());
+</script>

@@ -47,7 +47,7 @@ type ReviewProps = {
   isPartOfId: string;
 };
 
-type PersonProps = {
+export type PersonProps = {
   type: 'person';
   id?: string;
   url?: string;
@@ -58,6 +58,7 @@ type PersonProps = {
   alternateName?: readonly string[];
   email?: string;
   jobTitle?: string;
+  worksFor?: { name: string; url: string };
   sameAs?: readonly string[];
 };
 
@@ -124,6 +125,17 @@ type CreativeWorkProps = {
   tags?: readonly string[];
 };
 
+type ItemListProps = {
+  type: 'itemlist';
+  id: string;
+  url: string;
+  name: string;
+  items: readonly {
+    url: string;
+    entityId: string;
+  }[];
+};
+
 export type StructuredDataProps =
   | WebsiteProps
   | BlogPostingProps
@@ -133,7 +145,8 @@ export type StructuredDataProps =
   | WebPageProps
   | SoftwareProps
   | ScholarlyArticleProps
-  | CreativeWorkProps;
+  | CreativeWorkProps
+  | ItemListProps;
 
 function buildWebsiteSchema(
   props: Extract<StructuredDataProps, { type: 'website' }>,
@@ -246,6 +259,14 @@ function buildPersonSchema(
     email: props.email || SITE.email,
     url,
     ...(props.jobTitle && { jobTitle: props.jobTitle }),
+    ...(props.worksFor && {
+      worksFor: {
+        '@type': 'Organization',
+        '@id': `${props.worksFor.url}#organization`,
+        name: props.worksFor.name,
+        url: props.worksFor.url,
+      },
+    }),
     ...(sameAs.length > 0 && { sameAs: [...sameAs] }),
     ...(props.pageUrl && {
       mainEntityOfPage: {
@@ -403,6 +424,31 @@ function buildCreativeWorkSchema(
   };
 }
 
+function buildItemListSchema(
+  props: Extract<StructuredDataProps, { type: 'itemlist' }>,
+): JsonLd {
+  const itemUrls = props.items.map(({ url }) => url);
+  if (new Set(itemUrls).size !== itemUrls.length) {
+    throw new Error('ItemList contains a duplicate item URL.');
+  }
+
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'ItemList',
+    '@id': props.id,
+    url: props.url,
+    name: props.name,
+    itemListElement: props.items.map(({ url, entityId }, index) => ({
+      '@type': 'ListItem',
+      position: index + 1,
+      url,
+      item: {
+        '@id': entityId,
+      },
+    })),
+  };
+}
+
 function assertNever(value: never): never {
   throw new Error(`Unsupported structured-data type: ${String(value)}`);
 }
@@ -427,6 +473,8 @@ export function buildStructuredData(props: StructuredDataProps): JsonLd {
       return buildScholarlyArticleSchema(props);
     case 'creativework':
       return buildCreativeWorkSchema(props);
+    case 'itemlist':
+      return buildItemListSchema(props);
     default:
       return assertNever(props);
   }

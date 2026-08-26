@@ -5,10 +5,16 @@ import {
   type Page,
 } from '@playwright/test';
 import { SITE } from '../../src/config/site';
+import { ANALYTICS_OPT_OUT_COOKIE } from '../../src/features/analytics/trackingPolicy';
 import { establishDeploymentProtectionBypass } from '../support/deploymentProtection';
+import {
+  classifyGoogleAnalyticsRequest,
+  installGoogleAnalyticsTrafficBlock,
+} from '../support/googleAnalyticsTraffic';
 import {
   publishedAssistantSources,
   publishedContent,
+  resolvedPublishedCollections,
 } from '../support/publishedContent';
 
 const deploymentOrigin = new URL(
@@ -60,16 +66,14 @@ function rssItemLinks(xml: string): string[] {
 async function contentCardRoutes(page: Page, route: string): Promise<string[]> {
   const response = await page.goto(route);
   expect(response?.status()).toBe(200);
-  return (
-    await page
-      .locator('main [data-content-card] > a[href]')
-      .evaluateAll((anchors) =>
-        anchors.flatMap((anchor) => {
-          const href = anchor.getAttribute('href');
-          return href === null ? [] : [href];
-        }),
-      )
-  ).sort();
+  return page
+    .locator('main article a[href^="/blog/"], main article a[href^="/works/"]')
+    .evaluateAll((anchors) =>
+      anchors.flatMap((anchor) => {
+        const href = anchor.getAttribute('href');
+        return href === null ? [] : [href];
+      }),
+    );
 }
 
 async function publishedSitemapXml(
@@ -88,11 +92,85 @@ async function publishedSitemapXml(
 }
 
 test.beforeEach(async ({ context }) => {
+  await installGoogleAnalyticsTrafficBlock(context);
   await establishDeploymentProtectionBypass(
     context,
     deploymentOrigin,
     process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
   );
+});
+
+test('Production reads back the optional analytics browser-profile fallback', async ({
+  context,
+  page,
+}) => {
+  const analyticsRequests: URL[] = [];
+  await page.route('**/*', async (route) => {
+    const url = new URL(route.request().url());
+    const requestKind = classifyGoogleAnalyticsRequest(url);
+    if (requestKind === null) {
+      await route.continue();
+      return;
+    }
+    analyticsRequests.push(url);
+    await route.fulfill(
+      requestKind === 'library'
+        ? { status: 200, contentType: 'application/javascript', body: '' }
+        : { status: 204 },
+    );
+  });
+
+  await page.goto('/?analytics=off&campaign=deployment#preserved');
+  await expect(page).toHaveURL(
+    new URL('/?campaign=deployment#preserved', deploymentOrigin).toString(),
+  );
+  expect(
+    analyticsRequests.filter(
+      ({ hostname, pathname }) =>
+        hostname === 'www.googletagmanager.com' && pathname === '/gtag/js',
+    ),
+  ).toEqual([]);
+  expect(
+    await page.evaluate(
+      (measurementId) => Reflect.get(window, `ga-disable-${measurementId}`),
+      SITE.ga4MeasurementId,
+    ),
+  ).toBe(true);
+  expect(
+    (await context.cookies()).find(
+      ({ name }) => name === ANALYTICS_OPT_OUT_COOKIE,
+    ),
+  ).toMatchObject({ value: '1', path: '/', secure: true, sameSite: 'Lax' });
+  expect(
+    analyticsRequests.filter(({ pathname }) =>
+      /^\/(?:g\/)?collect$/u.test(pathname),
+    ),
+  ).toEqual([]);
+
+  await page.goto('/about/?analytics=on&campaign=deployment#preserved');
+  await expect(page).toHaveURL(
+    new URL(
+      '/about/?campaign=deployment#preserved',
+      deploymentOrigin,
+    ).toString(),
+  );
+  const regionalPolicy = await page.evaluate(
+    () => document.documentElement.dataset.analyticsPolicy,
+  );
+  expect(regionalPolicy === 'strict' || regionalPolicy === 'standard').toBe(
+    true,
+  );
+  expect(
+    await page.evaluate(
+      (measurementId) => Reflect.get(window, `ga-disable-${measurementId}`),
+      SITE.ga4MeasurementId,
+    ),
+  ).toBe(regionalPolicy === 'strict');
+  expect(
+    (await context.cookies()).some(
+      ({ name }) => name === ANALYTICS_OPT_OUT_COOKIE,
+    ),
+  ).toBe(false);
 });
 
 test('Production publishes every tracked published content contract', async ({
@@ -126,30 +204,15 @@ test('Production publishes every tracked published content contract', async ({
     .sort((left, right) => left.id.localeCompare(right.id, 'en'));
   expect(deployedAssistantSources).toEqual(expectedAssistantSources);
 
-  const homepageContent = [
-    ...content
-      .filter(({ kind }) => kind === 'blog')
-      .sort((left, right) => right.date.getTime() - left.date.getTime())
-      .slice(0, 3),
-    ...content
-      .filter(({ kind, featured }) => kind === 'work' && featured)
-      .sort((left, right) => right.date.getTime() - left.date.getTime())
-      .slice(0, 3),
-  ];
+  const collections = resolvedPublishedCollections();
   expect(await contentCardRoutes(page, '/')).toEqual(
-    homepageContent.map(({ route }) => route).sort(),
+    collections.homepage.map(({ href }) => href),
   );
   expect(await contentCardRoutes(page, '/blog/')).toEqual(
-    content
-      .filter(({ kind }) => kind === 'blog')
-      .map(({ route }) => route)
-      .sort(),
+    collections.blog.map(({ href }) => href),
   );
   expect(await contentCardRoutes(page, '/works/')).toEqual(
-    content
-      .filter(({ kind }) => kind === 'work')
-      .map(({ route }) => route)
-      .sort(),
+    collections.works.map(({ href }) => href),
   );
 
   const expectedCanonicalUrls = content

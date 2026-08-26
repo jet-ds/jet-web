@@ -7,18 +7,21 @@ export interface Heading {
 
 interface Props {
   headings: Heading[];
+  variant: 'desktop' | 'mobile';
 }
 
-const { headings } = Astro.props;
-
-// Filter to only show h2 and h3 headings for cleaner TOC
-const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
+const { headings, variant } = Astro.props;
+const tocHeadings = headings.filter(
+  (heading) => heading.depth >= 2 && heading.depth <= 3,
+);
+const firstHeading = tocHeadings[0];
+const mobilePanelId = 'article-toc-mobile-panel';
 ---
 
 {
-  tocHeadings.length > 0 && (
-    <nav class="toc" aria-label="Table of Contents">
-      <div class="sticky top-24">
+  tocHeadings.length > 0 &&
+    (variant === 'desktop' ? (
+      <nav class="toc" data-article-toc aria-label="Table of Contents">
         <h2 class="text-lg font-bold mb-4 text-text-primary">On this page</h2>
         <ul class="space-y-2 text-sm border-l-2 border-border-default pl-4">
           {tocHeadings.map((heading) => (
@@ -31,73 +34,117 @@ const tocHeadings = headings.filter((h) => h.depth >= 2 && h.depth <= 3);
             >
               <a
                 href={`#${heading.slug}`}
-                class="block py-1 text-text-tertiary hover:text-brand-text transition-colors line-clamp-2"
+                class="toc-link block py-1 line-clamp-2"
               >
                 {heading.text}
               </a>
             </li>
           ))}
         </ul>
-      </div>
-    </nav>
-  )
+      </nav>
+    ) : (
+      <section class="article-toc-mobile lg:hidden" data-article-toc>
+        <button
+          class="article-toc-mobile__toggle"
+          type="button"
+          data-article-toc-toggle
+          aria-controls={mobilePanelId}
+          aria-expanded="false"
+        >
+          <span>On this page</span>
+          <span class="article-toc-mobile__current" data-article-toc-current>
+            {firstHeading.text}
+          </span>
+          <span aria-hidden="true">⌄</span>
+        </button>
+        <div
+          id={mobilePanelId}
+          class="article-toc-mobile__panel"
+          data-article-toc-panel
+          hidden
+        >
+          <nav aria-label="Table of Contents">
+            <ul class="space-y-2 text-sm border-l-2 border-border-default pl-4">
+              {tocHeadings.map((heading) => (
+                <li
+                  class:list={[
+                    'toc-item',
+                    heading.depth === 2 && 'toc-h2',
+                    heading.depth === 3 && 'toc-h3 ml-4',
+                  ]}
+                >
+                  <a
+                    href={`#${heading.slug}`}
+                    class="toc-link block py-1 line-clamp-2"
+                  >
+                    {heading.text}
+                  </a>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        </div>
+      </section>
+    ))
 }
 
 <style>
   @reference '../../styles/global.css';
 
-  .toc {
-    /* Will be positioned in the layout */
-  }
-
-  /* Smooth scroll behavior */
   :global(html) {
     scroll-behavior: smooth;
   }
 
-  /* Active link styling via JavaScript (optional enhancement) */
-  .toc-item a.active {
+  .toc-link {
+    @apply text-text-tertiary transition-colors;
+  }
+
+  .toc-link:hover,
+  .toc-link:focus-visible {
+    @apply text-brand-text underline;
+  }
+
+  .toc-link:focus-visible {
+    outline: 2px solid var(--color-brand-base);
+    outline-offset: 2px;
+  }
+
+  .toc-link.active {
     @apply text-accent-text font-medium border-l-2 border-accent-base -ml-[2px] pl-2;
+  }
+
+  .article-toc-mobile {
+    @apply sticky z-30 mb-m;
+    top: var(--navigation-top-clearance);
+  }
+
+  .article-toc-mobile__toggle {
+    @apply flex min-h-11 w-full items-center gap-2 rounded-lg border border-border-default bg-surface-base px-s py-2xs text-left text-sm text-text-primary shadow-sm;
+  }
+
+  .article-toc-mobile__current {
+    @apply min-w-0 flex-1 truncate text-text-secondary;
+  }
+
+  .article-toc-mobile__panel {
+    @apply mt-2 max-h-[min(24svh,14rem)] overflow-y-auto rounded-lg border border-border-default bg-surface-base p-s shadow-lg;
+    margin-bottom: var(--navigation-bottom-exclusion);
+  }
+
+  .article-toc-mobile__toggle:focus-visible {
+    outline: 2px solid var(--color-brand-base);
+    outline-offset: 2px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .toc-link {
+      transition: none;
+    }
   }
 </style>
 
 <script>
-  // Highlight active section in TOC as user scrolls
-  function initTableOfContents() {
-    const observer = new IntersectionObserver(
-      (entries) => {
-        entries.forEach((entry) => {
-          const id = entry.target.getAttribute('id');
-          if (!id) return;
+  import { installArticleTocController } from '../../features/article-toc/articleTocController';
 
-          const tocLink = document.querySelector(`.toc a[href="#${id}"]`);
-          if (!tocLink) return;
-
-          if (entry.isIntersecting) {
-            // Remove active class from all links
-            document.querySelectorAll('.toc a').forEach((link) => {
-              link.classList.remove('active');
-            });
-            // Add active class to current link
-            tocLink.classList.add('active');
-          }
-        });
-      },
-      {
-        rootMargin: '-100px 0px -66%',
-        threshold: 1.0,
-      },
-    );
-
-    // Observe all headings that are in the TOC
-    document.querySelectorAll('article h2, article h3').forEach((heading) => {
-      observer.observe(heading);
-    });
-  }
-
-  // Run on page load
-  initTableOfContents();
-
-  // Re-run after view transitions
-  document.addEventListener('astro:page-load', initTableOfContents);
+  installArticleTocController(document);
 </script>

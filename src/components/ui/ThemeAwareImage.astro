@@ -10,6 +10,7 @@ interface Props {
   class?: string;
   loading?: 'lazy' | 'eager';
   sizes?: string;
+  widths?: number[];
   quality?: number;
 }
 
@@ -22,10 +23,11 @@ const {
   class: className = '',
   loading = 'lazy',
   sizes,
+  widths,
   quality = 80,
 } = Astro.props;
 
-const resolvedLoading = darkSrc ? 'eager' : loading;
+const resolvedLoading = loading;
 ---
 
 {
@@ -39,6 +41,7 @@ const resolvedLoading = darkSrc ? 'eager' : loading;
         class={`${className} dark:hidden`}
         loading={resolvedLoading}
         sizes={sizes}
+        widths={widths}
         quality={quality}
       />
       <OptimizedImage
@@ -49,6 +52,7 @@ const resolvedLoading = darkSrc ? 'eager' : loading;
         class={`hidden ${className} dark:block`}
         loading={resolvedLoading}
         sizes={sizes}
+        widths={widths}
         quality={quality}
       />
     </>
@@ -61,6 +65,7 @@ const resolvedLoading = darkSrc ? 'eager' : loading;
       class={className}
       loading={resolvedLoading}
       sizes={sizes}
+      widths={widths}
       quality={quality}
     />
   )
