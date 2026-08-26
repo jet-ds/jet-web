@@ -335,13 +335,16 @@ test(
     await expect(targets).toHaveCount(7);
     await expect(page.locator('footer [data-home-reveal]')).toHaveCount(0);
     await expect(
+      page.getByRole('heading', { level: 2, name: 'Works' }),
+    ).toBeVisible();
+    await expect(
       page
         .getByRole('heading', { name: "Hi, I'm Jet Sanchez." })
         .locator('xpath=ancestor-or-self::*[@data-home-reveal]'),
     ).toHaveCount(0);
 
     const articleHeadingGroup = page
-      .getByRole('heading', { name: 'Latest Articles' })
+      .getByRole('heading', { name: 'Blog' })
       .locator('xpath=parent::*');
     await expect(articleHeadingGroup).toHaveAttribute(
       'data-home-reveal-state',
