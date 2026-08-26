@@ -1,8 +1,10 @@
 # Jet Web 2.3.0 verification record
 
-**Status:** Task 1 dependency refresh evidence and final Task 10 test-contract
-qualification recorded. Counts in this document are dated observations, not
-permanent dependency, security, coverage, or suite-size assertions.
+**Status:** Version `2.3.0` qualified as a local release candidate from reviewed
+parent `30b1437424e901ff66c788ae7ee409972223e418`. Remote release, production
+readback, tag, GitHub Release, and Search Console work remain deferred. Counts
+in this document are dated observations, not permanent dependency, security,
+coverage, or suite-size assertions.
 
 ## Immutable baseline
 
@@ -293,7 +295,7 @@ multi-engine qualification are recorded in the final Task 10 section.
 | Forced-fresh routine browser   | Passed 37 of 37 on the first attempt with 0 skips in 20.3 seconds (20.62 seconds wall time); the build-owned server exited and left no port `4321` listener.                                                                                                                                                                                           |
 | Browser listing and skip scan  | 37 routine project cases in 5 files; 0 routine skips or orphaned project cases. The sole skip is the documented manual real-model opt-in.                                                                                                                                                                                                              |
 
-## Task 10 final suite qualification
+## Task 10 historical suite qualification
 
 The reviewed compaction was committed as
 `238f4e3fa814739da2d08e4a31868a036e7f3e16`. The release-browser matrix then
@@ -345,10 +347,126 @@ Counts and durations remain dated evidence rather than preservation targets.
 | Repetition 1, routine browsers       | Passed 37 of 37 with 0 skips on the first attempt in 21.9 seconds.                                                                                                                                    |
 | Repetition 2, `npm run verify`       | Passed in 24.21 seconds with the same green boundaries and case inventory.                                                                                                                            |
 | Repetition 2, routine browsers       | Passed 37 of 37 with 0 skips on the first attempt in 20.9 seconds.                                                                                                                                    |
-| Current release-browser matrix       | Playwright `1.62.1`: Chromium `151.0.7922.34`, Firefox `153.0`, and WebKit `26.5`; passed 69 of 69 with 0 skips on the first attempt in 48.8 seconds.                                                 |
+| Task 10 release-browser matrix       | Playwright `1.62.1`: Chromium `151.0.7922.34`, Firefox `153.0`, and WebKit `26.5`; passed 69 of 69 with 0 skips on the first attempt in 48.8 seconds.                                                 |
 | Final topology and skip readback     | Routine listing: 37 project cases in 5 files. Release listing: 69 project cases in 5 files. The only repository skip is the documented, opt-in, approximately 2 GB real-model operator qualification. |
 | Process and repository residue audit | Port `4321` had no listener, no Astro preview or Playwright test process remained, the canonical tree was clean before evidence recording, and the temporary every-block inventory was absent.        |
 
 No critical or important review finding, unexplained skip, retry, timeout
 increase, content-specific expectation, or browser-process residual remains in
 the qualified Task 10 candidate.
+
+## Task 15 final local release-candidate qualification
+
+### Candidate identity and review
+
+The release candidate was qualified on branch `codex/jet-web-2.3.0` from the
+reviewed parent
+`30b1437424e901ff66c788ae7ee409972223e418`. The consolidated integration
+reviewer reported zero Critical, Important, or Minor findings on that parent.
+The release version is `2.3.0`; qualification used Node `v24.18.0` from the
+Node 24 Homebrew path and npm `11.16.0` throughout. The release commit's own SHA
+is intentionally not predicted in this record.
+
+Pre-version checks confirmed that `d87a8709141d1f843c80971587ecec734c7fd7a4`
+is an ancestor of the reviewed parent, `git diff --check` passed across that
+range, and no CV or resume path appeared in the 149 changed files. Port `4321`
+was clear before qualification; one later diagnostic preview was identified by
+PID and repository working directory before only that repository-owned process
+was stopped. No unrelated process was terminated.
+
+The pre-version gates passed:
+
+- `npm run verify:content`: 10 entries and 10 tracked assistant sources;
+- `npm run validate-images`: 10 of 10 content images validated;
+- `npm audit --omit=dev`: 0 vulnerabilities;
+- `npm audit`: 0 vulnerabilities.
+
+`npm version 2.3.0 --no-git-tag-version` then changed exactly `package.json`
+and `package-lock.json`. No tag was created.
+
+### Repeated qualification on the executable release tree
+
+The same product, content, configuration, dependency, and version-file bytes
+were used for both consecutive repetitions below. Every command used Node 24.
+Playwright reported zero retries and zero skips.
+
+| Gate                                                     |                Repetition 1 |                Repetition 2 | Result                                                                                                                                                                                                                 |
+| -------------------------------------------------------- | --------------------------: | --------------------------: | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `npm run verify`                                         |                      38.19s |                      37.72s | Passed both times: format and lint clean; 224 Astro files with 0 diagnostics; 65 Vitest files and 762 tests; 14 documents and 94 relative links; content 10/10; 18 built pages; schema and production artifacts green. |
+| `PLAYWRIGHT_FORCE_FRESH_SERVER=1 npm run verify:browser` | 54/54 in 39.9s, 40.30s wall | 54/54 in 40.5s, 41.23s wall | Passed Chromium desktop and Pixel 7 mobile Chromium with fresh Playwright-owned servers.                                                                                                                               |
+| `npm run verify:analytics:release`                       |  8/8 analytics; 17.09s wall |  8/8 analytics; 18.08s wall | Passed isolated analytics, Vercel CLI `59.5.0` local `build --prod`, and packaged `middleware.func` verification.                                                                                                      |
+| `npm run verify:build-purity`                            |                       3.83s |                       4.26s | Passed; the build made no external write or repository-input mutation.                                                                                                                                                 |
+
+After these two executable repetitions, only browser-test instrumentation was
+refined; product, content, configuration, dependency, and version inputs stayed
+byte-identical. The affected browser boundaries were rerun on that unchanged
+executable. Final successful results were:
+
+- focused promotion and sub-threshold spring owners: 6/6 across Chromium,
+  Firefox, and WebKit in 16.0 seconds;
+- focused metadata-settlement owner: 3/3 across the same engines in 18.3
+  seconds;
+- forced-fresh routine browser suite: 54/54 in 37.8 seconds, 38.28 seconds wall;
+- forced-fresh release matrix: 105/105 across Chromium, Firefox, and WebKit in
+  91.22 seconds wall, with zero retries and zero skips.
+
+The first release-matrix diagnostic run passed 104/105. Firefox reported a
+nominal 44px control as `43.99999237060547px`; computed width, height,
+`min-width`, and `min-height` were exactly 44px, so the durable assertion now
+normalizes geometry to 0.001 CSS pixel while retaining the 44px product
+requirement. A later 103/105 diagnostic run showed that transient animation
+sampling could miss an intermediate painted frame under matrix load and that a
+rapid generated 30px WebKit drag completed in about 31ms, legitimately crossing
+the 600px/s selection threshold. The final owners remove non-durable transient
+frame sampling, preserve the marked canonical card node through meaningful
+travel and centered settlement, pace the deliberately sub-threshold gesture
+across browser animation frames, and wait for the active layer to reach its
+observable settled transform before taking a hover baseline. Existing inspected
+visual evidence remains the smoothness owner; no product CSS or motion threshold
+was weakened. Each failed diagnostic was a separate first-attempt invocation,
+not a retry of a release gate.
+
+### Production-context, clean-build, and carousel evidence
+
+The one-time post-repetition gates passed:
+
+- `VERCEL_ENV=production npm run build`: 18 static pages in 3.53 seconds;
+- `VERCEL_ENV=production npm run verify:production-artifacts`: passed in 0.91
+  seconds, with no Egregore fake-runtime seam and complete byte-exact runtime
+  and license surfaces;
+- clean ordinary `npm run build`: 18 static pages in 3.11 seconds;
+- `npm run verify:schema`: passed in 1.12 seconds with parseable, canonically
+  linked, internally consistent structured data.
+
+The accepted Task 13 measurements remain the visual and performance evidence:
+desktop active cards settled at `576 × 324` with 0px Blog and Works center
+deltas at 1440px and 800px; mobile active cards measured approximately
+`356.78 × 200.69` with 0px center deltas at 390px. The ten light/dark,
+desktop/intermediate/mobile diagnostic screenshots were visually inspected for
+canvas ownership, fixed controls, centered adaptive rails, crops, surfaces,
+shadows, disclosure, mustard accents, and mobile depth behavior.
+
+At 250ms the final Home transferred 72,540 image bytes: 93.4% less than the
+pre-fix 2.3.0 candidate and 64.8% less than the recorded `v2.2.2` baseline. The
+route-completion timings were noisy, including a cold light-mode outlier, and
+do not establish a route-timing improvement. The trace did establish zero
+carousel hydration at `astro:page-load` and at 250ms.
+
+### Release boundary and deferred state
+
+No CV or resume path leaked into the release diff. Browser qualification at the
+supported desktop/mobile and Chromium/Firefox/WebKit boundaries is the 2.3.0
+release requirement; no physical-device run is required. The documented
+approximately 2 GB real-model qualification remains an explicit opt-in boundary
+and was not required or invoked.
+
+This record proves a local release candidate only. No push, pull request,
+deployment, production readback, annotated tag, GitHub Release, Search Console
+action, Blob mutation, or other remote write occurred. Those states remain
+deferred until an operator authorizes and verifies them separately.
+
+Non-blocking observations were limited to Vite/React Babel deprecation warnings
+for `esbuild` and `optimizeDeps.esbuildOptions`, plus npm's local Vercel-build
+notice that four dependency install scripts are not yet covered by
+`allowScripts`. They did not fail any gate and are not evidence of a deployed
+behavior.

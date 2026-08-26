@@ -58,12 +58,6 @@ interface GeometryFrame {
   y: number;
 }
 
-interface PromotionEvidence {
-  connected: boolean;
-  samples: GeometryFrame[];
-  start: GeometryFrame;
-}
-
 function frameDistance(first: GeometryFrame, second: GeometryFrame): number {
   return Math.hypot(
     first.x - second.x,
@@ -88,106 +82,36 @@ async function waitForStableGeometry(locator: Locator): Promise<void> {
     .toBe(true);
 }
 
-async function installPromotionRecorder(layer: Locator): Promise<void> {
-  await layer.evaluate((element) => {
-    type RecordedLayer = HTMLElement & {
-      __promotion?: {
-        done: boolean;
-        evidence?: PromotionEvidence;
-      };
-    };
-    const owner = element as RecordedLayer;
-    const frame = (): GeometryFrame => {
-      const bounds = element.getBoundingClientRect();
-      return {
-        height: bounds.height,
-        width: bounds.width,
-        x: bounds.x,
-        y: bounds.y,
-      };
-    };
-    const start = frame();
-    const samples: GeometryFrame[] = [];
-    const deadline = performance.now() + 1_500;
-    let connected = true;
-    let hasMoved = false;
-    let previous = start;
-    let stableFrames = 0;
-    owner.__promotion = { done: false };
-
-    const sample = () => {
-      connected &&= element.isConnected;
-      const current = frame();
-      samples.push(current);
-      hasMoved ||=
-        Math.hypot(
-          current.x - start.x,
-          current.y - start.y,
-          current.width - start.width,
-          current.height - start.height,
-        ) > 2;
-      if (
-        hasMoved &&
-        element.querySelector('a[href]') !== null &&
-        Math.hypot(
-          current.x - previous.x,
-          current.y - previous.y,
-          current.width - previous.width,
-          current.height - previous.height,
-        ) <= 0.5
-      ) {
-        stableFrames += 1;
-      } else {
-        stableFrames = 0;
-      }
-      previous = current;
-      if (stableFrames < 2 && performance.now() < deadline) {
-        requestAnimationFrame(sample);
-        return;
-      }
-      owner.__promotion = {
-        done: true,
-        evidence: { connected, samples, start },
-      };
-    };
-
-    requestAnimationFrame(sample);
-  });
-}
-
-async function readPromotionEvidence(
-  layer: Locator,
-): Promise<PromotionEvidence> {
-  await expect
-    .poll(() =>
-      layer.evaluate(
-        (element) =>
-          (
-            element as HTMLElement & {
-              __promotion?: { done: boolean };
-            }
-          ).__promotion?.done ?? false,
-      ),
-    )
-    .toBe(true);
-
-  return layer.evaluate((element) => {
-    const evidence = (
-      element as HTMLElement & {
-        __promotion?: { evidence?: PromotionEvidence };
-      }
-    ).__promotion?.evidence;
-    if (evidence === undefined) {
-      throw new Error('Promotion evidence is missing.');
-    }
-    return evidence;
-  });
-}
-
 async function expectAssistiveOnly(status: Locator): Promise<void> {
   const box = await status.boundingBox();
   expect(box?.width ?? Infinity).toBeLessThanOrEqual(1);
   expect(box?.height ?? Infinity).toBeLessThanOrEqual(1);
+}
+
+function expectMinimumCssPixelDimension(
+  value: number | undefined,
+  minimum: number,
+): void {
+  const normalized = Math.round((value ?? 0) * 1_000) / 1_000;
+  expect(normalized).toBeGreaterThanOrEqual(minimum);
+}
+
+async function movePointerAcrossAnimationFrames(
+  page: Page,
+  start: { x: number; y: number },
+  delta: { x: number; y: number },
+  frames: number,
+): Promise<void> {
+  for (let frame = 1; frame <= frames; frame += 1) {
+    await page.evaluate(
+      () =>
+        new Promise<void>((resolve) => requestAnimationFrame(() => resolve())),
+    );
+    await page.mouse.move(
+      start.x + (delta.x * frame) / frames,
+      start.y + (delta.y * frame) / frames,
+    );
+  }
 }
 
 async function findUnobstructed44PixelTarget(
@@ -587,10 +511,10 @@ test(
         expect(activeBox.width).toBeLessThanOrEqual(576.5);
         expect(activeBox.height).toBeLessThanOrEqual(324.5);
         expect(activeBox.width / activeBox.height).toBeCloseTo(16 / 9, 1);
-        expect(previousBox.width).toBeGreaterThanOrEqual(44);
-        expect(previousBox.height).toBeGreaterThanOrEqual(44);
-        expect(nextBox.width).toBeGreaterThanOrEqual(44);
-        expect(nextBox.height).toBeGreaterThanOrEqual(44);
+        expectMinimumCssPixelDimension(previousBox.width, 44);
+        expectMinimumCssPixelDimension(previousBox.height, 44);
+        expectMinimumCssPixelDimension(nextBox.width, 44);
+        expectMinimumCssPixelDimension(nextBox.height, 44);
         expect(indicatorsBox.y).toBeGreaterThanOrEqual(
           activeBox.y + activeBox.height,
         );
@@ -893,13 +817,13 @@ test('loops manually while preserving one active destination and keyboard focus'
 
   for (const control of await region.locator('button:visible').all()) {
     const box = await control.boundingBox();
-    expect(box?.width ?? 0).toBeGreaterThanOrEqual(44);
-    expect(box?.height ?? 0).toBeGreaterThanOrEqual(44);
+    expectMinimumCssPixelDimension(box?.width, 44);
+    expectMinimumCssPixelDimension(box?.height, 44);
   }
 });
 
 test(
-  'promotes the same canonical card along a continuous trajectory',
+  'promotes the same canonical card and settles it at the center',
   { tag: '@desktop' },
   async ({ page }) => {
     const articleSection = homepageSections().find(
@@ -924,28 +848,48 @@ test(
       button.parentElement?.setAttribute('data-audit-promotion', 'target');
     });
     const layer = region.locator('[data-audit-promotion="target"]');
-    await installPromotionRecorder(layer);
+    const start = await layer.boundingBox();
+    expect(start).not.toBeNull();
+    if (start === null) return;
     await region.getByRole('button', { name: /^Next /u }).click();
 
-    const evidence = await readPromotionEvidence(layer);
-    const finish = evidence.samples.at(-1);
-    expect(evidence.connected).toBe(true);
-    expect(finish).toBeDefined();
-    if (finish === undefined) return;
-
-    const travel = frameDistance(evidence.start, finish);
-    expect(travel).toBeGreaterThan(12);
-    expect(
-      evidence.samples.some(
-        (sample) =>
-          frameDistance(sample, evidence.start) > travel * 0.15 &&
-          frameDistance(sample, finish) > travel * 0.15,
-      ),
-    ).toBe(true);
     await expect(layer.getByRole('link')).toHaveAttribute(
       'href',
       promotedRecord.href,
     );
+    expect(await layer.evaluate((element) => element.isConnected)).toBe(true);
+
+    await expect
+      .poll(async () => {
+        const current = await layer.boundingBox();
+        return current === null ? 0 : frameDistance(start, current);
+      })
+      .toBeGreaterThan(12);
+    const stageLocator = region.locator('[data-carousel-stage]');
+    await expect
+      .poll(async () => {
+        const [current, stage] = await Promise.all([
+          layer.boundingBox(),
+          stageLocator.boundingBox(),
+        ]);
+        if (current === null || stage === null) return Infinity;
+        return Math.abs(
+          current.x + current.width / 2 - (stage.x + stage.width / 2),
+        );
+      })
+      .toBeLessThanOrEqual(2);
+    const [finish, stage] = await Promise.all([
+      layer.boundingBox(),
+      stageLocator.boundingBox(),
+    ]);
+    expect(finish).not.toBeNull();
+    expect(stage).not.toBeNull();
+    if (finish === null || stage === null) return;
+    expect(frameDistance(start, finish)).toBeGreaterThan(12);
+    expect(
+      Math.abs(finish.x + finish.width / 2 - (stage.x + stage.width / 2)),
+    ).toBeLessThanOrEqual(2);
+    await expect(layer).toHaveAttribute('data-carousel-depth', '0');
   },
 );
 
@@ -977,7 +921,12 @@ test(
       const centerY = activeBefore.y + activeBefore.height / 2;
       await page.mouse.move(centerX, centerY);
       await page.mouse.down();
-      await page.mouse.move(centerX - 30, centerY + 18, { steps: 6 });
+      await movePointerAcrossAnimationFrames(
+        page,
+        { x: centerX, y: centerY },
+        { x: -30, y: 18 },
+        10,
+      );
       await expect
         .poll(async () => {
           const [activeDuring, recededDuring] = await Promise.all([
@@ -1002,24 +951,24 @@ test(
       ).toBeGreaterThan(1);
       await page.mouse.up();
 
+      await waitForStableGeometry(active);
+      await waitForStableGeometry(receded);
       await expect(region.getByRole('link')).toHaveAttribute(
         'href',
         initialHref,
       );
-      await expect
-        .poll(async () => {
-          const [activeAfter, recededAfter] = await Promise.all([
-            active.boundingBox(),
-            receded.boundingBox(),
-          ]);
-          return [
-            Math.abs((activeAfter?.x ?? 0) - activeBefore.x),
-            Math.abs((activeAfter?.y ?? 0) - activeBefore.y),
-            Math.abs((recededAfter?.x ?? 0) - recededBefore.x),
-            Math.abs((recededAfter?.y ?? 0) - recededBefore.y),
-          ].every((difference) => difference <= 1);
-        })
-        .toBe(true);
+      const [activeAfter, recededAfter] = await Promise.all([
+        active.boundingBox(),
+        receded.boundingBox(),
+      ]);
+      expect(
+        [
+          Math.abs((activeAfter?.x ?? 0) - activeBefore.x),
+          Math.abs((activeAfter?.y ?? 0) - activeBefore.y),
+          Math.abs((recededAfter?.x ?? 0) - recededBefore.x),
+          Math.abs((recededAfter?.y ?? 0) - recededBefore.y),
+        ].every((difference) => difference <= 1),
+      ).toBe(true);
     }
   },
 );
@@ -1080,6 +1029,10 @@ test(
       const region = carouselRoot(page, label).getByRole('region');
       await region.scrollIntoViewIfNeeded();
       const destination = region.getByRole('link');
+      await expect(destination.locator('xpath=..')).toHaveCSS(
+        'transform',
+        'none',
+      );
       let heading = destination.getByRole('heading', { name: first.title });
       let summary = destination.getByText(first.summary, { exact: true });
       let facts = destination.getByRole('list');
