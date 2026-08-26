@@ -1037,6 +1037,19 @@ test(
       let summary = destination.getByText(first.summary, { exact: true });
       let facts = destination.getByRole('list');
       await page.mouse.move(0, 0);
+      await expect
+        .poll(async () => {
+          const [cardBox, headingBox] = await Promise.all([
+            destination.boundingBox(),
+            heading.boundingBox(),
+          ]);
+          if (cardBox === null || headingBox === null)
+            return Number.POSITIVE_INFINITY;
+          return (
+            cardBox.y + cardBox.height - (headingBox.y + headingBox.height)
+          );
+        })
+        .toBeLessThanOrEqual(32);
 
       const before = await destination.boundingBox();
       const headingAtRest = await heading.boundingBox();

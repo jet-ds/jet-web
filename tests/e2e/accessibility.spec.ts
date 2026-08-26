@@ -183,11 +183,9 @@ function representativeRoutes(): string[] {
   ].filter((route): route is string => route !== undefined);
 }
 
-test(
-  'representative page templates are axe-clean in both themes',
-  { tag: '@desktop' },
-  async ({ page }) => {
-    for (const route of representativeRoutes()) {
+test.describe('representative page templates are axe-clean in both themes', () => {
+  for (const route of representativeRoutes()) {
+    test(route, { tag: '@desktop' }, async ({ page }) => {
       for (const theme of ['light', 'dark'] as const) {
         await page.addInitScript((selectedTheme) => {
           localStorage.setItem('theme', selectedTheme);
@@ -195,9 +193,9 @@ test(
         await page.goto(route);
         await expectNoSeriousAxeViolations(page, `${route} in ${theme} theme`);
       }
-    }
-  },
-);
+    });
+  }
+});
 
 test(
   'collection surfaces expose one keyboard-visible dominant destination',
