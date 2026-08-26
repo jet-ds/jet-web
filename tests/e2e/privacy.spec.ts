@@ -58,7 +58,7 @@ test('publishes a canonical, indexable combined Privacy and Cookies notice', asy
   await expect(page.getByText('Effective August 26, 2026')).toBeVisible();
 });
 
-test('discloses the site storage and data-processing boundaries', async ({
+test('explains the visitor-facing data choices and local-first boundaries', async ({
   page,
 }) => {
   await page.goto('/privacy/');
@@ -80,29 +80,49 @@ test('discloses the site storage and data-processing boundaries', async ({
     ).toBeVisible();
   }
 
-  await expect(main).toContainText(/production deployment/iu);
-  await expect(main).toContainText(/local development, local previews, CI/iu);
-  await expect(main).toContainText(/approximate request\s+country/iu);
-  await expect(main).toContainText(/strict or\s+standard/iu);
-  await expect(main).toContainText(/EEA,\s+the UK,\s+Switzerland/iu);
-  await expect(main).toContainText(/unknown or\s+missing/iu);
-  await expect(main).toContainText(/not a\s+legal-status determination/iu);
+  await expect(main).toContainText(/approximate region/iu);
+  await expect(main).toContainText(/wait\s+for\s+your\s+Allow/iu);
+  await expect(main).toContainText(
+    /location\s+is\s+unavailable,\s+it\s+will\s+also\s+wait\s+for\s+a\s+choice/iu,
+  );
   await expect(main).toContainText(/Reject/iu);
   await expect(main).toContainText(/Allow/iu);
-  await expect(main).toContainText(
-    /not the IP\s+address, city, or coordinates/iu,
-  );
-  await expect(main).toContainText(/analytics=off/iu);
-  await expect(main).toContainText(/browser profile/iu);
-  await expect(main).toContainText(/do not identify a physical\s+device/iu);
-  await expect(main).toContainText(/localStorage so it persists/iu);
-  await expect(main).toContainText(/sessionStorage for the current tab/iu);
+  await expect(main).toContainText(/only\s+your\s+resulting\s+preference/iu);
+  await expect(main).toContainText(/not\s+raw\s+location\s+data/iu);
+  await expect(main).toContainText(/analytics preference and cookies/iu);
+  await expect(main).toContainText(/theme and interface preferences/iu);
+  await expect(main).toContainText(/Egregore model and session data/iu);
   await expect(main).toContainText(/about 2 GB/iu);
-  await expect(main).toContainText(/Cache Storage/iu);
-  await expect(main).toContainText(/storage estimate/iu);
-  await expect(main).toContainText(/Questions, assembled prompts/iu);
-  await expect(main).toContainText(/stay in this browser's current session/iu);
+  await expect(main).toContainText(
+    /Opening\s+its\s+page\s+does\s+not\s+download\s+the\s+model/iu,
+  );
+  await expect(main).toContainText(
+    /Load\s+Egregore.*downloads\s+the\s+model.*Hugging\s+Face/isu,
+  );
+  await expect(main).toContainText(
+    /not\s+sent\s+to\s+a\s+hosted\s+inference\s+service/iu,
+  );
+  await expect(main).toContainText(
+    /New\s+session\s+control\s+can\s+clear\s+your\s+current\s+conversation/iu,
+  );
   await expect(main).toContainText(/Remove downloaded model/iu);
+
+  for (const internalTerm of [
+    /analytics=(?:off|on)/iu,
+    /physical\s+device/iu,
+    /this Mac/iu,
+    /\bstrict\b/iu,
+    /\bstandard\b/iu,
+    /\bCI\b/u,
+    /middleware/iu,
+    /Partytown/iu,
+    /ClientRouter/iu,
+    /localStorage/iu,
+    /sessionStorage/iu,
+    /Cache Storage/iu,
+  ]) {
+    await expect(main).not.toContainText(internalTerm);
+  }
 
   await expect(
     main.getByRole('link', { name: /Google Privacy Policy/iu }),
