@@ -68,6 +68,47 @@ describe('searchBlogPosts', () => {
     expect(resultIds(records, 'local retrieval')).toEqual(['cross-field']);
   });
 
+  it('keeps a hyphenated title eligible throughout incremental token prefixes', () => {
+    const records = [
+      record('incremental-title', {
+        title: 'Solar-Powered Field Notes',
+        description: 'Nothing else.',
+        summary: 'Nothing else.',
+      }),
+    ];
+
+    for (const query of [
+      'S',
+      'So',
+      'Sol',
+      'Solar',
+      'Solar-P',
+      'Solar-Po',
+      'Solar-Powered',
+    ]) {
+      expect(resultIds(records, query), query).toEqual(['incremental-title']);
+    }
+  });
+
+  it('ranks exact title-token matches before longer prefix-only matches', () => {
+    const records = [
+      record('prefix-only', {
+        title: 'Solarium Field Notes',
+        description: 'Nothing else.',
+        summary: 'Nothing else.',
+        pubDate: '2026-03-01T00:00:00.000Z',
+      }),
+      record('exact-token', {
+        title: 'Solar Field Notes',
+        description: 'Nothing else.',
+        summary: 'Nothing else.',
+        pubDate: '2026-01-01T00:00:00.000Z',
+      }),
+    ];
+
+    expect(resultIds(records, 'solar')).toEqual(['exact-token', 'prefix-only']);
+  });
+
   it('ranks exact complete title equality before every lower score position', () => {
     const records = [
       record('lower', {

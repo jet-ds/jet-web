@@ -48,10 +48,18 @@ test('Blog restores q, replaces its URL state, and clears back to the complete c
   const input = page.getByRole('searchbox', { name: 'Search blog posts' });
   const clear = page.getByRole('button', { name: 'Clear search' });
   const status = page.getByRole('status');
+  const instruction = page.locator('#blog-search-instruction');
   const total = await blogItems(page).count();
   const historyLength = await page.evaluate(() => window.history.length);
 
   await expect(input).toHaveValue('invented-query');
+  expect(await input.getAttribute('placeholder')).toBeNull();
+  await expect(input).toHaveAttribute(
+    'aria-describedby',
+    'blog-search-instruction',
+  );
+  await expect(instruction).toContainText(/titles.*summaries.*topics/iu);
+  await expect(page.locator('[data-blog-search-icon]')).toBeVisible();
   await expect(clear).toBeVisible();
   await expect(status).toBeVisible();
   await expect(page.locator('[data-blog-search-empty]')).toBeVisible();

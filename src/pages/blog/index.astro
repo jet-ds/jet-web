@@ -67,15 +67,32 @@ const blogItems = sortedPosts.map((post) => {
                   Search blog posts
                 </label>
                 <div class="flex flex-col gap-2xs sm:flex-row">
-                  <input
-                    id="blog-search-input"
-                    data-blog-search-input
-                    type="search"
-                    name="q"
-                    autocomplete="off"
-                    placeholder="Search titles, summaries, and topics"
-                    class="min-h-11 min-w-0 flex-1 rounded-lg border border-border-default bg-surface-base px-s py-2xs text-text-primary placeholder:text-text-tertiary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-base"
-                  />
+                  <div class="relative min-w-0 flex-1">
+                    <svg
+                      data-blog-search-icon
+                      aria-hidden="true"
+                      focusable="false"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                      class="pointer-events-none absolute left-s top-1/2 size-5 -translate-y-1/2 text-text-tertiary"
+                    >
+                      <circle cx="11" cy="11" r="8" />
+                      <path d="m21 21-4.3-4.3" />
+                    </svg>
+                    <input
+                      id="blog-search-input"
+                      data-blog-search-input
+                      type="search"
+                      name="q"
+                      autocomplete="off"
+                      aria-describedby="blog-search-instruction"
+                      class="min-h-11 w-full min-w-0 rounded-lg border border-border-default bg-surface-base py-2xs pr-s pl-xl text-text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-brand-base"
+                    />
+                  </div>
                   <button
                     type="button"
                     data-blog-search-clear
@@ -87,6 +104,10 @@ const blogItems = sortedPosts.map((post) => {
                     Clear search
                   </button>
                 </div>
+                <p id="blog-search-instruction" class="sr-only">
+                  Search titles, summaries, and topics. Results update as you
+                  type.
+                </p>
               </form>
               <p
                 data-blog-search-status

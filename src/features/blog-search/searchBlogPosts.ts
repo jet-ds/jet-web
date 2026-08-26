@@ -11,11 +11,15 @@ export interface SearchableBlogRecord {
 type SearchScore = readonly [
   exactTitle: number,
   titlePhrase: number,
-  titleTokens: number,
+  exactTitleTokens: number,
+  prefixTitleTokens: number,
   exactTags: number,
-  tagTokens: number,
-  summaryTokens: number,
-  descriptionTokens: number,
+  exactTagTokens: number,
+  prefixTagTokens: number,
+  exactSummaryTokens: number,
+  prefixSummaryTokens: number,
+  exactDescriptionTokens: number,
+  prefixDescriptionTokens: number,
 ];
 
 type ScoredRecord = {
@@ -47,6 +51,21 @@ function distinctTokens(value: string): string[] {
 
 function countPresent(queryTokens: readonly string[], field: Set<string>) {
   return queryTokens.filter((token) => field.has(token)).length;
+}
+
+function hasTokenPrefix(field: Set<string>, queryToken: string): boolean {
+  for (const fieldToken of field) {
+    if (fieldToken.startsWith(queryToken)) return true;
+  }
+  return false;
+}
+
+function countPrefixPresent(
+  queryTokens: readonly string[],
+  field: Set<string>,
+): number {
+  return queryTokens.filter((queryToken) => hasTokenPrefix(field, queryToken))
+    .length;
 }
 
 function compareCodeUnitIds(left: string, right: string): number {
@@ -95,19 +114,27 @@ function scoreRecord(
     ...descriptionTokens,
   ]);
 
-  if (queryTokens.some((token) => !indexedTokens.has(token))) return undefined;
+  if (
+    queryTokens.some((queryToken) => !hasTokenPrefix(indexedTokens, queryToken))
+  ) {
+    return undefined;
+  }
 
   const queryTokenSet = new Set(queryTokens);
   return [
     Number(normalizedTitles.some((title) => title === normalizedQuery)),
     Number(normalizedTitles.some((title) => title.includes(normalizedQuery))),
     countPresent(queryTokens, titleTokens),
+    countPrefixPresent(queryTokens, titleTokens),
     normalizedTags.filter(
       (tag) => tag === normalizedQuery || queryTokenSet.has(tag),
     ).length,
     countPresent(queryTokens, tagTokens),
+    countPrefixPresent(queryTokens, tagTokens),
     countPresent(queryTokens, summaryTokens),
+    countPrefixPresent(queryTokens, summaryTokens),
     countPresent(queryTokens, descriptionTokens),
+    countPrefixPresent(queryTokens, descriptionTokens),
   ];
 }
 
