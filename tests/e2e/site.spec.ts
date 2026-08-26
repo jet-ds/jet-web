@@ -1,6 +1,37 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import { publishedContent } from '../support/publishedContent';
 
+function isGoogleAnalyticsHost(hostname: string): boolean {
+  return (
+    hostname === 'www.googletagmanager.com' ||
+    hostname === 'analytics.google.com' ||
+    hostname === 'google-analytics.com' ||
+    hostname.endsWith('.google-analytics.com') ||
+    hostname === 'stats.g.doubleclick.net'
+  );
+}
+
+async function interceptGoogleAnalytics(page: Page): Promise<string[]> {
+  const requests: string[] = [];
+  await page.route('**/*', async (route) => {
+    const url = new URL(route.request().url());
+    if (!isGoogleAnalyticsHost(url.hostname)) {
+      await route.continue();
+      return;
+    }
+    requests.push(url.href);
+    const isLibrary =
+      url.hostname === 'www.googletagmanager.com' &&
+      url.pathname === '/gtag/js';
+    await route.fulfill(
+      isLibrary
+        ? { status: 200, contentType: 'application/javascript', body: '' }
+        : { status: 204 },
+    );
+  });
+  return requests;
+}
+
 async function visitBlogArticleWithTableOfContents(page: Page): Promise<void> {
   for (const { route } of publishedContent().filter(
     ({ kind }) => kind === 'blog',
@@ -337,4 +368,16 @@ test('theme-aware Work imagery is ready before its first theme switch', async ({
   expect(lightSource).not.toBeNull();
   expect(darkSource).not.toBeNull();
   expect(darkSource).not.toBe(lightSource);
+});
+
+test('non-Production documents send no analytics traffic on direct or ClientRouter navigation', async ({
+  page,
+}) => {
+  const analyticsRequests = await interceptGoogleAnalytics(page);
+
+  await page.goto('/');
+  await page.getByRole('link', { name: 'About', exact: true }).first().click();
+  await expect(page).toHaveURL(/\/about\/$/u);
+
+  expect(analyticsRequests).toEqual([]);
 });

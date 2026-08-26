@@ -5,6 +5,7 @@ import {
   type Page,
 } from '@playwright/test';
 import { SITE } from '../../src/config/site';
+import { ANALYTICS_OPT_OUT_COOKIE } from '../../src/features/analytics/trackingPolicy';
 import { establishDeploymentProtectionBypass } from '../support/deploymentProtection';
 import {
   publishedAssistantSources,
@@ -39,6 +40,16 @@ type JsonLdSchema = {
 type CorpusContent = {
   documents: Array<{ id: string; canonicalUrl: string }>;
 };
+
+function isAnalyticsHost(hostname: string): boolean {
+  return (
+    hostname === 'www.googletagmanager.com' ||
+    hostname === 'analytics.google.com' ||
+    hostname === 'google-analytics.com' ||
+    hostname.endsWith('.google-analytics.com') ||
+    hostname === 'stats.g.doubleclick.net'
+  );
+}
 
 function occurrences(value: string, target: string): number {
   return value.split(target).length - 1;
@@ -92,6 +103,78 @@ test.beforeEach(async ({ context }) => {
     deploymentOrigin,
     process.env.VERCEL_AUTOMATION_BYPASS_SECRET,
   );
+});
+
+test('Production reads back the site-wide analytics device control', async ({
+  context,
+  page,
+}) => {
+  const analyticsRequests: URL[] = [];
+  await page.route('**/*', async (route) => {
+    const url = new URL(route.request().url());
+    if (!isAnalyticsHost(url.hostname)) {
+      await route.continue();
+      return;
+    }
+    analyticsRequests.push(url);
+    const isLibrary =
+      url.hostname === 'www.googletagmanager.com' &&
+      url.pathname === '/gtag/js';
+    await route.fulfill(
+      isLibrary
+        ? { status: 200, contentType: 'application/javascript', body: '' }
+        : { status: 204 },
+    );
+  });
+
+  await page.goto('/?analytics=off&campaign=deployment#preserved');
+  await expect(page).toHaveURL(
+    new URL('/?campaign=deployment#preserved', deploymentOrigin).toString(),
+  );
+  await expect
+    .poll(
+      () =>
+        analyticsRequests.filter(
+          ({ hostname, pathname }) =>
+            hostname === 'www.googletagmanager.com' && pathname === '/gtag/js',
+        ).length,
+    )
+    .toBeGreaterThanOrEqual(1);
+  expect(
+    await page.evaluate(
+      (measurementId) => Reflect.get(window, `ga-disable-${measurementId}`),
+      SITE.ga4MeasurementId,
+    ),
+  ).toBe(true);
+  expect(
+    (await context.cookies()).find(
+      ({ name }) => name === ANALYTICS_OPT_OUT_COOKIE,
+    ),
+  ).toMatchObject({ value: '1', path: '/', secure: true, sameSite: 'Lax' });
+  expect(
+    analyticsRequests.filter(({ pathname }) =>
+      /^\/(?:g\/)?collect$/u.test(pathname),
+    ),
+  ).toEqual([]);
+
+  await page.goto('/about/?analytics=on&campaign=deployment#preserved');
+  await expect(page).toHaveURL(
+    new URL(
+      '/about/?campaign=deployment#preserved',
+      deploymentOrigin,
+    ).toString(),
+  );
+  expect(
+    await page.evaluate(
+      (measurementId) => Reflect.get(window, `ga-disable-${measurementId}`),
+      SITE.ga4MeasurementId,
+    ),
+  ).toBe(false);
+  expect(
+    (await context.cookies()).some(
+      ({ name }) => name === ANALYTICS_OPT_OUT_COOKIE,
+    ),
+  ).toBe(false);
 });
 
 test('Production publishes every tracked published content contract', async ({

@@ -1,66 +1,125 @@
 ---
-/**
- * Google Analytics 4 (GA4) Integration with Partytown
- *
- * Adds GA4 tracking to the page with:
- * - Partytown web worker execution (non-blocking)
- * - Single page_view tracking (no duplicates)
- * - ClientRouter integration for SPA navigation
- *
- * Configuration:
- * - send_page_view: false - Disables automatic page_view on gtag('config')
- * - Manual page_view via astro:page-load - Single tracking for all page loads
- *
- * Usage:
- * - Import in BaseLayout.astro and place in <head>
- * - Set measurementId prop from SITE.ga4MeasurementId
- */
+import {
+  ANALYTICS_CONTROL_PARAM,
+  ANALYTICS_OPT_OUT_COOKIE,
+  shouldEmitProductionAnalytics,
+} from '../../features/analytics/trackingPolicy';
 
 export interface Props {
   measurementId?: string;
 }
 
 const { measurementId } = Astro.props;
-
-// Don't render if no measurement ID provided
-if (!measurementId) {
-  console.warn('GA4: No measurement ID provided, skipping analytics');
-}
-
-// Optional: Skip analytics in development
-const isDevelopment = import.meta.env.DEV;
-const shouldSkipAnalytics = isDevelopment && import.meta.env.PUBLIC_DISABLE_ANALYTICS_DEV === 'true';
-
-if (shouldSkipAnalytics) {
-  console.log('GA4: Analytics disabled in development');
-}
+const shouldEmitAnalytics =
+  measurementId !== undefined &&
+  shouldEmitProductionAnalytics({ vercelEnv: process.env.VERCEL_ENV });
 ---
 
-{measurementId && !shouldSkipAnalytics && (
-  <>
-    <!-- Analytics Tracking -->
-    <script is:inline type="text/partytown" async src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`}></script>
-    <script is:inline type="text/partytown" define:vars={{ measurementId }}>
-      window.dataLayer = window.dataLayer || [];
-      // eslint-disable-next-line prefer-rest-params -- Google's standard dataLayer shim deliberately forwards its arguments object.
-      window.gtag = function() { dataLayer.push(arguments); };
-      gtag('js', new Date());
-      gtag('config', measurementId, { send_page_view: false });
-    </script>
+{
+  shouldEmitAnalytics && (
+    <>
+      <script
+        is:inline
+        define:vars={{
+          measurementId,
+          controlParam: ANALYTICS_CONTROL_PARAM,
+          optOutCookie: ANALYTICS_OPT_OUT_COOKIE,
+        }}
+      >
+        const controllerKey = '__jetAnalyticsController';
+        let controller = Reflect.get(window, controllerKey);
 
-    <!-- Page View Tracking -->
-    <script is:inline>
-      window.dataLayer = window.dataLayer || [];
-      // eslint-disable-next-line prefer-rest-params -- Google's standard dataLayer shim deliberately forwards its arguments object.
-      window.gtag = function() { dataLayer.push(arguments); };
+        if (controller === undefined) {
+          let configured = false;
+          let optedOut = false;
+          let pageViewPending = false;
+          let partytownReady = false;
 
-      document.addEventListener('astro:page-load', () => {
-        window.gtag('event', 'page_view', {
-          page_location: window.location.href,
-          page_path: window.location.pathname,
-          page_title: document.title,
-        });
-      });
-    </script>
-  </>
-)}
+          const processControl = () => {
+            const url = new URL(window.location.href);
+            const control = url.searchParams.get(controlParam);
+
+            if (control === 'off') {
+              document.cookie = `${optOutCookie}=1; Max-Age=31536000; Path=/; Secure; SameSite=Lax`;
+            } else if (control === 'on') {
+              document.cookie = `${optOutCookie}=; Max-Age=0; Path=/; Secure; SameSite=Lax`;
+            }
+
+            if (control === 'off' || control === 'on') {
+              url.searchParams.delete(controlParam);
+              window.history.replaceState(
+                window.history.state,
+                '',
+                `${url.pathname}${url.search}${url.hash}`,
+              );
+            }
+
+            optedOut = document.cookie
+              .split(';')
+              .some((cookie) => cookie.trim() === `${optOutCookie}=1`);
+            Reflect.set(window, `ga-disable-${measurementId}`, optedOut);
+          };
+
+          const sendPageView = () => {
+            processControl();
+            if (optedOut) return;
+
+            const gtag = Reflect.get(window, 'gtag');
+            if (typeof gtag !== 'function') return;
+
+            if (!configured) {
+              gtag('js', new Date());
+              gtag('config', measurementId, { send_page_view: false });
+              configured = true;
+            }
+            gtag('event', 'page_view', {
+              page_location: window.location.href,
+              page_path: window.location.pathname,
+              page_title: document.title,
+            });
+          };
+
+          const onPageLoad = () => {
+            processControl();
+            pageViewPending = !optedOut;
+            if (!partytownReady || !pageViewPending) return;
+            pageViewPending = false;
+            sendPageView();
+          };
+
+          const onAfterSwap = () => {
+            partytownReady = false;
+            processControl();
+          };
+
+          const onPartytownReady = () => {
+            partytownReady = true;
+            configured = false;
+            if (!pageViewPending) return;
+            pageViewPending = false;
+            sendPageView();
+          };
+
+          controller = { processControl };
+          Reflect.set(window, controllerKey, controller);
+          document.addEventListener('astro:after-swap', onAfterSwap);
+          document.addEventListener('astro:page-load', onPageLoad);
+          document.addEventListener('pt0', onPartytownReady);
+        }
+
+        controller.processControl();
+      </script>
+      <script
+        is:inline
+        type="text/partytown"
+        async
+        src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`}
+      />
+      <script is:inline type="text/partytown">
+        window.dataLayer = window.dataLayer || [];
+        // eslint-disable-next-line prefer-rest-params -- Google's dataLayer shim forwards its arguments object.
+        window.gtag = function () { dataLayer.push(arguments); };
+      </script>
+    </>
+  )
+}
