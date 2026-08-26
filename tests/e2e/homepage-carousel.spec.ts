@@ -460,6 +460,99 @@ test(
 );
 
 test(
+  'serves every enhanced carousel image locally without Blob requests',
+  { tag: '@desktop' },
+  async ({ browser }) => {
+    const blobRequests: string[] = [];
+    const imageEvidence: Array<{
+      height: number;
+      src: string;
+      width: number;
+    }> = [];
+    const serializedProps: string[] = [];
+
+    for (const colorScheme of ['light', 'dark'] as const) {
+      const context = await browser.newContext({ colorScheme });
+      await context.route(
+        /https:\/\/[^/]+\.public\.blob\.vercel-storage\.com\/.+/u,
+        async (route) => {
+          blobRequests.push(route.request().url());
+          await route.abort('blockedbyclient');
+        },
+      );
+      const page = await context.newPage();
+      await page.goto('/');
+      await waitForCarousels(page);
+
+      for (const { label, records } of homepageSections()) {
+        const root = carouselRoot(page, label);
+        const props = await root.locator('astro-island').getAttribute('props');
+        expect(props).not.toBeNull();
+        if (props !== null) serializedProps.push(props);
+
+        const region = root.getByRole('region');
+        const active = region.locator('[data-carousel-depth="0"]');
+        for (const [itemIndex, record] of records.entries()) {
+          if (itemIndex > 0) {
+            await region
+              .getByRole('button', {
+                name: `Go to item ${itemIndex + 1} of ${records.length}`,
+              })
+              .click();
+          }
+          await expect(active).toHaveAttribute(
+            'data-carousel-layer-item',
+            record.id,
+          );
+          const visibleImages = region.locator(
+            '[data-carousel-visible="true"]:visible img:visible',
+          );
+          await expect(visibleImages).toHaveCount(Math.min(records.length, 4));
+          for (const image of await visibleImages.all()) {
+            await expect
+              .poll(() =>
+                image.evaluate(
+                  (element) =>
+                    element instanceof HTMLImageElement && element.complete,
+                ),
+              )
+              .toBe(true);
+            imageEvidence.push(
+              await image.evaluate((element) => {
+                if (!(element instanceof HTMLImageElement))
+                  throw new Error(
+                    'Carousel layer image is not an img element.',
+                  );
+                return {
+                  height: element.naturalHeight,
+                  src: element.currentSrc,
+                  width: element.naturalWidth,
+                };
+              }),
+            );
+          }
+        }
+      }
+      await context.close();
+    }
+
+    expect(blobRequests).toEqual([]);
+    for (const props of serializedProps) {
+      expect(props).not.toContain('public.blob.vercel-storage.com');
+      expect(props).toContain('/_astro/');
+    }
+    expect(imageEvidence.length).toBeGreaterThan(0);
+    for (const image of imageEvidence) {
+      const url = new URL(image.src);
+      expect(url.origin).toBe('http://127.0.0.1:4321');
+      expect(url.pathname).toMatch(/^\/_astro\/.+\.webp$/u);
+      expect(image.width).toBeGreaterThanOrEqual(576);
+      expect(image.width / image.height).toBeCloseTo(16 / 9, 3);
+    }
+  },
+);
+
+test(
   'centers both collection headings with View all beneath each heading',
   { tag: '@desktop' },
   async ({ page }) => {
