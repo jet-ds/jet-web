@@ -29,10 +29,11 @@ const DESKTOP_ROTATE_Y = [0, -7, -11, -14] as const;
 const MOBILE_ROTATE_Y = [0, -3, -5, -7] as const;
 const CONNECTED_DRAG_X = [1, 0.34, 0.22, 0.14] as const;
 const CONNECTED_DRAG_Y = [1, 0.4, 0.26, 0.16] as const;
-const MAX_CROSS_AXIS_DRAG = 28;
 const VERTICAL_INTENT_THRESHOLD = 12;
 const VERTICAL_INTENT_RATIO = 1.25;
-const HIDDEN_FORWARD_DEPTH = 4;
+const DESKTOP_CARD_MAX_WIDTH = 576;
+const DESKTOP_ROTATION_EDGE_RESERVE = 16;
+const HIDDEN_DEPTH = 4;
 const MAX_VISIBLE_DEPTH = 3;
 
 interface DragOffset {
@@ -40,41 +41,93 @@ interface DragOffset {
   y: number;
 }
 
-function clampCrossAxis(offsetY: number): number {
-  return Math.max(-MAX_CROSS_AXIS_DRAG, Math.min(MAX_CROSS_AXIS_DRAG, offsetY));
+interface DragBounds {
+  maxX: number;
+  maxY: number;
+  minX: number;
+  minY: number;
 }
 
-function getVisualDepth(
+interface CarouselGeometry {
+  dragBounds: DragBounds;
+  regionWidth: number;
+  spreadScale: number;
+  stageWidth: number;
+}
+
+const EMPTY_GEOMETRY: CarouselGeometry = {
+  dragBounds: { maxX: 0, maxY: 0, minX: 0, minY: 0 },
+  regionWidth: 0,
+  spreadScale: 1,
+  stageWidth: 0,
+};
+
+function clamp(value: number, minimum: number, maximum: number): number {
+  return Math.max(minimum, Math.min(maximum, value));
+}
+
+function clampDragOffset(offset: DragOffset, bounds: DragBounds): DragOffset {
+  return {
+    x: clamp(offset.x, bounds.minX, bounds.maxX),
+    y: clamp(offset.y, bounds.minY, bounds.maxY),
+  };
+}
+
+type LayerSide = -1 | 0 | 1;
+
+interface LayerPosition {
+  depth: number;
+  side: LayerSide;
+}
+
+function getLayerPosition(
   itemIndex: number,
   activeIndex: number,
   itemCount: number,
-): number {
+  desktopLayout: boolean,
+): LayerPosition {
   const forwardDepth = wrapIndex(itemIndex, -activeIndex, itemCount);
-  if (forwardDepth <= MAX_VISIBLE_DEPTH) return forwardDepth;
-  return HIDDEN_FORWARD_DEPTH;
+  if (forwardDepth === 0) return { depth: 0, side: 0 };
+  if (!desktopLayout) {
+    return {
+      depth: forwardDepth <= MAX_VISIBLE_DEPTH ? forwardDepth : HIDDEN_DEPTH,
+      side: 1,
+    };
+  }
+
+  const backwardDepth = wrapIndex(activeIndex, -itemIndex, itemCount);
+  const side: LayerSide = forwardDepth <= backwardDepth ? 1 : -1;
+  const depth = Math.min(forwardDepth, backwardDepth);
+  return {
+    depth: depth <= MAX_VISIBLE_DEPTH ? depth : HIDDEN_DEPTH,
+    side,
+  };
 }
 
 function getLayerMotion(
-  depth: number,
+  position: LayerPosition,
   desktopLayout: boolean,
   dragOffset: DragOffset,
+  geometry: CarouselGeometry,
 ) {
-  if (depth === HIDDEN_FORWARD_DEPTH) {
+  const { depth, side } = position;
+  if (depth === HIDDEN_DEPTH) {
     return {
-      x: desktopLayout ? 228 : 32,
+      x: desktopLayout ? side * 228 * geometry.spreadScale : 32,
       y: desktopLayout ? 40 : 216,
       scale: desktopLayout ? 0.76 : 0.84,
-      rotateY: desktopLayout ? -17 : -9,
+      rotateY: desktopLayout ? side * -17 : -9,
       opacity: 0,
       filter: 'brightness(0.56) saturate(0.46) blur(1.6px)',
     };
   }
 
-  const x = desktopLayout ? DESKTOP_X[depth] : MOBILE_X[depth];
-  const y = desktopLayout ? DESKTOP_Y[depth] : MOBILE_Y[depth];
   const scale = desktopLayout ? DESKTOP_SCALE[depth] : MOBILE_SCALE[depth];
+  const desktopX = side * DESKTOP_X[depth] * geometry.spreadScale;
+  const x = desktopLayout ? desktopX : MOBILE_X[depth];
+  const y = desktopLayout ? DESKTOP_Y[depth] : MOBILE_Y[depth];
   const rotateY = desktopLayout
-    ? DESKTOP_ROTATE_Y[depth]
+    ? side * DESKTOP_ROTATE_Y[depth]
     : MOBILE_ROTATE_Y[depth];
   return {
     x: x + dragOffset.x * CONNECTED_DRAG_X[depth],
@@ -260,7 +313,9 @@ function DepthCarouselStage({ label, items }: DepthCarouselProps) {
   const [activeIndex, setActiveIndex] = useState(0);
   const [dragOffset, setDragOffset] = useState<DragOffset>({ x: 0, y: 0 });
   const [ready, setReady] = useState(false);
+  const [geometry, setGeometry] = useState<CarouselGeometry>(EMPTY_GEOMETRY);
   const rootRef = useRef<HTMLDivElement>(null);
+  const stageRef = useRef<HTMLDivElement>(null);
   const fallbackRef = useRef<HTMLElement | null>(null);
   const dragOccurred = useRef(false);
   const verticalIntent = useRef(false);
@@ -291,6 +346,117 @@ function DepthCarouselStage({ label, items }: DepthCarouselProps) {
       ?.querySelector<HTMLAnchorElement>('[data-carousel-active]')
       ?.focus();
   }, [activeIndex, ready]);
+
+  useLayoutEffect(() => {
+    if (!ready) return;
+    const root = rootRef.current;
+    const stage = stageRef.current;
+    if (root === null || stage === null) return;
+    const canvas =
+      root.closest<HTMLElement>('[data-home-carousel-canvas]') ?? root;
+
+    const measure = () => {
+      const active = root.querySelector<HTMLElement>(
+        '[data-carousel-depth="0"]',
+      );
+      if (active === null) return;
+      const canvasBounds = canvas.getBoundingClientRect();
+      const rootBounds = root.getBoundingClientRect();
+      const stageBounds = stage.getBoundingClientRect();
+      const rootStyle = getComputedStyle(root);
+      const canvasStyle = getComputedStyle(canvas);
+      const layerWidth = Math.min(
+        active.offsetWidth || stageBounds.width,
+        DESKTOP_CARD_MAX_WIDTH,
+      );
+      const layerHeight = active.offsetHeight || (layerWidth * 9) / 16;
+      const inlineStart = Number.parseFloat(rootStyle.paddingLeft) || 0;
+      const inlineEnd = Number.parseFloat(rootStyle.paddingRight) || 0;
+      const blockStart = Number.parseFloat(canvasStyle.paddingTop) || 0;
+      const blockEnd = Number.parseFloat(canvasStyle.paddingBottom) || 0;
+      const deepestVisibleDepth = desktopLayout
+        ? Math.min(MAX_VISIBLE_DEPTH, Math.floor(itemCount / 2))
+        : Math.min(MAX_VISIBLE_DEPTH, itemCount - 1);
+      const innerWidth = Math.max(
+        0,
+        canvasBounds.width - inlineStart - inlineEnd,
+      );
+      const deepestScale = DESKTOP_SCALE[deepestVisibleDepth];
+      const deepestOffset = DESKTOP_X[deepestVisibleDepth];
+      const availableSpread =
+        deepestOffset === 0
+          ? 1
+          : (innerWidth / 2 -
+              (layerWidth * deepestScale) / 2 -
+              DESKTOP_ROTATION_EDGE_RESERVE) /
+            deepestOffset;
+      const spreadScale = desktopLayout ? clamp(availableSpread, 0, 1) : 1;
+      const restingLeft =
+        stageBounds.left + stageBounds.width / 2 - layerWidth / 2;
+      const restingTop = desktopLayout
+        ? stageBounds.top + stageBounds.height / 2 - layerHeight / 2
+        : stageBounds.top;
+      const minX = canvasBounds.left + inlineStart - restingLeft;
+      const maxX = canvasBounds.right - inlineEnd - (restingLeft + layerWidth);
+      const minY = canvasBounds.top + blockStart - restingTop;
+      const maxY = canvasBounds.bottom - blockEnd - (restingTop + layerHeight);
+      const nextGeometry = {
+        dragBounds: {
+          maxX: Math.max(minX, maxX),
+          maxY: Math.max(minY, maxY),
+          minX: Math.min(minX, maxX),
+          minY: Math.min(minY, maxY),
+        },
+        regionWidth: rootBounds.width,
+        spreadScale,
+        stageWidth: stageBounds.width,
+      };
+      setGeometry((current) =>
+        current.regionWidth === nextGeometry.regionWidth &&
+        current.stageWidth === nextGeometry.stageWidth &&
+        current.spreadScale === nextGeometry.spreadScale &&
+        current.dragBounds.maxX === nextGeometry.dragBounds.maxX &&
+        current.dragBounds.maxY === nextGeometry.dragBounds.maxY &&
+        current.dragBounds.minX === nextGeometry.dragBounds.minX &&
+        current.dragBounds.minY === nextGeometry.dragBounds.minY
+          ? current
+          : nextGeometry,
+      );
+    };
+
+    const observer = new ResizeObserver(measure);
+    observer.observe(canvas);
+    observer.observe(root);
+    observer.observe(stage);
+    measure();
+    return () => observer.disconnect();
+  }, [desktopLayout, itemCount, ready]);
+
+  useLayoutEffect(() => {
+    if (!ready) return;
+    const root = rootRef.current;
+    if (root === null) return;
+    const details = [
+      ...root.querySelectorAll<HTMLElement>('[data-carousel-details]'),
+    ];
+
+    const measure = () => {
+      for (const detail of details) {
+        const content = detail.closest('[data-carousel-content]');
+        if (!(content instanceof HTMLElement)) continue;
+        const rowGap = Number.parseFloat(getComputedStyle(content).rowGap) || 0;
+        content.style.setProperty(
+          '--carousel-details-offset',
+          `${detail.getBoundingClientRect().height + rowGap}px`,
+        );
+      }
+    };
+
+    const observer = new ResizeObserver(measure);
+    for (const detail of details) observer.observe(detail);
+    measure();
+    return () => observer.disconnect();
+  }, [items, ready]);
 
   const move = useCallback(
     (delta: number) => {
@@ -354,14 +520,25 @@ function DepthCarouselStage({ label, items }: DepthCarouselProps) {
           </button>
         )}
 
-        <div className="depth-carousel__stage" data-carousel-stage>
+        <div
+          ref={stageRef}
+          className="depth-carousel__stage"
+          data-carousel-stage
+        >
           {items.map((item, itemIndex) => {
-            const depth = getVisualDepth(itemIndex, activeIndex, itemCount);
+            const position = getLayerPosition(
+              itemIndex,
+              activeIndex,
+              itemCount,
+              desktopLayout,
+            );
+            const { depth, side } = position;
             const visible = depth >= 0 && depth <= MAX_VISIBLE_DEPTH;
             const motionState = getLayerMotion(
-              depth,
+              position,
               desktopLayout,
               dragOffset,
+              geometry,
             );
             const transition = reducedMotion
               ? { duration: 0 }
@@ -380,12 +557,15 @@ function DepthCarouselStage({ label, items }: DepthCarouselProps) {
                 data-carousel-depth={depth}
                 data-carousel-kind={depth === 0 ? item.kind : undefined}
                 data-carousel-layer-item={item.id}
+                data-carousel-side={
+                  side < 0 ? 'previous' : side > 0 ? 'next' : 'active'
+                }
                 data-carousel-visible={visible ? 'true' : undefined}
                 inert={visible ? undefined : true}
                 initial={false}
                 style={{
                   pointerEvents: visible ? 'auto' : 'none',
-                  zIndex: 10 - Math.min(depth, HIDDEN_FORWARD_DEPTH),
+                  zIndex: 10 - Math.min(depth, HIDDEN_DEPTH),
                 }}
                 transition={transition}
               >
@@ -418,10 +598,12 @@ function DepthCarouselStage({ label, items }: DepthCarouselProps) {
                       return;
                     }
                     if (verticalIntent.current) return;
-                    setDragOffset({
-                      x: info.offset.x,
-                      y: clampCrossAxis(info.offset.y),
-                    });
+                    setDragOffset(
+                      clampDragOffset(
+                        { x: info.offset.x, y: info.offset.y },
+                        geometry.dragBounds,
+                      ),
+                    );
                   }}
                   onPanEnd={(event, info) => {
                     if (depth === 0) handlePanEnd(event, info);
@@ -433,11 +615,13 @@ function DepthCarouselStage({ label, items }: DepthCarouselProps) {
                     event.stopPropagation();
                   }}
                 >
-                  <ThemeImage
-                    alt={depth === 0 ? item.image.alt : ''}
-                    depth={depth}
-                    item={item}
-                  />
+                  {visible && (
+                    <ThemeImage
+                      alt={depth === 0 ? item.image.alt : ''}
+                      depth={depth}
+                      item={item}
+                    />
+                  )}
                   <motion.div
                     animate={{ opacity: depth === 0 ? 1 : 0 }}
                     aria-hidden={depth === 0 ? undefined : 'true'}
@@ -451,7 +635,10 @@ function DepthCarouselStage({ label, items }: DepthCarouselProps) {
                         : { duration: 0.28, ease: 'easeOut' }
                     }
                   >
-                    <div className="depth-carousel__content">
+                    <div
+                      className="depth-carousel__content"
+                      data-carousel-content
+                    >
                       <div
                         className="depth-carousel__heading-group"
                         data-carousel-heading

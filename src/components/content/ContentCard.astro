@@ -31,8 +31,9 @@ const titleSize = variant === 'compact' ? 'text-lg' : 'text-xl';
 const summarySize = variant === 'compact' ? 'text-sm' : 'text-base';
 const imageSizes =
   variant === 'compact'
-    ? '(max-width: 767px) 100vw, (max-width: 1023px) 50vw, 33vw'
+    ? '(max-width: 767px) 100vw, (max-width: 1023px) 50vw, 384px'
     : '(max-width: 767px) 100vw, 50vw';
+const imageWidths = variant === 'compact' ? [384, 768, 1152] : undefined;
 ---
 
 <article class="h-full">
@@ -54,6 +55,7 @@ const imageSizes =
         class="h-full w-full object-cover motion-safe:transition-transform motion-safe:duration-300 motion-safe:group-hover:scale-105"
         loading="lazy"
         sizes={imageSizes}
+        widths={imageWidths}
       />
     </div>
 

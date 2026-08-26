@@ -5,10 +5,12 @@ const homepageSections = () => {
   const homepage = resolvedPublishedCollections().homepage;
   return [
     {
+      heading: 'Blog',
       label: 'Latest Articles',
       records: homepage.filter(({ kind }) => kind === 'blog'),
     },
     {
+      heading: 'Works',
       label: 'Latest Works',
       records: homepage.filter(({ kind }) => kind !== 'blog'),
     },
@@ -81,6 +83,30 @@ function frameDistance(
   );
 }
 
+async function waitForStableGeometry(locator: Locator): Promise<void> {
+  let previous: GeometryFrame | null = null;
+  await expect
+    .poll(async () => {
+      const bounds = await locator.boundingBox();
+      const current =
+        bounds === null
+          ? null
+          : {
+              height: bounds.height,
+              width: bounds.width,
+              x: bounds.x,
+              y: bounds.y,
+            };
+      const stable =
+        current !== null &&
+        previous !== null &&
+        frameDistance(current, previous) <= 0.5;
+      previous = current;
+      return stable;
+    })
+    .toBe(true);
+}
+
 async function installTransitionRecorder(
   region: Locator,
   incomingId: string,
@@ -117,7 +143,7 @@ async function installTransitionRecorder(
       )
         throw new Error('Trajectory recorder needs active card geometry.');
       const recedingId = root
-        .querySelector('[data-carousel-depth="2"]')
+        .querySelector('[data-carousel-side="next"][data-carousel-depth="2"]')
         ?.getAttribute('data-carousel-layer-item');
       const readSample = (): TransitionSample => ({
         incoming: frame(root.querySelector(itemSelector(selectedId))),
@@ -131,9 +157,23 @@ async function installTransitionRecorder(
       const record = () => {
         const before = readSample();
         const samples: TransitionSample[] = [];
+        const deadline = performance.now() + 5_000;
         const sample = () => {
-          samples.push(readSample());
-          if (samples.length < 48) {
+          const current = readSample();
+          samples.push(current);
+          const incoming = current.incoming;
+          const settled =
+            incoming !== null &&
+            Math.hypot(
+              incoming.x - activeTarget.x,
+              incoming.y - activeTarget.y,
+              incoming.width - activeTarget.width,
+              incoming.height - activeTarget.height,
+            ) < 2;
+          if (
+            (!settled || samples.length < 2) &&
+            performance.now() < deadline
+          ) {
             requestAnimationFrame(sample);
             return;
           }
@@ -463,12 +503,40 @@ test(
 );
 
 test(
+  'does not cascade an offscreen Works enhancement when the Blog fallback hands off',
+  { tag: '@desktop' },
+  async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 420 });
+    await page.goto('/');
+    const [articles, works] = homepageSections();
+    expect(articles).toBeDefined();
+    expect(works).toBeDefined();
+    if (articles === undefined || works === undefined) return;
+
+    const articleRoot = carouselRoot(page, articles.label);
+    const worksRoot = carouselRoot(page, works.label);
+    await expect(articleRoot.getByRole('region')).toHaveCount(0);
+    await expect(worksRoot.getByRole('region')).toHaveCount(0);
+    await articleRoot
+      .locator('[data-carousel-sentinel]')
+      .scrollIntoViewIfNeeded();
+    await expect(articleRoot.getByRole('region')).toBeVisible();
+
+    await page.waitForTimeout(500);
+    await expect(worksRoot.locator('[data-carousel-sentinel]')).toHaveCount(1);
+    await expect(worksRoot.getByRole('region')).toHaveCount(0);
+    await expect(worksRoot.locator('[data-carousel-fallback]')).toBeVisible();
+  },
+);
+
+test(
   'serves every enhanced carousel image locally without Blob requests',
   { tag: '@desktop' },
   async ({ browser }) => {
     const blobRequests: string[] = [];
     const imageEvidence: Array<{
       height: number;
+      origin: string;
       src: string;
       width: number;
     }> = [];
@@ -491,7 +559,13 @@ test(
         const root = carouselRoot(page, label);
         const props = await root.locator('astro-island').getAttribute('props');
         expect(props).not.toBeNull();
-        if (props !== null) serializedProps.push(props);
+        if (props !== null) {
+          expect(props).not.toContain('darkUrl');
+          serializedProps.push(props);
+        }
+        await expect(root.locator('[data-carousel-fallback] img')).toHaveCount(
+          records.length,
+        );
 
         const region = root.getByRole('region');
         const active = region.locator('[data-carousel-depth="0"]');
@@ -510,7 +584,7 @@ test(
           const visibleImages = region.locator(
             '[data-carousel-visible="true"]:visible img:visible',
           );
-          await expect(visibleImages).toHaveCount(Math.min(records.length, 4));
+          await expect(visibleImages).toHaveCount(Math.min(records.length, 7));
           for (const image of await visibleImages.all()) {
             await expect
               .poll(() =>
@@ -520,8 +594,8 @@ test(
                 ),
               )
               .toBe(true);
-            imageEvidence.push(
-              await image.evaluate((element) => {
+            imageEvidence.push({
+              ...(await image.evaluate((element) => {
                 if (!(element instanceof HTMLImageElement))
                   throw new Error(
                     'Carousel layer image is not an img element.',
@@ -531,8 +605,9 @@ test(
                   src: element.currentSrc,
                   width: element.naturalWidth,
                 };
-              }),
-            );
+              })),
+              origin: new URL(page.url()).origin,
+            });
           }
         }
       }
@@ -547,9 +622,10 @@ test(
     expect(imageEvidence.length).toBeGreaterThan(0);
     for (const image of imageEvidence) {
       const url = new URL(image.src);
-      expect(url.origin).toBe('http://127.0.0.1:4321');
+      expect(url.origin).toBe(image.origin);
       expect(url.pathname).toMatch(/^\/_astro\/.+\.webp$/u);
       expect(image.width).toBeGreaterThanOrEqual(576);
+      expect(image.width).toBeLessThanOrEqual(1152);
       expect(image.width / image.height).toBeCloseTo(16 / 9, 3);
     }
   },
@@ -562,11 +638,11 @@ test(
     await page.setViewportSize({ width: 1440, height: 900 });
     await page.goto('/');
 
-    for (const { label } of homepageSections()) {
+    for (const { heading: headingName, label } of homepageSections()) {
       const section = carouselRoot(page, label).locator(
         'xpath=ancestor::section[1]',
       );
-      const heading = section.getByRole('heading', { name: label });
+      const heading = section.getByRole('heading', { name: headingName });
       const viewAll = section.getByRole('link', { name: /View all/u });
       const [sectionBox, headingBox, viewAllBox] = await Promise.all([
         section.boundingBox(),
@@ -589,6 +665,261 @@ test(
         headingBox.y + headingBox.height,
       );
     }
+  },
+);
+
+test(
+  'uses the full section canvas with a centered active card and mirrored unique rails beneath fixed UI',
+  { tag: '@desktop' },
+  async ({ page }) => {
+    await page.emulateMedia({ reducedMotion: 'reduce' });
+
+    for (const viewport of [
+      { width: 800, height: 900 },
+      { width: 1024, height: 768 },
+      { width: 1440, height: 900 },
+    ]) {
+      await page.setViewportSize(viewport);
+      await page.goto('/');
+      await waitForCarousels(page);
+
+      for (const {
+        heading: headingName,
+        label,
+        records,
+      } of homepageSections()) {
+        const root = carouselRoot(page, label);
+        const section = root.locator('xpath=ancestor::section[1]');
+        const region = root.getByRole('region');
+        const heading = section.getByRole('heading', { name: headingName });
+        const active = region.locator('[data-carousel-depth="0"]');
+        const [sectionBox, regionBox, activeBox] = await Promise.all([
+          section.boundingBox(),
+          region.boundingBox(),
+          active.boundingBox(),
+        ]);
+        expect(sectionBox).not.toBeNull();
+        expect(regionBox).not.toBeNull();
+        expect(activeBox).not.toBeNull();
+        if (sectionBox === null || regionBox === null || activeBox === null)
+          continue;
+
+        expect(regionBox.x).toBeCloseTo(sectionBox.x, 0);
+        expect(regionBox.width).toBeCloseTo(sectionBox.width, 0);
+
+        const activeCenter = activeBox.x + activeBox.width / 2;
+        const sectionCenter = sectionBox.x + sectionBox.width / 2;
+        expect(Math.abs(activeCenter - sectionCenter)).toBeLessThanOrEqual(2);
+
+        const expectedSideCount = Math.min(
+          3,
+          Math.floor((records.length - 1) / 2),
+        );
+        const previousLayers = region.locator(
+          '[data-carousel-visible="true"][data-carousel-side="previous"]',
+        );
+        const nextLayers = region.locator(
+          '[data-carousel-visible="true"][data-carousel-side="next"]',
+        );
+        await expect(previousLayers).toHaveCount(expectedSideCount);
+        await expect(nextLayers).toHaveCount(expectedSideCount);
+        const visibleIds = await region
+          .locator('[data-carousel-visible="true"]')
+          .evaluateAll((layers) =>
+            layers.map((layer) =>
+              layer.getAttribute('data-carousel-layer-item'),
+            ),
+          );
+        expect(visibleIds).toHaveLength(Math.min(records.length, 7));
+        expect(new Set(visibleIds).size).toBe(visibleIds.length);
+
+        for (let depth = 1; depth <= expectedSideCount; depth += 1) {
+          const [previousBox, nextBox] = await Promise.all([
+            region
+              .locator(
+                `[data-carousel-side="previous"][data-carousel-depth="${depth}"]`,
+              )
+              .boundingBox(),
+            region
+              .locator(
+                `[data-carousel-side="next"][data-carousel-depth="${depth}"]`,
+              )
+              .boundingBox(),
+          ]);
+          expect(previousBox).not.toBeNull();
+          expect(nextBox).not.toBeNull();
+          if (previousBox === null || nextBox === null) continue;
+          const previousCenter = previousBox.x + previousBox.width / 2;
+          const nextCenter = nextBox.x + nextBox.width / 2;
+          expect(activeCenter - previousCenter).toBeCloseTo(
+            nextCenter - activeCenter,
+            0,
+          );
+          expect(previousBox.y).toBeCloseTo(nextBox.y, 0);
+          expect(previousBox.width).toBeCloseTo(nextBox.width, 0);
+          expect(previousBox.height).toBeCloseTo(nextBox.height, 0);
+        }
+
+        const [uiZIndex, cardZIndex] = await Promise.all([
+          heading.evaluate((element) => {
+            const owner = element.parentElement;
+            if (owner === null) return 0;
+            const zIndex = Number.parseInt(getComputedStyle(owner).zIndex, 10);
+            return Number.isFinite(zIndex) ? zIndex : 0;
+          }),
+          active.evaluate((element) => {
+            const zIndex = Number.parseInt(
+              getComputedStyle(element).zIndex,
+              10,
+            );
+            return Number.isFinite(zIndex) ? zIndex : 0;
+          }),
+        ]);
+        expect(uiZIndex).toBeGreaterThan(cardZIndex);
+      }
+    }
+  },
+);
+
+test(
+  'bounds connected two-axis drag to the section while controls stay above the cards',
+  { tag: '@desktop' },
+  async ({ page }) => {
+    await page.setViewportSize({ width: 1440, height: 900 });
+    await page.goto('/');
+    await waitForCarousels(page);
+
+    const { heading: headingName, label } = homepageSections()[0] ?? {};
+    expect(label).toBeDefined();
+    if (label === undefined || headingName === undefined) return;
+    const root = carouselRoot(page, label);
+    const section = root.locator('xpath=ancestor::section[1]');
+    const region = root.getByRole('region');
+    const stage = region.locator('[data-carousel-stage]');
+    const active = region.locator('[data-carousel-depth="0"]');
+    const receded = region.locator(
+      '[data-carousel-side="next"][data-carousel-depth="1"]',
+    );
+    const heading = section.getByRole('heading', { name: headingName });
+    const previous = region.getByRole('button', { name: /^Previous /u });
+    const indicators = region.locator('[data-carousel-indicators]');
+    await active.scrollIntoViewIfNeeded();
+
+    const [
+      sectionBefore,
+      stageBefore,
+      activeBefore,
+      recededBefore,
+      headingBefore,
+      previousBefore,
+      dotsBefore,
+    ] = await Promise.all([
+      section.boundingBox(),
+      stage.boundingBox(),
+      active.boundingBox(),
+      receded.boundingBox(),
+      heading.boundingBox(),
+      previous.boundingBox(),
+      indicators.boundingBox(),
+    ]);
+    expect(sectionBefore).not.toBeNull();
+    expect(activeBefore).not.toBeNull();
+    expect(recededBefore).not.toBeNull();
+    if (
+      sectionBefore === null ||
+      stageBefore === null ||
+      activeBefore === null ||
+      recededBefore === null ||
+      headingBefore === null ||
+      previousBefore === null ||
+      dotsBefore === null
+    )
+      return;
+
+    const initialHref = await activeHref(region);
+    const centerX = activeBefore.x + activeBefore.width / 2;
+    const centerY = activeBefore.y + activeBefore.height / 2;
+    await page.mouse.move(centerX, centerY);
+    await page.mouse.down();
+    await page.mouse.move(1, centerY - 96, { steps: 12 });
+    await page.waitForTimeout(50);
+
+    const [
+      activeDuring,
+      recededDuring,
+      stageDuring,
+      headingDuring,
+      previousDuring,
+      dotsDuring,
+    ] = await Promise.all([
+      active.boundingBox(),
+      receded.boundingBox(),
+      stage.boundingBox(),
+      heading.boundingBox(),
+      previous.boundingBox(),
+      indicators.boundingBox(),
+    ]);
+    expect(activeDuring).not.toBeNull();
+    expect(recededDuring).not.toBeNull();
+    if (activeDuring === null || recededDuring === null) {
+      await page.mouse.up();
+      return;
+    }
+
+    const canvasPadding = await region.evaluate((element) => {
+      const style = getComputedStyle(element);
+      return {
+        left: Number.parseFloat(style.paddingLeft) || 0,
+        top:
+          Number.parseFloat(
+            getComputedStyle(element.closest('section') ?? element).paddingTop,
+          ) || 0,
+      };
+    });
+    expect(activeDuring.x).toBeGreaterThanOrEqual(
+      sectionBefore.x + canvasPadding.left - 2,
+    );
+    expect(activeDuring.x).toBeLessThanOrEqual(
+      sectionBefore.x + canvasPadding.left + 3,
+    );
+    expect(activeDuring.y).toBeGreaterThanOrEqual(
+      sectionBefore.y + canvasPadding.top - 2,
+    );
+    expect(activeBefore.y - activeDuring.y).toBeGreaterThan(48);
+
+    const activeShift = activeBefore.x - activeDuring.x;
+    const recededShift = recededBefore.x - recededDuring.x;
+    expect(activeShift).toBeGreaterThan(200);
+    expect(recededShift).toBeGreaterThan(40);
+    expect(recededShift).toBeLessThan(activeShift);
+    expect(stageDuring).toEqual(stageBefore);
+    expect(headingDuring).toEqual(headingBefore);
+    expect(previousDuring).toEqual(previousBefore);
+    expect(dotsDuring).toEqual(dotsBefore);
+    expect(
+      await previous.evaluate((element) => {
+        const bounds = element.getBoundingClientRect();
+        const target = document.elementFromPoint(
+          bounds.x + bounds.width / 2,
+          bounds.y + bounds.height / 2,
+        );
+        return (
+          target === element || (target !== null && element.contains(target))
+        );
+      }),
+    ).toBe(true);
+
+    await page.mouse.up();
+    await expect(region.getByRole('link')).not.toHaveAttribute(
+      'href',
+      initialHref,
+    );
+    const committedHref = await activeHref(region);
+    await previous.click();
+    await expect(region.getByRole('link')).not.toHaveAttribute(
+      'href',
+      committedHref,
+    );
   },
 );
 
@@ -787,7 +1118,9 @@ test(
       const region = carouselRoot(page, label).getByRole('region');
       const stage = region.locator('[data-carousel-stage]');
       const active = region.locator('[data-carousel-depth="0"]');
-      const receded = region.locator('[data-carousel-depth="1"]');
+      const receded = region.locator(
+        '[data-carousel-side="next"][data-carousel-depth="1"]',
+      );
       const previous = region.getByRole('button', { name: /^Previous /u });
       const indicators = region.locator('[data-carousel-indicators]');
       const initialHref = await activeHref(region);
@@ -902,8 +1235,12 @@ test(
       if (records.length < 2) continue;
       const region = carouselRoot(page, label).getByRole('region');
       const active = region.locator('[data-carousel-depth="0"]');
-      const receded = region.locator('[data-carousel-depth="1"]');
+      const receded = region.locator(
+        '[data-carousel-side="next"][data-carousel-depth="1"]',
+      );
       await active.scrollIntoViewIfNeeded();
+      await waitForStableGeometry(active);
+      await waitForStableGeometry(receded);
       const initialHref = await activeHref(region);
       const activeBefore = await active.boundingBox();
       const recededBefore = await receded.boundingBox();
@@ -1003,6 +1340,8 @@ test(
       { width: 430, height: 932 },
       { width: 767, height: 900 },
       { width: 768, height: 900 },
+      { width: 800, height: 900 },
+      { width: 900, height: 900 },
       { width: 1024, height: 768 },
     ]) {
       await page.setViewportSize(viewport);
@@ -1014,9 +1353,9 @@ test(
         const visibleLayers = region.locator(
           '[data-carousel-layer-item][data-carousel-visible="true"]:visible',
         );
-        const expectedReceded = viewport.width < 768 ? 2 : 3;
+        const visibleCapacity = viewport.width < 768 ? 3 : 7;
         await expect(visibleLayers).toHaveCount(
-          Math.min(records.length, expectedReceded + 1),
+          Math.min(records.length, visibleCapacity),
         );
         const layerIds = await visibleLayers.evaluateAll((layers) =>
           layers.map((layer) => layer.getAttribute('data-carousel-layer-item')),
@@ -1035,7 +1374,6 @@ test(
         expect(activeBox?.height ?? Infinity).toBeLessThanOrEqual(324.5);
         expect(stageBox?.width ?? Infinity).toBeLessThanOrEqual(960.5);
         await expect(stage).toHaveCSS('overflow', 'visible');
-        await expect(region).toHaveCSS('overflow-x', 'clip');
         await expect(region).toHaveCSS('overflow-y', 'visible');
         expect((activeBox?.width ?? 0) / (activeBox?.height ?? 1)).toBeCloseTo(
           16 / 9,
@@ -1079,7 +1417,33 @@ test(
           }
         }
 
-        const firstReceded = region.locator('[data-carousel-depth="1"]');
+        if (viewport.width >= 768 && regionBox !== null) {
+          const regionInsets = await region.evaluate((element) => {
+            const style = getComputedStyle(element);
+            return {
+              left: Number.parseFloat(style.paddingLeft) || 0,
+              right: Number.parseFloat(style.paddingRight) || 0,
+            };
+          });
+          const layerBoxes = await visibleLayers.evaluateAll((layers) =>
+            layers.map((layer) => {
+              const bounds = layer.getBoundingClientRect();
+              return { left: bounds.left, right: bounds.right };
+            }),
+          );
+          for (const layerBox of layerBoxes) {
+            expect(layerBox.left - regionBox.x).toBeGreaterThanOrEqual(
+              regionInsets.left - 1,
+            );
+            expect(
+              regionBox.x + regionBox.width - layerBox.right,
+            ).toBeGreaterThanOrEqual(regionInsets.right - 1);
+          }
+        }
+
+        const firstReceded = region.locator(
+          '[data-carousel-side="next"][data-carousel-depth="1"]',
+        );
         if ((await firstReceded.count()) > 0) {
           const recededBox = await firstReceded.boundingBox();
           expect(recededBox).not.toBeNull();
@@ -1135,6 +1499,7 @@ test(
       const region = carouselRoot(page, label).getByRole('region');
       await region.scrollIntoViewIfNeeded();
       const active = region.locator('[data-carousel-depth="0"]');
+      const content = active.locator('.depth-carousel__content');
       const heading = active.locator('[data-carousel-heading]');
       const summary = active.locator('[data-carousel-summary]');
       const facts = active.locator('[data-carousel-facts]');
@@ -1154,10 +1519,38 @@ test(
         transform: getComputedStyle(element).transform,
         transitionDuration: getComputedStyle(element).transitionDuration,
       }));
-      const headingTiming = await heading.evaluate(
-        (element) => getComputedStyle(element).transitionDuration,
+      const restingMotion = await Promise.all([
+        heading.evaluate((element) => {
+          const style = getComputedStyle(element);
+          return {
+            translateY: new DOMMatrix(style.transform).m42,
+            transitionDuration: style.transitionDuration,
+            transitionProperty: style.transitionProperty,
+          };
+        }),
+        content.evaluate((element) => {
+          const style = getComputedStyle(element);
+          const bounds = element.getBoundingClientRect();
+          return {
+            bounds: {
+              height: bounds.height,
+              width: bounds.width,
+              x: bounds.x,
+              y: bounds.y,
+            },
+            gridTemplateRows: style.gridTemplateRows,
+            transitionProperty: style.transitionProperty,
+          };
+        }),
+      ]);
+      expect(restingMotion[0].transitionDuration).toBe(
+        restingDisclosure.transitionDuration,
       );
-      expect(headingTiming).toBe(restingDisclosure.transitionDuration);
+      expect(restingMotion[0].transitionProperty).toContain('transform');
+      expect(restingMotion[0].translateY).toBeGreaterThan(48);
+      expect(restingMotion[1].transitionProperty).not.toMatch(
+        /grid-template-rows|row-gap/iu,
+      );
       await active.hover();
       await expect(summary).toHaveCSS('opacity', '1');
       await expect(facts).toHaveCSS('opacity', '1');
@@ -1166,6 +1559,28 @@ test(
       if (headingAtRest !== null && headingExpanded !== null) {
         expect(headingExpanded.y).toBeLessThan(headingAtRest.y - 48);
       }
+      expect(
+        await heading.evaluate(
+          (element) => new DOMMatrix(getComputedStyle(element).transform).m42,
+        ),
+      ).toBeCloseTo(0, 2);
+      const expandedContent = await content.evaluate((element) => {
+        const style = getComputedStyle(element);
+        const bounds = element.getBoundingClientRect();
+        return {
+          bounds: {
+            height: bounds.height,
+            width: bounds.width,
+            x: bounds.x,
+            y: bounds.y,
+          },
+          gridTemplateRows: style.gridTemplateRows,
+        };
+      });
+      expect(expandedContent).toEqual({
+        bounds: restingMotion[1].bounds,
+        gridTemplateRows: restingMotion[1].gridTemplateRows,
+      });
       expect(
         await summary.evaluate(
           (element) => new DOMMatrix(getComputedStyle(element).transform).m42,

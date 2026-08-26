@@ -151,10 +151,15 @@ function toItemListItems(records: readonly CollectionDisplayRecord[]) {
 
   <div data-home-reveal-scope>
     <!-- Blog -->
-    <Section spacing="default" background="subtle">
+    <Section
+      spacing="default"
+      background="subtle"
+      class="home-carousel-canvas"
+      data-home-carousel-canvas
+    >
       <Container size="lg">
         <div
-          class="mb-l flex flex-col items-center gap-2xs text-center"
+          class="home-carousel-canvas__ui mb-l flex flex-col items-center gap-2xs text-center"
           data-home-reveal="text"
         >
           <h2 class="text-3xl font-bold leading-tight text-text-primary">
@@ -165,31 +170,37 @@ function toItemListItems(records: readonly CollectionDisplayRecord[]) {
             ></Button
           >
         </div>
+      </Container>
 
-        <div data-home-reveal="component">
-          {
-            latestPosts.length > 0 ? (
-              <HomeCollectionCarousel
-                label="Latest Articles"
-                items={latestPosts}
-              />
-            ) : (
+      <div data-home-reveal="component">
+        {
+          latestPosts.length > 0 ? (
+            <HomeCollectionCarousel
+              label="Latest Articles"
+              items={latestPosts}
+            />
+          ) : (
+            <Container size="lg">
               <Card>
                 <p class="text-center text-text-tertiary py-l">
                   No blog posts yet. Check back soon!
                 </p>
               </Card>
-            )
-          }
-        </div>
-      </Container>
+            </Container>
+          )
+        }
+      </div>
     </Section>
 
     <!-- Works -->
-    <Section spacing="default">
+    <Section
+      spacing="default"
+      class="home-carousel-canvas"
+      data-home-carousel-canvas
+    >
       <Container size="lg">
         <div
-          class="mb-l flex flex-col items-center gap-2xs text-center"
+          class="home-carousel-canvas__ui mb-l flex flex-col items-center gap-2xs text-center"
           data-home-reveal="text"
         >
           <h2 class="text-3xl font-bold leading-tight text-text-primary">
@@ -200,24 +211,26 @@ function toItemListItems(records: readonly CollectionDisplayRecord[]) {
             ></Button
           >
         </div>
+      </Container>
 
-        <div data-home-reveal="component">
-          {
-            selectedWorks.length > 0 ? (
-              <HomeCollectionCarousel
-                label="Latest Works"
-                items={selectedWorks}
-              />
-            ) : (
+      <div data-home-reveal="component">
+        {
+          selectedWorks.length > 0 ? (
+            <HomeCollectionCarousel
+              label="Latest Works"
+              items={selectedWorks}
+            />
+          ) : (
+            <Container size="lg">
               <Card>
                 <p class="text-center text-text-tertiary py-l">
                   No selected works yet. Check back soon!
                 </p>
               </Card>
-            )
-          }
-        </div>
-      </Container>
+            </Container>
+          )
+        }
+      </div>
     </Section>
 
     <!-- Call to Action -->

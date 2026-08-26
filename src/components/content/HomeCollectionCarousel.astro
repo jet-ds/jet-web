@@ -12,24 +12,25 @@ interface Props {
 }
 
 const { label, items } = Astro.props;
+const carouselImageWidth = 1152;
+const carouselImageHeight = 648;
+const homepageItems = items.map((item) => ({
+  ...item,
+  image: {
+    url: item.image.url,
+    alt: item.image.alt,
+    width: item.image.width,
+    height: item.image.height,
+  },
+}));
 const carouselItems: DepthCarouselItem[] = await Promise.all(
-  items.map(async (item) => {
-    const [image, darkImage] = await Promise.all([
-      getImage({
-        src: item.image.url,
-        width: item.image.width,
-        height: item.image.height,
-        quality: 80,
-      }),
-      item.image.darkUrl === undefined
-        ? undefined
-        : getImage({
-            src: item.image.darkUrl,
-            width: item.image.width,
-            height: item.image.height,
-            quality: 80,
-          }),
-    ]);
+  homepageItems.map(async (item) => {
+    const image = await getImage({
+      src: item.image.url,
+      width: carouselImageWidth,
+      height: carouselImageHeight,
+      quality: 80,
+    });
 
     return {
       id: item.id,
@@ -39,10 +40,9 @@ const carouselItems: DepthCarouselItem[] = await Promise.all(
       summary: item.summary,
       image: {
         url: image.src,
-        ...(darkImage === undefined ? {} : { darkUrl: darkImage.src }),
         alt: item.image.alt,
-        width: item.image.width,
-        height: item.image.height,
+        width: carouselImageWidth,
+        height: carouselImageHeight,
       },
       date: item.date,
       facts: item.facts,
@@ -56,10 +56,13 @@ const carouselItems: DepthCarouselItem[] = await Promise.all(
   data-home-collection-carousel
   data-carousel-label={label}
 >
-  <div data-carousel-fallback>
+  <div
+    class="home-collection-carousel__fallback mx-auto max-w-6xl px-gutter"
+    data-carousel-fallback
+  >
     <div class="grid grid-cols-1 gap-m md:grid-cols-2 lg:grid-cols-3">
       {
-        items.map((record) =>
+        homepageItems.map((record) =>
           record.kind === 'blog' ? (
             <BlogCard variant="compact" headingLevel={3} record={record} />
           ) : (

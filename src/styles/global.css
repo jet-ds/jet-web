@@ -465,9 +465,25 @@
     }
   }
 
+  .home-carousel-canvas {
+    position: relative;
+    overflow: clip;
+  }
+
+  .home-carousel-canvas__ui {
+    position: relative;
+    z-index: 30;
+  }
+
   .home-collection-carousel {
     position: relative;
+    width: 100%;
     min-width: 0;
+  }
+
+  .home-collection-carousel__fallback {
+    position: relative;
+    z-index: 20;
   }
 
   [data-home-reveal] {
@@ -510,7 +526,10 @@
   }
 
   .depth-carousel {
+    box-sizing: border-box;
+    width: 100%;
     min-width: 0;
+    padding-inline: var(--space-gutter);
     padding-block-end: var(--space-s);
     overflow-x: clip;
     overflow-y: visible;
@@ -531,6 +550,7 @@
 
   .depth-carousel__stage {
     position: relative;
+    z-index: 1;
     isolation: isolate;
     box-sizing: content-box;
     grid-area: stage;
@@ -673,19 +693,19 @@
   }
 
   .depth-carousel__content {
-    transition:
-      grid-template-rows 220ms ease,
-      row-gap 220ms ease;
-  }
+    --carousel-details-offset: 0px;
 
-  .depth-carousel__content {
     position: absolute;
     right: var(--carousel-overlay-padding);
     bottom: var(--carousel-overlay-padding);
     left: var(--carousel-overlay-padding);
     display: grid;
-    grid-template-rows: auto 0fr;
-    row-gap: 0;
+    grid-template-rows: auto auto;
+    row-gap: var(--space-2xs);
+  }
+
+  .depth-carousel__heading-group {
+    transform: translate3d(0, var(--carousel-details-offset), 0);
   }
 
   .depth-carousel__details-clip {
@@ -736,10 +756,9 @@
     transform: translateY(0.5rem);
   }
 
-  .depth-carousel__active:hover .depth-carousel__content,
-  .depth-carousel__active:focus-within .depth-carousel__content {
-    grid-template-rows: auto 1fr;
-    row-gap: var(--space-2xs);
+  .depth-carousel__active:hover .depth-carousel__heading-group,
+  .depth-carousel__active:focus-within .depth-carousel__heading-group {
+    transform: translate3d(0, 0, 0);
   }
 
   .depth-carousel__active:hover .depth-carousel__summary,
@@ -751,6 +770,8 @@
   }
 
   .depth-carousel__control {
+    position: relative;
+    z-index: 20;
     align-self: center;
     justify-self: center;
     color: var(--color-accent-base);
@@ -765,6 +786,8 @@
   }
 
   .depth-carousel__indicators {
+    position: relative;
+    z-index: 20;
     display: flex;
     grid-area: dots;
     align-items: center;
@@ -812,6 +835,7 @@
         'previous stage next'
         '. dots .';
       grid-template-columns: 2.75rem minmax(0, 60rem) 2.75rem;
+      justify-content: center;
       column-gap: var(--space-s);
     }
 
@@ -846,6 +870,10 @@
       width: 100%;
       grid-template-rows: auto 1fr;
       row-gap: var(--space-3xs);
+    }
+
+    .depth-carousel__heading-group {
+      transform: none;
     }
 
     .depth-carousel__details-clip {
