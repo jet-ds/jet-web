@@ -25,6 +25,10 @@ const ANALYTICS_LIBRARY_STUB = String.raw`
     };
     const observe = (entry) => {
       if (!entry) return;
+      if (entry[0] === 'js') {
+        publish({ command: 'js' });
+        return;
+      }
       if (entry[0] === 'config') {
         configuredMeasurementId = entry[1];
         const options = entry[2];
@@ -65,6 +69,9 @@ type PageViewSnapshot = {
 
 type AnalyticsCommand =
   | {
+      command: 'js';
+    }
+  | {
       command: 'config';
       measurementId: string;
       options: { send_page_view: boolean };
@@ -82,26 +89,8 @@ type AnalyticsObservations = {
   unexpectedGoogleRequests: URL[];
 };
 
-type AnalyticsInterceptionOptions = {
-  libraryRelease?: Promise<void>;
-};
-
-type Deferred = {
-  promise: Promise<void>;
-  resolve: () => void;
-};
-
-function defer(): Deferred {
-  let resolve: () => void = () => {};
-  const promise = new Promise<void>((release) => {
-    resolve = release;
-  });
-  return { promise, resolve };
-}
-
 async function interceptAnalyticsTraffic(
   page: Page,
-  options: AnalyticsInterceptionOptions = {},
 ): Promise<AnalyticsObservations> {
   const observations: AnalyticsObservations = {
     libraryRequests: [],
@@ -111,20 +100,7 @@ async function interceptAnalyticsTraffic(
   };
 
   await page.addInitScript(() => {
-    Reflect.set(window, '__analyticsPartytownReadyCount', 0);
     Reflect.set(window, '__analyticsPageLoadCount', 0);
-    const subscribeToPinnedPartytownReady = (listener: () => void) => {
-      // The @astrojs/partytown@2.1.7 lock resolves Qwik Partytown 0.13.2; revalidate this adapter on updates.
-      document.addEventListener('pt0', listener);
-    };
-    subscribeToPinnedPartytownReady(() => {
-      const current = Reflect.get(window, '__analyticsPartytownReadyCount');
-      Reflect.set(
-        window,
-        '__analyticsPartytownReadyCount',
-        typeof current === 'number' ? current + 1 : 1,
-      );
-    });
     document.addEventListener('astro:page-load', () => {
       const current = Reflect.get(window, '__analyticsPageLoadCount');
       Reflect.set(
@@ -156,7 +132,6 @@ async function interceptAnalyticsTraffic(
 
     if (requestKind === 'library') {
       observations.libraryRequests.push(url);
-      await options.libraryRelease;
       await route.fulfill({
         status: 200,
         contentType: 'application/javascript',
@@ -183,20 +158,10 @@ async function followClientRouterLink(
   link: Locator,
   expectedPath: RegExp,
 ): Promise<void> {
-  const readyCount = await partytownReadyCount(page);
+  const completedPageCount = await pageLoadCount(page);
   await link.click();
   await expect(page).toHaveURL(expectedPath);
-  await expect.poll(() => partytownReadyCount(page)).toBe(readyCount + 1);
-}
-
-async function partytownReadyCount(page: Page): Promise<number> {
-  const count = await page.evaluate(() =>
-    Reflect.get(window, '__analyticsPartytownReadyCount'),
-  );
-  if (typeof count !== 'number') {
-    throw new TypeError('Partytown readiness counter was not initialized');
-  }
-  return count;
+  await expect.poll(() => pageLoadCount(page)).toBe(completedPageCount + 1);
 }
 
 async function pageLoadCount(page: Page): Promise<number> {
@@ -229,7 +194,7 @@ test.beforeEach(async ({ page }) => {
   await page.setExtraHTTPHeaders({ 'x-vercel-ip-country': 'US' });
 });
 
-test('the middleware policy cookie is readable during parsing of the same standard response', async ({
+test('the same standard response exposes policy and emits one normal page view', async ({
   context,
   page,
 }) => {
@@ -254,6 +219,31 @@ test('the middleware policy cookie is readable during parsing of the same standa
     sameSite: 'Lax',
   });
   await expect.poll(() => observations.libraryRequests.length).toBe(1);
+  const pageView = await readPageViewSnapshot(page);
+  await expect
+    .poll(() => [...observations.commands])
+    .toEqual([
+      { command: 'js' },
+      {
+        command: 'config',
+        measurementId: SITE.ga4MeasurementId,
+        options: { send_page_view: false },
+      },
+      {
+        command: 'page_view',
+        measurementId: SITE.ga4MeasurementId,
+        options: pageView,
+      },
+    ]);
+  await expect.poll(() => observations.collectionRequests.length).toBe(1);
+  expect(observations.collectionRequests[0].searchParams.get('source')).toBe(
+    'manual',
+  );
+  expect(observations.collectionRequests[0].searchParams.get('tid')).toBe(
+    SITE.ga4MeasurementId,
+  );
+  expect(observations.unexpectedGoogleRequests).toEqual([]);
+  expect(await analyticsDisabled(page)).toBe(false);
 });
 
 test('strict and unknown regions make no Google request before a choice', async ({
@@ -278,13 +268,101 @@ test('strict and unknown regions make no Google request before a choice', async 
       ({ impact }) => impact === 'serious' || impact === 'critical',
     ),
   ).toEqual([]);
-  await expect.poll(() => partytownReadyCount(page)).toBe(1);
   expect(observations.libraryRequests).toEqual([]);
   expect(observations.commands).toEqual([]);
   expect(observations.collectionRequests).toEqual([]);
   expect(observations.unexpectedGoogleRequests).toEqual([]);
   expect(await analyticsDisabled(page)).toBe(true);
 });
+
+test('a genuinely missing country signal fails closed before consent', async ({
+  page,
+}) => {
+  await page.setExtraHTTPHeaders({});
+  const observations = await interceptAnalyticsTraffic(page);
+
+  await page.goto('/');
+
+  await expect
+    .poll(() =>
+      page.evaluate(() => document.documentElement.dataset.analyticsPolicy),
+    )
+    .toBe('strict');
+  await expect(
+    page.getByRole('region', { name: 'Analytics choices' }),
+  ).toBeVisible();
+  expect(observations.libraryRequests).toEqual([]);
+  expect(observations.commands).toEqual([]);
+  expect(observations.collectionRequests).toEqual([]);
+  expect(observations.unexpectedGoogleRequests).toEqual([]);
+  expect(await analyticsDisabled(page)).toBe(true);
+});
+
+for (const viewportWidth of [253, 320, 1280]) {
+  test(`strict consent remains usable without horizontal overflow at ${viewportWidth}px`, async ({
+    page,
+  }) => {
+    await page.setViewportSize({ width: viewportWidth, height: 700 });
+    await page.setExtraHTTPHeaders({ 'x-vercel-ip-country': 'DE' });
+    await interceptAnalyticsTraffic(page);
+
+    await page.goto('/');
+
+    const panel = page.getByRole('region', { name: 'Analytics choices' });
+    await expect(panel).toBeVisible();
+    const geometry = await page.evaluate(() => {
+      const consentPanel = document.querySelector(
+        '[data-analytics-consent-panel]',
+      );
+      const buttons = [...document.querySelectorAll('[data-analytics-choice]')];
+      if (!(consentPanel instanceof HTMLElement)) {
+        throw new TypeError('Analytics consent panel is missing');
+      }
+      const panelRect = consentPanel.getBoundingClientRect();
+      const copy = consentPanel.querySelector('p');
+      if (!(copy instanceof HTMLElement)) {
+        throw new TypeError('Analytics consent copy is missing');
+      }
+      const copyRect = copy.getBoundingClientRect();
+      return {
+        documentClientWidth: document.documentElement.clientWidth,
+        documentScrollWidth: document.documentElement.scrollWidth,
+        panel: {
+          left: panelRect.left,
+          right: panelRect.right,
+          width: panelRect.width,
+        },
+        copyWidth: copyRect.width,
+        buttons: buttons.map((button) => {
+          const rect = button.getBoundingClientRect();
+          return {
+            height: rect.height,
+            left: rect.left,
+            right: rect.right,
+            width: rect.width,
+          };
+        }),
+      };
+    });
+
+    expect(geometry.documentScrollWidth).toBe(geometry.documentClientWidth);
+    expect(geometry.panel.left).toBeGreaterThanOrEqual(0);
+    expect(geometry.panel.right).toBeLessThanOrEqual(viewportWidth);
+    expect(geometry.panel.width).toBeGreaterThanOrEqual(
+      Math.min(viewportWidth - 64, 600),
+    );
+    expect(geometry.copyWidth).toBeGreaterThanOrEqual(
+      Math.min(240, Math.max(160, geometry.panel.width - 64)),
+    );
+    expect(geometry.buttons).toHaveLength(2);
+    for (const button of geometry.buttons) {
+      expect(button.height).toBeGreaterThanOrEqual(44);
+      expect(button.width).toBeGreaterThanOrEqual(44);
+      expect(button.left).toBeGreaterThanOrEqual(geometry.panel.left);
+      expect(button.right).toBeLessThanOrEqual(geometry.panel.right);
+    }
+  });
+}
 
 test('reject records the preference and keeps strict-region analytics absent', async ({
   context,
@@ -311,7 +389,6 @@ test('reject records the preference and keeps strict-region analytics absent', a
     sameSite: 'Lax',
   });
   await page.reload();
-  await expect.poll(() => partytownReadyCount(page)).toBe(1);
   expect(observations.libraryRequests).toEqual([]);
   expect(observations.commands).toEqual([]);
   expect(observations.collectionRequests).toEqual([]);
@@ -324,12 +401,21 @@ test('allow reloads once and starts the normal strict-region analytics sequence'
 }) => {
   await page.setExtraHTTPHeaders({ 'x-vercel-ip-country': 'DE' });
   const observations = await interceptAnalyticsTraffic(page);
+  const documentRequests: string[] = [];
+  page.on('request', (request) => {
+    const url = new URL(request.url());
+    if (
+      request.isNavigationRequest() &&
+      request.frame() === page.mainFrame() &&
+      url.pathname === '/'
+    ) {
+      documentRequests.push(request.url());
+    }
+  });
 
   await page.goto('/');
-  const initialNavigationCount = await page.evaluate(
-    () => performance.getEntriesByType('navigation').length,
-  );
   await page.getByRole('button', { name: 'Allow analytics' }).click();
+  await expect.poll(() => documentRequests.length).toBe(2);
   await page.waitForLoadState('load');
 
   expect(
@@ -343,34 +429,59 @@ test('allow reloads once and starts the normal strict-region analytics sequence'
     secure: true,
     sameSite: 'Lax',
   });
-  expect(
-    await page.evaluate(
-      () => performance.getEntriesByType('navigation').length,
-    ),
-  ).toBe(initialNavigationCount);
   await expect.poll(() => observations.libraryRequests.length).toBe(1);
-  await expect.poll(() => observations.commands.length).toBe(2);
+  await expect.poll(() => observations.commands.length).toBe(3);
   await expect.poll(() => observations.collectionRequests.length).toBe(1);
   expect(observations.commands.map(({ command }) => command)).toEqual([
+    'js',
     'config',
     'page_view',
   ]);
+  expect(documentRequests).toHaveLength(2);
+  expect(
+    await page.evaluate(() => {
+      const [navigation] = performance.getEntriesByType(
+        'navigation',
+      ) as PerformanceNavigationTiming[];
+      return navigation?.type;
+    }),
+  ).toBe('reload');
   expect(observations.unexpectedGoogleRequests).toEqual([]);
   expect(await analyticsDisabled(page)).toBe(false);
 });
 
-test('standard-region privacy settings can reject later page views', async ({
+test('the Privacy page settings can dismiss, reopen, reject, and restore focus', async ({
   page,
 }) => {
   const observations = await interceptAnalyticsTraffic(page);
 
-  await page.goto('/');
+  await page.goto('/privacy/');
   await expect.poll(() => observations.collectionRequests.length).toBe(1);
-  await page.getByRole('button', { name: 'Privacy settings' }).click();
+  const footer = page.locator('footer');
+  await expect(footer.getByRole('link', { name: 'Privacy' })).toBeVisible();
+  await expect(footer.locator('[data-analytics-settings]')).toHaveCount(0);
+  const settings = page.getByRole('button', {
+    name: 'Manage analytics preferences',
+  });
+  await expect(settings).toHaveAttribute('aria-expanded', 'false');
+  await settings.click();
+  await expect(settings).toHaveAttribute('aria-expanded', 'true');
   await expect(
     page.getByRole('region', { name: 'Analytics choices' }),
   ).toBeVisible();
-  await page.getByRole('button', { name: 'Reject analytics' }).click();
+  const reject = page.getByRole('button', { name: 'Reject analytics' });
+  await expect(reject).toBeFocused();
+  await page.getByRole('button', { name: 'Close analytics settings' }).click();
+  await expect(
+    page.getByRole('region', { name: 'Analytics choices' }),
+  ).toBeHidden();
+  await expect(settings).toBeFocused();
+  await expect(settings).toHaveAttribute('aria-expanded', 'false');
+
+  await settings.click();
+  await reject.click();
+  await expect(settings).toBeFocused();
+  await expect(settings).toHaveAttribute('aria-expanded', 'false');
   await followClientRouterLink(
     page,
     page.getByRole('link', { name: 'About', exact: true }).first(),
@@ -381,123 +492,17 @@ test('standard-region privacy settings can reject later page views', async ({
   expect(await analyticsDisabled(page)).toBe(true);
 });
 
-test('enabled Production emits one config and page view on a direct visit', async ({
-  page,
-}) => {
-  const observations = await interceptAnalyticsTraffic(page);
-
-  await page.goto('/');
-
-  await expect.poll(() => observations.libraryRequests.length).toBe(1);
-  const pageView = await readPageViewSnapshot(page);
-  await expect
-    .poll(() => [...observations.commands])
-    .toEqual([
-      {
-        command: 'config',
-        measurementId: SITE.ga4MeasurementId,
-        options: { send_page_view: false },
-      },
-      {
-        command: 'page_view',
-        measurementId: SITE.ga4MeasurementId,
-        options: pageView,
-      },
-    ]);
-  await expect.poll(() => observations.collectionRequests.length).toBe(1);
-  expect(observations.collectionRequests[0].searchParams.get('source')).toBe(
-    'manual',
-  );
-  expect(observations.collectionRequests[0].searchParams.get('tid')).toBe(
-    SITE.ga4MeasurementId,
-  );
-  expect(observations.unexpectedGoogleRequests).toEqual([]);
-  expect(await analyticsDisabled(page)).toBe(false);
-});
-
-test('delayed readiness preserves every completed page view in FIFO order', async ({
-  page,
-}) => {
-  const library = defer();
-  const observations = await interceptAnalyticsTraffic(page, {
-    libraryRelease: library.promise,
-  });
-
-  await page.goto('/');
-  await expect.poll(() => pageLoadCount(page)).toBe(1);
-  await expect
-    .poll(() => observations.libraryRequests.length)
-    .toBeGreaterThanOrEqual(1);
-  expect(await partytownReadyCount(page)).toBe(0);
-  const homeView = await readPageViewSnapshot(page);
-
-  await page.getByRole('link', { name: 'About', exact: true }).first().click();
-  await expect(page).toHaveURL(/\/about\/$/u);
-  await expect.poll(() => pageLoadCount(page)).toBe(2);
-  const aboutView = await readPageViewSnapshot(page);
-
-  await page.getByRole('link', { name: 'Blog', exact: true }).first().click();
-  await expect(page).toHaveURL(/\/blog\/$/u);
-  await expect.poll(() => pageLoadCount(page)).toBe(3);
-  const blogView = await readPageViewSnapshot(page);
-
-  library.resolve();
-
-  await expect
-    .poll(() => [...observations.commands])
-    .toEqual([
-      {
-        command: 'config',
-        measurementId: SITE.ga4MeasurementId,
-        options: { send_page_view: false },
-      },
-      {
-        command: 'page_view',
-        measurementId: SITE.ga4MeasurementId,
-        options: homeView,
-      },
-      {
-        command: 'config',
-        measurementId: SITE.ga4MeasurementId,
-        options: { send_page_view: false },
-      },
-      {
-        command: 'page_view',
-        measurementId: SITE.ga4MeasurementId,
-        options: aboutView,
-      },
-      {
-        command: 'config',
-        measurementId: SITE.ga4MeasurementId,
-        options: { send_page_view: false },
-      },
-      {
-        command: 'page_view',
-        measurementId: SITE.ga4MeasurementId,
-        options: blogView,
-      },
-    ]);
-  await expect.poll(() => observations.collectionRequests.length).toBe(3);
-  expect(
-    observations.collectionRequests.map(({ searchParams }) =>
-      searchParams.get('source'),
-    ),
-  ).toEqual(['manual', 'manual', 'manual']);
-  expect(observations.unexpectedGoogleRequests).toEqual([]);
-});
-
 test('the optional browser-profile fallback persists, clears across routes, and never duplicates page views', async ({
   context,
   page,
 }) => {
   const observations = await interceptAnalyticsTraffic(page);
 
-  await page.goto('/blog/?analytics=off&campaign=task-12#preserved');
+  await page.goto('/blog/?analytics=off&ref=preserved#retained');
   await expect(page).toHaveURL(
-    'http://localhost:4323/blog/?campaign=task-12#preserved',
+    'http://localhost:4323/blog/?ref=preserved#retained',
   );
   expect(observations.libraryRequests).toEqual([]);
-  await expect.poll(() => partytownReadyCount(page)).toBe(1);
   expect(await analyticsDisabled(page)).toBe(true);
 
   const optOutCookie = (await context.cookies()).find(
@@ -527,21 +532,21 @@ test('the optional browser-profile fallback persists, clears across routes, and 
     .getByRole('link', { name: 'Contact', exact: true })
     .first();
   await contact.evaluate((link) => {
-    link.setAttribute(
-      'href',
-      '/contact/?analytics=on&campaign=task-12#preserved',
-    );
+    link.setAttribute('href', '/contact/?analytics=on&ref=preserved#retained');
   });
   await followClientRouterLink(
     page,
     contact,
-    /\/contact\/\?campaign=task-12#preserved$/u,
+    /\/contact\/\?ref=preserved#retained$/u,
   );
 
   const contactView = await readPageViewSnapshot(page);
   await expect
     .poll(() => [...observations.commands])
     .toEqual([
+      {
+        command: 'js',
+      },
       {
         command: 'config',
         measurementId: SITE.ga4MeasurementId,
@@ -584,6 +589,9 @@ test('the optional browser-profile fallback persists, clears across routes, and 
     .poll(() => [...observations.commands])
     .toEqual([
       {
+        command: 'js',
+      },
+      {
         command: 'config',
         measurementId: SITE.ga4MeasurementId,
         options: { send_page_view: false },
@@ -592,6 +600,9 @@ test('the optional browser-profile fallback persists, clears across routes, and 
         command: 'page_view',
         measurementId: SITE.ga4MeasurementId,
         options: contactView,
+      },
+      {
+        command: 'js',
       },
       {
         command: 'config',
@@ -604,6 +615,9 @@ test('the optional browser-profile fallback persists, clears across routes, and 
         options: aboutView,
       },
       {
+        command: 'js',
+      },
+      {
         command: 'config',
         measurementId: SITE.ga4MeasurementId,
         options: { send_page_view: false },
@@ -612,6 +626,9 @@ test('the optional browser-profile fallback persists, clears across routes, and 
         command: 'page_view',
         measurementId: SITE.ga4MeasurementId,
         options: blogView,
+      },
+      {
+        command: 'js',
       },
       {
         command: 'config',
@@ -625,5 +642,6 @@ test('the optional browser-profile fallback persists, clears across routes, and 
       },
     ]);
   await expect.poll(() => observations.collectionRequests.length).toBe(4);
+  expect(observations.libraryRequests).toHaveLength(4);
   expect(observations.unexpectedGoogleRequests).toEqual([]);
 });

@@ -123,8 +123,11 @@ test('keeps Privacy out of primary navigation while linking it globally from the
   for (const route of ['/', '/about/', '/blog/', '/works/', '/contact/']) {
     await page.goto(route);
     await expect(
-      page.locator('footer').getByRole('link', { name: 'Privacy' }),
+      page.locator('footer ul').getByRole('link', { name: 'Privacy' }),
     ).toHaveAttribute('href', '/privacy/');
+    await expect(
+      page.locator('footer').getByRole('button', { name: /settings/iu }),
+    ).toHaveCount(0);
     await expect(
       page
         .locator('[data-navigation-role="dock"]')

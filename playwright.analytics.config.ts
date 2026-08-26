@@ -16,7 +16,7 @@ export default defineConfig({
   },
   webServer: {
     command:
-      'cross-env VERCEL_ENV=production npm run build && exec tsx scripts/serve-analytics-fixture.ts',
+      'cross-env VERCEL_ENV=production npm run build -- --outDir .analytics-dist && exec tsx scripts/serve-analytics-fixture.ts',
     env: {
       ASTRO_PREVIEW_BACKGROUND: '1',
       VERCEL_ENV: 'production',

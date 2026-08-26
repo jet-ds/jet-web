@@ -41,6 +41,7 @@ const shouldEmitAnalytics =
         let analyticsStarted = false;
         let partytownReady = false;
         let settingsOpen = false;
+        let settingsTrigger;
         const pendingPageViews = [];
 
         const readCookie = (name) => {
@@ -134,6 +135,18 @@ const shouldEmitAnalytics =
 
           const shouldShow =
             settingsOpen || (policy === 'strict' && consent === undefined);
+          for (const settingsButton of document.querySelectorAll(
+            '[data-analytics-settings]',
+          )) {
+            settingsButton.setAttribute(
+              'aria-expanded',
+              settingsOpen ? 'true' : 'false',
+            );
+          }
+          const closeButton = panel.querySelector('[data-analytics-close]');
+          if (closeButton instanceof HTMLElement) {
+            closeButton.hidden = !settingsOpen;
+          }
           panel.hidden = !shouldShow;
           if (!shouldShow || !focusFirstAction) return;
 
@@ -187,6 +200,7 @@ const shouldEmitAnalytics =
         const onAfterSwap = () => {
           partytownReady = false;
           settingsOpen = false;
+          settingsTrigger = undefined;
           reconcile();
         };
 
@@ -201,8 +215,19 @@ const shouldEmitAnalytics =
             '[data-analytics-settings]',
           );
           if (settingsButton !== null) {
+            settingsTrigger = settingsButton;
             settingsOpen = true;
             renderConsent(true);
+            return;
+          }
+
+          const closeButton = event.target.closest('[data-analytics-close]');
+          if (closeButton !== null) {
+            settingsOpen = false;
+            renderConsent();
+            if (settingsTrigger instanceof HTMLElement) {
+              settingsTrigger.focus();
+            }
             return;
           }
 
@@ -219,9 +244,17 @@ const shouldEmitAnalytics =
           }
           if (choice === 'reject') {
             writeCookie(consentCookie, 'reject', 15552000);
+            const focusTarget =
+              settingsTrigger ??
+              document.querySelector('[data-analytics-settings]') ??
+              document.querySelector('main');
             settingsOpen = false;
             processControl();
             renderConsent();
+            if (focusTarget instanceof HTMLElement) {
+              if (focusTarget.matches('main')) focusTarget.tabIndex = -1;
+              focusTarget.focus();
+            }
           }
         };
 

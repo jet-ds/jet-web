@@ -1,11 +1,11 @@
-import { geolocation, next } from '@vercel/functions';
+import { next } from '@vercel/functions';
 import {
   analyticsPolicyForCountry,
   serializeAnalyticsPolicyCookie,
 } from './src/features/analytics/regionalPolicy.js';
 
 export default function analyticsPolicyMiddleware(request: Request): Response {
-  const { country } = geolocation(request);
+  const country = request.headers.get('x-vercel-ip-country') ?? undefined;
   const policy = analyticsPolicyForCountry(country);
 
   return next({

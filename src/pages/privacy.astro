@@ -3,6 +3,7 @@ import BaseLayout from '../components/layout/BaseLayout.astro';
 import PageWrapper from '../components/layout/PageWrapper.astro';
 import Container from '../components/ui/Container.astro';
 import Link from '../components/ui/Link.astro';
+import AnalyticsSettingsButton from '../components/seo/AnalyticsSettingsButton.astro';
 import { SITE } from '../config/site';
 
 const canonicalUrl = new URL('/privacy/', SITE.siteUrl).toString();
@@ -106,11 +107,12 @@ const canonicalUrl = new URL('/privacy/', SITE.siteUrl).toString();
           </p>
           <p class="leading-relaxed text-text-secondary">
             Under the standard policy, GA4 starts normally and remains subject
-            to the site's Privacy settings. Choosing Reject stops GA4 and
+            to the controls on this page. Choosing Reject stops GA4 and
             suppresses future analytics measurement from that browser profile;
             choosing Allow enables it. These choices do not identify a physical
             device or automatically recognize this Mac.
           </p>
+          <AnalyticsSettingsButton />
           <p class="leading-relaxed text-text-secondary">
             When GA4 is active, this site sends page location, path, and title
             for page-view measurement. GA4 may also receive or derive

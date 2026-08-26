@@ -5,7 +5,10 @@ import { extname, resolve, sep } from 'node:path';
 import analyticsPolicyMiddleware, { config } from '../middleware.js';
 
 const port = Number.parseInt(process.env.PORT ?? '4323', 10);
-const outputRoot = resolve(process.cwd(), 'dist');
+const outputRoot = resolve(
+  process.cwd(),
+  process.env.ANALYTICS_FIXTURE_OUTPUT_DIR ?? '.analytics-dist',
+);
 
 const contentTypes: Readonly<Record<string, string>> = {
   '.css': 'text/css; charset=utf-8',

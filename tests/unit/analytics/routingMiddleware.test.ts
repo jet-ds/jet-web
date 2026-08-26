@@ -1,4 +1,4 @@
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
 import analyticsPolicyMiddleware, { config } from '../../../middleware';
 import { ANALYTICS_POLICY_COOKIE } from '../../../src/features/analytics/regionalPolicy';
 
@@ -43,4 +43,15 @@ describe('analytics policy routing middleware', () => {
       ]);
     },
   );
+
+  it('reads only the country header from the request boundary', () => {
+    const get = vi.fn((name: string) =>
+      name === 'x-vercel-ip-country' ? 'US' : null,
+    );
+
+    analyticsPolicyMiddleware({ headers: { get } } as unknown as Request);
+
+    expect(get).toHaveBeenCalledOnce();
+    expect(get).toHaveBeenCalledWith('x-vercel-ip-country');
+  });
 });

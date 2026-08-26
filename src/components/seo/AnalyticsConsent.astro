@@ -14,14 +14,14 @@ const enabled = shouldEmitProductionAnalytics({
       hidden
       role="region"
       aria-label="Analytics choices"
-      class="fixed inset-x-gutter bottom-gutter z-[70] mx-auto max-w-2xl rounded-lg border border-border-strong bg-bg-base p-card shadow-xl"
+      class="analytics-consent-panel fixed bottom-gutter z-[70] rounded-lg border border-border-strong bg-bg-base p-card shadow-xl"
     >
       <div class="flex flex-col gap-s sm:flex-row sm:items-center sm:justify-between">
         <p class="text-sm leading-relaxed text-text-secondary">
           Analytics helps me understand which pages are useful. You can allow or
-          reject it, and change your choice later in Privacy settings.
+          reject it, and change your choice later from the Privacy page.
         </p>
-        <div class="flex shrink-0 gap-xs">
+        <div class="flex min-w-0 shrink-0 flex-wrap gap-xs">
           <button
             type="button"
             data-analytics-choice="reject"
@@ -36,6 +36,14 @@ const enabled = shouldEmitProductionAnalytics({
           >
             Allow analytics
           </button>
+          <button
+            type="button"
+            data-analytics-close
+            hidden
+            class="action action--ghost action--compact w-full"
+          >
+            Close analytics settings
+          </button>
         </div>
       </div>
     </aside>
@@ -43,7 +51,18 @@ const enabled = shouldEmitProductionAnalytics({
 }
 
 <style>
+  .analytics-consent-panel {
+    left: 50%;
+    width: calc(100% - var(--space-gutter) - var(--space-gutter));
+    max-width: var(--container-2xl);
+    transform: translateX(-50%);
+  }
+
   [data-analytics-consent-panel][hidden] {
+    display: none;
+  }
+
+  [data-analytics-close][hidden] {
     display: none;
   }
 </style>
