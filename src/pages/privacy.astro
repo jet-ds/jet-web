@@ -1,0 +1,315 @@
+---
+import BaseLayout from '../components/layout/BaseLayout.astro';
+import PageWrapper from '../components/layout/PageWrapper.astro';
+import Container from '../components/ui/Container.astro';
+import Link from '../components/ui/Link.astro';
+import { SITE } from '../config/site';
+
+const canonicalUrl = new URL('/privacy/', SITE.siteUrl).toString();
+---
+
+<BaseLayout
+  title="Privacy and Cookies"
+  description="How jetsanchez.com handles analytics, cookies, browser storage, hosting data, and the local-first Egregore experience."
+  canonicalURL={canonicalUrl}
+>
+  <PageWrapper spacing="default">
+    <Container size="md">
+      <article class="mx-auto max-w-[var(--container-3xl)] space-y-xl">
+        <header class="space-y-s">
+          <h1 class="text-5xl font-bold leading-tight text-text-primary">
+            Privacy and Cookies
+          </h1>
+          <p class="text-sm font-medium text-text-tertiary">
+            Effective August 26, 2026
+          </p>
+          <p class="text-lg leading-relaxed text-text-secondary">
+            This notice explains what happens to information when you visit
+            jetsanchez.com, including which technologies use cookies and which
+            keep data only in your browser.
+          </p>
+        </header>
+
+        <section aria-labelledby="owner" class="space-y-s">
+          <h2 id="owner" class="text-2xl font-bold text-text-primary">
+            Who runs this site
+          </h2>
+          <p class="leading-relaxed text-text-secondary">
+            This is the personal website of {SITE.author}. Questions or privacy
+            requests can be sent to
+            <Link href={`mailto:${SITE.email}`} variant="primary">
+              {SITE.email}
+            </Link>.
+          </p>
+        </section>
+
+        <section aria-labelledby="hosting" class="space-y-s">
+          <h2 id="hosting" class="text-2xl font-bold text-text-primary">
+            Hosting and media delivery
+          </h2>
+          <p class="leading-relaxed text-text-secondary">
+            Vercel hosts and delivers this site. When your browser requests a
+            page or asset, Vercel may process ordinary request information such
+            as the IP address, requested URL, timestamp, browser or device
+            details, and security or diagnostic data needed to deliver and
+            protect the service.
+          </p>
+          <p class="leading-relaxed text-text-secondary">
+            Some public images and other media are served from Vercel Blob.
+            These published assets use stable, immutable media URLs, so a
+            request may go directly to Vercel's public Blob delivery network.
+            They are site content, not files submitted by visitors. See the
+            <Link
+              href="https://vercel.com/legal/privacy-notice"
+              variant="primary"
+              external
+            >
+              Vercel Privacy Notice
+            </Link>
+            and
+            <Link
+              href="https://vercel.com/docs/vercel-blob"
+              variant="primary"
+              external
+            >
+              Vercel Blob documentation
+            </Link>
+            for provider information.
+          </p>
+        </section>
+
+        <section aria-labelledby="analytics" class="space-y-s">
+          <h2 id="analytics" class="text-2xl font-bold text-text-primary">
+            Analytics
+          </h2>
+          <p class="leading-relaxed text-text-secondary">
+            Google Analytics 4 (GA4) is included only in an explicit Vercel
+            production deployment. Local development, local previews, CI, and
+            Vercel Preview builds do not include GA4, so routine development and
+            automated test traffic from those environments is excluded at
+            source.
+          </p>
+          <p class="leading-relaxed text-text-secondary">
+            On a production request, Vercel supplies an approximate request
+            country. This site uses that value only to assign a coarse strict or
+            standard analytics policy. The privacy-control layer persists only
+            that coarse policy and the visitor's GA preference, not the IP
+            address, city, or coordinates. Vercel may still process ordinary
+            request data as described under Hosting and media delivery.
+          </p>
+          <p class="leading-relaxed text-text-secondary">
+            The strict policy applies conservatively to the EEA, the UK,
+            Switzerland, and requests whose country is unknown or missing. This
+            is a site risk policy, not a legal-status determination. Under the
+            strict policy, GA4 does not initialize unless the visitor chooses
+            Allow.
+          </p>
+          <p class="leading-relaxed text-text-secondary">
+            Under the standard policy, GA4 starts normally and remains subject
+            to the site's Privacy settings. Choosing Reject stops GA4 and
+            suppresses future analytics measurement from that browser profile;
+            choosing Allow enables it. These choices do not identify a physical
+            device or automatically recognize this Mac.
+          </p>
+          <p class="leading-relaxed text-text-secondary">
+            When GA4 is active, this site sends page location, path, and title
+            for page-view measurement. GA4 may also receive or derive
+            information such as visit and interaction timing, referring or
+            campaign information, approximate location, and browser,
+            operating-system, and device categories. Google Analytics uses
+            identifiers and may set analytics cookies to distinguish browsers
+            and sessions.
+          </p>
+          <p class="leading-relaxed text-text-secondary">
+            The existing <code>?analytics=off</code> and
+            <code>?analytics=on</code> URL controls remain an optional, persistent
+            production browser-profile fallback. They apply to that browser profile
+            rather than identifying or filtering a physical device.
+          </p>
+          <p class="leading-relaxed text-text-secondary">
+            More information is available in the
+            <Link
+              href="https://policies.google.com/privacy"
+              variant="primary"
+              external
+            >
+              Google Privacy Policy
+            </Link>
+            and Google's
+            <Link
+              href="https://policies.google.com/technologies/cookies"
+              variant="primary"
+              external
+            >
+              explanation of analytics cookies
+            </Link>.
+          </p>
+        </section>
+
+        <section aria-labelledby="browser-storage" class="space-y-s">
+          <h2 id="browser-storage" class="text-2xl font-bold text-text-primary">
+            Cookies and browser storage
+          </h2>
+          <p class="leading-relaxed text-text-secondary">
+            Cookies are small values sent with web requests. <code
+              >localStorage</code
+            >,
+            <code>sessionStorage</code>, Cache Storage, and in-memory state are
+            separate browser technologies; they are not cookies and are not
+            automatically sent with every request.
+          </p>
+          <dl
+            class="divide-y divide-border-default rounded-xl border border-border-default bg-bg-subtle"
+          >
+            <div class="grid gap-2xs p-s sm:grid-cols-[10rem_1fr] sm:gap-s">
+              <dt class="font-semibold text-text-primary">Analytics cookies</dt>
+              <dd class="leading-relaxed text-text-secondary">
+                When GA4 is active, it may use cookies for visit and session
+                measurement. The site's privacy controls use first-party browser
+                storage to remember only the coarse analytics policy and the
+                visitor's GA preference across pages in that browser profile.
+              </dd>
+            </div>
+            <div class="grid gap-2xs p-s sm:grid-cols-[10rem_1fr] sm:gap-s">
+              <dt class="font-semibold text-text-primary">Theme</dt>
+              <dd class="leading-relaxed text-text-secondary">
+                The light or dark theme choice is stored as <code>theme</code> in
+                <code>localStorage</code> so it persists in the browser.
+              </dd>
+            </div>
+            <div class="grid gap-2xs p-s sm:grid-cols-[10rem_1fr] sm:gap-s">
+              <dt class="font-semibold text-text-primary">
+                Liquid Glass navigation
+              </dt>
+              <dd class="leading-relaxed text-text-secondary">
+                The mobile Liquid Glass dock's discovered and open-or-closed
+                state is stored in <code>sessionStorage</code> for the current tab
+                session.
+              </dd>
+            </div>
+            <div class="grid gap-2xs p-s sm:grid-cols-[10rem_1fr] sm:gap-s">
+              <dt class="font-semibold text-text-primary">Egregore</dt>
+              <dd class="leading-relaxed text-text-secondary">
+                The local model may use browser Cache Storage, while prompts and
+                conversation turns use in-memory session state. Details and
+                controls are below.
+              </dd>
+            </div>
+          </dl>
+        </section>
+
+        <section aria-labelledby="egregore" class="space-y-s">
+          <h2 id="egregore" class="text-2xl font-bold text-text-primary">
+            Egregore
+          </h2>
+          <p class="leading-relaxed text-text-secondary">
+            Egregore is a local-first assistant. Opening its page does not
+            download or start the model. After you check compatibility, only the
+            explicit “Load Egregore” action starts the model download and
+            browser runtime.
+          </p>
+          <p class="leading-relaxed text-text-secondary">
+            The pinned model is about 2 GB and is downloaded directly from
+            Hugging Face. When supported, it is kept in this browser's Cache
+            Storage for reuse. The compatibility check may ask the browser for a
+            storage estimate to warn when the reported available space may be
+            low; the site does not receive the estimate. If Cache Storage is
+            unavailable, the interface explains that the model will be loaded
+            without being cached.
+          </p>
+          <p class="leading-relaxed text-text-secondary">
+            Questions, assembled prompts, generated responses, and conversation
+            turns stay in this browser's current session. Model generation runs
+            locally, and there is no cloud conversation history. Ordinary
+            hosting and production analytics requests for the Egregore page
+            remain subject to the sections above, and the model host receives
+            the download request when you choose to load it.
+          </p>
+          <p class="leading-relaxed text-text-secondary">
+            “New session” clears the current conversation. “Unload” releases the
+            active runtime but retains a cached model for faster reuse. When a
+            model is cached, the “Remove downloaded model” control in Egregore
+            removes its current Cache Storage entry after confirmation. Browser
+            site-data controls can also remove stored site data.
+          </p>
+          <p class="leading-relaxed text-text-secondary">
+            See the
+            <Link href="/licenses/egregore/" variant="primary">
+              Egregore model and open-source licenses
+            </Link>
+            for the exact model, runtime, and software notices.
+          </p>
+        </section>
+
+        <section aria-labelledby="external-links" class="space-y-s">
+          <h2 id="external-links" class="text-2xl font-bold text-text-primary">
+            External links
+          </h2>
+          <p class="leading-relaxed text-text-secondary">
+            Links to third-party websites, profiles, papers, and source material
+            take you to services with their own privacy practices. This notice
+            does not control what those services collect after you follow a
+            link.
+          </p>
+        </section>
+
+        <section aria-labelledby="retention" class="space-y-s">
+          <h2 id="retention" class="text-2xl font-bold text-text-primary">
+            Retention
+          </h2>
+          <p class="leading-relaxed text-text-secondary">
+            Analytics information is retained according to the configured GA4
+            property settings and only for as long as reasonably needed to
+            understand site use, investigate unusual traffic, and maintain the
+            site. Hosting and delivery providers keep request or security data
+            under their own retention policies. Messages you choose to send by
+            email may be kept as needed to reply and maintain an appropriate
+            record of the exchange.
+          </p>
+          <p class="leading-relaxed text-text-secondary">
+            Browser-held data follows a different lifecycle: the theme remains
+            until changed or cleared, the Liquid Glass session state normally
+            ends with the tab session, and the Egregore model remains until you
+            remove it, clear site data, or the browser evicts it. Egregore
+            conversation turns are not saved as cloud history.
+          </p>
+        </section>
+
+        <section aria-labelledby="rights" class="space-y-s">
+          <h2 id="rights" class="text-2xl font-bold text-text-primary">
+            Your choices and rights
+          </h2>
+          <p class="leading-relaxed text-text-secondary">
+            You can clear or block cookies and other site data in your browser,
+            use the site's production analytics controls (including the
+            browser-profile fallback described above), remove the Egregore
+            model, and choose not to follow external links. Blocking storage may
+            stop preferences or local-first features from working as intended.
+          </p>
+          <p class="leading-relaxed text-text-secondary">
+            Depending on where you live, you may have rights to ask about,
+            access, correct, delete, restrict, or object to processing of your
+            personal information. Contact
+            <Link href={`mailto:${SITE.email}`} variant="primary">
+              {SITE.email}
+            </Link>
+            with enough detail to understand and respond to the request. For information
+            controlled by Google or Vercel, use the rights and contact routes in their
+            privacy notices.
+          </p>
+        </section>
+
+        <section aria-labelledby="changes" class="space-y-s">
+          <h2 id="changes" class="text-2xl font-bold text-text-primary">
+            Changes to this notice
+          </h2>
+          <p class="leading-relaxed text-text-secondary">
+            This notice may change when the site's services or data practices
+            change. The effective date at the top will be updated when a revised
+            notice is published.
+          </p>
+        </section>
+      </article>
+    </Container>
+  </PageWrapper>
+</BaseLayout>
