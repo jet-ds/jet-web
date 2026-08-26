@@ -4,6 +4,10 @@ import {
   ANALYTICS_OPT_OUT_COOKIE,
   shouldEmitProductionAnalytics,
 } from '../../features/analytics/trackingPolicy';
+import {
+  ANALYTICS_CONSENT_COOKIE,
+  ANALYTICS_POLICY_COOKIE,
+} from '../../features/analytics/regionalPolicy';
 
 export interface Props {
   measurementId?: string;
@@ -17,114 +21,245 @@ const shouldEmitAnalytics =
 
 {
   shouldEmitAnalytics && (
-    <>
-      <script
-        is:inline
-        define:vars={{
-          measurementId,
-          controlParam: ANALYTICS_CONTROL_PARAM,
-          optOutCookie: ANALYTICS_OPT_OUT_COOKIE,
-        }}
-      >
-        const controllerKey = '__jetAnalyticsController';
-        let controller = Reflect.get(window, controllerKey);
+    <script
+      is:inline
+      define:vars={{
+        measurementId,
+        controlParam: ANALYTICS_CONTROL_PARAM,
+        optOutCookie: ANALYTICS_OPT_OUT_COOKIE,
+        policyCookie: ANALYTICS_POLICY_COOKIE,
+        consentCookie: ANALYTICS_CONSENT_COOKIE,
+      }}
+    >
+      const controllerKey = '__jetAnalyticsController';
+      let controller = Reflect.get(window, controllerKey);
 
-        if (controller === undefined) {
-          let optedOut = false;
-          let partytownReady = false;
-          const pendingPageViews = [];
+      if (controller === undefined) {
+        let policy = 'strict';
+        let consent;
+        let analyticsAllowed = false;
+        let analyticsStarted = false;
+        let partytownReady = false;
+        let settingsOpen = false;
+        const pendingPageViews = [];
 
-          const processControl = () => {
-            const url = new URL(window.location.href);
-            const control = url.searchParams.get(controlParam);
+        const readCookie = (name) => {
+          const prefix = `${name}=`;
+          const entry = document.cookie
+            .split(';')
+            .map((cookie) => cookie.trim())
+            .find((cookie) => cookie.startsWith(prefix));
+          return entry?.slice(prefix.length);
+        };
 
-            if (control === 'off') {
-              document.cookie = `${optOutCookie}=1; Max-Age=31536000; Path=/; Secure; SameSite=Lax`;
-            } else if (control === 'on') {
-              document.cookie = `${optOutCookie}=; Max-Age=0; Path=/; Secure; SameSite=Lax`;
-            }
+        const writeCookie = (name, value, maxAge) => {
+          document.cookie = `${name}=${value}; Max-Age=${maxAge}; Path=/; Secure; SameSite=Lax`;
+        };
 
-            if (control === 'off' || control === 'on') {
-              url.searchParams.delete(controlParam);
-              window.history.replaceState(
-                window.history.state,
-                '',
-                `${url.pathname}${url.search}${url.hash}`,
-              );
-            }
+        const clearCookie = (name) => writeCookie(name, '', 0);
 
-            optedOut = document.cookie
-              .split(';')
-              .some((cookie) => cookie.trim() === `${optOutCookie}=1`);
-            Reflect.set(window, `ga-disable-${measurementId}`, optedOut);
-            if (optedOut) pendingPageViews.length = 0;
-          };
+        const processControl = () => {
+          const url = new URL(window.location.href);
+          const control = url.searchParams.get(controlParam);
 
-          const flushPendingPageViews = () => {
+          if (control === 'off') {
+            writeCookie(optOutCookie, '1', 31536000);
+            writeCookie(consentCookie, 'reject', 15552000);
+          } else if (control === 'on') {
+            clearCookie(optOutCookie);
+            clearCookie(consentCookie);
+          }
+
+          if (control === 'off' || control === 'on') {
+            url.searchParams.delete(controlParam);
+            window.history.replaceState(
+              window.history.state,
+              '',
+              `${url.pathname}${url.search}${url.hash}`,
+            );
+          }
+
+          const storedPolicy = readCookie(policyCookie);
+          policy = storedPolicy === 'standard' ? 'standard' : 'strict';
+          const storedConsent = readCookie(consentCookie);
+          consent =
+            storedConsent === 'allow' || storedConsent === 'reject'
+              ? storedConsent
+              : undefined;
+          const emergencyOptOut = readCookie(optOutCookie) === '1';
+          analyticsAllowed =
+            !emergencyOptOut &&
+            consent !== 'reject' &&
+            (policy === 'standard' || consent === 'allow');
+
+          document.documentElement.dataset.analyticsPolicy = policy;
+          document.documentElement.dataset.analyticsConsent =
+            consent ?? 'unset';
+          Reflect.set(
+            window,
+            `ga-disable-${measurementId}`,
+            !analyticsAllowed,
+          );
+          if (!analyticsAllowed) pendingPageViews.length = 0;
+          return analyticsAllowed;
+        };
+
+        const activateAnalyticsScripts = () => {
+          if (!analyticsAllowed) return;
+          const library = document.querySelector(
+            '[data-jet-analytics-script="library"]',
+          );
+          const shim = document.querySelector(
+            '[data-jet-analytics-script="shim"]',
+          );
+          if (
+            !(library instanceof HTMLScriptElement) ||
+            !(shim instanceof HTMLScriptElement)
+          ) {
+            return;
+          }
+
+          library.type = 'text/partytown';
+          const librarySource = library.dataset.src;
+          if (librarySource !== undefined) library.src = librarySource;
+          shim.type = 'text/partytown';
+          analyticsStarted = true;
+        };
+
+        const renderConsent = (focusFirstAction = false) => {
+          const panel = document.querySelector(
+            '[data-analytics-consent-panel]',
+          );
+          if (!(panel instanceof HTMLElement)) return;
+
+          const shouldShow =
+            settingsOpen || (policy === 'strict' && consent === undefined);
+          panel.hidden = !shouldShow;
+          if (!shouldShow || !focusFirstAction) return;
+
+          const firstAction = panel.querySelector(
+            '[data-analytics-choice="reject"]',
+          );
+          if (firstAction instanceof HTMLElement) firstAction.focus();
+        };
+
+        const flushPendingPageViews = () => {
+          processControl();
+          if (
+            !analyticsAllowed ||
+            !analyticsStarted ||
+            !partytownReady ||
+            pendingPageViews.length === 0
+          ) {
+            return;
+          }
+
+          const gtag = Reflect.get(window, 'gtag');
+          if (typeof gtag !== 'function') return;
+
+          gtag('js', new Date());
+          while (pendingPageViews.length > 0) {
+            const pageView = pendingPageViews.shift();
+            gtag('config', measurementId, { send_page_view: false });
+            gtag('event', 'page_view', pageView);
+          }
+        };
+
+        const snapshotPageView = () =>
+          Object.freeze({
+            page_location: window.location.href,
+            page_path: window.location.pathname,
+            page_title: document.title,
+          });
+
+        const reconcile = () => {
+          processControl();
+          renderConsent();
+        };
+
+        const onPageLoad = () => {
+          reconcile();
+          if (!analyticsAllowed) return;
+          pendingPageViews.push(snapshotPageView());
+          flushPendingPageViews();
+        };
+
+        const onAfterSwap = () => {
+          partytownReady = false;
+          settingsOpen = false;
+          reconcile();
+        };
+
+        const onPartytownReady = () => {
+          partytownReady = true;
+          flushPendingPageViews();
+        };
+
+        const onDocumentClick = (event) => {
+          if (!(event.target instanceof Element)) return;
+          const settingsButton = event.target.closest(
+            '[data-analytics-settings]',
+          );
+          if (settingsButton !== null) {
+            settingsOpen = true;
+            renderConsent(true);
+            return;
+          }
+
+          const choiceButton = event.target.closest(
+            '[data-analytics-choice]',
+          );
+          if (!(choiceButton instanceof HTMLElement)) return;
+          const choice = choiceButton.dataset.analyticsChoice;
+          if (choice === 'allow') {
+            writeCookie(consentCookie, 'allow', 15552000);
+            clearCookie(optOutCookie);
+            window.location.reload();
+            return;
+          }
+          if (choice === 'reject') {
+            writeCookie(consentCookie, 'reject', 15552000);
+            settingsOpen = false;
             processControl();
-            if (optedOut || !partytownReady || pendingPageViews.length === 0)
-              return;
+            renderConsent();
+          }
+        };
 
-            const gtag = Reflect.get(window, 'gtag');
-            if (typeof gtag !== 'function') return;
+        const subscribeToPinnedPartytownReady = (listener) => {
+          // The @astrojs/partytown@2.1.7 lock resolves Qwik Partytown 0.13.2; revalidate this adapter on updates.
+          document.addEventListener('pt0', listener);
+        };
 
-            gtag('js', new Date());
-            while (pendingPageViews.length > 0) {
-              const pageView = pendingPageViews.shift();
-              gtag('config', measurementId, { send_page_view: false });
-              gtag('event', 'page_view', pageView);
-            }
-          };
+        controller = { activateAnalyticsScripts, reconcile };
+        Reflect.set(window, controllerKey, controller);
+        document.addEventListener('click', onDocumentClick);
+        document.addEventListener('DOMContentLoaded', () => renderConsent(), {
+          once: true,
+        });
+        document.addEventListener('astro:after-swap', onAfterSwap);
+        document.addEventListener('astro:page-load', onPageLoad);
+        subscribeToPinnedPartytownReady(onPartytownReady);
+      }
 
-          const snapshotPageView = () =>
-            Object.freeze({
-              page_location: window.location.href,
-              page_path: window.location.pathname,
-              page_title: document.title,
-            });
-
-          const onPageLoad = () => {
-            processControl();
-            if (optedOut) return;
-            pendingPageViews.push(snapshotPageView());
-            flushPendingPageViews();
-          };
-
-          const onAfterSwap = () => {
-            partytownReady = false;
-            processControl();
-          };
-
-          const onPartytownReady = () => {
-            partytownReady = true;
-            flushPendingPageViews();
-          };
-
-          const subscribeToPinnedPartytownReady = (listener) => {
-            // The @astrojs/partytown@2.1.7 lock resolves Qwik Partytown 0.13.2; revalidate this adapter on updates.
-            document.addEventListener('pt0', listener);
-          };
-
-          controller = { processControl };
-          Reflect.set(window, controllerKey, controller);
-          document.addEventListener('astro:after-swap', onAfterSwap);
-          document.addEventListener('astro:page-load', onPageLoad);
-          subscribeToPinnedPartytownReady(onPartytownReady);
-        }
-
-        controller.processControl();
-      </script>
-      <script
-        is:inline
-        type="text/partytown"
-        async
-        src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`}
-      />
-      <script is:inline type="text/partytown">
-        window.dataLayer = window.dataLayer || [];
-        // eslint-disable-next-line prefer-rest-params -- Google's dataLayer shim forwards its arguments object.
-        window.gtag = function () { dataLayer.push(arguments); };
-      </script>
-    </>
+      controller.reconcile();
+    </script>
+    <script
+      is:inline
+      type="text/plain"
+      data-jet-analytics-script="library"
+      data-src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`}
+    />
+    <script
+      is:inline
+      type="text/plain"
+      data-jet-analytics-script="shim"
+    >
+      window.dataLayer = window.dataLayer || [];
+      // eslint-disable-next-line prefer-rest-params -- Google's dataLayer shim forwards its arguments object.
+      window.gtag = function () { dataLayer.push(arguments); };
+    </script>
+    <script is:inline data-astro-rerun>
+      Reflect.get(window, '__jetAnalyticsController')?.activateAnalyticsScripts();
+    </script>
   )
 }

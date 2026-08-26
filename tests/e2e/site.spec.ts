@@ -1,5 +1,8 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
-import { classifyGoogleAnalyticsRequest } from '../support/googleAnalyticsTraffic';
+import {
+  classifyGoogleAnalyticsRequest,
+  installGoogleAnalyticsTrafficBlock,
+} from '../support/googleAnalyticsTraffic';
 import { publishedContent } from '../support/publishedContent';
 
 async function interceptGoogleAnalytics(page: Page): Promise<string[]> {
@@ -388,4 +391,44 @@ test('non-Production documents send no analytics traffic on direct or ClientRout
   await page.waitForTimeout(300);
 
   expect(analyticsRequests).toEqual([]);
+});
+
+test('the automated traffic guard blocks Google Analytics before a fallback route can send it', async ({
+  context,
+  page,
+}) => {
+  const fallbackRequests: string[] = [];
+  const blockedRequests: string[] = [];
+  const probe =
+    'https://www.google-analytics.com/g/collect?probe=automated-traffic-guard';
+
+  await context.route('**/*', async (route) => {
+    const url = route.request().url();
+    if (classifyGoogleAnalyticsRequest(url) === null) {
+      await route.continue();
+      return;
+    }
+    fallbackRequests.push(url);
+    await route.fulfill({ status: 204 });
+  });
+  await installGoogleAnalyticsTrafficBlock(context);
+  page.on('requestfailed', (request) => {
+    if (classifyGoogleAnalyticsRequest(request.url()) !== null) {
+      blockedRequests.push(request.url());
+    }
+  });
+
+  await page.goto('/');
+  const fetchResult = await page.evaluate(async (url) => {
+    try {
+      await fetch(url);
+      return 'sent';
+    } catch {
+      return 'blocked';
+    }
+  }, probe);
+
+  expect(fetchResult).toBe('blocked');
+  await expect.poll(() => blockedRequests).toEqual([probe]);
+  expect(fallbackRequests).toEqual([]);
 });

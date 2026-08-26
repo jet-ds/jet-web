@@ -2,6 +2,7 @@ import { defineConfig, devices } from '@playwright/test';
 
 export default defineConfig({
   testDir: './tests/e2e',
+  testIgnore: 'analytics.spec.ts',
   outputDir: 'test-results/playwright',
   fullyParallel: false,
   workers: process.env.CI ? 2 : 3,

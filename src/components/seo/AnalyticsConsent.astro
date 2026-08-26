@@ -1,0 +1,49 @@
+---
+import { shouldEmitProductionAnalytics } from '../../features/analytics/trackingPolicy';
+
+const enabled = shouldEmitProductionAnalytics({
+  vercelEnv: process.env.VERCEL_ENV,
+});
+---
+
+{
+  enabled && (
+    <aside
+      id="analytics-consent"
+      data-analytics-consent-panel
+      hidden
+      role="region"
+      aria-label="Analytics choices"
+      class="fixed inset-x-gutter bottom-gutter z-[70] mx-auto max-w-2xl rounded-lg border border-border-strong bg-bg-base p-card shadow-xl"
+    >
+      <div class="flex flex-col gap-s sm:flex-row sm:items-center sm:justify-between">
+        <p class="text-sm leading-relaxed text-text-secondary">
+          Analytics helps me understand which pages are useful. You can allow or
+          reject it, and change your choice later in Privacy settings.
+        </p>
+        <div class="flex shrink-0 gap-xs">
+          <button
+            type="button"
+            data-analytics-choice="reject"
+            class="action action--outline action--compact flex-1 sm:flex-none"
+          >
+            Reject analytics
+          </button>
+          <button
+            type="button"
+            data-analytics-choice="allow"
+            class="action action--outline action--compact flex-1 sm:flex-none"
+          >
+            Allow analytics
+          </button>
+        </div>
+      </div>
+    </aside>
+  )
+}
+
+<style>
+  [data-analytics-consent-panel][hidden] {
+    display: none;
+  }
+</style>

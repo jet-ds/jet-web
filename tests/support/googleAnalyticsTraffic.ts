@@ -1,3 +1,5 @@
+import type { BrowserContext } from '@playwright/test';
+
 export type GoogleAnalyticsRequestKind =
   'library' | 'collection' | 'other-analytics';
 
@@ -29,4 +31,16 @@ export function classifyGoogleAnalyticsRequest(
     return 'collection';
   }
   return 'other-analytics';
+}
+
+export async function installGoogleAnalyticsTrafficBlock(
+  context: Pick<BrowserContext, 'route'>,
+): Promise<void> {
+  await context.route('**/*', async (route) => {
+    if (classifyGoogleAnalyticsRequest(route.request().url()) === null) {
+      await route.fallback();
+      return;
+    }
+    await route.abort('blockedbyclient');
+  });
 }

@@ -21,6 +21,10 @@ import {
 import { EGREGORE_ABSTENTION_PREFIX } from '../../src/features/egregore/prompt/assemble';
 import { establishDeploymentProtectionBypass } from '../support/deploymentProtection';
 import {
+  classifyGoogleAnalyticsRequest,
+  installGoogleAnalyticsTrafficBlock,
+} from '../support/googleAnalyticsTraffic';
+import {
   isAllowedDeploymentProtectionCookie,
   isPartytownBlobScript,
   isPartytownSandboxDocument,
@@ -1832,20 +1836,6 @@ function hasApplicationDefinedHeader(headers: Record<string, string>): boolean {
   });
 }
 
-function isAnalyticsRequest(url: URL): boolean {
-  if (url.protocol !== 'https:' || url.port !== '') return false;
-  if (url.origin === 'https://www.googletagmanager.com') {
-    return url.pathname === '/gtag/js';
-  }
-  return (
-    [
-      'https://www.google-analytics.com',
-      'https://analytics.google.com',
-      'https://region1.google-analytics.com',
-    ].includes(url.origin) && /^\/(?:g\/)?collect$/u.test(url.pathname)
-  );
-}
-
 function isPartytownTransport(url: URL, applicationOrigin: string): boolean {
   return (
     url.origin === applicationOrigin &&
@@ -2055,7 +2045,7 @@ async function validateRequestPrivacy(
     const documentRequest =
       sameOrigin && [EGREGORE_PATH, ROUTE_AWAY_PATH].includes(url.pathname);
     const model = isTrustedModelOrigin(url.href, EGREGORE_MODEL.trustedOrigins);
-    const analytics = isAnalyticsRequest(url);
+    const analytics = classifyGoogleAnalyticsRequest(url) !== null;
     const partytownTransport = isPartytownTransport(url, applicationOrigin);
     const partytownBlobScript = isPartytownBlobScript(
       request,
@@ -2268,6 +2258,7 @@ test('qualifies Egregore with the real local model', async ({ playwright }) => {
   }
 
   try {
+    await installGoogleAnalyticsTrafficBlock(activePage.context());
     await establishDeploymentProtectionBypass(
       activePage.context(),
       new URL(applicationBaseUrl).origin,

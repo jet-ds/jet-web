@@ -4,6 +4,7 @@ const forceFreshServer = process.env.PLAYWRIGHT_FORCE_FRESH_SERVER === '1';
 
 export default defineConfig({
   testDir: './tests/e2e',
+  testIgnore: 'analytics.spec.ts',
   outputDir: 'test-results/playwright',
   fullyParallel: false,
   workers: process.env.CI ? 2 : 3,

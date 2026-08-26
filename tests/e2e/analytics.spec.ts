@@ -1,6 +1,11 @@
 import { expect, test, type Locator, type Page } from '@playwright/test';
+import AxeBuilder from '@axe-core/playwright';
 import { SITE } from '../../src/config/site';
 import { ANALYTICS_OPT_OUT_COOKIE } from '../../src/features/analytics/trackingPolicy';
+import {
+  ANALYTICS_CONSENT_COOKIE,
+  ANALYTICS_POLICY_COOKIE,
+} from '../../src/features/analytics/regionalPolicy';
 import { classifyGoogleAnalyticsRequest } from '../support/googleAnalyticsTraffic';
 
 const ANALYTICS_LIBRARY_STUB = String.raw`
@@ -220,6 +225,162 @@ async function analyticsDisabled(page: Page): Promise<boolean | undefined> {
   );
 }
 
+test.beforeEach(async ({ page }) => {
+  await page.setExtraHTTPHeaders({ 'x-vercel-ip-country': 'US' });
+});
+
+test('the middleware policy cookie is readable during parsing of the same standard response', async ({
+  context,
+  page,
+}) => {
+  const observations = await interceptAnalyticsTraffic(page);
+
+  await page.goto('/');
+
+  await expect
+    .poll(() =>
+      page.evaluate(() => document.documentElement.dataset.analyticsPolicy),
+    )
+    .toBe('standard');
+  expect(
+    (await context.cookies()).find(
+      ({ name }) => name === ANALYTICS_POLICY_COOKIE,
+    ),
+  ).toMatchObject({
+    name: ANALYTICS_POLICY_COOKIE,
+    value: 'standard',
+    path: '/',
+    secure: true,
+    sameSite: 'Lax',
+  });
+  await expect.poll(() => observations.libraryRequests.length).toBe(1);
+});
+
+test('strict and unknown regions make no Google request before a choice', async ({
+  page,
+}) => {
+  await page.setExtraHTTPHeaders({ 'x-vercel-ip-country': 'ZZ' });
+  const observations = await interceptAnalyticsTraffic(page);
+
+  await page.goto('/');
+
+  await expect
+    .poll(() =>
+      page.evaluate(() => document.documentElement.dataset.analyticsPolicy),
+    )
+    .toBe('strict');
+  await expect(
+    page.getByRole('region', { name: 'Analytics choices' }),
+  ).toBeVisible();
+  const { violations } = await new AxeBuilder({ page }).analyze();
+  expect(
+    violations.filter(
+      ({ impact }) => impact === 'serious' || impact === 'critical',
+    ),
+  ).toEqual([]);
+  await expect.poll(() => partytownReadyCount(page)).toBe(1);
+  expect(observations.libraryRequests).toEqual([]);
+  expect(observations.commands).toEqual([]);
+  expect(observations.collectionRequests).toEqual([]);
+  expect(observations.unexpectedGoogleRequests).toEqual([]);
+  expect(await analyticsDisabled(page)).toBe(true);
+});
+
+test('reject records the preference and keeps strict-region analytics absent', async ({
+  context,
+  page,
+}) => {
+  await page.setExtraHTTPHeaders({ 'x-vercel-ip-country': 'DE' });
+  const observations = await interceptAnalyticsTraffic(page);
+
+  await page.goto('/');
+  await page.getByRole('button', { name: 'Reject analytics' }).click();
+
+  await expect(
+    page.getByRole('region', { name: 'Analytics choices' }),
+  ).toBeHidden();
+  expect(
+    (await context.cookies()).find(
+      ({ name }) => name === ANALYTICS_CONSENT_COOKIE,
+    ),
+  ).toMatchObject({
+    name: ANALYTICS_CONSENT_COOKIE,
+    value: 'reject',
+    path: '/',
+    secure: true,
+    sameSite: 'Lax',
+  });
+  await page.reload();
+  await expect.poll(() => partytownReadyCount(page)).toBe(1);
+  expect(observations.libraryRequests).toEqual([]);
+  expect(observations.commands).toEqual([]);
+  expect(observations.collectionRequests).toEqual([]);
+  expect(await analyticsDisabled(page)).toBe(true);
+});
+
+test('allow reloads once and starts the normal strict-region analytics sequence', async ({
+  context,
+  page,
+}) => {
+  await page.setExtraHTTPHeaders({ 'x-vercel-ip-country': 'DE' });
+  const observations = await interceptAnalyticsTraffic(page);
+
+  await page.goto('/');
+  const initialNavigationCount = await page.evaluate(
+    () => performance.getEntriesByType('navigation').length,
+  );
+  await page.getByRole('button', { name: 'Allow analytics' }).click();
+  await page.waitForLoadState('load');
+
+  expect(
+    (await context.cookies()).find(
+      ({ name }) => name === ANALYTICS_CONSENT_COOKIE,
+    ),
+  ).toMatchObject({
+    name: ANALYTICS_CONSENT_COOKIE,
+    value: 'allow',
+    path: '/',
+    secure: true,
+    sameSite: 'Lax',
+  });
+  expect(
+    await page.evaluate(
+      () => performance.getEntriesByType('navigation').length,
+    ),
+  ).toBe(initialNavigationCount);
+  await expect.poll(() => observations.libraryRequests.length).toBe(1);
+  await expect.poll(() => observations.commands.length).toBe(2);
+  await expect.poll(() => observations.collectionRequests.length).toBe(1);
+  expect(observations.commands.map(({ command }) => command)).toEqual([
+    'config',
+    'page_view',
+  ]);
+  expect(observations.unexpectedGoogleRequests).toEqual([]);
+  expect(await analyticsDisabled(page)).toBe(false);
+});
+
+test('standard-region privacy settings can reject later page views', async ({
+  page,
+}) => {
+  const observations = await interceptAnalyticsTraffic(page);
+
+  await page.goto('/');
+  await expect.poll(() => observations.collectionRequests.length).toBe(1);
+  await page.getByRole('button', { name: 'Privacy settings' }).click();
+  await expect(
+    page.getByRole('region', { name: 'Analytics choices' }),
+  ).toBeVisible();
+  await page.getByRole('button', { name: 'Reject analytics' }).click();
+  await followClientRouterLink(
+    page,
+    page.getByRole('link', { name: 'About', exact: true }).first(),
+    /\/about\/$/u,
+  );
+
+  expect(observations.collectionRequests).toHaveLength(1);
+  expect(await analyticsDisabled(page)).toBe(true);
+});
+
 test('enabled Production emits one config and page view on a direct visit', async ({
   page,
 }) => {
@@ -325,7 +486,7 @@ test('delayed readiness preserves every completed page view in FIFO order', asyn
   expect(observations.unexpectedGoogleRequests).toEqual([]);
 });
 
-test('device opt-out persists, clears across routes, and never duplicates page views', async ({
+test('the optional browser-profile fallback persists, clears across routes, and never duplicates page views', async ({
   context,
   page,
 }) => {
@@ -335,7 +496,7 @@ test('device opt-out persists, clears across routes, and never duplicates page v
   await expect(page).toHaveURL(
     'http://localhost:4323/blog/?campaign=task-12#preserved',
   );
-  await expect.poll(() => observations.libraryRequests.length).toBe(1);
+  expect(observations.libraryRequests).toEqual([]);
   await expect.poll(() => partytownReadyCount(page)).toBe(1);
   expect(await analyticsDisabled(page)).toBe(true);
 

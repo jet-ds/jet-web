@@ -7,7 +7,10 @@ import {
 import { SITE } from '../../src/config/site';
 import { ANALYTICS_OPT_OUT_COOKIE } from '../../src/features/analytics/trackingPolicy';
 import { establishDeploymentProtectionBypass } from '../support/deploymentProtection';
-import { classifyGoogleAnalyticsRequest } from '../support/googleAnalyticsTraffic';
+import {
+  classifyGoogleAnalyticsRequest,
+  installGoogleAnalyticsTrafficBlock,
+} from '../support/googleAnalyticsTraffic';
 import {
   publishedAssistantSources,
   publishedContent,
@@ -89,6 +92,7 @@ async function publishedSitemapXml(
 }
 
 test.beforeEach(async ({ context }) => {
+  await installGoogleAnalyticsTrafficBlock(context);
   await establishDeploymentProtectionBypass(
     context,
     deploymentOrigin,
@@ -96,7 +100,7 @@ test.beforeEach(async ({ context }) => {
   );
 });
 
-test('Production reads back the site-wide analytics device control', async ({
+test('Production reads back the optional analytics browser-profile fallback', async ({
   context,
   page,
 }) => {
@@ -120,15 +124,12 @@ test('Production reads back the site-wide analytics device control', async ({
   await expect(page).toHaveURL(
     new URL('/?campaign=deployment#preserved', deploymentOrigin).toString(),
   );
-  await expect
-    .poll(
-      () =>
-        analyticsRequests.filter(
-          ({ hostname, pathname }) =>
-            hostname === 'www.googletagmanager.com' && pathname === '/gtag/js',
-        ).length,
-    )
-    .toBeGreaterThanOrEqual(1);
+  expect(
+    analyticsRequests.filter(
+      ({ hostname, pathname }) =>
+        hostname === 'www.googletagmanager.com' && pathname === '/gtag/js',
+    ),
+  ).toEqual([]);
   expect(
     await page.evaluate(
       (measurementId) => Reflect.get(window, `ga-disable-${measurementId}`),
@@ -153,12 +154,18 @@ test('Production reads back the site-wide analytics device control', async ({
       deploymentOrigin,
     ).toString(),
   );
+  const regionalPolicy = await page.evaluate(
+    () => document.documentElement.dataset.analyticsPolicy,
+  );
+  expect(regionalPolicy === 'strict' || regionalPolicy === 'standard').toBe(
+    true,
+  );
   expect(
     await page.evaluate(
       (measurementId) => Reflect.get(window, `ga-disable-${measurementId}`),
       SITE.ga4MeasurementId,
     ),
-  ).toBe(false);
+  ).toBe(regionalPolicy === 'strict');
   expect(
     (await context.cookies()).some(
       ({ name }) => name === ANALYTICS_OPT_OUT_COOKIE,

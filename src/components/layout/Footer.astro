@@ -2,8 +2,12 @@
 import { NAV_ITEMS, SITE, SOCIAL_LINKS } from '../../config/site';
 import Container from '../ui/Container.astro';
 import Link from '../ui/Link.astro';
+import { shouldEmitProductionAnalytics } from '../../features/analytics/trackingPolicy';
 
 const currentYear = new Date().getFullYear();
+const analyticsSettingsAvailable = shouldEmitProductionAnalytics({
+  vercelEnv: process.env.VERCEL_ENV,
+});
 
 // Map platform keys to proper brand names
 const platformNames: Record<string, string> = {
@@ -77,8 +81,20 @@ const socialLinksArray = Object.entries(SOCIAL_LINKS)
         © {currentYear}
         {SITE.author}. All rights reserved.
       </p>
-      <nav aria-label="Legal" class="text-sm">
+      <nav aria-label="Legal" class="flex items-center gap-xs text-sm">
         <Link href="/privacy/" variant="muted">Privacy</Link>
+        {
+          analyticsSettingsAvailable && (
+            <button
+              type="button"
+              data-analytics-settings
+              aria-controls="analytics-consent"
+              class="action action--ghost action--compact"
+            >
+              Privacy settings
+            </button>
+          )
+        }
       </nav>
     </div>
   </Container>

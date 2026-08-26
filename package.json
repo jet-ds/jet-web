@@ -34,7 +34,8 @@
     "capture:og": "tsx scripts/capture-og-image.ts",
     "validate-images": "tsx scripts/validate-images.ts",
     "verify:build-purity": "tsx scripts/verify-build-purity.ts",
-    "verify:production-artifacts": "tsx scripts/verify-production-artifacts.ts"
+    "verify:production-artifacts": "tsx scripts/verify-production-artifacts.ts",
+    "verify:routing-middleware-artifact": "tsx scripts/verify-routing-middleware-artifact.ts .vercel/output"
   },
   "dependencies": {
     "@astrojs/mdx": "7.0.8",
@@ -42,6 +43,7 @@
     "@astrojs/react": "6.0.4",
     "@litert-lm/core": "0.14.0",
     "@vercel/blob": "2.8.0",
+    "@vercel/functions": "3.9.5",
     "astro": "7.2.6",
     "dotenv": "17.4.2",
     "framer-motion": "12.42.2",

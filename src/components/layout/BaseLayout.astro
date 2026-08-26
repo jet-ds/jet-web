@@ -4,6 +4,7 @@ import ThemeScript from '../ui/ThemeScript.astro';
 import SEO from '../seo/SEO.astro';
 import StructuredData from '../seo/StructuredData.astro';
 import GoogleAnalytics from '../seo/GoogleAnalytics.astro';
+import AnalyticsConsent from '../seo/AnalyticsConsent.astro';
 import DockWrapper from '../navigation/DockWrapper.astro';
 import Footer from './Footer.astro';
 import { NAV_ITEMS, SITE } from '../../config/site';
@@ -168,6 +169,7 @@ const navigationElements = NAV_ITEMS.map((item) => ({
     <main class:list={['flex-1', immersive ? 'min-h-0' : 'pt-0 md:pt-24']}>
       <slot />
     </main>
+    <AnalyticsConsent />
     {!immersive && <Footer />}
   </body>
 </html>
