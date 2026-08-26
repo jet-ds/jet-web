@@ -16,9 +16,10 @@ export default defineConfig({
     trace: 'retain-on-failure',
   },
   webServer: {
-    command: 'npm run build && npm run preview -- --host 127.0.0.1',
+    command:
+      'npm run build && exec node node_modules/astro/bin/astro.mjs preview --host 127.0.0.1',
     env: {
-      ASTRO_PREVIEW_BACKGROUND: '0',
+      ASTRO_PREVIEW_BACKGROUND: '1',
       PUBLIC_EGREGORE_E2E: '1',
     },
     url: 'http://127.0.0.1:4321',

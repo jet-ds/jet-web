@@ -25,7 +25,7 @@ export function isPartytownBlobScript(
     url.protocol !== 'blob:' ||
     url.search !== '' ||
     url.hash !== '' ||
-    request.resourceType() !== 'script' ||
+    !['script', 'xhr'].includes(request.resourceType()) ||
     request.method() !== 'GET'
   )
     return false;

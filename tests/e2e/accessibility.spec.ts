@@ -142,14 +142,20 @@ async function expectNoSeriousAxeViolations(page: Page, state: string) {
   );
 }
 
-async function focusWithKeyboard(page: Page, target: Locator) {
+async function focusWithKeyboard(
+  page: Page,
+  target: Locator,
+  keys: {
+    forward: 'Tab' | 'Alt+Tab';
+    reverse: 'Shift+Tab' | 'Alt+Shift+Tab';
+  },
+) {
   await expect(target).toBeVisible();
   await expect(target).toBeEnabled();
-  for (let attempt = 0; attempt < 40; attempt += 1) {
-    if (await target.evaluate((element) => element === document.activeElement))
-      return;
-    await page.keyboard.press('Tab');
-  }
+  await target.focus();
+  await page.keyboard.press(keys.reverse);
+  await expect(target).not.toBeFocused();
+  await page.keyboard.press(keys.forward);
   await expect(target).toBeFocused();
 }
 
@@ -196,15 +202,19 @@ test(
 test(
   'collection surfaces expose one keyboard-visible dominant destination',
   { tag: '@desktop' },
-  async ({ page }) => {
+  async ({ browserName, page }) => {
     await page.emulateMedia({ reducedMotion: 'reduce' });
+    const keys =
+      browserName === 'webkit'
+        ? ({ forward: 'Alt+Tab', reverse: 'Alt+Shift+Tab' } as const)
+        : ({ forward: 'Tab', reverse: 'Shift+Tab' } as const);
     for (const route of ['/blog/', '/works/']) {
       await page.goto(route);
       const card = page.locator('main [data-content-card]').first();
       const destination = card.getByRole('link');
       await expect(destination).toHaveCount(1);
       await expect(card.locator('a[href]')).toHaveCount(1);
-      await focusWithKeyboard(page, destination);
+      await focusWithKeyboard(page, destination, keys);
       await expect(card).toHaveCSS('outline-style', 'solid');
     }
 

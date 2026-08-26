@@ -10,6 +10,8 @@ const packageJson = JSON.parse(readFileSync('package.json', 'utf8')) as {
   dependencies: Record<string, string>;
 };
 const astroConfig = readFileSync('astro.config.mjs', 'utf8');
+const foregroundPreviewCommand =
+  'npm run build && exec node node_modules/astro/bin/astro.mjs preview --host 127.0.0.1';
 
 type CheckIgnore = (path: string) => boolean;
 
@@ -131,6 +133,11 @@ describe('static production boundary', () => {
     );
     expect(probe.status, probe.stderr).toBe(0);
     expect(JSON.parse(probe.stdout)).toMatchObject({
+      command: foregroundPreviewCommand,
+      env: {
+        ASTRO_PREVIEW_BACKGROUND: '1',
+        PUBLIC_EGREGORE_E2E: '1',
+      },
       reuseExistingServer: false,
     });
   });
@@ -149,9 +156,9 @@ describe('static production boundary', () => {
       { name: 'webkit', browser: 'webkit' },
     ]);
     expect(releasePlaywrightConfig.webServer).toMatchObject({
-      command: 'npm run build && npm run preview -- --host 127.0.0.1',
+      command: foregroundPreviewCommand,
       env: {
-        ASTRO_PREVIEW_BACKGROUND: '0',
+        ASTRO_PREVIEW_BACKGROUND: '1',
         PUBLIC_EGREGORE_E2E: '1',
       },
       reuseExistingServer: false,

@@ -494,10 +494,10 @@
     aspect-ratio: 16 / 9;
     translate: -50% 0;
     overflow: hidden;
-    border: 1px solid var(--color-border-default);
     border-radius: 0.75rem;
     background: var(--color-surface-raised);
     box-shadow:
+      inset 0 0 0 1px var(--color-border-default),
       0 1rem 2.5rem
         color-mix(in oklch, var(--color-text-primary) 18%, transparent),
       0 0.25rem 0.75rem
@@ -699,8 +699,16 @@
   @media (forced-colors: active) {
     .depth-carousel__layer,
     .depth-carousel__companion {
-      border-color: CanvasText;
       box-shadow: none;
+    }
+
+    .depth-carousel__layer:not(:focus-visible) {
+      outline: 1px solid CanvasText;
+      outline-offset: -1px;
+    }
+
+    .depth-carousel__companion {
+      border-color: CanvasText;
     }
 
     .depth-carousel__layer::after {

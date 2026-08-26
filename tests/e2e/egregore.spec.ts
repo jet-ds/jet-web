@@ -9,6 +9,7 @@ import {
   type Page,
   type Request,
 } from '@playwright/test';
+import { isPartytownBlobScript } from '../manual/requestPrivacy';
 
 const EGREGORE_PATH = '/chatbot/';
 const CORPUS_PATHS = [
@@ -175,6 +176,23 @@ async function serializeTraffic(
       })),
     ),
   });
+}
+
+async function declaredApplicationResources(page: Page): Promise<Set<string>> {
+  const resources = await page.locator('head link[href]').evaluateAll((links) =>
+    links.flatMap((link) => {
+      if (!(link instanceof HTMLLinkElement)) return [];
+      const metadataRelations = ['icon', 'apple-touch-icon', 'manifest'];
+      if (
+        !metadataRelations.some((relation) => link.relList.contains(relation))
+      ) {
+        return [];
+      }
+      const url = new URL(link.href, document.baseURI);
+      return url.origin === window.location.origin ? [url.href] : [];
+    }),
+  );
+  return new Set(resources);
 }
 
 function expectNoPrivateTraffic(serializedTraffic: string): void {
@@ -424,6 +442,7 @@ test(
     ).toBe(false);
 
     const applicationOrigin = new URL(page.url()).origin;
+    const declaredResources = await declaredApplicationResources(page);
     for (const request of browserRequests) {
       const url = new URL(request.url());
       const isDocument =
@@ -433,10 +452,12 @@ test(
         CORPUS_PATHS.includes(url.pathname as (typeof CORPUS_PATHS)[number]);
       const isApplicationAsset =
         url.origin === applicationOrigin && url.pathname.startsWith('/_astro/');
-      const isLocalGeneratedScript =
-        url.protocol === 'blob:' &&
-        url.origin === applicationOrigin &&
-        request.resourceType() === 'script';
+      const isDeclaredApplicationResource = declaredResources.has(url.href);
+      const isLocalGeneratedScript = isPartytownBlobScript(
+        request,
+        url,
+        applicationOrigin,
+      );
       const isFont =
         (url.hostname === 'fonts.googleapis.com' && url.pathname === '/css2') ||
         (url.hostname === 'fonts.gstatic.com' &&
@@ -457,6 +478,7 @@ test(
         isDocument ||
           isCorpus ||
           isApplicationAsset ||
+          isDeclaredApplicationResource ||
           isLocalGeneratedScript ||
           isFont ||
           isAnalytics,

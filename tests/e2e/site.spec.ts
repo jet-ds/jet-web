@@ -20,7 +20,6 @@ async function selectRepresentedHeading(page: Page): Promise<{
 }> {
   const target = await page.evaluate(() => {
     document.documentElement.style.scrollBehavior = 'auto';
-    const readingLine = window.innerHeight * 0.3;
     const maxScroll =
       document.documentElement.scrollHeight - window.innerHeight;
     const headings = [
@@ -36,15 +35,10 @@ async function selectRepresentedHeading(page: Page): Promise<{
         index,
         top: window.scrollY + heading.getBoundingClientRect().top,
       }))
-      .filter(
-        ({ index, top }) =>
-          index > 0 && top - readingLine >= 0 && top - readingLine < maxScroll,
-      )
+      .filter(({ index, top }) => index > 0 && top >= 0 && top < maxScroll)
       .at(-1);
     if (candidate === undefined) return null;
-    window.scrollTo({
-      top: Math.max(0, Math.min(maxScroll, candidate.top - readingLine)),
-    });
+    window.scrollTo({ top: candidate.top });
     return {
       id: candidate.heading.id,
       text: candidate.heading.textContent?.trim() ?? '',

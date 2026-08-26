@@ -18,10 +18,18 @@ describe('real-model Partytown privacy classifiers', () => {
 
   it('accepts only a query-free and hash-free same-origin UUID-v4 blob script', () => {
     const scriptRequest = requestShape('GET', 'script');
+    const webKitScriptRequest = requestShape('GET', 'xhr');
 
     expect(
       isPartytownBlobScript(
         scriptRequest,
+        new URL(`blob:${origin}/${uuid}`),
+        origin,
+      ),
+    ).toBe(true);
+    expect(
+      isPartytownBlobScript(
+        webKitScriptRequest,
         new URL(`blob:${origin}/${uuid}`),
         origin,
       ),
@@ -50,6 +58,13 @@ describe('real-model Partytown privacy classifiers', () => {
     expect(
       isPartytownBlobScript(
         requestShape('POST', 'script'),
+        new URL(`blob:${origin}/${uuid}`),
+        origin,
+      ),
+    ).toBe(false);
+    expect(
+      isPartytownBlobScript(
+        requestShape('GET', 'fetch'),
         new URL(`blob:${origin}/${uuid}`),
         origin,
       ),
