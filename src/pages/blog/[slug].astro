@@ -3,6 +3,7 @@ import { getCollection, render, type CollectionEntry } from 'astro:content';
 import BlogLayout from '../../layouts/BlogLayout.astro';
 import TableOfContents from '../../components/blog/TableOfContents.astro';
 import { isPublished } from '../../content/policy';
+import { resolveBlogCollection } from '../../features/collections/resolveCollections';
 import { getReadingTime } from '../../utils/readingTime';
 
 // Generate static paths for all blog posts
@@ -27,11 +28,15 @@ const { Content, headings } = await render(post);
 const readingTime = getReadingTime(post.body || '');
 
 // Get previous and next posts (optional navigation)
-const allPosts = await getCollection('blog', ({ data }) => isPublished(data));
-const sortedPosts = allPosts.sort(
-  (a, b) =>
-    new Date(b.data.pubDate).getTime() - new Date(a.data.pubDate).getTime(),
-);
+const allPosts = await getCollection('blog');
+const postsById = new Map(allPosts.map((entry) => [entry.id, entry]));
+const sortedPosts = resolveBlogCollection(allPosts).map(({ id }) => {
+  const entry = postsById.get(id);
+  if (!entry) {
+    throw new Error(`Resolved Blog entry ${id} is unavailable.`);
+  }
+  return entry;
+});
 
 const currentIndex = sortedPosts.findIndex((p) => p.id === post.id);
 const prevPost =

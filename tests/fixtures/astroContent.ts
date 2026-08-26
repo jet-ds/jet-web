@@ -1,3 +1,5 @@
+import { createComponent, renderTemplate } from 'astro/runtime/server/index.js';
+
 interface StubEntry {
   id: string;
   filePath?: string;
@@ -44,4 +46,12 @@ export async function getCollection(
 ): Promise<StubEntry[]> {
   state().calls.push(name);
   return state()[name];
+}
+
+export async function render(entry: StubEntry) {
+  const Content = createComponent(
+    () => renderTemplate`<p>${entry.body ?? ''}</p>`,
+    'StubContent.astro',
+  );
+  return { Content, headings: [] };
 }
