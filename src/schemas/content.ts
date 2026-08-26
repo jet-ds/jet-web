@@ -181,7 +181,7 @@ export const profileSchema = z.object({
   ...publicationFields,
   role: z.string(),
   organization: z.string(),
-  organizationUrl: z.string().url(),
+  organizationUrl: z.url(),
   researchAreas: z.array(z.string()),
   technicalFocus: z.array(z.string()),
   connectText: z.string(),
