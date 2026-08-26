@@ -118,6 +118,151 @@ describe('built structured-data verification', () => {
     );
   });
 
+  it('rejects a mainEntityOfPage link whose page-local identity is absent', () => {
+    const dist = temporaryDist();
+    const canonical = 'https://jetsanchez.com/orphaned-main-entity/';
+    writeRoute(
+      dist,
+      'orphaned-main-entity',
+      `<!doctype html><html><head>
+        <link rel="canonical" href="${canonical}">
+        <meta name="robots" content="index, follow">
+        ${jsonLd({
+          '@context': 'https://schema.org',
+          '@type': 'CreativeWork',
+          '@id': `${canonical}#creativework`,
+          url: canonical,
+          mainEntityOfPage: { '@id': `${canonical}#webpage` },
+        })}
+      </head><body></body></html>`,
+    );
+
+    expect(verifyStructuredDataArtifacts(dist)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          code: 'unresolved-main-entity',
+          detail: `${canonical}#webpage`,
+        }),
+      ]),
+    );
+  });
+
+  it('accepts schema nodes in top-level arrays and inherited-context graphs', () => {
+    const dist = temporaryDist();
+    const canonical = 'https://jetsanchez.com/container-shapes/';
+    const itemUrl = 'https://jetsanchez.com/container-shapes/item/';
+    writeRoute(
+      dist,
+      'container-shapes',
+      `<!doctype html><html><head>
+        <link rel="canonical" href="${canonical}">
+        <meta name="robots" content="index, follow">
+        <script type="application/ld+json">${JSON.stringify([
+          {
+            '@context': 'https://schema.org',
+            '@type': 'WebPage',
+            '@id': `${canonical}#webpage`,
+            url: canonical,
+            mainEntity: { '@id': `${canonical}#creativework` },
+          },
+          {
+            '@context': 'https://schema.org',
+            '@type': 'CreativeWork',
+            '@id': `${canonical}#creativework`,
+            url: canonical,
+            mainEntityOfPage: { '@id': `${canonical}#webpage` },
+          },
+        ])}</script>
+        ${jsonLd({
+          '@context': 'https://schema.org',
+          '@graph': [
+            {
+              '@type': 'ItemList',
+              '@id': `${canonical}#invented-list`,
+              url: canonical,
+              itemListElement: [
+                {
+                  '@type': 'ListItem',
+                  position: 1,
+                  url: itemUrl,
+                  item: { '@id': `${itemUrl}#creativework` },
+                },
+              ],
+            },
+          ],
+        })}
+      </head><body><a href="/container-shapes/item/">Item</a></body></html>`,
+    );
+
+    expect(verifyStructuredDataArtifacts(dist)).toEqual([]);
+  });
+
+  it('checks identities and ItemLists nested inside JSON-LD containers', () => {
+    const dist = temporaryDist();
+    const canonical = 'https://jetsanchez.com/invalid-containers/';
+    const itemUrl = 'https://jetsanchez.com/invalid-containers/item/';
+    writeRoute(
+      dist,
+      'invalid-containers',
+      `<!doctype html><html><head>
+        <link rel="canonical" href="${canonical}">
+        <meta name="robots" content="index, follow">
+        <script type="application/ld+json">${JSON.stringify([
+          {
+            '@context': 'https://schema.org',
+            '@type': 'WebPage',
+            '@id': `${canonical}#webpage`,
+            url: canonical,
+          },
+          {
+            '@context': 'https://schema.org',
+            '@type': 'CreativeWork',
+            '@id': `${canonical}#duplicate`,
+            url: canonical,
+          },
+          {
+            '@context': 'https://schema.org',
+            '@type': 'CreativeWork',
+            '@id': `${canonical}#duplicate`,
+            url: canonical,
+          },
+        ])}</script>
+        ${jsonLd({
+          '@context': 'https://schema.org',
+          '@graph': [
+            {
+              '@type': 'ItemList',
+              '@id': `${canonical}#invented-list`,
+              url: canonical,
+              itemListElement: [
+                {
+                  '@type': 'ListItem',
+                  position: 1,
+                  url: itemUrl,
+                  item: { '@id': `${itemUrl}#creativework` },
+                },
+                {
+                  '@type': 'ListItem',
+                  position: 2,
+                  url: itemUrl,
+                  item: { '@id': `${itemUrl}#creativework` },
+                },
+              ],
+            },
+          ],
+        })}
+      </head><body></body></html>`,
+    );
+
+    expect(verifyStructuredDataArtifacts(dist)).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({ code: 'duplicate-schema-id' }),
+        expect.objectContaining({ code: 'duplicate-itemlist-url' }),
+        expect.objectContaining({ code: 'itemlist-destination-not-visible' }),
+      ]),
+    );
+  });
+
   it('reports duplicate, non-contiguous, and non-visible ItemList destinations', () => {
     const dist = temporaryDist();
     const canonical = 'https://jetsanchez.com/collection/';

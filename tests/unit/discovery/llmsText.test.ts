@@ -70,7 +70,7 @@ function workEntry(id: string, status: 'draft' | 'published'): WorkEntry {
 }
 
 describe('llms.txt discovery text', () => {
-  it('escapes link labels, normalizes summaries, and preserves canonical URLs', () => {
+  it('keeps escaped titles and normalized summaries on one physical list line', () => {
     const input = {
       siteName: 'Jet Sanchez',
       siteDescription:
@@ -78,7 +78,7 @@ describe('llms.txt discovery text', () => {
       blog: [
         displayRecord(
           'blog',
-          String.raw`Invented [article]\guide`,
+          'Invented [article]\r\n\\guide',
           'Complete\r\n article   summary. ',
           'https://jetsanchez.com/blog/invented/?source=[exact]#part',
         ),
@@ -93,7 +93,9 @@ describe('llms.txt discovery text', () => {
       ],
     };
 
-    expect(renderLlmsText(input)).toBe(`# Jet Sanchez
+    const rendered = renderLlmsText(input);
+
+    expect(rendered).toBe(`# Jet Sanchez
 > Research, systems & tools for thinking clearly in an AI-driven world
 
 ## Main
@@ -103,11 +105,20 @@ describe('llms.txt discovery text', () => {
 - [Egregore](https://jetsanchez.com/chatbot/): A local-first personal assistant
 
 ## Articles
-- [Invented \\[article\\]\\\\guide](https://jetsanchez.com/blog/invented/?source=[exact]#part): Complete article summary.
+- [Invented \\[article\\] \\\\guide](https://jetsanchez.com/blog/invented/?source=[exact]#part): Complete article summary.
 
 ## Works
 - [Invented work](https://jetsanchez.com/works/invented/): Complete work summary.
 `);
+    expect(
+      rendered
+        .slice(
+          rendered.indexOf('## Articles\n'),
+          rendered.indexOf('\n## Works'),
+        )
+        .split('\n')
+        .filter((line) => line.startsWith('- ')),
+    ).toHaveLength(1);
   });
 
   it('projects new published raw entries and excludes drafts through canonical resolvers', () => {

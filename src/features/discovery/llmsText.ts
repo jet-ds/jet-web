@@ -37,7 +37,7 @@ function renderItems(records: readonly CollectionDisplayRecord[]): string {
   return records
     .map(
       (record) =>
-        `- [${escapeLinkLabel(record.title)}](${canonicalUrl(record.href)}): ${oneLine(record.summary)}`,
+        `- [${escapeLinkLabel(oneLine(record.title))}](${canonicalUrl(record.href)}): ${oneLine(record.summary)}`,
     )
     .join('\n');
 }

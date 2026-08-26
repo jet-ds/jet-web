@@ -1,7 +1,18 @@
 import { readFileSync, readdirSync, statSync } from 'node:fs';
+import { createRequire } from 'node:module';
 import { relative, resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
-import { JSDOM } from 'jsdom';
+
+interface JsdomModule {
+  JSDOM: new (html?: string) => {
+    window: {
+      document: Document;
+      close(): void;
+    };
+  };
+}
+
+const { JSDOM } = createRequire(import.meta.url)('jsdom') as JsdomModule;
 
 export interface StructuredDataIssue {
   path: string;
@@ -27,6 +38,11 @@ export interface StructuredDataIssue {
 
 type JsonObject = Record<string, unknown>;
 
+interface NormalizedSchemaNode {
+  schema: JsonObject;
+  context: unknown;
+}
+
 const PAGE_ENTITY_TYPES = new Set([
   'BlogPosting',
   'CreativeWork',
@@ -43,6 +59,35 @@ function stringProperty(value: unknown, property: string): string | null {
   if (!isObject(value)) return null;
   const candidate = value[property];
   return typeof candidate === 'string' ? candidate : null;
+}
+
+function normalizeSchemaNodes(
+  value: unknown,
+  inheritedContext?: unknown,
+): NormalizedSchemaNode[] | null {
+  if (Array.isArray(value)) {
+    const nodes: NormalizedSchemaNode[] = [];
+    for (const item of value) {
+      const normalized = normalizeSchemaNodes(item, inheritedContext);
+      if (normalized === null) return null;
+      nodes.push(...normalized);
+    }
+    return nodes;
+  }
+  if (!isObject(value)) return null;
+
+  const context = value['@context'] ?? inheritedContext;
+  const graph = value['@graph'];
+  if (graph !== undefined) {
+    if (!Array.isArray(graph)) return null;
+    const graphNodes = normalizeSchemaNodes(graph, context);
+    if (graphNodes === null) return null;
+    return stringProperty(value, '@type') === null
+      ? graphNodes
+      : [{ schema: value, context }, ...graphNodes];
+  }
+
+  return [{ schema: value, context }];
 }
 
 function emittedHtmlRoutes(directory: string): string[] {
@@ -233,28 +278,33 @@ function verifyRoute(root: string, path: string): StructuredDataIssue[] {
       });
       continue;
     }
-    if (!isObject(parsed)) {
+    const normalized = normalizeSchemaNodes(parsed);
+    if (normalized === null || normalized.length === 0) {
       issues.push({
         path: routePath,
         code: 'invalid-json-ld',
-        detail: `block ${index + 1} is not an object`,
+        detail: `block ${index + 1} has no schema nodes`,
       });
       continue;
     }
-    schemas.push(parsed);
-    if (parsed['@context'] !== 'https://schema.org') {
-      issues.push({
-        path: routePath,
-        code: 'invalid-schema-context',
-        detail: `block ${index + 1}`,
-      });
-    }
-    if (stringProperty(parsed, '@type') === null) {
-      issues.push({
-        path: routePath,
-        code: 'invalid-schema-type',
-        detail: `block ${index + 1}`,
-      });
+
+    for (const [nodeIndex, node] of normalized.entries()) {
+      schemas.push(node.schema);
+      const detail = `block ${index + 1}, node ${nodeIndex + 1}`;
+      if (node.context !== 'https://schema.org') {
+        issues.push({
+          path: routePath,
+          code: 'invalid-schema-context',
+          detail,
+        });
+      }
+      if (stringProperty(node.schema, '@type') === null) {
+        issues.push({
+          path: routePath,
+          code: 'invalid-schema-type',
+          detail,
+        });
+      }
     }
   }
 
@@ -327,6 +377,16 @@ function verifyRoute(root: string, path: string): StructuredDataIssue[] {
         issues.push({
           path: routePath,
           code: 'main-entity-link-mismatch',
+          detail: mainEntityOfPageId,
+        });
+      }
+      if (
+        mainEntityOfPageId === `${canonical}#webpage` &&
+        !schemaIds.has(mainEntityOfPageId)
+      ) {
+        issues.push({
+          path: routePath,
+          code: 'unresolved-main-entity',
           detail: mainEntityOfPageId,
         });
       }
