@@ -458,10 +458,6 @@ test(
         url,
         applicationOrigin,
       );
-      const isFont =
-        (url.hostname === 'fonts.googleapis.com' && url.pathname === '/css2') ||
-        (url.hostname === 'fonts.gstatic.com' &&
-          request.resourceType() === 'font');
       const isPartytown =
         url.origin === applicationOrigin &&
         url.pathname.startsWith('/~partytown/');
@@ -480,7 +476,6 @@ test(
           isApplicationAsset ||
           isDeclaredApplicationResource ||
           isLocalGeneratedScript ||
-          isFont ||
           isAnalytics,
         `Nonallowlisted request: ${request.url()}`,
       ).toBe(true);
