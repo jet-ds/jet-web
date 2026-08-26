@@ -1,7 +1,7 @@
 # Jet Web 2.3.0 verification record
 
-**Status:** Task 1 dependency refresh evidence and Task 10 pre-perturbation test
-contract evidence recorded. Counts in this document are dated observations, not
+**Status:** Task 1 dependency refresh evidence and final Task 10 test-contract
+qualification recorded. Counts in this document are dated observations, not
 permanent dependency, security, coverage, or suite-size assertions.
 
 ## Immutable baseline
@@ -292,3 +292,63 @@ multi-engine qualification are recorded in the final Task 10 section.
 | Complete `npm run verify`      | Passed on Node `v24.19.0` and npm `11.12.1` in 25.15 seconds: formatting and lint were clean; Astro checked 198 files with 0 diagnostics; 56 Vitest files and 693 tests passed in 9.30 seconds; 11 documents and 92 relative links passed; content policy verified 9 entries and 9 assistant sources; 16 pages built; and production artifacts passed. |
 | Forced-fresh routine browser   | Passed 37 of 37 on the first attempt with 0 skips in 20.3 seconds (20.62 seconds wall time); the build-owned server exited and left no port `4321` listener.                                                                                                                                                                                           |
 | Browser listing and skip scan  | 37 routine project cases in 5 files; 0 routine skips or orphaned project cases. The sole skip is the documented manual real-model opt-in.                                                                                                                                                                                                              |
+
+## Task 10 final suite qualification
+
+The reviewed compaction was committed as
+`238f4e3fa814739da2d08e4a31868a036e7f3e16`. The release-browser matrix then
+did what the routine Chromium boundary could not: its first run passed 63 of 69
+cases and exposed six cross-engine failures. Firefox and WebKit loaded different
+declared passive metadata resources; subpixel scroll quantization invalidated a
+test that duplicated the Table of Contents controller's private threshold;
+WebKit followed Safari's Option-Tab link-navigation preference; and WebKit
+included the carousel border outside its ratio-sized box, producing a real
+480x272 product surface instead of the specified 480x270. The failed run also
+showed that the npm preview wrapper could outlive Playwright after failure.
+
+The bounded repair derives exact icon, Apple touch icon, and manifest
+destinations from the rendered document; shares a same-origin, query-free,
+UUID-v4 Partytown blob classifier that accepts the WebKit `xhr` resource label;
+uses semantic heading activation and a local sequential-focus round trip; draws
+the carousel stroke without affecting layout; and lets Playwright own the
+foreground Astro process directly. Focused deterministic owners passed 13 of
+13, and the four repaired browser contracts passed 12 of 12 across Chromium,
+Firefox, and WebKit in 14.2 seconds. Both independent reviewers approved this
+exact nine-file repair with no findings. It was committed as
+`3fdf3d06e78f956e18a262d1b78ebbb4641337cd`.
+
+### Isolated publication perturbation
+
+A new private clone was created from `3fdf3d0` with `git clone --no-hardlinks`;
+no worktree was used. Clone-only commit
+`1f6ea91829b1751aa29eecbd74f59b118ae9ce78` contained exactly the two planned
+temporary published records, the curly-quote editorial edit, and the date plus
+Homepage-priority edit. Node `v24.19.0` and npm `11.12.1` produced the following
+results without changing an expectation:
+
+| Perturbation gate              | Result                                                                                                                                                                                                                                           |
+| ------------------------------ | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `npm ci`                       | Installed 855 packages, audited 856, and found 0 vulnerabilities in 4 seconds.                                                                                                                                                                   |
+| `npm run verify`               | Passed in 28.92 seconds: 56 Vitest files and 693 cases; Astro 198 files with 0 diagnostics; 11 published records and 9 assistant sources; 18 built pages; documentation, content, formatting, lint, and production artifacts all green.          |
+| Forced-fresh routine browsers  | Passed 37 of 37 with 0 skips on the first attempt in 21.2 seconds.                                                                                                                                                                               |
+| Isolation and removal readback | The clone was clean at its fixture commit, port `4321` and process checks were clear, and `/tmp/jet-web-2.3.0-perturbation.Av9aj4` was removed and proven absent. No fixture, test, screenshot, or expectation returned to the canonical branch. |
+
+### Unchanged-candidate repetitions and release matrix
+
+All results below ran against unchanged commit `3fdf3d0` with a fresh
+build-owned server, zero retries, and no listener or preview-process residue.
+Counts and durations remain dated evidence rather than preservation targets.
+
+| Qualification run                    | Result                                                                                                                                                                                                |
+| ------------------------------------ | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Repetition 1, `npm run verify`       | Passed in 24.26 seconds; 56 Vitest files and 693 cases, 198 Astro files with 0 diagnostics, 16 built pages, and all deterministic, documentation, content, and production-artifact gates green.       |
+| Repetition 1, routine browsers       | Passed 37 of 37 with 0 skips on the first attempt in 21.9 seconds.                                                                                                                                    |
+| Repetition 2, `npm run verify`       | Passed in 24.21 seconds with the same green boundaries and case inventory.                                                                                                                            |
+| Repetition 2, routine browsers       | Passed 37 of 37 with 0 skips on the first attempt in 20.9 seconds.                                                                                                                                    |
+| Current release-browser matrix       | Playwright `1.62.1`: Chromium `151.0.7922.34`, Firefox `153.0`, and WebKit `26.5`; passed 69 of 69 with 0 skips on the first attempt in 48.8 seconds.                                                 |
+| Final topology and skip readback     | Routine listing: 37 project cases in 5 files. Release listing: 69 project cases in 5 files. The only repository skip is the documented, opt-in, approximately 2 GB real-model operator qualification. |
+| Process and repository residue audit | Port `4321` had no listener, no Astro preview or Playwright test process remained, the canonical tree was clean before evidence recording, and the temporary every-block inventory was absent.        |
+
+No critical or important review finding, unexplained skip, retry, timeout
+increase, content-specific expectation, or browser-process residual remains in
+the qualified Task 10 candidate.
