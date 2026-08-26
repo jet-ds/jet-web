@@ -310,13 +310,11 @@ describe('built structured-data verification', () => {
         expect.objectContaining({ code: 'itemlist-destination-not-visible' }),
       ]),
     );
-    expect(issues).toEqual(
-      [...issues].sort((left, right) =>
-        `${left.path}:${left.code}:${left.detail}`.localeCompare(
-          `${right.path}:${right.code}:${right.detail}`,
-          'en',
-        ),
-      ),
-    );
+    expect(issues.map(({ code }) => code)).toEqual([
+      'duplicate-itemlist-url',
+      'itemlist-destination-not-visible',
+      'itemlist-destination-not-visible',
+      'non-contiguous-itemlist-position',
+    ]);
   });
 });

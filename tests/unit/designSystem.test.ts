@@ -2,6 +2,10 @@ import { existsSync, readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 
 const globalStyles = readFileSync('src/styles/global.css', 'utf8');
+const globalImports = Array.from(
+  globalStyles.matchAll(/^@import\s+['"]([^'"]+)['"]\s*;/gmu),
+  (match) => match[1],
+);
 const themeStyles = existsSync('src/styles/theme.css')
   ? readFileSync('src/styles/theme.css', 'utf8')
   : '';
@@ -48,11 +52,13 @@ function ruleBody(selector: string): string {
 describe('machine-readable design-system contracts', () => {
   it('loads the utility theme and typography plugin through the global stylesheet', () => {
     expect(
-      globalStyles.match(/@import\s+['"]\.\/theme\.css['"]\s*;/gu),
+      globalImports.filter((source) =>
+        ['tailwindcss', './fonts.css', './theme.css'].includes(source),
+      ),
+    ).toEqual(['tailwindcss', './fonts.css', './theme.css']);
+    expect(
+      globalStyles.match(/@import\s+['"]\.\/fonts\.css['"]\s*;/gu),
     ).toHaveLength(1);
-    expect(globalStyles).toMatch(
-      /^@import\s+['"]tailwindcss['"]\s*;\s*@import\s+['"]\.\/theme\.css['"]\s*;/u,
-    );
     expect(themeStyles).toContain("@plugin '@tailwindcss/typography';");
     expect(globalStyles).not.toContain('@config');
   });

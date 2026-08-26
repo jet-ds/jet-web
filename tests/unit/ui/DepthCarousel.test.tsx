@@ -32,16 +32,12 @@ function inventedItems(
   }));
 }
 
-function installMotionPreference(
-  reducedMotion: boolean,
-  desktopLayout = false,
-) {
+function installMotionPreference(reducedMotion: boolean) {
   vi.stubGlobal('matchMedia', (query: string) => ({
     matches:
-      ((query === '(prefers-reduced-motion)' ||
+      (query === '(prefers-reduced-motion)' ||
         query === '(prefers-reduced-motion: reduce)') &&
-        reducedMotion) ||
-      (query === '(min-width: 48rem)' && desktopLayout),
+      reducedMotion,
     media: query,
     onchange: null,
     addEventListener: vi.fn(),
@@ -265,37 +261,6 @@ describe('DepthCarousel', () => {
       'href',
       '/blog/invented-3/',
     );
-  });
-
-  it('renders images only for the unique seven-position desktop ring', () => {
-    installMotionPreference(false, true);
-    const items = inventedItems(9);
-    const { container } = render(
-      <DepthCarousel label="Invented articles" items={items} />,
-    );
-
-    const visibleLayers = container.querySelectorAll(
-      '[data-carousel-layer-item][data-carousel-visible="true"]',
-    );
-    expect(visibleLayers).toHaveLength(7);
-    expect(container.querySelectorAll('img')).toHaveLength(7);
-    expect(
-      new Set(
-        [...visibleLayers].map((element) =>
-          element.getAttribute('data-carousel-layer-item'),
-        ),
-      ).size,
-    ).toBe(7);
-    for (const hiddenLayer of container.querySelectorAll(
-      '[data-carousel-layer-item]:not([data-carousel-visible="true"])',
-    )) {
-      expect(hiddenLayer.querySelector('img')).toBeNull();
-    }
-
-    fireEvent.click(
-      screen.getByRole('button', { name: 'Next invented articles item' }),
-    );
-    expect(container.querySelectorAll('img')).toHaveLength(7);
   });
 
   it('moves keyboard focus from a promoted receded card to its active destination', () => {

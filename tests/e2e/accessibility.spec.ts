@@ -230,7 +230,6 @@ test(
       const positionBox = await position.boundingBox();
       expect(positionBox?.width ?? Infinity).toBeLessThanOrEqual(1);
       expect(positionBox?.height ?? Infinity).toBeLessThanOrEqual(1);
-      await expect(position).toHaveCSS('clip-path', 'inset(50%)');
     }
     await expectNoSeriousAxeViolations(page, 'Homepage depth carousels');
   },

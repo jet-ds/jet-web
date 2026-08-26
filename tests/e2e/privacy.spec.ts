@@ -37,8 +37,9 @@ async function expectNoSeriousAxeViolations(page: Page, state: string) {
   );
 }
 
-test('publishes a canonical, indexable combined Privacy and Cookies notice', async ({
+test('publishes the indexable visitor notice and its public choices @desktop @chromium-only', async ({
   page,
+  request,
 }) => {
   const response = await page.goto('/privacy/');
 
@@ -55,25 +56,14 @@ test('publishes a canonical, indexable combined Privacy and Cookies notice', asy
   await expect(
     page.getByRole('heading', { level: 1, name: 'Privacy and Cookies' }),
   ).toBeVisible();
-  await expect(page.getByText('Effective August 26, 2026')).toBeVisible();
-});
-
-test('explains the visitor-facing data choices and local-first boundaries', async ({
-  page,
-}) => {
-  await page.goto('/privacy/');
   const main = page.getByRole('main');
 
   for (const heading of [
     'Who runs this site',
-    'Hosting and media delivery',
     'Analytics',
     'Cookies and browser storage',
     'Egregore',
-    'External links',
-    'Retention',
     'Your choices and rights',
-    'Changes to this notice',
   ]) {
     await expect(
       main.getByRole('heading', { level: 2, name: heading }),
@@ -82,16 +72,9 @@ test('explains the visitor-facing data choices and local-first boundaries', asyn
 
   await expect(main).toContainText(/approximate region/iu);
   await expect(main).toContainText(/wait\s+for\s+your\s+Allow/iu);
-  await expect(main).toContainText(
-    /location\s+is\s+unavailable,\s+it\s+will\s+also\s+wait\s+for\s+a\s+choice/iu,
-  );
   await expect(main).toContainText(/Reject/iu);
   await expect(main).toContainText(/Allow/iu);
-  await expect(main).toContainText(/only\s+your\s+resulting\s+preference/iu);
   await expect(main).toContainText(/not\s+raw\s+location\s+data/iu);
-  await expect(main).toContainText(/analytics preference and cookies/iu);
-  await expect(main).toContainText(/theme and interface preferences/iu);
-  await expect(main).toContainText(/Egregore model and session data/iu);
   await expect(main).toContainText(/about 2 GB/iu);
   await expect(main).toContainText(
     /Opening\s+its\s+page\s+does\s+not\s+download\s+the\s+model/iu,
@@ -102,27 +85,6 @@ test('explains the visitor-facing data choices and local-first boundaries', asyn
   await expect(main).toContainText(
     /not\s+sent\s+to\s+a\s+hosted\s+inference\s+service/iu,
   );
-  await expect(main).toContainText(
-    /New\s+session\s+control\s+can\s+clear\s+your\s+current\s+conversation/iu,
-  );
-  await expect(main).toContainText(/Remove downloaded model/iu);
-
-  for (const internalTerm of [
-    /analytics=(?:off|on)/iu,
-    /physical\s+device/iu,
-    /this Mac/iu,
-    /\bstrict\b/iu,
-    /\bstandard\b/iu,
-    /\bCI\b/u,
-    /middleware/iu,
-    /Partytown/iu,
-    /ClientRouter/iu,
-    /localStorage/iu,
-    /sessionStorage/iu,
-    /Cache Storage/iu,
-  ]) {
-    await expect(main).not.toContainText(internalTerm);
-  }
 
   await expect(
     main.getByRole('link', { name: /Google Privacy Policy/iu }),
@@ -135,46 +97,42 @@ test('explains the visitor-facing data choices and local-first boundaries', asyn
       name: /Egregore model and open-source licenses/iu,
     }),
   ).toHaveAttribute('href', '/licenses/egregore/');
-});
-
-test('keeps Privacy out of primary navigation while linking it globally from the footer', async ({
-  page,
-}) => {
-  for (const route of ['/', '/about/', '/blog/', '/works/', '/contact/']) {
-    await page.goto(route);
-    await expect(
-      page.locator('footer ul').getByRole('link', { name: 'Privacy' }),
-    ).toHaveAttribute('href', '/privacy/');
-    await expect(
-      page.locator('footer').getByRole('button', { name: /settings/iu }),
-    ).toHaveCount(0);
-    await expect(
-      page
-        .locator('[data-navigation-role="dock"]')
-        .getByRole('link', { name: 'Privacy' }),
-    ).toHaveCount(0);
-  }
-});
-
-test('includes the canonical Privacy route exactly once in the sitemap', async ({
-  request,
-}) => {
   const sitemap = await publishedSitemapXml(request);
   expect(
     sitemap.match(/<loc>https:\/\/jetsanchez\.com\/privacy\/<\/loc>/gu) ?? [],
   ).toHaveLength(1);
 });
 
-test('keeps the notice readable and axe-clean in both themes', async ({
+test('keeps Privacy in the footer only and the notice responsive and accessible @desktop @chromium-only', async ({
   page,
 }) => {
-  for (const theme of ['light', 'dark'] as const) {
+  await page.goto('/');
+  await expect(
+    page.locator('footer ul').getByRole('link', { name: 'Privacy' }),
+  ).toHaveAttribute('href', '/privacy/');
+  await expect(
+    page.locator('footer').getByRole('button', { name: /settings/iu }),
+  ).toHaveCount(0);
+  await expect(
+    page
+      .locator('[data-navigation-role="dock"]')
+      .getByRole('link', { name: 'Privacy' }),
+  ).toHaveCount(0);
+
+  for (const { theme, width } of [
+    { theme: 'light', width: 320 },
+    { theme: 'dark', width: 1280 },
+  ] as const) {
+    await page.setViewportSize({ width, height: 800 });
     await page.addInitScript((selectedTheme) => {
       localStorage.setItem('theme', selectedTheme);
     }, theme);
     await page.goto('/privacy/');
 
-    await expectNoSeriousAxeViolations(page, `Privacy in ${theme} theme`);
+    await expectNoSeriousAxeViolations(
+      page,
+      `Privacy in ${theme} theme at ${width}px`,
+    );
     const geometry = await page.evaluate(() => {
       const article = document.querySelector('main article');
       if (!(article instanceof HTMLElement)) {

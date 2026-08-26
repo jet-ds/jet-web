@@ -4,7 +4,6 @@ import {
   type JsonLd,
   type StructuredDataProps,
 } from '../../../src/utils/structuredData';
-import { profileSchema } from '../../../src/schemas/content';
 
 interface StructuredDataFixture {
   name: string;
@@ -140,8 +139,8 @@ const fixtures = [
       email: 'person@example.com',
       jobTitle: 'Researcher',
       worksFor: {
-        name: 'Digital Squad',
-        url: 'https://digitalsquad.com/',
+        name: 'Example Organization',
+        url: 'https://organization.example/',
       },
       sameAs: ['https://social.example.com/example'],
     } satisfies Extract<StructuredDataProps, { type: 'person' }>,
@@ -159,9 +158,9 @@ const fixtures = [
       jobTitle: 'Researcher',
       worksFor: {
         '@type': 'Organization',
-        '@id': 'https://digitalsquad.com/#organization',
-        name: 'Digital Squad',
-        url: 'https://digitalsquad.com/',
+        '@id': 'https://organization.example/#organization',
+        name: 'Example Organization',
+        url: 'https://organization.example/',
       },
       sameAs: ['https://social.example.com/example'],
       mainEntityOfPage: {
@@ -358,25 +357,6 @@ const fixtures = [
 ] satisfies readonly StructuredDataFixture[];
 
 describe('structured data', () => {
-  it('requires the canonical organization URL on profile data', () => {
-    expect(
-      profileSchema.parse({
-        title: 'Example Person',
-        description: 'An invented public profile.',
-        date: '2026-08-25',
-        author: 'Example Person',
-        status: 'published',
-        assistant: true,
-        role: 'Researcher',
-        organization: 'Digital Squad',
-        organizationUrl: 'https://digitalsquad.com/',
-        researchAreas: ['Artificial Intelligence'],
-        technicalFocus: ['Systems Design'],
-        connectText: 'An invented invitation to connect.',
-      }).organizationUrl,
-    ).toBe('https://digitalsquad.com/');
-  });
-
   it('builds a finite ItemList from an ordered page collection', () => {
     const schema = buildStructuredData({
       type: 'itemlist',

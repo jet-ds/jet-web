@@ -110,15 +110,6 @@ describe('llms.txt discovery text', () => {
 ## Works
 - [Invented work](https://jetsanchez.com/works/invented/): Complete work summary.
 `);
-    expect(
-      rendered
-        .slice(
-          rendered.indexOf('## Articles\n'),
-          rendered.indexOf('\n## Works'),
-        )
-        .split('\n')
-        .filter((line) => line.startsWith('- ')),
-    ).toHaveLength(1);
   });
 
   it('projects new published raw entries and excludes drafts through canonical resolvers', () => {

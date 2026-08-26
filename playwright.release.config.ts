@@ -32,12 +32,12 @@ export default defineConfig({
     },
     {
       name: 'firefox',
-      grepInvert: /@mobile/u,
+      grepInvert: /@mobile|@chromium-only/u,
       use: { ...devices['Desktop Firefox'] },
     },
     {
       name: 'webkit',
-      grepInvert: /@mobile/u,
+      grepInvert: /@mobile|@chromium-only/u,
       use: { ...devices['Desktop Safari'] },
     },
   ],

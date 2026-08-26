@@ -46,7 +46,7 @@ function sectionUrls(text: string, heading: string, next?: string): string[] {
     });
 }
 
-test('serves plain discovery text with the canonical hub ItemList memberships', async ({
+test('serves plain discovery text with the canonical hub ItemList memberships @desktop @chromium-only', async ({
   page,
   request,
 }) => {

@@ -382,13 +382,11 @@ test('non-Production documents send no analytics traffic on direct or ClientRout
 
   await page.goto('/');
   await expect.poll(pageLoadCount).toBe(1);
-  await page.waitForTimeout(300);
   expect(analyticsRequests).toEqual([]);
 
   await page.getByRole('link', { name: 'About', exact: true }).first().click();
   await expect(page).toHaveURL(/\/about\/$/u);
   await expect.poll(pageLoadCount).toBe(2);
-  await page.waitForTimeout(300);
 
   expect(analyticsRequests).toEqual([]);
 });

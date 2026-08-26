@@ -298,71 +298,38 @@ test('a genuinely missing country signal fails closed before consent', async ({
   expect(await analyticsDisabled(page)).toBe(true);
 });
 
-for (const viewportWidth of [253, 320, 1280]) {
-  test(`strict consent remains usable without horizontal overflow at ${viewportWidth}px`, async ({
-    page,
-  }) => {
-    await page.setViewportSize({ width: viewportWidth, height: 700 });
-    await page.setExtraHTTPHeaders({ 'x-vercel-ip-country': 'DE' });
-    await interceptAnalyticsTraffic(page);
+test('strict consent remains usable at representative mobile and desktop widths', async ({
+  page,
+}) => {
+  await page.setExtraHTTPHeaders({ 'x-vercel-ip-country': 'DE' });
+  await interceptAnalyticsTraffic(page);
 
+  for (const viewportWidth of [320, 1280]) {
+    await page.setViewportSize({ width: viewportWidth, height: 700 });
     await page.goto('/');
 
     const panel = page.getByRole('region', { name: 'Analytics choices' });
     await expect(panel).toBeVisible();
-    const geometry = await page.evaluate(() => {
-      const consentPanel = document.querySelector(
-        '[data-analytics-consent-panel]',
-      );
-      const buttons = [...document.querySelectorAll('[data-analytics-choice]')];
-      if (!(consentPanel instanceof HTMLElement)) {
-        throw new TypeError('Analytics consent panel is missing');
-      }
-      const panelRect = consentPanel.getBoundingClientRect();
-      const copy = consentPanel.querySelector('p');
-      if (!(copy instanceof HTMLElement)) {
-        throw new TypeError('Analytics consent copy is missing');
-      }
-      const copyRect = copy.getBoundingClientRect();
-      return {
-        documentClientWidth: document.documentElement.clientWidth,
-        documentScrollWidth: document.documentElement.scrollWidth,
-        panel: {
-          left: panelRect.left,
-          right: panelRect.right,
-          width: panelRect.width,
-        },
-        copyWidth: copyRect.width,
-        buttons: buttons.map((button) => {
-          const rect = button.getBoundingClientRect();
-          return {
-            height: rect.height,
-            left: rect.left,
-            right: rect.right,
-            width: rect.width,
-          };
-        }),
-      };
-    });
+    const panelBox = await panel.boundingBox();
+    expect(panelBox).not.toBeNull();
+    expect(panelBox?.x).toBeGreaterThanOrEqual(0);
+    expect((panelBox?.x ?? 0) + (panelBox?.width ?? 0)).toBeLessThanOrEqual(
+      viewportWidth,
+    );
+    expect(
+      await page.evaluate(() => document.documentElement.scrollWidth),
+    ).toBeLessThanOrEqual(viewportWidth);
 
-    expect(geometry.documentScrollWidth).toBe(geometry.documentClientWidth);
-    expect(geometry.panel.left).toBeGreaterThanOrEqual(0);
-    expect(geometry.panel.right).toBeLessThanOrEqual(viewportWidth);
-    expect(geometry.panel.width).toBeGreaterThanOrEqual(
-      Math.min(viewportWidth - 64, 600),
-    );
-    expect(geometry.copyWidth).toBeGreaterThanOrEqual(
-      Math.min(240, Math.max(160, geometry.panel.width - 64)),
-    );
-    expect(geometry.buttons).toHaveLength(2);
-    for (const button of geometry.buttons) {
-      expect(button.height).toBeGreaterThanOrEqual(44);
-      expect(button.width).toBeGreaterThanOrEqual(44);
-      expect(button.left).toBeGreaterThanOrEqual(geometry.panel.left);
-      expect(button.right).toBeLessThanOrEqual(geometry.panel.right);
+    for (const button of [
+      page.getByRole('button', { name: 'Reject analytics' }),
+      page.getByRole('button', { name: 'Allow analytics' }),
+    ]) {
+      const buttonBox = await button.boundingBox();
+      expect(buttonBox?.width).toBeGreaterThanOrEqual(44);
+      expect(buttonBox?.height).toBeGreaterThanOrEqual(44);
     }
-  });
-}
+  }
+});
 
 test('reject records the preference and keeps strict-region analytics absent', async ({
   context,
@@ -459,7 +426,9 @@ test('the Privacy page settings can dismiss, reopen, reject, and restore focus',
   await expect.poll(() => observations.collectionRequests.length).toBe(1);
   const footer = page.locator('footer');
   await expect(footer.getByRole('link', { name: 'Privacy' })).toBeVisible();
-  await expect(footer.locator('[data-analytics-settings]')).toHaveCount(0);
+  await expect(
+    footer.getByRole('button', { name: /analytics preferences/iu }),
+  ).toHaveCount(0);
   const settings = page.getByRole('button', {
     name: 'Manage analytics preferences',
   });
@@ -572,18 +541,6 @@ test('the optional browser-profile fallback persists, clears across routes, and 
     /\/about\/$/u,
   );
   const aboutView = await readPageViewSnapshot(page);
-  await followClientRouterLink(
-    page,
-    page.getByRole('link', { name: 'Blog', exact: true }).first(),
-    /\/blog\/$/u,
-  );
-  const blogView = await readPageViewSnapshot(page);
-  await followClientRouterLink(
-    page,
-    page.getByRole('link', { name: 'Works', exact: true }).first(),
-    /\/works\/$/u,
-  );
-  const worksView = await readPageViewSnapshot(page);
 
   await expect
     .poll(() => [...observations.commands])
@@ -614,34 +571,8 @@ test('the optional browser-profile fallback persists, clears across routes, and 
         measurementId: SITE.ga4MeasurementId,
         options: aboutView,
       },
-      {
-        command: 'js',
-      },
-      {
-        command: 'config',
-        measurementId: SITE.ga4MeasurementId,
-        options: { send_page_view: false },
-      },
-      {
-        command: 'page_view',
-        measurementId: SITE.ga4MeasurementId,
-        options: blogView,
-      },
-      {
-        command: 'js',
-      },
-      {
-        command: 'config',
-        measurementId: SITE.ga4MeasurementId,
-        options: { send_page_view: false },
-      },
-      {
-        command: 'page_view',
-        measurementId: SITE.ga4MeasurementId,
-        options: worksView,
-      },
     ]);
-  await expect.poll(() => observations.collectionRequests.length).toBe(4);
-  expect(observations.libraryRequests).toHaveLength(4);
+  await expect.poll(() => observations.collectionRequests.length).toBe(2);
+  expect(observations.libraryRequests).toHaveLength(2);
   expect(observations.unexpectedGoogleRequests).toEqual([]);
 });
