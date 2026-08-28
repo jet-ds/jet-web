@@ -5,7 +5,6 @@ import react from '@astrojs/react';
 import mdx from '@astrojs/mdx';
 import tailwindcss from '@tailwindcss/vite';
 import sitemap from '@astrojs/sitemap';
-import partytown from '@astrojs/partytown';
 
 // https://astro.build/config
 export default defineConfig({
@@ -19,11 +18,6 @@ export default defineConfig({
       filter: (page) => {
         const pathname = new URL(page).pathname.replace(/\/$/, '') || '/';
         return pathname !== '/tools' && !pathname.startsWith('/tools/');
-      },
-    }),
-    partytown({
-      config: {
-        forward: ['dataLayer.push', 'gtag'], // Forward GA4 events to web worker
       },
     }),
   ],

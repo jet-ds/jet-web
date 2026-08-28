@@ -39,7 +39,6 @@ const shouldEmitAnalytics =
         let consent;
         let analyticsAllowed = false;
         let analyticsStarted = false;
-        let partytownReady = false;
         let settingsOpen = false;
         let settingsTrigger;
         const pendingPageViews = [];
@@ -106,24 +105,20 @@ const shouldEmitAnalytics =
         };
 
         const activateAnalyticsScripts = () => {
-          if (!analyticsAllowed) return;
-          const library = document.querySelector(
-            '[data-jet-analytics-script="library"]',
-          );
-          const shim = document.querySelector(
-            '[data-jet-analytics-script="shim"]',
-          );
-          if (
-            !(library instanceof HTMLScriptElement) ||
-            !(shim instanceof HTMLScriptElement)
-          ) {
-            return;
-          }
+          if (!analyticsAllowed || analyticsStarted) return;
+          // Keep Google's Date and arguments values in the same realm as its tag.
+          // The controller survives Astro navigation, so initialize only once.
+          window.dataLayer = window.dataLayer || [];
+          // eslint-disable-next-line prefer-rest-params -- Google's public command queue uses arguments objects.
+          window.gtag = function () { window.dataLayer.push(arguments); };
+          window.gtag('js', new Date());
+          window.gtag('config', measurementId, { send_page_view: false });
 
-          library.type = 'text/partytown';
-          const librarySource = library.dataset.src;
-          if (librarySource !== undefined) library.src = librarySource;
-          shim.type = 'text/partytown';
+          const library = document.createElement('script');
+          library.async = true;
+          library.src = `https://www.googletagmanager.com/gtag/js?id=${measurementId}`;
+          library.dataset.jetAnalyticsScript = 'library';
+          document.head.appendChild(library);
           analyticsStarted = true;
         };
 
@@ -161,7 +156,6 @@ const shouldEmitAnalytics =
           if (
             !analyticsAllowed ||
             !analyticsStarted ||
-            !partytownReady ||
             pendingPageViews.length === 0
           ) {
             return;
@@ -170,10 +164,8 @@ const shouldEmitAnalytics =
           const gtag = Reflect.get(window, 'gtag');
           if (typeof gtag !== 'function') return;
 
-          gtag('js', new Date());
           while (pendingPageViews.length > 0) {
             const pageView = pendingPageViews.shift();
-            gtag('config', measurementId, { send_page_view: false });
             gtag('event', 'page_view', pageView);
           }
         };
@@ -193,20 +185,15 @@ const shouldEmitAnalytics =
         const onPageLoad = () => {
           reconcile();
           if (!analyticsAllowed) return;
+          activateAnalyticsScripts();
           pendingPageViews.push(snapshotPageView());
           flushPendingPageViews();
         };
 
         const onAfterSwap = () => {
-          partytownReady = false;
           settingsOpen = false;
           settingsTrigger = undefined;
           reconcile();
-        };
-
-        const onPartytownReady = () => {
-          partytownReady = true;
-          flushPendingPageViews();
         };
 
         const onDocumentClick = (event) => {
@@ -258,12 +245,7 @@ const shouldEmitAnalytics =
           }
         };
 
-        const subscribeToPinnedPartytownReady = (listener) => {
-          // The @astrojs/partytown@2.1.7 lock resolves Qwik Partytown 0.13.2; revalidate this adapter on updates.
-          document.addEventListener('pt0', listener);
-        };
-
-        controller = { activateAnalyticsScripts, reconcile };
+        controller = { reconcile };
         Reflect.set(window, controllerKey, controller);
         document.addEventListener('click', onDocumentClick);
         document.addEventListener('DOMContentLoaded', () => renderConsent(), {
@@ -271,28 +253,9 @@ const shouldEmitAnalytics =
         });
         document.addEventListener('astro:after-swap', onAfterSwap);
         document.addEventListener('astro:page-load', onPageLoad);
-        subscribeToPinnedPartytownReady(onPartytownReady);
       }
 
       controller.reconcile();
-    </script>
-    <script
-      is:inline
-      type="text/plain"
-      data-jet-analytics-script="library"
-      data-src={`https://www.googletagmanager.com/gtag/js?id=${measurementId}`}
-    />
-    <script
-      is:inline
-      type="text/plain"
-      data-jet-analytics-script="shim"
-    >
-      window.dataLayer = window.dataLayer || [];
-      // eslint-disable-next-line prefer-rest-params -- Google's dataLayer shim forwards its arguments object.
-      window.gtag = function () { dataLayer.push(arguments); };
-    </script>
-    <script is:inline data-astro-rerun>
-      Reflect.get(window, '__jetAnalyticsController')?.activateAnalyticsScripts();
     </script>
   )
 }
