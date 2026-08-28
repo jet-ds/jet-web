@@ -12,6 +12,7 @@ const ANALYTICS_LIBRARY_STUB = String.raw`
   (() => {
     const queue = self.dataLayer = self.dataLayer || [];
     let configuredMeasurementId = null;
+    let initialized = false;
     const publish = (payload) => {
       fetch('/__analytics-observation?payload=' + encodeURIComponent(JSON.stringify(payload)));
     };
@@ -26,9 +27,13 @@ const ANALYTICS_LIBRARY_STUB = String.raw`
     const observe = (entry) => {
       if (!entry) return;
       if (entry[0] === 'js') {
+        // The Google tag requires a Date, not an object produced by a worker bridge.
+        initialized = entry[1] instanceof Date && Number.isFinite(entry[1].getTime());
+        if (!initialized) return;
         publish({ command: 'js' });
         return;
       }
+      if (!initialized) return;
       if (entry[0] === 'config') {
         configuredMeasurementId = entry[1];
         const options = entry[2];
@@ -91,6 +96,7 @@ type AnalyticsObservations = {
 
 async function interceptAnalyticsTraffic(
   page: Page,
+  libraryReady: Promise<void> = Promise.resolve(),
 ): Promise<AnalyticsObservations> {
   const observations: AnalyticsObservations = {
     libraryRequests: [],
@@ -132,6 +138,7 @@ async function interceptAnalyticsTraffic(
 
     if (requestKind === 'library') {
       observations.libraryRequests.push(url);
+      await libraryReady;
       await route.fulfill({
         status: 200,
         contentType: 'application/javascript',
@@ -244,6 +251,52 @@ test('the same standard response exposes policy and emits one normal page view',
   );
   expect(observations.unexpectedGoogleRequests).toEqual([]);
   expect(await analyticsDisabled(page)).toBe(false);
+});
+
+test('delayed analytics retains one page view per Home, About, and Home navigation', async ({
+  page,
+}) => {
+  let releaseLibrary = () => {};
+  const libraryReady = new Promise<void>((resolve) => {
+    releaseLibrary = resolve;
+  });
+  const observations = await interceptAnalyticsTraffic(page, libraryReady);
+  const views: PageViewSnapshot[] = [];
+  try {
+    await page.goto('/', { waitUntil: 'domcontentloaded' });
+    await expect.poll(() => pageLoadCount(page)).toBe(1);
+    views.push(await readPageViewSnapshot(page));
+    await followClientRouterLink(
+      page,
+      page.getByRole('link', { name: 'About me', exact: true }),
+      /\/about\/$/u,
+    );
+    views.push(await readPageViewSnapshot(page));
+    await followClientRouterLink(
+      page,
+      page.getByRole('link', { name: 'Home', exact: true }).first(),
+      /\/$/u,
+    );
+    views.push(await readPageViewSnapshot(page));
+  } finally {
+    releaseLibrary();
+  }
+  await expect.poll(() => observations.collectionRequests.length).toBe(3);
+  expect(
+    observations.commands.filter(({ command }) => command === 'page_view'),
+  ).toEqual(
+    views.map((options) => ({
+      command: 'page_view',
+      measurementId: SITE.ga4MeasurementId,
+      options,
+    })),
+  );
+  expect(
+    observations.collectionRequests.map((url) =>
+      url.searchParams.get('page_location'),
+    ),
+  ).toEqual(views.map(({ page_location }) => page_location));
+  expect(observations.unexpectedGoogleRequests).toEqual([]);
 });
 
 test('strict and unknown regions make no Google request before a choice', async ({
@@ -559,20 +612,12 @@ test('the optional browser-profile fallback persists, clears across routes, and 
         options: contactView,
       },
       {
-        command: 'js',
-      },
-      {
-        command: 'config',
-        measurementId: SITE.ga4MeasurementId,
-        options: { send_page_view: false },
-      },
-      {
         command: 'page_view',
         measurementId: SITE.ga4MeasurementId,
         options: aboutView,
       },
     ]);
   await expect.poll(() => observations.collectionRequests.length).toBe(2);
-  expect(observations.libraryRequests).toHaveLength(2);
+  expect(observations.libraryRequests).toHaveLength(1);
   expect(observations.unexpectedGoogleRequests).toEqual([]);
 });
