@@ -182,6 +182,7 @@ export const profileSchema = z.object({
   role: z.string(),
   organization: z.string(),
   organizationUrl: z.url(),
+  award: z.string().optional(),
   researchAreas: z.array(z.string()),
   technicalFocus: z.array(z.string()),
   connectText: z.string(),

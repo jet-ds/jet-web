@@ -357,6 +357,21 @@ const fixtures = [
 ] satisfies readonly StructuredDataFixture[];
 
 describe('structured data', () => {
+  it('includes an authored Person award without changing identity links', () => {
+    const schema = buildStructuredData({
+      type: 'person',
+      award: 'Example Award',
+      sameAs: ['https://social.example.com/example'],
+    });
+
+    expect(schema.award).toBe('Example Award');
+    expect(schema.sameAs).toEqual(['https://social.example.com/example']);
+  });
+
+  it('omits a Person award when none is authored', () => {
+    expect(buildStructuredData({ type: 'person' })).not.toHaveProperty('award');
+  });
+
   it('builds a finite ItemList from an ordered page collection', () => {
     const schema = buildStructuredData({
       type: 'itemlist',
