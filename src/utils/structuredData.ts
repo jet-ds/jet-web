@@ -58,6 +58,7 @@ export type PersonProps = {
   alternateName?: readonly string[];
   email?: string;
   jobTitle?: string;
+  award?: string;
   worksFor?: { name: string; url: string };
   sameAs?: readonly string[];
 };
@@ -259,6 +260,7 @@ function buildPersonSchema(
     email: props.email || SITE.email,
     url,
     ...(props.jobTitle && { jobTitle: props.jobTitle }),
+    ...(props.award && { award: props.award }),
     ...(props.worksFor && {
       worksFor: {
         '@type': 'Organization',
