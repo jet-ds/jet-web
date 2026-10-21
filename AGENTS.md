@@ -179,7 +179,7 @@ Tests are organized by boundary:
 
 > **Test Contract Revalidation:** Developmental tests help discover and construct the implementation. Durable tests protect the accepted contract afterward. Within each task slice, follow RED → GREEN → refactor the implementation → revalidate the contract, retaining or consolidating durable tests and removing developmental tests that have served their purpose.
 
-GitHub Actions owns two stable routine jobs, `verify` and `browser`. They run for pull requests, pushes to `main`, manual dispatch, and nightly at `17 18 * * *` (`02:17` Asia/Manila). Configure both as strict required checks on `main`. Keep the approximately 2 GB real-model qualification outside routine and nightly CI; run it only through the explicit release workflow.
+GitHub Actions owns two stable routine jobs, `verify` and `browser`. They run for pull requests, pushes to `main`, manual dispatch, and nightly at `17 18 * * *` (`02:17` Asia/Manila). Configure both as strict required checks on `main`. Browser failures retain `test-results/playwright/` as a run-and-attempt-specific artifact for seven days; absent files must not obscure the original failure. Keep the approximately 2 GB real-model qualification outside routine and nightly CI; run it only through the explicit release workflow.
 
 For ordinary changes, run the smallest focused RED test first, implement, rerun it GREEN, then run `npm run verify`. Add `npm run verify:browser`, build-purity, deployment, or production checks in proportion to the boundary changed. Browser qualification at representative desktop and mobile viewports is the `2.3` release boundary; there is no physical-device gate. Do not claim a deployed behavior from an Astro preview test.
 

@@ -45,3 +45,35 @@ The full `npm run verify` command in the user's working copy stops at a pre-exis
 Independent review found and drove fixes for descriptor tracking, cache-policy verification, legacy cache identity, SDK network interception and normalized Blob metadata validation. A browser assertion was corrected to compare selected rendition identity and encoded dimensions: responsive `naturalWidth`/`naturalHeight` are density-corrected and rounded, rather than exact encoded pixels.
 
 No merge, push, deployment, legacy deletion, billing change or project permission change is included. The uploaded renditions do not change the currently deployed site's references until release.
+
+## Routine CI reliability hotfix
+
+Read-only GitHub investigation covered all 140 available workflow runs through `2026-10-20T21:38:16Z`. Of the latest 30 scheduled runs, 2 failed (6.67%); of the latest 14, 1 failed (7.14%). Since the actual 2.3.1 merge at `2026-08-28T14:39:56Z`, 4 of 54 scheduled runs failed (7.41%), or 4 of 57 runs across all triggers (7.02%). These denominators include completed runs and exclude cancellations. Every inspected run used attempt 1; no reruns were requested.
+
+All four post-2.3.1 failures passed `verify`; the browser job reported one failure and 63 passes. Each failed the reduced-motion/no-autoplay case while its shared setup tried to scroll a transient carousel sentinel:
+
+- [October 20 UTC failure](https://github.com/jet-ds/jet-web/actions/runs/39501967492)
+- [October 6 UTC failure](https://github.com/jet-ds/jet-web/actions/runs/37392010141)
+- [September 17 UTC failure](https://github.com/jet-ds/jet-web/actions/runs/35276404424)
+- [August 30 UTC failure](https://github.com/jet-ds/jet-web/actions/runs/33335542259)
+
+Three logs show the node detaching during scrolling; the October 6 log shows the locator timing out after the preceding count succeeded. Hydration normally removes this sentinel. Counting it and then acting on it therefore races ordinary enhancement; the logs do not indicate a reduced-motion or autoplay regression. The latest failed run had no uploaded artifacts, so its historical trace cannot be recovered from Actions.
+
+The hotfix scrolls the persistent section owner to its leading edge, then awaits the visible region by its accessible name. The leading edge matches the existing visibility boundary; application code and CSS are unchanged. All four transient scroll sites use this shared helper. Dedicated lazy-loading tests retain their before/after fallback and sentinel assertions. New browser cases protect canonical fallback links while scripts are deliberately gated and preserve selection/interaction when an already-ready carousel is revisited. Their data comes from the published collection resolver and selects a collection with at least two destinations.
+
+Failures now upload Playwright evidence for seven days, with unique run/attempt names and no error if a failure occurs before evidence files exist. `actions/upload-artifact@v7` uses Node 24, consistent with the workflow runtime. Job names, required-check ordering, schedule, worker count, zero retries, timeouts and failure-on-flaky policy are unchanged.
+
+The new workflow contract check was observed RED without artifact retention and GREEN after it was added. Assertions parse the workflow and check its evidence destination, failure condition and retention policy. Browser assertions cover rendered links, named-region readiness, selection and navigation rather than React helpers or module filenames. The controlled race reproduction remains investigation scaffolding outside the repository.
+
+Broader validation exposed two additional test setup races, which were corrected without changing application behavior. The drag test captured its heading baseline during the existing 620 ms entrance transition (the trace's two heading measurements were 419 ms apart). It now awaits heading/ancestor animation completion before capturing the baseline and retains exact coordinate equality during drag. The new delayed-script case initially scrolled before WebKit finished document startup; after asserting the complete gated fallback, it now releases scripts, awaits the public document-load event and triggers visible enhancement. It protects delayed startup followed by enhancement, without claiming that a pre-load scroll remains intersecting through later layout changes.
+
+Final hotfix validation:
+
+- Full `npm run verify` passed in a clean temporary checkout containing the final patch: formatting, lint, Astro check, 73 unit/integration files with 781 tests, documentation links, content/media validation, production build, structured data and production artifacts.
+- Final `CI=1 npm run verify:browser`: 72 passed with two workers and zero retries.
+- Affected release-browser qualification: 21 passed across Chromium, Firefox and WebKit.
+- Repetition checks: 60 desktop/mobile hydration/reduced-motion cases, ten drag cases and ten corrected WebKit delayed-startup cases passed with zero retries.
+- `npm run verify:build-purity` passed after browser qualification, restoring production output with media networking denied and repository inputs unchanged.
+- Independent review, fixes and re-review completed with no remaining findings. Existing local notes retained their original SHA-256 and remain outside the commit.
+
+Remote improvement and artifact upload remain unmeasured until the branch runs on GitHub Actions; local browser qualification cannot establish a new remote failure rate.

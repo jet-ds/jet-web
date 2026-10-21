@@ -1,6 +1,8 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
+import matter from 'gray-matter';
+import { z } from 'zod';
 
 const workflowSource = readFileSync(
   resolve(process.cwd(), '.github/workflows/verify.yml'),
@@ -59,4 +61,29 @@ describe('durable verification workflow', () => {
     expect(workflowSource).not.toContain('RUN_REAL_MODEL');
     expect(workflowSource).not.toContain('REAL_MODEL_BASE_URL');
   });
+});
+
+// The workflow's generated evidence and failure policy are public CI contracts.
+it('retains browser failure evidence for seven days without obscuring failures when evidence files are absent', () => {
+  const step = z.object({
+    run: z.string().optional(),
+    uses: z.string().optional(),
+    if: z.string().optional(),
+    with: z.record(z.string(), z.unknown()).optional(),
+  });
+  const workflow = z
+    .object({ jobs: z.object({ browser: z.object({ steps: z.array(step) }) }) })
+    .parse(matter(`---\n${workflowSource}\n---`).data);
+  const steps = workflow.jobs.browser.steps;
+  const artifactIndex = steps.findIndex((s) =>
+    s.uses?.startsWith('actions/upload-artifact@'),
+  );
+  expect(artifactIndex).toBeGreaterThan(
+    steps.findIndex((s) => s.run === 'npm run verify:browser'),
+  );
+  const artifact = steps[artifactIndex];
+  expect(artifact.if).toBe('failure()');
+  expect(artifact.with?.path).toBe('test-results/playwright/');
+  expect(Number(artifact.with?.['retention-days'])).toBe(7);
+  expect(artifact.with?.['if-no-files-found']).toBe('ignore');
 });
