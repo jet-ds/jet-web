@@ -4,9 +4,9 @@ import { promisify } from 'node:util';
 import { SITE } from '../../../config/site';
 import { isAssistantEligible } from '../../../content/policy';
 import {
-  blogSchema,
+  resolvedBlogSchema,
   profileSchema,
-  worksSchema,
+  resolvedWorksSchema,
   type BlogFrontmatter,
   type ProfileFrontmatter,
   type WorksFrontmatter,
@@ -130,9 +130,9 @@ function validateAndNormalizeEntry(
   validateBase(entry);
   const data =
     entry.collection === 'blog'
-      ? blogSchema.parse(entry.data)
+      ? resolvedBlogSchema.parse(entry.data)
       : entry.collection === 'works'
-        ? worksSchema.parse(entry.data)
+        ? resolvedWorksSchema.parse(entry.data)
         : profileSchema.parse(entry.data);
 
   if (data.assistant === true && data.status !== 'published') {

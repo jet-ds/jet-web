@@ -1,4 +1,8 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { loadMediaAsset } from '../../src/features/media/registry.server';
+import { installMediaTrafficFixture } from '../support/mediaTraffic';
+import { installGoogleAnalyticsTrafficBlock } from '../support/googleAnalyticsTraffic';
+import { test } from '../support/localBrowser';
+import { expect, type Locator, type Page } from '@playwright/test';
 import { resolvedPublishedCollections } from '../support/publishedContent';
 
 const homepageSections = () => {
@@ -167,6 +171,8 @@ test(
   { tag: '@desktop' },
   async ({ browser }) => {
     const context = await browser.newContext({ javaScriptEnabled: false });
+    await installGoogleAnalyticsTrafficBlock(context);
+    await installMediaTrafficFixture(context);
     const page = await context.newPage();
     await page.goto('/');
 
@@ -363,18 +369,9 @@ test(
 );
 
 test(
-  'serves every enhanced carousel image locally without Blob requests',
+  'uses only published bounded renditions for every enhanced carousel image',
   { tag: '@desktop' },
   async ({ page }) => {
-    const blobRequests: string[] = [];
-    await page.route(
-      /https:\/\/[^/]+\.public\.blob\.vercel-storage\.com\/.+/u,
-      async (route) => {
-        blobRequests.push(route.request().url());
-        await route.abort('blockedbyclient');
-      },
-    );
-
     await page.goto('/');
     await waitForCarousels(page);
 
@@ -391,7 +388,7 @@ test(
 
         const destination = region.getByRole('link');
         await expect(destination).toHaveAttribute('href', record.href);
-        const image = destination.locator('img');
+        const image = destination.locator('img:visible');
         await expect(image).toHaveCount(1);
         await expect
           .poll(() =>
@@ -413,12 +410,40 @@ test(
             width: element.naturalWidth,
           };
         });
-        expect(new URL(evidence.src).origin).toBe(new URL(page.url()).origin);
-        expect(evidence.width / evidence.height).toBeCloseTo(16 / 9, 3);
+        expect(new URL(evidence.src).hostname).toBe(
+          'vyge4wbmw8jgd8rh.public.blob.vercel-storage.com',
+        );
+        expect(new URL(evidence.src).pathname).toMatch(/^\/images\/v1\//u);
+        const allowedSources = new Set([
+          record.image.url,
+          record.image.darkUrl,
+          record.image.carousel?.url,
+          record.image.darkCarousel?.url,
+          ...[
+            record.image.srcSet,
+            record.image.darkSrcSet,
+            record.image.carousel?.srcSet,
+            record.image.darkCarousel?.srcSet,
+          ].flatMap(
+            (set) =>
+              set?.split(', ').map((candidate) => candidate.split(' ')[0]) ??
+              [],
+          ),
+        ]);
+        expect(allowedSources.has(evidence.src)).toBe(true);
+        const sourceURL = new URL(evidence.src);
+        const segments = sourceURL.pathname.split('/');
+        const asset = loadMediaAsset(`${segments[3]}/${segments[4]}`);
+        const rendition = asset.renditions.find(
+          (item) => item.url === evidence.src,
+        );
+        expect(rendition).toBeDefined();
+        expect(rendition!.format).toBe('webp');
+        expect(rendition!.width / rendition!.height).toBeCloseTo(16 / 9, 3);
+        await expect(image).toHaveAttribute('width', '1152');
+        await expect(image).toHaveAttribute('height', '648');
       }
     }
-
-    expect(blobRequests).toEqual([]);
   },
 );
 

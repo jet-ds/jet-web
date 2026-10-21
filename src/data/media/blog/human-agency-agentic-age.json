@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "pipelineVersion": "v1",
+  "source": {
+    "sha256": "23cc521c5353f55a7a8f7afa9cdcab1df166bc8cd72bfa2162d3a700c1d85bc0",
+    "width": 1920,
+    "height": 1080,
+    "format": "webp"
+  },
+  "renditions": [
+    {
+      "role": "responsive-small",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/blog/human-agency-agentic-age/23cc521c5353f55a7a8f7afa9cdcab1df166bc8cd72bfa2162d3a700c1d85bc0/responsive-small-2edf1ebad02ef36dfdd3324edd11a43e3d4abc66c20474cc56774f16a1e85b13.webp",
+      "width": 480,
+      "height": 270,
+      "format": "webp",
+      "bytes": 17048,
+      "sha256": "2edf1ebad02ef36dfdd3324edd11a43e3d4abc66c20474cc56774f16a1e85b13"
+    },
+    {
+      "role": "responsive-medium",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/blog/human-agency-agentic-age/23cc521c5353f55a7a8f7afa9cdcab1df166bc8cd72bfa2162d3a700c1d85bc0/responsive-medium-fb01675fd9fc6fe478dd432ad55a6affe5980ef2c7c81b2fddb9c4151724f1a0.webp",
+      "width": 960,
+      "height": 540,
+      "format": "webp",
+      "bytes": 58074,
+      "sha256": "fb01675fd9fc6fe478dd432ad55a6affe5980ef2c7c81b2fddb9c4151724f1a0"
+    },
+    {
+      "role": "carousel",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/blog/human-agency-agentic-age/23cc521c5353f55a7a8f7afa9cdcab1df166bc8cd72bfa2162d3a700c1d85bc0/carousel-4ccda2b1d43dca655ebf0cccc4ca6a473ba1f32602812991bcdc905ce60d675f.webp",
+      "width": 1152,
+      "height": 648,
+      "format": "webp",
+      "bytes": 72190,
+      "sha256": "4ccda2b1d43dca655ebf0cccc4ca6a473ba1f32602812991bcdc905ce60d675f"
+    },
+    {
+      "role": "responsive-large",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/blog/human-agency-agentic-age/23cc521c5353f55a7a8f7afa9cdcab1df166bc8cd72bfa2162d3a700c1d85bc0/responsive-large-bbb4eeaaa0e0113088b8eaa51fc826184eeaf3dd5f8bb8b1716be758da6a75ca.webp",
+      "width": 1440,
+      "height": 810,
+      "format": "webp",
+      "bytes": 99616,
+      "sha256": "bbb4eeaaa0e0113088b8eaa51fc826184eeaf3dd5f8bb8b1716be758da6a75ca"
+    },
+    {
+      "role": "detail",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/blog/human-agency-agentic-age/23cc521c5353f55a7a8f7afa9cdcab1df166bc8cd72bfa2162d3a700c1d85bc0/detail-b0fe5329e8f02377a3c9e5824cf41d4ddcc4fe6a6b0d55ccf418313fea45ad79.webp",
+      "width": 1920,
+      "height": 1080,
+      "format": "webp",
+      "bytes": 177380,
+      "sha256": "b0fe5329e8f02377a3c9e5824cf41d4ddcc4fe6a6b0d55ccf418313fea45ad79"
+    },
+    {
+      "role": "social",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/blog/human-agency-agentic-age/23cc521c5353f55a7a8f7afa9cdcab1df166bc8cd72bfa2162d3a700c1d85bc0/social-4e530130c31551afdcda4ddcff5e0c44672a888dd18db92a82dd3bfff9ac596f.jpg",
+      "width": 1200,
+      "height": 675,
+      "format": "jpeg",
+      "bytes": 85239,
+      "sha256": "4e530130c31551afdcda4ddcff5e0c44672a888dd18db92a82dd3bfff9ac596f"
+    }
+  ]
+}

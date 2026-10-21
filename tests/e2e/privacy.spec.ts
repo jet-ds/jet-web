@@ -1,10 +1,6 @@
+import { test } from '../support/localBrowser';
 import AxeBuilder from '@axe-core/playwright';
-import {
-  expect,
-  test,
-  type APIRequestContext,
-  type Page,
-} from '@playwright/test';
+import { expect, type APIRequestContext, type Page } from '@playwright/test';
 
 function sitemapLocations(xml: string): string[] {
   return [...xml.matchAll(/<loc>([^<]+)<\/loc>/gu)].map(

@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "pipelineVersion": "v1",
+  "source": {
+    "sha256": "a1cec53a95fb67957c0d218ef17a883e1610d46631a2567fa68fbeb5eb552958",
+    "width": 1920,
+    "height": 1080,
+    "format": "png"
+  },
+  "renditions": [
+    {
+      "role": "responsive-small",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/blog/vibe-coding-vs-agentic-coding/a1cec53a95fb67957c0d218ef17a883e1610d46631a2567fa68fbeb5eb552958/responsive-small-758257c21642663861e5e9b333c78361a8cafdbce95000eea2052e4254e59b68.webp",
+      "width": 480,
+      "height": 270,
+      "format": "webp",
+      "bytes": 6584,
+      "sha256": "758257c21642663861e5e9b333c78361a8cafdbce95000eea2052e4254e59b68"
+    },
+    {
+      "role": "responsive-medium",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/blog/vibe-coding-vs-agentic-coding/a1cec53a95fb67957c0d218ef17a883e1610d46631a2567fa68fbeb5eb552958/responsive-medium-b3d26954fa982325e6144d3b2e1e840bee2b3bdf252f0ab5c88cf059ca3387cd.webp",
+      "width": 960,
+      "height": 540,
+      "format": "webp",
+      "bytes": 23162,
+      "sha256": "b3d26954fa982325e6144d3b2e1e840bee2b3bdf252f0ab5c88cf059ca3387cd"
+    },
+    {
+      "role": "carousel",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/blog/vibe-coding-vs-agentic-coding/a1cec53a95fb67957c0d218ef17a883e1610d46631a2567fa68fbeb5eb552958/carousel-b12e8f182d2302c880a266116e826b40efe16d3a35ad514d820a3db7b436cb4d.webp",
+      "width": 1152,
+      "height": 648,
+      "format": "webp",
+      "bytes": 33776,
+      "sha256": "b12e8f182d2302c880a266116e826b40efe16d3a35ad514d820a3db7b436cb4d"
+    },
+    {
+      "role": "responsive-large",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/blog/vibe-coding-vs-agentic-coding/a1cec53a95fb67957c0d218ef17a883e1610d46631a2567fa68fbeb5eb552958/responsive-large-86eb3d911cce80f74cf58b98aaec8d424d50e365adab770376ce273d3757bdd3.webp",
+      "width": 1440,
+      "height": 810,
+      "format": "webp",
+      "bytes": 54590,
+      "sha256": "86eb3d911cce80f74cf58b98aaec8d424d50e365adab770376ce273d3757bdd3"
+    },
+    {
+      "role": "detail",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/blog/vibe-coding-vs-agentic-coding/a1cec53a95fb67957c0d218ef17a883e1610d46631a2567fa68fbeb5eb552958/detail-8379967616e3074c884eedc5a2fea11c7de5e48afc1711d5ecc722bfa7622b0f.webp",
+      "width": 1920,
+      "height": 1080,
+      "format": "webp",
+      "bytes": 103556,
+      "sha256": "8379967616e3074c884eedc5a2fea11c7de5e48afc1711d5ecc722bfa7622b0f"
+    },
+    {
+      "role": "social",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/blog/vibe-coding-vs-agentic-coding/a1cec53a95fb67957c0d218ef17a883e1610d46631a2567fa68fbeb5eb552958/social-97f467b8203ad635832e740f432da15f6bc7daf492a08c7eab52989eeeffea87.jpg",
+      "width": 1200,
+      "height": 675,
+      "format": "jpeg",
+      "bytes": 43734,
+      "sha256": "97f467b8203ad635832e740f432da15f6bc7daf492a08c7eab52989eeeffea87"
+    }
+  ]
+}

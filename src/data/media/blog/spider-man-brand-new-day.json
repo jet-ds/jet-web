@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "pipelineVersion": "v1",
+  "source": {
+    "sha256": "fcef4196f6429976c179b91b5e12f1b329f96ac2dfe4dcc6f7547dbc7fcf5ad4",
+    "width": 1920,
+    "height": 1080,
+    "format": "png"
+  },
+  "renditions": [
+    {
+      "role": "responsive-small",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/blog/spider-man-brand-new-day/fcef4196f6429976c179b91b5e12f1b329f96ac2dfe4dcc6f7547dbc7fcf5ad4/responsive-small-03a56f3a722f6ddb06c4ce382100d484fd4edd84fdad68bf92f932050f151c7a.webp",
+      "width": 480,
+      "height": 270,
+      "format": "webp",
+      "bytes": 25270,
+      "sha256": "03a56f3a722f6ddb06c4ce382100d484fd4edd84fdad68bf92f932050f151c7a"
+    },
+    {
+      "role": "responsive-medium",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/blog/spider-man-brand-new-day/fcef4196f6429976c179b91b5e12f1b329f96ac2dfe4dcc6f7547dbc7fcf5ad4/responsive-medium-f884d42ae00dee2897def55c7993f8f1f3dbaf676ea6abbc38c765e5f497f19e.webp",
+      "width": 960,
+      "height": 540,
+      "format": "webp",
+      "bytes": 68386,
+      "sha256": "f884d42ae00dee2897def55c7993f8f1f3dbaf676ea6abbc38c765e5f497f19e"
+    },
+    {
+      "role": "carousel",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/blog/spider-man-brand-new-day/fcef4196f6429976c179b91b5e12f1b329f96ac2dfe4dcc6f7547dbc7fcf5ad4/carousel-73e09dc5efaefc902dc03655ddaee90924060c81698030b8ce47c7e0b05b5ad9.webp",
+      "width": 1152,
+      "height": 648,
+      "format": "webp",
+      "bytes": 88472,
+      "sha256": "73e09dc5efaefc902dc03655ddaee90924060c81698030b8ce47c7e0b05b5ad9"
+    },
+    {
+      "role": "responsive-large",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/blog/spider-man-brand-new-day/fcef4196f6429976c179b91b5e12f1b329f96ac2dfe4dcc6f7547dbc7fcf5ad4/responsive-large-71697be2a6bfd17d6e4b2ced6bcdc161e42c469ff26dc23aeea057f553587cd9.webp",
+      "width": 1440,
+      "height": 810,
+      "format": "webp",
+      "bytes": 118690,
+      "sha256": "71697be2a6bfd17d6e4b2ced6bcdc161e42c469ff26dc23aeea057f553587cd9"
+    },
+    {
+      "role": "detail",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/blog/spider-man-brand-new-day/fcef4196f6429976c179b91b5e12f1b329f96ac2dfe4dcc6f7547dbc7fcf5ad4/detail-ce4fdcbe92e0ef500363bcfceadab8ed6d08a5ed6e903dde575023d37750cbdf.webp",
+      "width": 1920,
+      "height": 1080,
+      "format": "webp",
+      "bytes": 186012,
+      "sha256": "ce4fdcbe92e0ef500363bcfceadab8ed6d08a5ed6e903dde575023d37750cbdf"
+    },
+    {
+      "role": "social",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/blog/spider-man-brand-new-day/fcef4196f6429976c179b91b5e12f1b329f96ac2dfe4dcc6f7547dbc7fcf5ad4/social-4841745da4f42ec20d92d79ea40391547c867fc7afd8886e3521e25d656cded1.jpg",
+      "width": 1200,
+      "height": 675,
+      "format": "jpeg",
+      "bytes": 108885,
+      "sha256": "4841745da4f42ec20d92d79ea40391547c867fc7afd8886e3521e25d656cded1"
+    }
+  ]
+}

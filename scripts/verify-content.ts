@@ -16,7 +16,7 @@ import {
   type ContentValidationRecord,
   validateContentRecords,
 } from '../src/content/validation';
-import { blogSchema, profileSchema, worksSchema } from '../src/schemas/content';
+import { createContentSchemas, profileSchema } from '../src/schemas/content';
 
 type CollectionName = 'blog' | 'works' | 'profile';
 
@@ -235,7 +235,12 @@ function parseContentRecord(
   };
 }
 
-function schemaErrors(record: ParsedContentRecord): ContentPolicyError[] {
+function schemaErrors(
+  record: ParsedContentRecord,
+  root: string,
+  trackedPaths: ReadonlySet<string>,
+): ContentPolicyError[] {
+  const { blogSchema, worksSchema } = createContentSchemas(root);
   const schema =
     record.collection === 'blog'
       ? blogSchema
@@ -243,7 +248,33 @@ function schemaErrors(record: ParsedContentRecord): ContentPolicyError[] {
         ? worksSchema
         : profileSchema;
   const result = schema.safeParse(record.data);
-  if (result.success) return [];
+  if (result.success) {
+    if (
+      record.data.status === 'published' &&
+      result.data &&
+      'image' in result.data &&
+      result.data.image
+    ) {
+      const image = result.data.image;
+      for (const key of [
+        image.asset,
+        ...('darkAsset' in image ? [image.darkAsset] : []),
+      ]) {
+        if (
+          typeof key === 'string' &&
+          !trackedPaths.has(`src/data/media/${key}.json`)
+        )
+          return [
+            {
+              code: 'schema-invalid',
+              path: record.validation.path,
+              message: `Published media descriptor must be tracked by Git: ${key}`,
+            },
+          ];
+      }
+    }
+    return [];
+  }
 
   return result.error.issues.map((issue) => ({
     code: 'schema-invalid',
@@ -308,7 +339,9 @@ export async function main(): Promise<void> {
   );
   const invalidPolicyPaths = new Set(policyErrors.map((error) => error.path));
   const validationErrors = records.flatMap((record) =>
-    invalidPolicyPaths.has(record.validation.path) ? [] : schemaErrors(record),
+    invalidPolicyPaths.has(record.validation.path)
+      ? []
+      : schemaErrors(record, root, trackedPaths),
   );
   const errors = [...parseErrors, ...policyErrors, ...validationErrors].sort(
     compareErrors,

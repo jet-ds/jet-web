@@ -1,3 +1,4 @@
+import { installMediaTrafficFixture } from '../support/mediaTraffic';
 import { expect, test, type Locator, type Page } from '@playwright/test';
 import AxeBuilder from '@axe-core/playwright';
 import { SITE } from '../../src/config/site';
@@ -132,7 +133,7 @@ async function interceptAnalyticsTraffic(
 
     const requestKind = classifyGoogleAnalyticsRequest(url);
     if (requestKind === null) {
-      await route.continue();
+      await route.fallback();
       return;
     }
 
@@ -198,6 +199,7 @@ async function analyticsDisabled(page: Page): Promise<boolean | undefined> {
 }
 
 test.beforeEach(async ({ page }) => {
+  await installMediaTrafficFixture(page.context());
   await page.setExtraHTTPHeaders({ 'x-vercel-ip-country': 'US' });
 });
 

@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "pipelineVersion": "v1",
+  "source": {
+    "sha256": "cb72b50ae0046d0dcb38e257b334a53157cecb5e7b99ff6821fdf314a4cd5da7",
+    "width": 1920,
+    "height": 1080,
+    "format": "webp"
+  },
+  "renditions": [
+    {
+      "role": "responsive-small",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/blog/philippines-ai-adoption-telemetry/cb72b50ae0046d0dcb38e257b334a53157cecb5e7b99ff6821fdf314a4cd5da7/responsive-small-8d01ec00b59b0eb52800c95bcb096d4b434259b450e566eebe853bb4de681efa.webp",
+      "width": 480,
+      "height": 270,
+      "format": "webp",
+      "bytes": 16352,
+      "sha256": "8d01ec00b59b0eb52800c95bcb096d4b434259b450e566eebe853bb4de681efa"
+    },
+    {
+      "role": "responsive-medium",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/blog/philippines-ai-adoption-telemetry/cb72b50ae0046d0dcb38e257b334a53157cecb5e7b99ff6821fdf314a4cd5da7/responsive-medium-b606ecf631f847e4f5b53da603075df1803965bc7c2ab5b6603eb04bd94e3aac.webp",
+      "width": 960,
+      "height": 540,
+      "format": "webp",
+      "bytes": 54500,
+      "sha256": "b606ecf631f847e4f5b53da603075df1803965bc7c2ab5b6603eb04bd94e3aac"
+    },
+    {
+      "role": "carousel",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/blog/philippines-ai-adoption-telemetry/cb72b50ae0046d0dcb38e257b334a53157cecb5e7b99ff6821fdf314a4cd5da7/carousel-33cb2126e1db693ccef401a52b8804df9eb961dc22061177bbf22881c47a9530.webp",
+      "width": 1152,
+      "height": 648,
+      "format": "webp",
+      "bytes": 67070,
+      "sha256": "33cb2126e1db693ccef401a52b8804df9eb961dc22061177bbf22881c47a9530"
+    },
+    {
+      "role": "responsive-large",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/blog/philippines-ai-adoption-telemetry/cb72b50ae0046d0dcb38e257b334a53157cecb5e7b99ff6821fdf314a4cd5da7/responsive-large-52f411fc6ba03a90d9528d622f65b124a918ca1bfd87d77af7c0f668f7a77cbe.webp",
+      "width": 1440,
+      "height": 810,
+      "format": "webp",
+      "bytes": 90334,
+      "sha256": "52f411fc6ba03a90d9528d622f65b124a918ca1bfd87d77af7c0f668f7a77cbe"
+    },
+    {
+      "role": "detail",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/blog/philippines-ai-adoption-telemetry/cb72b50ae0046d0dcb38e257b334a53157cecb5e7b99ff6821fdf314a4cd5da7/detail-a7bad04aa5bc2941a23211790cd109d0f1dfd70498a137414fb793843528bf60.webp",
+      "width": 1920,
+      "height": 1080,
+      "format": "webp",
+      "bytes": 150528,
+      "sha256": "a7bad04aa5bc2941a23211790cd109d0f1dfd70498a137414fb793843528bf60"
+    },
+    {
+      "role": "social",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/blog/philippines-ai-adoption-telemetry/cb72b50ae0046d0dcb38e257b334a53157cecb5e7b99ff6821fdf314a4cd5da7/social-5b5db0f889aa886ef87a66d502d25308fc10afda92a9d39142a7e1c77be51479.jpg",
+      "width": 1200,
+      "height": 675,
+      "format": "jpeg",
+      "bytes": 80465,
+      "sha256": "5b5db0f889aa886ef87a66d502d25308fc10afda92a9d39142a7e1c77be51479"
+    }
+  ]
+}

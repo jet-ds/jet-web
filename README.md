@@ -80,7 +80,7 @@ Publication requires `status: published`. Inclusion in the Egregore corpus addit
 
 ## Images
 
-Stage authoring images under `public/images-staging/`, then use the explicit upload command to create an immutable Vercel Blob URL. The complete naming, sizing, upload, replacement, verification, and cleanup workflow is maintained in [AGENTS.md](./AGENTS.md#image-workflow).
+Stage authoring originals under ignored `Untracked/media-staging/`, then use the explicit upload command to archive the original privately and publish bounded immutable renditions with a local JSON descriptor. Content references `image.asset`; builds resolve descriptors without fetching media. The complete naming, sizing, upload, replacement, verification, and cleanup workflow is maintained in [AGENTS.md](./AGENTS.md#image-workflow).
 
 The default social image is committed at `public/images/og-default.jpg` and can be reproduced with the checked-in capture script.
 

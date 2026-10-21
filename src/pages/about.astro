@@ -6,6 +6,12 @@ import Container from '../components/ui/Container.astro';
 import Card from '../components/ui/Card.astro';
 import Link from '../components/ui/Link.astro';
 import Button from '../components/ui/Button.astro';
+import { loadMediaAsset } from '../features/media/registry.server';
+import { resolveMediaPresentation } from '../features/media/contract';
+const portrait = resolveMediaPresentation(
+  loadMediaAsset('about/about-hero'),
+  'portrait-detail',
+);
 import OptimizedImage from '../components/ui/OptimizedImage.astro';
 import StructuredData from '../components/seo/StructuredData.astro';
 import { SITE, SOCIAL_LINKS } from '../config/site';
@@ -85,13 +91,14 @@ const activeSocialLinks = Object.entries(SOCIAL_LINKS)
         <!-- Image Card -->
         <Card clip padding="none" radius="xl">
           <OptimizedImage
-            src="https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/about/about-hero-b0ab33a5.jpg"
+            src={portrait.url}
+            srcSet={portrait.srcSet}
             alt="Jet Sanchez"
             width={1200}
             height={1600}
             class="w-full h-full object-cover"
             loading="eager"
-            quality={85}
+            sizes="(min-width: 1024px) 50vw, 100vw"
           />
         </Card>
       </div>

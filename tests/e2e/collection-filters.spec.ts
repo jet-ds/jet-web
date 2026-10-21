@@ -1,4 +1,7 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { installMediaTrafficFixture } from '../support/mediaTraffic';
+import { installGoogleAnalyticsTrafficBlock } from '../support/googleAnalyticsTraffic';
+import { test } from '../support/localBrowser';
+import { expect, type Locator, type Page } from '@playwright/test';
 
 function blogItems(page: Page): Locator {
   return page.locator('[data-blog-search-item]');
@@ -16,6 +19,8 @@ test('Blog and Works keep their complete collections available without JavaScrip
   browser,
 }) => {
   const context = await browser.newContext({ javaScriptEnabled: false });
+  await installGoogleAnalyticsTrafficBlock(context);
+  await installMediaTrafficFixture(context);
   const page = await context.newPage();
 
   await page.goto('/blog/?q=invented-query');

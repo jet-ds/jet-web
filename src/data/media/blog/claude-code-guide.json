@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "pipelineVersion": "v1",
+  "source": {
+    "sha256": "d74ab81eaea6255c4d0efc56ecb072425e652886955079814bbfab596911209c",
+    "width": 1920,
+    "height": 1080,
+    "format": "png"
+  },
+  "renditions": [
+    {
+      "role": "responsive-small",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/blog/claude-code-guide/d74ab81eaea6255c4d0efc56ecb072425e652886955079814bbfab596911209c/responsive-small-15dd508f8de79ef00c5f28dc2a76470d4bd648115c106dda884254f3faae8718.webp",
+      "width": 480,
+      "height": 270,
+      "format": "webp",
+      "bytes": 4474,
+      "sha256": "15dd508f8de79ef00c5f28dc2a76470d4bd648115c106dda884254f3faae8718"
+    },
+    {
+      "role": "responsive-medium",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/blog/claude-code-guide/d74ab81eaea6255c4d0efc56ecb072425e652886955079814bbfab596911209c/responsive-medium-9f0f87df151d7b919bce281de6583320d6d97160e405ad069c45948a7947d082.webp",
+      "width": 960,
+      "height": 540,
+      "format": "webp",
+      "bytes": 8564,
+      "sha256": "9f0f87df151d7b919bce281de6583320d6d97160e405ad069c45948a7947d082"
+    },
+    {
+      "role": "carousel",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/blog/claude-code-guide/d74ab81eaea6255c4d0efc56ecb072425e652886955079814bbfab596911209c/carousel-8685fcbdad0f664303e5012f8d7779b1c950503e327eaeb744193f130362d8e4.webp",
+      "width": 1152,
+      "height": 648,
+      "format": "webp",
+      "bytes": 10982,
+      "sha256": "8685fcbdad0f664303e5012f8d7779b1c950503e327eaeb744193f130362d8e4"
+    },
+    {
+      "role": "responsive-large",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/blog/claude-code-guide/d74ab81eaea6255c4d0efc56ecb072425e652886955079814bbfab596911209c/responsive-large-7875190c9101f1c5b11caaab8736be9ee3a5f79231d5e835ad2da58438f997c5.webp",
+      "width": 1440,
+      "height": 810,
+      "format": "webp",
+      "bytes": 15894,
+      "sha256": "7875190c9101f1c5b11caaab8736be9ee3a5f79231d5e835ad2da58438f997c5"
+    },
+    {
+      "role": "detail",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/blog/claude-code-guide/d74ab81eaea6255c4d0efc56ecb072425e652886955079814bbfab596911209c/detail-831396bf47dfa402b51789eea20a1d1ce9b6897bdd7afeb421816bf8c36498a3.webp",
+      "width": 1920,
+      "height": 1080,
+      "format": "webp",
+      "bytes": 25340,
+      "sha256": "831396bf47dfa402b51789eea20a1d1ce9b6897bdd7afeb421816bf8c36498a3"
+    },
+    {
+      "role": "social",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/blog/claude-code-guide/d74ab81eaea6255c4d0efc56ecb072425e652886955079814bbfab596911209c/social-53a24df09c2fc337a857f844e2bc91f2e53811d9ba1f799786419d93358fa6a5.jpg",
+      "width": 1200,
+      "height": 675,
+      "format": "jpeg",
+      "bytes": 28013,
+      "sha256": "53a24df09c2fc337a857f844e2bc91f2e53811d9ba1f799786419d93358fa6a5"
+    }
+  ]
+}

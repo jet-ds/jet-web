@@ -16,13 +16,7 @@ export interface Props {
   type: 'research' | 'project' | 'other';
   date: Date;
   tags?: string[];
-  image?: {
-    url: string;
-    darkUrl?: string;
-    alt: string;
-    width?: number;
-    height?: number;
-  };
+  image?: import('../features/media/registry.server').ResolvedContentImage;
   links?: { label: string; url: string }[];
   // For research
   venue?: string;
@@ -79,10 +73,10 @@ const doiUrl =
 <BaseLayout
   title={seoTitle ?? title}
   description={seoDescription ?? description}
-  image={image?.url}
+  image={image?.social.url}
   imageAlt={image?.alt}
-  imageWidth={image?.width}
-  imageHeight={image?.height}
+  imageWidth={image?.social.width}
+  imageHeight={image?.social.height}
   type={type === 'research' ? 'article' : 'website'}
   publishedTime={type === 'research' ? date.toISOString() : undefined}
   tags={type === 'research' ? tags : undefined}
@@ -100,7 +94,7 @@ const doiUrl =
         headline={title}
         description={description}
         abstract={abstract}
-        image={image?.url}
+        image={image?.social.url}
         datePublished={date.toISOString()}
         venue={venue}
         identifier={doiUrl}
@@ -115,7 +109,7 @@ const doiUrl =
         url={canonicalURL}
         name={title}
         description={description}
-        image={image?.url}
+        image={image?.social.url}
         datePublished={date.toISOString()}
         tags={tags}
       />
@@ -201,7 +195,9 @@ const doiUrl =
             <div class="aspect-video overflow-hidden rounded-lg mb-l">
               <ThemeAwareImage
                 src={image.url}
+                srcSet={image.srcSet}
                 darkSrc={image.darkUrl}
+                darkSrcSet={image.darkSrcSet}
                 alt={image.alt}
                 width={image.width ?? 1920}
                 height={image.height ?? 1080}

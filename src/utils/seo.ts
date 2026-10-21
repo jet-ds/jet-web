@@ -1,4 +1,5 @@
 import { SITE } from '../config/site';
+import { PUBLIC_MEDIA_HOST } from '../features/media/contract';
 
 export interface SEOProps {
   title: string;
@@ -60,6 +61,23 @@ export function generateSEOProps(props: Partial<SEOProps>): SEOProps {
   const canonicalURL =
     props.canonicalURL || getCanonicalURL(props.canonicalURL || '/');
   const usesDefaultImage = props.image === undefined;
+  if (
+    props.image !== undefined &&
+    new URL(props.image, SITE.siteUrl).hostname.endsWith(
+      '.blob.vercel-storage.com',
+    )
+  ) {
+    const safeSocial = new RegExp(
+      `^https://${PUBLIC_MEDIA_HOST.replaceAll('.', '\\.')}/images/v1/(?:blog|works)/[a-z0-9]+(?:-[a-z0-9]+)*/[a-f0-9]{64}/social-[a-f0-9]{64}\\.jpg$`,
+      'u',
+    );
+    if (
+      !safeSocial.test(props.image) ||
+      props.imageWidth !== 1200 ||
+      props.imageHeight !== 675
+    )
+      throw new Error('INVALID_SOCIAL_RENDITION');
+  }
 
   return {
     title: props.title || SITE.title,

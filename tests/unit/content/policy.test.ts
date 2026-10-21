@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { blogSchema } from '../../../src/schemas/content';
+import { fixtureContentSchemas } from '../../fixtures/media';
+const { blogSchema } = fixtureContentSchemas();
 import { isAssistantEligible, isPublished } from '../../../src/content/policy';
 
 const baseBlog = {
@@ -9,10 +10,8 @@ const baseBlog = {
   pubDate: '2026-07-11',
   tags: [],
   image: {
-    url: 'https://assets.public.blob.vercel-storage.com/images/blog/policy-example-a1b2c3d4.png',
+    asset: 'blog/example',
     alt: 'An invented policy test illustration',
-    width: 1920,
-    height: 1080,
   },
 };
 

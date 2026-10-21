@@ -1,5 +1,6 @@
+import { test } from '../support/localBrowser';
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 import { publishedContent } from '../support/publishedContent';
 
 interface LinearColor {

@@ -17,6 +17,8 @@ const blogRecord: CollectionDisplayRecord = {
   summary: 'A complete editorial summary that must remain intact.',
   image: {
     url: 'https://example.com/blog-card.jpg',
+    srcSet:
+      'https://example.com/small.webp 480w, https://example.com/medium.webp 960w, https://example.com/carousel.webp 1152w, https://example.com/large.webp 1440w, https://example.com/detail.webp 1920w',
     alt: 'A complete editorial card image',
     width: 1920,
     height: 1080,
@@ -129,16 +131,16 @@ describe('collection card adapters', () => {
       Number(match[1]),
     );
 
-    expect(widths).toEqual([384, 768, 1152]);
+    expect(widths).toEqual([480, 960, 1152, 1440, 1920]);
   });
 
-  it('keeps Homepage fallback and island props on the primary record image', async () => {
+  it('preserves theme-aware images in Homepage fallback and island props', async () => {
     const html = await container.renderToString(HomeCollectionCarousel, {
       props: { items: [themeAwareWorkRecord], label: 'Latest Works' },
     });
 
     expect(html).toContain('primary-work-card');
-    expect(html).not.toContain('alternate-dark-work-card');
-    expect(html).not.toContain('darkUrl');
+    expect(html).toContain('alternate-dark-work-card');
+    expect(html).toContain('darkUrl');
   });
 });

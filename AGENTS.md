@@ -86,7 +86,7 @@ assistant: false
 - Review metadata currently identifies a movie and an integer rating on the five-star scale. It renders in the article header and as a linked `Review` JSON-LD entity; Blog and Home cards remain unrated editorial teasers.
 - Work fields include title, optional short display title, description, required-on-publication card summary and image, type, date, tags, publication state, assistant eligibility, optional positive-integer `homepagePriority`, optional links, and type-specific research or project fields. Lower Homepage priorities sort first; the Works hub ignores priority.
 - Tags are human-facing labels rendered verbatim. Separate words with spaces rather than kebab-case hyphens; retain hyphens only when the term itself requires one, such as `Spider-Man` or `cross-country measurement`.
-- Every content image requires a stable URL, descriptive `alt` text, and verified intrinsic pixel `width` and `height` so cards and custom OpenGraph metadata never borrow false default dimensions.
+- Every content image requires a tracked descriptor key, descriptive authored `alt` text, and verified descriptor rendition dimensions so cards and custom OpenGraph metadata never borrow false default dimensions.
 - Run `npm run verify:content` after changing frontmatter or content-policy code.
 
 ## Collections and discovery
@@ -101,51 +101,34 @@ assistant: false
 
 `AGENTS.md` is the sole active image-workflow authority. The upload script is the only checked-in command authorized to mutate Vercel Blob.
 
-### Prepare
+### Prepare and publish
 
-- Supported source formats are `jpg`, `jpeg`, `png`, `webp`, `avif`, and `gif`.
-- Stage files in exactly one lane: `public/images-staging/about/`, `public/images-staging/blog/`, or `public/images-staging/works/`.
-- Use a descriptive kebab-case slug tied to the destination page or content slug, for example `local-ai-retrieval.jpg`.
-- Blog and work featured images should be `16:9` and under 2 MB before upload.
-- The current About portrait lane uses `3:4`, with `1200x1600` as the reference size.
-- Do not replace the `.gitkeep` files with a second workflow document.
-
-### Upload
-
-Set `BLOB_READ_WRITE_TOKEN` in `.env.local`, then run:
+- Stage descriptive kebab-case source files only in ignored `Untracked/media-staging/{about,blog,works}/`. Never put originals in `public/`; builds reject media in the legacy `public/images-staging/` lanes. Retain their `.gitkeep` markers.
+- Supported formats: JPEG, PNG, WebP, AVIF, GIF. Reject animation/multipage, sources over 20 MiB or 64 megapixels. Published Blog/Works sources must be exactly 1920×1080. About must be 3:4, at least 1200×1600; preserve the current 3060×4080 original.
+- Set the existing public store token as `BLOB_READ_WRITE_TOKEN` and the separate private `jet-web-originals` token as `BLOB_ORIGINALS_READ_WRITE_TOKEN` in local `.env.local` only. Never connect the originals store or its credential to deployment/CI environments.
 
 ```bash
-npm run upload-image blog/local-ai-retrieval.jpg
-npm run upload-image works/research-project.png
-npm run upload-image about/about-hero.jpg
+npm run upload-image -- blog/local-ai-retrieval.jpg
+npm run upload-image -- works/research-project.png
+npm run upload-image -- about/about-hero.jpg
 ```
 
-The command reads only from `public/images-staging/<type>/`, hashes the bytes, uploads to `images/<type>/<slug>-<hash>.<ext>`, and returns the immutable public URL. Do not call Vercel Blob write APIs from a build, content loader, page, or ad hoc replacement script.
+The operator command preserves raw originals privately, creates finite WebP/JPEG delivery renditions, checks dimensions/budgets/hash/cache metadata, uploads without overwrite, and atomically saves `src/data/media/<lane>/<slug>.json` only after complete readback verification. Paths include pipeline version and full source/output SHA-256. Interrupted uploads resume using ignored operation receipts; no automatic deletion or rollback is permitted.
 
-### Reference
-
-For blog records, copy the returned URL and verified intrinsic dimensions into the matching file under `src/data/blog/`:
+### Reference and verify
 
 ```yaml
 image:
-  url: 'https://example.public.blob.vercel-storage.com/images/blog/example-12345678.jpg'
-  alt: 'A descriptive account of the visible image'
-  width: 1920
-  height: 1080
+  asset: blog/local-ai-retrieval
+  alt: A descriptive account of the visible image
 ```
 
-Work records use `url`, optional `darkUrl`, `alt`, and optional verified intrinsic `width` and `height` under `src/data/works/`.
+Works additionally supports `darkAsset`. Direct authored `url`, `darkUrl`, width or height fields are rejected. Git-track descriptors together with content. About resolves `about/about-hero` through the same local registry. Rendering uses public renditions; no build-time remote optimization or media credentials are required. Social metadata consistently uses the light 1200×675 JPEG. The complete role/budget contract is in [the 2.4.0 spec](docs/superpowers/specs/2026-10-21-jet-web-2.4.0-media-design.md).
 
-The About portrait is not content frontmatter. Update the direct `OptimizedImage` source in `src/pages/about.astro`, retaining the actual dimensions and descriptive alternative text.
-
-### Verify and clean up
-
-1. Run `npm run validate-images` when remote content-image references change.
-2. Run `npm run build`, then inspect the affected page with `npm run preview` at representative desktop and mobile widths in light and dark mode.
-3. Confirm the intended crop, intrinsic dimensions, alternative text, and production Blob response.
-4. A changed file produces a new hash URL rather than overwriting the old object. Update every repository reference and verify the replacement before any explicit operator-side deletion of the obsolete Blob.
-5. The upload script does not delete or replace old objects. Blob removal is a separate external operation and must not occur while a live page or deployment references the URL.
-6. Remove the local staged source after the new URL is adopted and verified; leave each lane's `.gitkeep` in place.
+1. Run `npm run verify:content`, `npm run verify:media`, and `npm run verify:build-purity`.
+2. Use `npm run validate-images` only for explicit remote verification. It deduplicates and bounds reads of public renditions; routine tests/builds remain offline for media.
+3. Inspect mobile/desktop and light/dark rendering. Preserve staged originals until the private archive is verified; never delete local progress implicitly.
+4. Legacy migration is operator-only: `npm run upload-image -- --cache-legacy` caches each inventoried source once; `npm run upload-image -- --migrate-legacy` archives all 14 originals and publishes the 11 referenced sets. Receipts and source caches live under ignored `Untracked/media-migration/`. Retain all legacy public objects until an explicitly approved retirement after release acceptance and verified deployment. Publication alone cannot stop requests to old URLs.
 
 The default social image is the committed `public/images/og-default.jpg`. Recreate it only through `npm run capture:og -- --overwrite`, visually inspect the result, and retain the exact shared metadata contract in `src/config/site.ts`.
 
@@ -213,6 +196,9 @@ Before deployment, verify light and dark modes, keyboard/focus behavior, respons
 - Do not add automated-tool, co-author, or generated-by attribution unless a human explicitly requests it for that commit.
 
 ## Canonical documentation
+
+- [Jet Web 2.4.0 media design](./docs/superpowers/specs/2026-10-21-jet-web-2.4.0-media-design.md)
+- [Jet Web 2.4.0 verification record](./docs/verification/jet-web-2.4.0.md)
 
 - [Jet Web 2.3.0 design](./docs/superpowers/specs/2026-08-25-jet-web-2.3.0-design.md)
 - [Jet Web 2.3.0 implementation plan](./docs/superpowers/plans/2026-08-25-jet-web-2.3.0.md)

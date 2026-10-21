@@ -43,6 +43,15 @@ const HOMEPAGE_MAXIMUM = 5;
 interface EntryImage {
   url: string;
   darkUrl?: string;
+  srcSet?: string;
+  darkSrcSet?: string;
+  carousel?: { url: string; width: number; height: number; srcSet?: string };
+  darkCarousel?: {
+    url: string;
+    width: number;
+    height: number;
+    srcSet?: string;
+  };
   alt: string;
   width: number;
   height: number;
@@ -95,6 +104,10 @@ function adaptImage(entryId: string, image: EntryImage): CollectionImage {
   return {
     url: image.url,
     ...(image.darkUrl === undefined ? {} : { darkUrl: image.darkUrl }),
+    srcSet: image.srcSet,
+    darkSrcSet: image.darkSrcSet,
+    carousel: image.carousel,
+    darkCarousel: image.darkCarousel,
     alt: image.alt,
     width: 1920,
     height: 1080,

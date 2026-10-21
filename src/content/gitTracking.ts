@@ -5,6 +5,7 @@ const CONTENT_PATHS = [
   'src/data/blog',
   'src/data/works',
   'src/data/profile',
+  'src/data/media',
 ] as const;
 
 function isContained(root: string, target: string): boolean {

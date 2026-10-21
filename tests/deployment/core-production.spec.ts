@@ -109,7 +109,7 @@ test('Production reads back the optional analytics browser-profile fallback', as
     const url = new URL(route.request().url());
     const requestKind = classifyGoogleAnalyticsRequest(url);
     if (requestKind === null) {
-      await route.continue();
+      await route.fallback();
       return;
     }
     analyticsRequests.push(url);
@@ -296,15 +296,15 @@ test('Production publishes every tracked published content contract', async ({
       ).toHaveAttribute('href', link.url);
     }
 
-    if (item.image?.width !== undefined) {
+    if (item.image?.social.width !== undefined) {
       await expect(
         page.locator('meta[property="og:image:width"]'),
-      ).toHaveAttribute('content', String(item.image.width));
+      ).toHaveAttribute('content', String(item.image.social.width));
     }
-    if (item.image?.height !== undefined) {
+    if (item.image?.social.height !== undefined) {
       await expect(
         page.locator('meta[property="og:image:height"]'),
-      ).toHaveAttribute('content', String(item.image.height));
+      ).toHaveAttribute('content', String(item.image.social.height));
     }
     if (item.review !== undefined) {
       expect(

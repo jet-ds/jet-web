@@ -11,6 +11,13 @@ import {
 
 export const FORBIDDEN_PRODUCTION_ARTIFACT_MARKERS = [
   'FakeRuntime',
+  '.private.blob.vercel-storage.com',
+  'BLOB_ORIGINALS_READ_WRITE_TOKEN',
+  'BLOB_READ_WRITE_TOKEN',
+  'vercel_blob_rw_',
+  '/images-staging/',
+  '/originals/',
+  'legacy-public-original',
   'runtime=fake',
   '__EGREGORE_E2E__',
   'egregore:e2e-scheduler-release',
@@ -60,8 +67,22 @@ export function findForbiddenProductionArtifacts(
   const findings: ForbiddenProductionArtifact[] = [];
   for (const path of emittedFiles(root)) {
     const content = readFileSync(path);
+    if (
+      /https:\/\/[a-z0-9]+\.public\.blob\.vercel-storage\.com\/images\/(?:about|blog|works)\//iu.test(
+        content.toString('utf8'),
+      )
+    ) {
+      findings.push({
+        path: relative(root, path),
+        marker: 'legacy-public-original',
+      });
+    }
     for (const marker of FORBIDDEN_PRODUCTION_ARTIFACT_MARKERS) {
-      if (content.includes(Buffer.from(marker))) {
+      if (
+        content.includes(Buffer.from(marker)) ||
+        (marker === '.private.blob.vercel-storage.com' &&
+          content.toString('utf8').toLowerCase().includes(marker))
+      ) {
         findings.push({
           path: relative(root, path),
           marker,
