@@ -37,9 +37,10 @@ The actual About original is 3060×4080; the spec's earlier 1200×1600 source as
 - Documentation links, content policy, local media validation, static build, linked structured data and production artifact checks passed.
 - Build purity passed with media networking denied and repository input hashes/status unchanged.
 - Media metadata and portrait qualification: six tests passed across Chromium, Firefox and WebKit.
-- Desktop/mobile acceptance qualification and final independent disposition are being recorded below before handoff.
+- Desktop/mobile acceptance qualification: all 42 affected tests passed.
+- Independent review approved the implementation after fix/re-review cycles, including an audit of all 63 rendition files and the corrected record-to-image identity check.
 
-The full `npm run verify` command in the user's working copy stops at a pre-existing formatting warning in the untracked `docs/superpowers/notes/2026-08-27-jet-web-2.4.0-build-notes.md`. Its SHA-256 remains `9370253e19b7cf36ecc3268917f3b5f8398c8a78aaefc5f5f0caf32c4b5d4d5d`, identical to the pre-update backup. The file is preserved and excluded from this change. A clean-checkout verification excludes this local-only file without rewriting it; the result will be recorded before acceptance.
+The full `npm run verify` command in the user's working copy stops at a pre-existing formatting warning in the untracked `docs/superpowers/notes/2026-08-27-jet-web-2.4.0-build-notes.md`. Its SHA-256 remains `9370253e19b7cf36ecc3268917f3b5f8398c8a78aaefc5f5f0caf32c4b5d4d5d`, identical to the pre-update backup. The file is preserved and excluded from this change. The complete `npm run verify` passed in a clean temporary checkout of implementation commit `99b8ea9`, with its own dependency tree and no media credentials. The initial symlinked-dependency attempt failed on Astro compile-path resolution and a fixture timeout; the self-contained rerun passed. This excludes the local-only note without rewriting it.
 
 Independent review found and drove fixes for descriptor tracking, cache-policy verification, legacy cache identity, SDK network interception and normalized Blob metadata validation. A browser assertion was corrected to compare selected rendition identity and encoded dimensions: responsive `naturalWidth`/`naturalHeight` are density-corrected and rounded, rather than exact encoded pixels.
 

@@ -67,7 +67,7 @@ if (
     ).catch((error) => {
       console.error(
         error instanceof Error &&
-          /^[A-Z_]+(?::[a-z0-9/-]+)?$/u.test(error.message)
+          /^[A-Z_]+(?::[a-z0-9/-]+)*$/u.test(error.message)
           ? error.message
           : 'IMAGE_PUBLISH_FAILED',
       );

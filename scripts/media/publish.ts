@@ -66,6 +66,7 @@ export async function prepareMedia(
   const outputs: PreparedOutput[] = [];
   for (const spec of renditionSpecs(lane)) {
     let encoded: Buffer | undefined;
+    let measuredBytes = 0;
     for (
       let quality = spec.format === 'webp' ? 82 : 80;
       quality >= 70;
@@ -81,12 +82,16 @@ export async function prepareMedia(
               .jpeg({ quality, mozjpeg: true })
           : image.webp({ quality });
       const candidate = await image.toBuffer();
+      measuredBytes = candidate.length;
       if (candidate.length <= spec.maxBytes) {
         encoded = candidate;
         break;
       }
     }
-    if (!encoded) throw new Error(`RENDITION_BUDGET:${spec.role}`);
+    if (!encoded)
+      throw new Error(
+        `RENDITION_BUDGET:${spec.role}:${measuredBytes}:${spec.maxBytes}`,
+      );
     const dimensions = await sharp(encoded).metadata();
     if (!dimensions.width || !dimensions.height)
       throw new Error('INVALID_ENCODED_DIMENSIONS');
