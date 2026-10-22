@@ -1,4 +1,5 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { test } from '../support/localBrowser';
+import { expect, type Locator, type Page } from '@playwright/test';
 import {
   classifyGoogleAnalyticsRequest,
   installGoogleAnalyticsTrafficBlock,
@@ -11,7 +12,7 @@ async function interceptGoogleAnalytics(page: Page): Promise<string[]> {
     const url = new URL(route.request().url());
     const requestKind = classifyGoogleAnalyticsRequest(url);
     if (requestKind === null) {
-      await route.continue();
+      await route.fallback();
       return;
     }
     requests.push(url.href);
@@ -403,7 +404,7 @@ test('the automated traffic guard blocks Google Analytics before a fallback rout
   await context.route('**/*', async (route) => {
     const url = route.request().url();
     if (classifyGoogleAnalyticsRequest(url) === null) {
-      await route.continue();
+      await route.fallback();
       return;
     }
     fallbackRequests.push(url);

@@ -1,6 +1,15 @@
 export interface CollectionImage {
   url: string;
   darkUrl?: string;
+  srcSet?: string;
+  darkSrcSet?: string;
+  carousel?: { url: string; width: number; height: number; srcSet?: string };
+  darkCarousel?: {
+    url: string;
+    width: number;
+    height: number;
+    srcSet?: string;
+  };
   alt: string;
   width: 1920;
   height: 1080;

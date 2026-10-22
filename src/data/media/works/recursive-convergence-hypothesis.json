@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "pipelineVersion": "v1",
+  "source": {
+    "sha256": "422923f661aaa4dc5c0b146b93989a5d47012f3d9906c44908547541ea10ea11",
+    "width": 1920,
+    "height": 1080,
+    "format": "webp"
+  },
+  "renditions": [
+    {
+      "role": "responsive-small",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/works/recursive-convergence-hypothesis/422923f661aaa4dc5c0b146b93989a5d47012f3d9906c44908547541ea10ea11/responsive-small-60bed078a86e629889000a51667f7832c29ed239d47dc8a5fff198138145a9d4.webp",
+      "width": 480,
+      "height": 270,
+      "format": "webp",
+      "bytes": 10356,
+      "sha256": "60bed078a86e629889000a51667f7832c29ed239d47dc8a5fff198138145a9d4"
+    },
+    {
+      "role": "responsive-medium",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/works/recursive-convergence-hypothesis/422923f661aaa4dc5c0b146b93989a5d47012f3d9906c44908547541ea10ea11/responsive-medium-00434c55230c542df7e4793261062ff18560e17b62a79fad3de35cbc6a122740.webp",
+      "width": 960,
+      "height": 540,
+      "format": "webp",
+      "bytes": 33324,
+      "sha256": "00434c55230c542df7e4793261062ff18560e17b62a79fad3de35cbc6a122740"
+    },
+    {
+      "role": "carousel",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/works/recursive-convergence-hypothesis/422923f661aaa4dc5c0b146b93989a5d47012f3d9906c44908547541ea10ea11/carousel-e93bfe6d3af1e25b3190d918ee66e85db6256aa573d7efaff4ae32d18f19f226.webp",
+      "width": 1152,
+      "height": 648,
+      "format": "webp",
+      "bytes": 40334,
+      "sha256": "e93bfe6d3af1e25b3190d918ee66e85db6256aa573d7efaff4ae32d18f19f226"
+    },
+    {
+      "role": "responsive-large",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/works/recursive-convergence-hypothesis/422923f661aaa4dc5c0b146b93989a5d47012f3d9906c44908547541ea10ea11/responsive-large-837222254da99b084e712e01201a22f0bc3024892fa65545f6043c2b9317662a.webp",
+      "width": 1440,
+      "height": 810,
+      "format": "webp",
+      "bytes": 54482,
+      "sha256": "837222254da99b084e712e01201a22f0bc3024892fa65545f6043c2b9317662a"
+    },
+    {
+      "role": "detail",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/works/recursive-convergence-hypothesis/422923f661aaa4dc5c0b146b93989a5d47012f3d9906c44908547541ea10ea11/detail-143d540f8f62bfa6a8c305b983e0764dee93aa90ef3094f7ba72df19f7cae021.webp",
+      "width": 1920,
+      "height": 1080,
+      "format": "webp",
+      "bytes": 87844,
+      "sha256": "143d540f8f62bfa6a8c305b983e0764dee93aa90ef3094f7ba72df19f7cae021"
+    },
+    {
+      "role": "social",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/works/recursive-convergence-hypothesis/422923f661aaa4dc5c0b146b93989a5d47012f3d9906c44908547541ea10ea11/social-32fdff0f26d6704ae3292e3b51f41de087fc89330ade9c014e7867f18eb68a64.jpg",
+      "width": 1200,
+      "height": 675,
+      "format": "jpeg",
+      "bytes": 55294,
+      "sha256": "32fdff0f26d6704ae3292e3b51f41de087fc89330ade9c014e7867f18eb68a64"
+    }
+  ]
+}

@@ -1,0 +1,116 @@
+{
+  "release": "2.4.0",
+  "originalsStore": {
+    "id": "store_zuQm74IfTNAGny0B",
+    "access": "private",
+    "region": "hkg1",
+    "deploymentConnections": 0
+  },
+  "deliveryStore": "store_vYgE4WbMW8JGD8rh",
+  "legacyObjectsRetained": true,
+  "retirementRequiresApprovalAfterDeployment": true,
+  "originalCount": 14,
+  "originalBytes": 19073509,
+  "renditionCount": 63,
+  "renditionBytes": 3935731,
+  "objects": [
+    {
+      "legacyUrl": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/about/about-hero-b0ab33a5.jpg",
+      "bytes": 9702383,
+      "sha256": "b0ab33a5f5ee4f69cdf32aa14ef81a4bb45402ae5e268d35d3b98b24312138ec",
+      "key": "about/about-hero",
+      "status": "published"
+    },
+    {
+      "legacyUrl": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/blog/claude-code-guide-d74ab81e.png",
+      "bytes": 1280853,
+      "sha256": "d74ab81eaea6255c4d0efc56ecb072425e652886955079814bbfab596911209c",
+      "key": "blog/claude-code-guide",
+      "status": "published"
+    },
+    {
+      "legacyUrl": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/blog/eu-ai-act-regulating-technology-no-longer-exists-2ea9ebb2.jpg",
+      "bytes": 1412896,
+      "sha256": "2ea9ebb21400a723cf2c1269df680da69cf5249b620071cd2b1cc7e7f065704d",
+      "key": "blog/eu-ai-act-regulating-technology-no-longer-exists",
+      "status": "published"
+    },
+    {
+      "legacyUrl": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/blog/human-agency-agentic-age-23cc521c.webp",
+      "bytes": 286260,
+      "sha256": "23cc521c5353f55a7a8f7afa9cdcab1df166bc8cd72bfa2162d3a700c1d85bc0",
+      "key": "blog/human-agency-agentic-age",
+      "status": "published"
+    },
+    {
+      "legacyUrl": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/blog/philippines-ai-adoption-telemetry-6877427a.webp",
+      "bytes": 209520,
+      "sha256": "6877427af8b4397761285f13519de66028766df537434190bbd759162427ac92",
+      "key": "blog/philippines-ai-adoption-telemetry",
+      "status": "archived-only"
+    },
+    {
+      "legacyUrl": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/blog/philippines-ai-adoption-telemetry-cb72b50a.webp",
+      "bytes": 211598,
+      "sha256": "cb72b50ae0046d0dcb38e257b334a53157cecb5e7b99ff6821fdf314a4cd5da7",
+      "key": "blog/philippines-ai-adoption-telemetry",
+      "status": "published"
+    },
+    {
+      "legacyUrl": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/blog/spider-man-brand-new-day-fcef4196.png",
+      "bytes": 1995861,
+      "sha256": "fcef4196f6429976c179b91b5e12f1b329f96ac2dfe4dcc6f7547dbc7fcf5ad4",
+      "key": "blog/spider-man-brand-new-day",
+      "status": "published"
+    },
+    {
+      "legacyUrl": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/blog/test-image-184931fa.png",
+      "bytes": 565865,
+      "sha256": "184931fa483762a4e89b72d3bd3c3d00c829de3ed0563a11084c7fcdbb5571b0",
+      "key": "blog/test-image",
+      "status": "archived-only"
+    },
+    {
+      "legacyUrl": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/blog/vibe-coding-vs-agentic-coding-a1cec53a.png",
+      "bytes": 2211404,
+      "sha256": "a1cec53a95fb67957c0d218ef17a883e1610d46631a2567fa68fbeb5eb552958",
+      "key": "blog/vibe-coding-vs-agentic-coding",
+      "status": "published"
+    },
+    {
+      "legacyUrl": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/works/broad-reach-uneven-depth-2f36bce5.webp",
+      "bytes": 208392,
+      "sha256": "2f36bce5ec1f7d01b808f3238e361ce25f9e8d9f68705a96245c87756961e10b",
+      "key": "works/broad-reach-uneven-depth",
+      "status": "published"
+    },
+    {
+      "legacyUrl": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/works/digital-squad-timesheet-dashboard-dark-3df8f1fd.png",
+      "bytes": 141066,
+      "sha256": "3df8f1fd88576fb15b6ac9dfcd071138505db5aa21050c2d3b1ff442872a4a04",
+      "key": "works/digital-squad-timesheet-dashboard-dark",
+      "status": "published"
+    },
+    {
+      "legacyUrl": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/works/digital-squad-timesheet-dashboard-light-6571cb6d.png",
+      "bytes": 140578,
+      "sha256": "6571cb6d72e66e2df2b8bae0ad8b8e0fd7c90d93c8caaa5abb3edf98e97df7de",
+      "key": "works/digital-squad-timesheet-dashboard-light",
+      "status": "published"
+    },
+    {
+      "legacyUrl": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/works/recursive-convergence-hypothesis-422923f6.webp",
+      "bytes": 140968,
+      "sha256": "422923f661aaa4dc5c0b146b93989a5d47012f3d9906c44908547541ea10ea11",
+      "key": "works/recursive-convergence-hypothesis",
+      "status": "published"
+    },
+    {
+      "legacyUrl": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/works/test-image-184931fa.png",
+      "bytes": 565865,
+      "sha256": "184931fa483762a4e89b72d3bd3c3d00c829de3ed0563a11084c7fcdbb5571b0",
+      "key": "works/test-image",
+      "status": "archived-only"
+    }
+  ]
+}

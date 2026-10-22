@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "pipelineVersion": "v1",
+  "source": {
+    "sha256": "3df8f1fd88576fb15b6ac9dfcd071138505db5aa21050c2d3b1ff442872a4a04",
+    "width": 1920,
+    "height": 1080,
+    "format": "png"
+  },
+  "renditions": [
+    {
+      "role": "responsive-small",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/works/digital-squad-timesheet-dashboard-dark/3df8f1fd88576fb15b6ac9dfcd071138505db5aa21050c2d3b1ff442872a4a04/responsive-small-ca09cb7d5aa2eeb77343a6e11bd78b5d087f8f04d3db54d9ff3b526036216a3e.webp",
+      "width": 480,
+      "height": 270,
+      "format": "webp",
+      "bytes": 6148,
+      "sha256": "ca09cb7d5aa2eeb77343a6e11bd78b5d087f8f04d3db54d9ff3b526036216a3e"
+    },
+    {
+      "role": "responsive-medium",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/works/digital-squad-timesheet-dashboard-dark/3df8f1fd88576fb15b6ac9dfcd071138505db5aa21050c2d3b1ff442872a4a04/responsive-medium-496a6e9146fec7ae62d40590728ca582ba9c172a90daca5bafb63624ea224e75.webp",
+      "width": 960,
+      "height": 540,
+      "format": "webp",
+      "bytes": 19464,
+      "sha256": "496a6e9146fec7ae62d40590728ca582ba9c172a90daca5bafb63624ea224e75"
+    },
+    {
+      "role": "carousel",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/works/digital-squad-timesheet-dashboard-dark/3df8f1fd88576fb15b6ac9dfcd071138505db5aa21050c2d3b1ff442872a4a04/carousel-07c48800d6328578d3342d0c82447da076d554b64a17931fbabe2c81430d9b2f.webp",
+      "width": 1152,
+      "height": 648,
+      "format": "webp",
+      "bytes": 25214,
+      "sha256": "07c48800d6328578d3342d0c82447da076d554b64a17931fbabe2c81430d9b2f"
+    },
+    {
+      "role": "responsive-large",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/works/digital-squad-timesheet-dashboard-dark/3df8f1fd88576fb15b6ac9dfcd071138505db5aa21050c2d3b1ff442872a4a04/responsive-large-123d5fe23cdc22a2d8b72b87de8da60e91993c9aad6c388b187b4f33e9ebeb9a.webp",
+      "width": 1440,
+      "height": 810,
+      "format": "webp",
+      "bytes": 34184,
+      "sha256": "123d5fe23cdc22a2d8b72b87de8da60e91993c9aad6c388b187b4f33e9ebeb9a"
+    },
+    {
+      "role": "detail",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/works/digital-squad-timesheet-dashboard-dark/3df8f1fd88576fb15b6ac9dfcd071138505db5aa21050c2d3b1ff442872a4a04/detail-0cc603241a524440b91b6148be1ad44f6745963a3699f104d30bc9df31c43a78.webp",
+      "width": 1920,
+      "height": 1080,
+      "format": "webp",
+      "bytes": 50236,
+      "sha256": "0cc603241a524440b91b6148be1ad44f6745963a3699f104d30bc9df31c43a78"
+    },
+    {
+      "role": "social",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/works/digital-squad-timesheet-dashboard-dark/3df8f1fd88576fb15b6ac9dfcd071138505db5aa21050c2d3b1ff442872a4a04/social-b97424304c7f31a15b8ef324fbd323c4612dfdc3b4f7513c2ae1933d8a5eb844.jpg",
+      "width": 1200,
+      "height": 675,
+      "format": "jpeg",
+      "bytes": 41921,
+      "sha256": "b97424304c7f31a15b8ef324fbd323c4612dfdc3b4f7513c2ae1933d8a5eb844"
+    }
+  ]
+}

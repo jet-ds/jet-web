@@ -270,6 +270,8 @@ function ThemeImage({
     <>
       <img
         src={item.image.url}
+        srcSet={item.image.srcSet}
+        sizes="(min-width: 1024px) 48vw, 90vw"
         alt={alt}
         width={item.image.width}
         height={item.image.height}
@@ -280,6 +282,8 @@ function ThemeImage({
       />
       <img
         src={item.image.darkUrl}
+        srcSet={item.image.darkSrcSet}
+        sizes="(min-width: 1024px) 48vw, 90vw"
         alt={alt}
         width={item.image.width}
         height={item.image.height}
@@ -292,6 +296,8 @@ function ThemeImage({
   ) : (
     <img
       src={item.image.url}
+      srcSet={item.image.srcSet}
+      sizes="(min-width: 1024px) 48vw, 90vw"
       alt={alt}
       width={item.image.width}
       height={item.image.height}

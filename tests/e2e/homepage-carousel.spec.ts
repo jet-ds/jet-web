@@ -1,4 +1,9 @@
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { revealCarousel } from '../support/carousel';
+import { loadMediaAsset } from '../../src/features/media/registry.server';
+import { installMediaTrafficFixture } from '../support/mediaTraffic';
+import { installGoogleAnalyticsTrafficBlock } from '../support/googleAnalyticsTraffic';
+import { test } from '../support/localBrowser';
+import { expect, type Locator, type Page } from '@playwright/test';
 import { resolvedPublishedCollections } from '../support/publishedContent';
 
 const homepageSections = () => {
@@ -30,9 +35,7 @@ async function waitForCarousels(page: Page): Promise<void> {
   );
   for (const { label } of sections) {
     const root = carouselRoot(page, label);
-    const sentinel = root.locator('[data-carousel-sentinel]');
-    if ((await sentinel.count()) > 0) await sentinel.scrollIntoViewIfNeeded();
-    await expect(root.getByRole('region')).toBeVisible();
+    await revealCarousel(root, label);
   }
 }
 
@@ -167,6 +170,8 @@ test(
   { tag: '@desktop' },
   async ({ browser }) => {
     const context = await browser.newContext({ javaScriptEnabled: false });
+    await installGoogleAnalyticsTrafficBlock(context);
+    await installMediaTrafficFixture(context);
     const page = await context.newPage();
     await page.goto('/');
 
@@ -322,7 +327,7 @@ test(
       expect(islandProps).not.toContain('"search"');
     }
 
-    await sentinel.scrollIntoViewIfNeeded();
+    await revealCarousel(root, firstSection.label);
     await expect.poll(() => carouselRequests.length).toBe(1);
     await expect(root.getByRole('region')).toBeVisible();
     await expect(sentinel).toHaveCount(0);
@@ -345,9 +350,7 @@ test(
     const worksRoot = carouselRoot(page, works.label);
     await expect(articleRoot.getByRole('region')).toHaveCount(0);
     await expect(worksRoot.getByRole('region')).toHaveCount(0);
-    await articleRoot
-      .locator('[data-carousel-sentinel]')
-      .scrollIntoViewIfNeeded();
+    await revealCarousel(articleRoot, articles.label);
     await expect(articleRoot.getByRole('region')).toBeVisible();
 
     await page.evaluate(
@@ -362,19 +365,89 @@ test(
   },
 );
 
+test('keeps canonical fallback links usable until delayed scripts are released', async ({
+  page,
+}) => {
+  let releaseScripts: () => void = () => {};
+  let signalRequest: () => void = () => {};
+  const released = new Promise<void>((resolve) => {
+    releaseScripts = resolve;
+  });
+  const requested = new Promise<void>((resolve) => {
+    signalRequest = resolve;
+  });
+  await page.route('**/*', async (route) => {
+    if (
+      route.request().resourceType() === 'script' &&
+      new URL(route.request().url()).hostname === '127.0.0.1'
+    ) {
+      signalRequest();
+      await released;
+    }
+    await route.fallback();
+  });
+  try {
+    await page.goto('/', { waitUntil: 'commit' });
+    await requested;
+    const section = homepageSections().find(
+      ({ records }) => records.length >= 2,
+    );
+    expect(
+      section,
+      'The carousel contract needs two destinations',
+    ).toBeDefined();
+    if (!section) throw new Error('No interactive carousel fixture');
+    const owner = carouselRoot(page, section.label);
+    const fallback = owner.locator('[data-carousel-fallback]');
+    await expect(fallback).toBeVisible();
+    await expect(
+      owner.getByRole('region', { name: section.label }),
+    ).toHaveCount(0);
+    expect(
+      await fallback
+        .getByRole('link')
+        .evaluateAll((links) => links.map((link) => link.getAttribute('href'))),
+    ).toEqual(section.records.map((record) => record.href));
+    releaseScripts();
+    await page.waitForLoadState('load');
+    const region = await revealCarousel(owner, section.label);
+    await expect(fallback).toBeHidden();
+    await expect(region.getByRole('link')).toHaveAttribute(
+      'href',
+      section.records[0].href,
+    );
+    await region.getByRole('button', { name: /^Next /u }).click();
+    await expect(region.getByRole('link')).toHaveAttribute(
+      'href',
+      section.records[1].href,
+    );
+  } finally {
+    releaseScripts();
+  }
+});
+
+test('keeps an already-ready carousel interactive when its section is revisited', async ({
+  page,
+}) => {
+  await page.goto('/');
+  const section = homepageSections().find(({ records }) => records.length >= 2);
+  expect(section, 'The carousel contract needs two destinations').toBeDefined();
+  if (!section) throw new Error('No interactive carousel fixture');
+  const owner = carouselRoot(page, section.label);
+  const region = await revealCarousel(owner, section.label);
+  await region.getByRole('button', { name: /^Next /u }).click();
+  const selected = await activeHref(region);
+  await page.evaluate(() => window.scrollTo({ top: 0, behavior: 'instant' }));
+  await revealCarousel(owner, section.label);
+  await expect(region.getByRole('link')).toHaveAttribute('href', selected);
+  await region.getByRole('button', { name: /^Previous /u }).click();
+  await expect(region.getByRole('link')).not.toHaveAttribute('href', selected);
+});
+
 test(
-  'serves every enhanced carousel image locally without Blob requests',
+  'uses only published bounded renditions for every enhanced carousel image',
   { tag: '@desktop' },
   async ({ page }) => {
-    const blobRequests: string[] = [];
-    await page.route(
-      /https:\/\/[^/]+\.public\.blob\.vercel-storage\.com\/.+/u,
-      async (route) => {
-        blobRequests.push(route.request().url());
-        await route.abort('blockedbyclient');
-      },
-    );
-
     await page.goto('/');
     await waitForCarousels(page);
 
@@ -391,7 +464,7 @@ test(
 
         const destination = region.getByRole('link');
         await expect(destination).toHaveAttribute('href', record.href);
-        const image = destination.locator('img');
+        const image = destination.locator('img:visible');
         await expect(image).toHaveCount(1);
         await expect
           .poll(() =>
@@ -413,12 +486,40 @@ test(
             width: element.naturalWidth,
           };
         });
-        expect(new URL(evidence.src).origin).toBe(new URL(page.url()).origin);
-        expect(evidence.width / evidence.height).toBeCloseTo(16 / 9, 3);
+        expect(new URL(evidence.src).hostname).toBe(
+          'vyge4wbmw8jgd8rh.public.blob.vercel-storage.com',
+        );
+        expect(new URL(evidence.src).pathname).toMatch(/^\/images\/v1\//u);
+        const allowedSources = new Set([
+          record.image.url,
+          record.image.darkUrl,
+          record.image.carousel?.url,
+          record.image.darkCarousel?.url,
+          ...[
+            record.image.srcSet,
+            record.image.darkSrcSet,
+            record.image.carousel?.srcSet,
+            record.image.darkCarousel?.srcSet,
+          ].flatMap(
+            (set) =>
+              set?.split(', ').map((candidate) => candidate.split(' ')[0]) ??
+              [],
+          ),
+        ]);
+        expect(allowedSources.has(evidence.src)).toBe(true);
+        const sourceURL = new URL(evidence.src);
+        const segments = sourceURL.pathname.split('/');
+        const asset = loadMediaAsset(`${segments[3]}/${segments[4]}`);
+        const rendition = asset.renditions.find(
+          (item) => item.url === evidence.src,
+        );
+        expect(rendition).toBeDefined();
+        expect(rendition!.format).toBe('webp');
+        expect(rendition!.width / rendition!.height).toBeCloseTo(16 / 9, 3);
+        await expect(image).toHaveAttribute('width', '1152');
+        await expect(image).toHaveAttribute('height', '648');
       }
     }
-
-    expect(blobRequests).toEqual([]);
   },
 );
 
@@ -600,6 +701,22 @@ test(
     await active.scrollIntoViewIfNeeded();
     await waitForStableGeometry(active);
     await waitForStableGeometry(receded);
+    // Compare drag movement only after the heading's entrance has finished.
+    await heading.evaluate(async (element) => {
+      const animations: Animation[] = [];
+      for (
+        let ancestor: Element | null = element;
+        ancestor !== null;
+        ancestor = ancestor.parentElement
+      ) {
+        animations.push(...ancestor.getAnimations());
+      }
+      await Promise.all(
+        animations.map((animation) =>
+          animation.finished.catch(() => undefined),
+        ),
+      );
+    });
 
     const [
       sectionBefore,

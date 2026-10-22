@@ -1,10 +1,10 @@
+import { test } from '../support/localBrowser';
 import { readdirSync, readFileSync } from 'node:fs';
 import { join } from 'node:path';
 
 import AxeBuilder from '@axe-core/playwright';
 import {
   expect,
-  test,
   type Locator,
   type Page,
   type Request,

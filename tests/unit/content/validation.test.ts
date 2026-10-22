@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { blogSchema, worksSchema } from '../../../src/schemas/content';
+import { fixtureContentSchemas } from '../../fixtures/media';
+const { blogSchema, worksSchema } = fixtureContentSchemas();
 import {
   assertGeneratedAssistantSources,
   type ContentPolicyError,
@@ -32,19 +33,13 @@ function expectRule(
 
 describe('content validation', () => {
   const immutableBlogImage = {
-    url: 'https://assets.public.blob.vercel-storage.com/images/blog/invented-post-a1b2c3d4.webp',
+    asset: 'blog/example',
     alt: 'An invented editorial illustration',
-    width: 1920,
-    height: 1080,
   } as const;
-
   const immutableWorkImage = {
-    url: 'https://assets.public.blob.vercel-storage.com/images/works/invented-work-a1b2c3d4.png',
-    darkUrl:
-      'https://assets.public.blob.vercel-storage.com/images/works/invented-work-dark-e5f6a7b8.png',
-    alt: 'An invented project interface in light and dark themes',
-    width: 1920,
-    height: 1080,
+    asset: 'works/example',
+    darkAsset: 'works/example-dark',
+    alt: 'An invented project interface',
   } as const;
 
   const publishedBlog = {
@@ -125,7 +120,7 @@ describe('content validation', () => {
           url: 'https://example.com/images/blog/invented-post.webp',
         },
       },
-      path: ['image', 'url'],
+      path: ['image'],
     },
     {
       name: 'non-HTTPS Blog Blob URL',
@@ -137,7 +132,7 @@ describe('content validation', () => {
           url: 'http://assets.public.blob.vercel-storage.com/images/blog/invented-post-a1b2c3d4.webp',
         },
       },
-      path: ['image', 'url'],
+      path: ['image'],
     },
     {
       name: 'query-bearing Blog Blob URL',
@@ -146,10 +141,10 @@ describe('content validation', () => {
         ...publishedBlog,
         image: {
           ...immutableBlogImage,
-          url: `${immutableBlogImage.url}?version=2`,
+          url: 'https://example.com/query?version=2',
         },
       },
-      path: ['image', 'url'],
+      path: ['image'],
     },
     {
       name: 'mutable Work dark URL',
@@ -161,7 +156,7 @@ describe('content validation', () => {
           darkUrl: 'https://example.com/images/works/invented-work-dark.png',
         },
       },
-      path: ['image', 'darkUrl'],
+      path: ['image'],
     },
     {
       name: 'empty Blog alt text',
@@ -179,7 +174,7 @@ describe('content validation', () => {
         ...publishedBlog,
         image: { ...immutableBlogImage, width: 1280 },
       },
-      path: ['image', 'width'],
+      path: ['image'],
     },
     {
       name: 'wrong Work height',
@@ -188,7 +183,7 @@ describe('content validation', () => {
         ...publishedWork,
         image: { ...immutableWorkImage, height: 720 },
       },
-      path: ['image', 'height'],
+      path: ['image'],
     },
   ])('rejects a published record with $name', ({ schema, input, path }) => {
     const result = schema.safeParse(input);
@@ -201,7 +196,7 @@ describe('content validation', () => {
     }
   });
 
-  it('requires declared dimensions whenever draft image frontmatter exists', () => {
+  it('rejects direct URLs in draft image frontmatter', () => {
     const result = worksSchema.safeParse({
       title: 'Draft work',
       description: 'Draft description.',
@@ -217,10 +212,9 @@ describe('content validation', () => {
 
     expect(result.success).toBe(false);
     if (!result.success) {
-      expect(result.error.issues.map(({ path }) => path)).toEqual([
-        ['image', 'width'],
-        ['image', 'height'],
-      ]);
+      expect(result.error.issues.some(({ path }) => path[0] === 'image')).toBe(
+        true,
+      );
     }
   });
 

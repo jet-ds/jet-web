@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "pipelineVersion": "v1",
+  "source": {
+    "sha256": "2f36bce5ec1f7d01b808f3238e361ce25f9e8d9f68705a96245c87756961e10b",
+    "width": 1920,
+    "height": 1080,
+    "format": "webp"
+  },
+  "renditions": [
+    {
+      "role": "responsive-small",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/works/broad-reach-uneven-depth/2f36bce5ec1f7d01b808f3238e361ce25f9e8d9f68705a96245c87756961e10b/responsive-small-6af7cad406ff4e3bb8ad858c93369a8bd5934ae61e92ebc578829d8a642e6d9d.webp",
+      "width": 480,
+      "height": 270,
+      "format": "webp",
+      "bytes": 14216,
+      "sha256": "6af7cad406ff4e3bb8ad858c93369a8bd5934ae61e92ebc578829d8a642e6d9d"
+    },
+    {
+      "role": "responsive-medium",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/works/broad-reach-uneven-depth/2f36bce5ec1f7d01b808f3238e361ce25f9e8d9f68705a96245c87756961e10b/responsive-medium-c9e52833a2827c499048443f7b603686ee85d8972fdb03cd9595f58b09404a00.webp",
+      "width": 960,
+      "height": 540,
+      "format": "webp",
+      "bytes": 49540,
+      "sha256": "c9e52833a2827c499048443f7b603686ee85d8972fdb03cd9595f58b09404a00"
+    },
+    {
+      "role": "carousel",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/works/broad-reach-uneven-depth/2f36bce5ec1f7d01b808f3238e361ce25f9e8d9f68705a96245c87756961e10b/carousel-badb2506cd0496598def2e6019d8f4044c178c0071741a5fd2935c276ccf1e46.webp",
+      "width": 1152,
+      "height": 648,
+      "format": "webp",
+      "bytes": 60978,
+      "sha256": "badb2506cd0496598def2e6019d8f4044c178c0071741a5fd2935c276ccf1e46"
+    },
+    {
+      "role": "responsive-large",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/works/broad-reach-uneven-depth/2f36bce5ec1f7d01b808f3238e361ce25f9e8d9f68705a96245c87756961e10b/responsive-large-44f23cbeba4a37b42a8c25e5f183a8c395f20da51c5487f3506ae463e0087211.webp",
+      "width": 1440,
+      "height": 810,
+      "format": "webp",
+      "bytes": 83208,
+      "sha256": "44f23cbeba4a37b42a8c25e5f183a8c395f20da51c5487f3506ae463e0087211"
+    },
+    {
+      "role": "detail",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/works/broad-reach-uneven-depth/2f36bce5ec1f7d01b808f3238e361ce25f9e8d9f68705a96245c87756961e10b/detail-c19fe712bf10b81fb5cad7df1a232917dd6ee3d72121c7cc1e81c34af1e9f600.webp",
+      "width": 1920,
+      "height": 1080,
+      "format": "webp",
+      "bytes": 135150,
+      "sha256": "c19fe712bf10b81fb5cad7df1a232917dd6ee3d72121c7cc1e81c34af1e9f600"
+    },
+    {
+      "role": "social",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/works/broad-reach-uneven-depth/2f36bce5ec1f7d01b808f3238e361ce25f9e8d9f68705a96245c87756961e10b/social-b89225592b67bc406246cc4ce12713b65161ddb29026c47fe6e1d437864ccb2f.jpg",
+      "width": 1200,
+      "height": 675,
+      "format": "jpeg",
+      "bytes": 75126,
+      "sha256": "b89225592b67bc406246cc4ce12713b65161ddb29026c47fe6e1d437864ccb2f"
+    }
+  ]
+}

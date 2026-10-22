@@ -9,7 +9,9 @@ import { extname, relative, resolve, sep } from 'node:path';
 import { fileURLToPath } from 'node:url';
 import matter from 'gray-matter';
 import sharp from 'sharp';
-import { blogSchema, worksSchema } from '../src/schemas/content';
+import { createContentSchemas } from '../src/schemas/content';
+import { loadMediaAsset } from '../src/features/media/registry.server';
+import { sha256 } from './media/publish';
 
 type CollectionName = 'blog' | 'works';
 type SupportedImageFormat = 'jpeg' | 'png' | 'webp' | 'avif' | 'gif';
@@ -21,6 +23,9 @@ export interface ImageReference {
   field: 'image.url' | 'image.darkUrl';
   width: number;
   height: number;
+  bytes?: number;
+  sha256?: string;
+  format?: SupportedImageFormat;
 }
 
 interface ValidationResult extends ImageReference {
@@ -49,6 +54,7 @@ const collections = [
 
 export function readContentImages(root = repositoryRoot): ImageReference[] {
   const references: ImageReference[] = [];
+  const { blogSchema, worksSchema } = createContentSchemas(root);
 
   for (const collection of collections) {
     const collectionRoot = resolve(root, collection.directory);
@@ -78,28 +84,18 @@ export function readContentImages(root = repositoryRoot): ImageReference[] {
           .slice(0, -extname(path).length)
           .split(sep)
           .join('/');
-        references.push({
-          url: parsed.image.url,
-          contentType: collection.name,
-          contentId,
-          field: 'image.url',
-          width: parsed.image.width,
-          height: parsed.image.height,
-        });
-
-        if (
-          collection.name === 'works' &&
-          'darkUrl' in parsed.image &&
-          parsed.image.darkUrl
-        ) {
-          references.push({
-            url: parsed.image.darkUrl,
-            contentType: collection.name,
-            contentId,
-            field: 'image.darkUrl',
-            width: parsed.image.width,
-            height: parsed.image.height,
-          });
+        for (const assetKey of [
+          parsed.image.asset,
+          ...('darkAsset' in parsed.image ? [parsed.image.darkAsset] : []),
+        ]) {
+          if (typeof assetKey !== 'string') continue;
+          for (const rendition of loadMediaAsset(assetKey, root).renditions)
+            references.push({
+              ...rendition,
+              contentType: collection.name,
+              contentId: `${contentId}:${rendition.role}`,
+              field: 'image.url',
+            });
         }
       }
     };
@@ -107,7 +103,14 @@ export function readContentImages(root = repositoryRoot): ImageReference[] {
     visit(collectionRoot);
   }
 
-  return references;
+  for (const rendition of loadMediaAsset('about/about-hero', root).renditions)
+    references.push({
+      ...rendition,
+      contentType: 'blog',
+      contentId: `about:${rendition.role}`,
+      field: 'image.url',
+    });
+  return [...new Map(references.map((item) => [item.url, item])).values()];
 }
 
 export async function decodeImageMetadata(
@@ -216,12 +219,13 @@ export async function validateRemoteImage(
   options: RemoteImageOptions = {},
 ): Promise<{ ok: boolean; error?: string }> {
   const fetchImage = options.fetch ?? fetch;
-  const maxBytes = options.maxBytes ?? maximumImageBytes;
+  const maxBytes = options.maxBytes ?? reference.bytes ?? maximumImageBytes;
 
   try {
     const response = await fetchImage(reference.url, {
       method: 'GET',
-      redirect: 'follow',
+      redirect: 'error',
+      signal: AbortSignal.timeout(30000),
     });
     if (!response.ok) {
       await response.body?.cancel();
@@ -238,7 +242,18 @@ export async function validateRemoteImage(
     }
 
     const bytes = await readBoundedResponse(response, maxBytes);
+    if (reference.bytes !== undefined && bytes.length !== reference.bytes)
+      throw new Error('Rendition byte count mismatch.');
+    if (reference.sha256 !== undefined && sha256(bytes) !== reference.sha256)
+      throw new Error('Rendition SHA-256 mismatch.');
     const metadata = await decodeImageMetadata(bytes);
+    if (
+      reference.format !== undefined &&
+      (metadata.format !== reference.format ||
+        contentType.split(';')[0].trim().toLowerCase() !==
+          `image/${reference.format}`)
+    )
+      throw new Error('Rendition format or MIME mismatch.');
     if (
       metadata.width !== reference.width ||
       metadata.height !== reference.height

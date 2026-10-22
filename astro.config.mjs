@@ -27,16 +27,6 @@ export default defineConfig({
     },
     plugins: [tailwindcss()],
   },
-  image: {
-    // Image optimization configuration
-    domains: [],
-    remotePatterns: [
-      {
-        protocol: 'https',
-        hostname: '**.public.blob.vercel-storage.com',
-      },
-    ],
-  },
   markdown: {
     // Shiki syntax highlighting configuration
     shikiConfig: {

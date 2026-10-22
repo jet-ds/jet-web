@@ -86,7 +86,7 @@ assistant: false
 - Review metadata currently identifies a movie and an integer rating on the five-star scale. It renders in the article header and as a linked `Review` JSON-LD entity; Blog and Home cards remain unrated editorial teasers.
 - Work fields include title, optional short display title, description, required-on-publication card summary and image, type, date, tags, publication state, assistant eligibility, optional positive-integer `homepagePriority`, optional links, and type-specific research or project fields. Lower Homepage priorities sort first; the Works hub ignores priority.
 - Tags are human-facing labels rendered verbatim. Separate words with spaces rather than kebab-case hyphens; retain hyphens only when the term itself requires one, such as `Spider-Man` or `cross-country measurement`.
-- Every content image requires a stable URL, descriptive `alt` text, and verified intrinsic pixel `width` and `height` so cards and custom OpenGraph metadata never borrow false default dimensions.
+- Every content image requires a tracked descriptor key, descriptive authored `alt` text, and verified descriptor rendition dimensions so cards and custom OpenGraph metadata never borrow false default dimensions.
 - Run `npm run verify:content` after changing frontmatter or content-policy code.
 
 ## Collections and discovery
@@ -101,51 +101,56 @@ assistant: false
 
 `AGENTS.md` is the sole active image-workflow authority. The upload script is the only checked-in command authorized to mutate Vercel Blob.
 
-### Prepare
+### Prepare and publish
 
-- Supported source formats are `jpg`, `jpeg`, `png`, `webp`, `avif`, and `gif`.
-- Stage files in exactly one lane: `public/images-staging/about/`, `public/images-staging/blog/`, or `public/images-staging/works/`.
-- Use a descriptive kebab-case slug tied to the destination page or content slug, for example `local-ai-retrieval.jpg`.
-- Blog and work featured images should be `16:9` and under 2 MB before upload.
-- The current About portrait lane uses `3:4`, with `1200x1600` as the reference size.
-- Do not replace the `.gitkeep` files with a second workflow document.
-
-### Upload
-
-Set `BLOB_READ_WRITE_TOKEN` in `.env.local`, then run:
+- Stage descriptive kebab-case source files only in ignored `Untracked/media-staging/{about,blog,works}/`. Never put originals in `public/`; builds reject media in the legacy `public/images-staging/` lanes. Retain their `.gitkeep` markers.
+- Supported formats: JPEG, PNG, WebP, AVIF, GIF. Reject animation/multipage, sources over 20 MiB or 64 megapixels. Published Blog/Works sources must be exactly 1920×1080. About must be 3:4, at least 1200×1600; preserve the current 3060×4080 original.
+- Set the existing public store token as `BLOB_READ_WRITE_TOKEN` and the separate private `jet-web-originals` token as `BLOB_ORIGINALS_READ_WRITE_TOKEN` in local `.env.local` only. Never connect the originals store or its credential to deployment/CI environments.
 
 ```bash
-npm run upload-image blog/local-ai-retrieval.jpg
-npm run upload-image works/research-project.png
-npm run upload-image about/about-hero.jpg
+npm run upload-image -- blog/local-ai-retrieval.jpg
+npm run upload-image -- works/research-project.png
+npm run upload-image -- about/about-hero.jpg
 ```
 
-The command reads only from `public/images-staging/<type>/`, hashes the bytes, uploads to `images/<type>/<slug>-<hash>.<ext>`, and returns the immutable public URL. Do not call Vercel Blob write APIs from a build, content loader, page, or ad hoc replacement script.
+The operator command preserves raw originals privately, creates finite WebP/JPEG delivery renditions, checks dimensions/budgets/hash/cache metadata, uploads without overwrite, and atomically saves `src/data/media/<lane>/<slug>.json` only after complete readback verification. Paths include pipeline version and full source/output SHA-256. Interrupted uploads resume using ignored operation receipts; no automatic deletion or rollback is permitted.
 
-### Reference
-
-For blog records, copy the returned URL and verified intrinsic dimensions into the matching file under `src/data/blog/`:
+### Reference and verify
 
 ```yaml
 image:
-  url: 'https://example.public.blob.vercel-storage.com/images/blog/example-12345678.jpg'
-  alt: 'A descriptive account of the visible image'
-  width: 1920
-  height: 1080
+  asset: blog/local-ai-retrieval
+  alt: A descriptive account of the visible image
 ```
 
-Work records use `url`, optional `darkUrl`, `alt`, and optional verified intrinsic `width` and `height` under `src/data/works/`.
+Works additionally supports `darkAsset`. Direct authored `url`, `darkUrl`, width or height fields are rejected. Git-track descriptors together with content. About resolves `about/about-hero` through the same local registry. Rendering uses public renditions; no build-time remote optimization or media credentials are required. Social metadata consistently uses the light 1200×675 JPEG. The public rendition contract is maintained below.
 
-The About portrait is not content frontmatter. Update the direct `OptimizedImage` source in `src/pages/about.astro`, retaining the actual dimensions and descriptive alternative text.
+1. Run `npm run verify:content`, `npm run verify:media`, and `npm run verify:build-purity`.
+2. Use `npm run validate-images` only for explicit remote verification. It deduplicates and bounds reads of public renditions; routine tests/builds remain offline for media.
+3. Inspect mobile/desktop and light/dark rendering. Preserve staged originals until the private archive is verified; never delete local progress implicitly.
+4. Legacy migration is operator-only: `npm run upload-image -- --cache-legacy` caches each inventoried source once; `npm run upload-image -- --migrate-legacy` archives all 14 originals and publishes the 11 referenced sets. Receipts and source caches live under ignored `Untracked/media-migration/`. Retain all legacy public objects until an explicitly approved retirement after release acceptance and verified deployment. Publication alone cannot stop requests to old URLs.
 
-### Verify and clean up
+### Public rendition contract
 
-1. Run `npm run validate-images` when remote content-image references change.
-2. Run `npm run build`, then inspect the affected page with `npm run preview` at representative desktop and mobile widths in light and dark mode.
-3. Confirm the intended crop, intrinsic dimensions, alternative text, and production Blob response.
-4. A changed file produces a new hash URL rather than overwriting the old object. Update every repository reference and verify the replacement before any explicit operator-side deletion of the obsolete Blob.
-5. The upload script does not delete or replace old objects. Blob removal is a separate external operation and must not occur while a live page or deployment references the URL.
-6. Remove the local staged source after the new URL is adopted and verified; leave each lane's `.gitkeep` in place.
+Generate this finite set at upload time; builds only resolve checked-in descriptors.
+
+| Source lane  | Public role       | Dimensions | Format | Maximum encoded bytes |
+| ------------ | ----------------- | ---------- | ------ | --------------------- |
+| Blog / Works | responsive-small  | 480x270    | WebP   | 60,000                |
+| Blog / Works | responsive-medium | 960x540    | WebP   | 160,000               |
+| Blog / Works | carousel          | 1152x648   | WebP   | 220,000               |
+| Blog / Works | responsive-large  | 1440x810   | WebP   | 300,000               |
+| Blog / Works | detail            | 1920x1080  | WebP   | 500,000               |
+| Blog / Works | social            | 1200x675   | JPEG   | 200,000               |
+| About        | portrait-small    | 400x533    | WebP   | 100,000               |
+| About        | portrait-medium   | 800x1067   | WebP   | 200,000               |
+| About        | portrait-detail   | 1200x1600  | WebP   | 350,000               |
+
+Intermediate portrait heights use aspect-preserving rounding, with at most one pixel of rounding difference; record decoded dimensions. Public output strips source metadata; transparent social JPEGs flatten against white. Start at WebP quality 82 or JPEG quality 80, with bounded quality reduction no lower than 70. Fail with the role and measured size when a budget cannot be met; never silently crop, resize or publish an oversized fallback. Use no-overwrite immutable object paths and a one-year cache lifetime. Light/dark artwork has separate descriptors; social metadata uses the light asset, and About keeps the default social image.
+
+### Media release cutover
+
+Qualify the rendition references, metadata and rendering on Preview before an approved Production promotion. After cutover, verify live page and metadata identities and monitor continuing requests to legacy URLs separately. Before any separately approved retirement, inventory retained deployments and rollback dependencies and present the exact targets and consequences. An application-domain redirect cannot intercept direct Blob-host requests. Before retirement, old content commits remain rollback targets; afterward, rollback must use rendition-based releases. Preserve the private archive and local operation receipts.
 
 The default social image is the committed `public/images/og-default.jpg`. Recreate it only through `npm run capture:og -- --overwrite`, visually inspect the result, and retain the exact shared metadata contract in `src/config/site.ts`.
 
@@ -153,7 +158,7 @@ The default social image is the committed `public/images/og-default.jpg`. Recrea
 
 Egregore is a local-first technical showcase and experimental personal assistant, not a general website-support widget.
 
-The released `2.2` runtime and interaction boundaries are in force:
+The following runtime and interaction boundaries are maintained:
 
 - The semantic route is the canonical `200` document at `/chatbot/`; platform normalization owns slashless variants, and one explicit legacy `/tools/chatbot/` rule redirects to `/chatbot/`.
 - `/chatbot/` is an index-follow canonical page and appears once in the generated sitemap. Vercel owns Preview and outdated-deployment exclusion through its deployment-wide `X-Robots-Tag`; do not add a page-level Egregore indexing gate.
@@ -165,9 +170,25 @@ The released `2.2` runtime and interaction boundaries are in force:
 - `/api/chat`, hosted generation, and the OpenRouter production credential remain removed.
 - The distributed license bundle, pinned package and runtime identities, public notice routes, and applicable notice text are current product contracts. Historical legal analysis is evidence, not an executable input.
 
-Preserve the released interaction model: a full-screen local-first experience, explicit compatibility and load actions, stable lifecycle controls, deterministic citations, keyboard-operable disclosures, responsive layouts, reduced-motion behavior, and the established semantic color roles. The [2.2.0 design](./docs/superpowers/specs/2026-07-18-jet-web-2.2.0-design.md) is the current product authority.
+Preserve the released interaction model: a full-screen local-first experience, explicit compatibility and load actions, stable lifecycle controls, deterministic citations, keyboard-operable disclosures, responsive layouts, reduced-motion behavior, and the established semantic color roles.
 
 Assistant responses render constrained Markdown through the dedicated response renderer. Raw HTML and model-authored images remain inert; links allow only HTTP(S), `mailto:`, and same-document fragments; unsupported nodes retain safe text where possible; and only validated source identifiers become citation links. Preserve arbitrary incomplete streamed text and the plain-text failure fallback without changing retrieval or model behavior.
+
+### Grounding and model storage
+
+- `src/config/egregore.ts` owns product identity and public routes. `src/features/egregore/config.ts` owns the exact model, runtime, context and corpus pins; package versions remain authoritative in `package.json`.
+- The tracked, published, assistant-enabled `profile:jet-sanchez` record supplies About content, public role and biography, Person metadata and assistant grounding. It creates no standalone public profile route. Do not duplicate changing biographical facts in the system prompt.
+- Egregore refers to Jet in the third person, answers from supplied published sources, abstains without evidence and exposes only validated citations used in the answer. Conversation state and prompts remain session-only and local.
+- Cache Storage identity includes the cache schema and exact model SHA-256; its request key includes the pinned revision and filename. Application-version changes do not invalidate the model cache, and there is no TTL, service worker, IndexedDB or OPFS storage path.
+- After explicit loading authorization, stream the trusted pinned response into Cache API and read the completed cached body for runtime use. Do not clone or tee the model-sized body. Cache unavailability permits an explicit uncached attempt; a failed write must never silently trigger another transfer.
+- **Unload** releases conversation, runtime, engine, GPU and memory state while retaining downloaded bytes. **Remove downloaded model** explicitly removes the current cached model and is available only when it exists.
+- Browser Fetch cannot inspect opaque manual redirect hops. The release/manual delivery check owns exact initial URL, trusted HTTPS redirect hops and redirect limits; keep this check outside routine model-free CI.
+
+### Dock and immersive layouts
+
+Below `48rem`, an ordinary fresh document starts with an open dock and discovers its disclosure through the first qualifying scroll; a fresh immersive document exposes the disclosure immediately. Explicit open/closed choices persist across client navigation, reload and history in the same tab. At `48rem` and above, the dock is always exposed and mobile preference is suspended, then restored below that boundary. A closed dock is inert, absent from the accessibility tree and sequential focus; its semantic disclosure maintains accurate expanded/control state and focus restoration.
+
+Shared navigation exclusion zones reserve the bottom dock/disclosure envelope below `48rem`, the always-open bottom dock from `48rem` to below `64rem`, and top separation at `64rem` and above. Internally scrolling Egregore lifecycle surfaces consume the same stable clearance. Short mobile viewports must fit without clipping activation, consent, recovery, composer or conversation content. Starter prompts are omitted below `48rem`; direct composition remains available. Keep **Egregore can make mistakes. Check cited sources.** immediately above the composer until the first submission, using the shared meta text token and allowing accessible wrapping.
 
 ## SEO and release behavior
 
@@ -192,11 +213,13 @@ Tests are organized by boundary:
 - `tests/e2e/` covers built-site behavior in Playwright.
 - `tests/deployment/` covers Vercel and production-only routing or header behavior.
 
+Generated QA screenshots, browser traces, run output and agent execution scratch are local or bounded CI artifacts. Keep `.superpowers/`, `test-results/`, `playwright-report/` and `coverage/` outside Git. Durable repository evidence uses compact text records; do not commit generated screenshot bundles.
+
 > **Contract-Coupling Principle:** Every test must derive its assertions from an observable, durable contract at the narrowest appropriate boundary. For components, this includes public APIs, rendered semantics, interaction, accessibility, and explicitly standardized visual behavior. For modules, scripts, builds, CI, and security controls, it includes declared inputs, outputs, failure modes, generated artifacts, and invariants. Private helpers, source layout, call graphs, intermediate representations, CSS classes, and implementation choices are not valid test targets unless explicitly designated as compatibility or artifact contracts. A behavior-preserving refactor should not ordinarily break a test.
 
 > **Test Contract Revalidation:** Developmental tests help discover and construct the implementation. Durable tests protect the accepted contract afterward. Within each task slice, follow RED → GREEN → refactor the implementation → revalidate the contract, retaining or consolidating durable tests and removing developmental tests that have served their purpose.
 
-GitHub Actions owns two stable routine jobs, `verify` and `browser`. They run for pull requests, pushes to `main`, manual dispatch, and nightly at `17 18 * * *` (`02:17` Asia/Manila). Configure both as strict required checks on `main`. Keep the approximately 2 GB real-model qualification outside routine and nightly CI; run it only through the explicit release workflow.
+GitHub Actions owns two stable routine jobs, `verify` and `browser`. They run for pull requests, pushes to `main`, manual dispatch, and nightly at `17 18 * * *` (`02:17` Asia/Manila). Configure both as strict required checks on `main`. Browser failures retain `test-results/playwright/` as a run-and-attempt-specific artifact for seven days; absent files must not obscure the original failure. Keep the approximately 2 GB real-model qualification outside routine and nightly CI; run it only through the explicit release workflow.
 
 For ordinary changes, run the smallest focused RED test first, implement, rerun it GREEN, then run `npm run verify`. Add `npm run verify:browser`, build-purity, deployment, or production checks in proportion to the boundary changed. Browser qualification at representative desktop and mobile viewports is the `2.3` release boundary; there is no physical-device gate. Do not claim a deployed behavior from an Astro preview test.
 
@@ -214,10 +237,8 @@ Before deployment, verify light and dark modes, keyboard/focus behavior, respons
 
 ## Canonical documentation
 
-- [Jet Web 2.3.0 design](./docs/superpowers/specs/2026-08-25-jet-web-2.3.0-design.md)
-- [Jet Web 2.3.0 implementation plan](./docs/superpowers/plans/2026-08-25-jet-web-2.3.0.md)
-- [Jet Web 2.3.0 verification record](./docs/verification/jet-web-2.3.0.md)
-- [Jet Web 2.2.0 Egregore product authority](./docs/superpowers/specs/2026-07-18-jet-web-2.2.0-design.md)
+- [Project overview and development commands](./README.md)
+- [Third-party notices](./THIRD_PARTY_NOTICES.md)
 - [Documentation archive](./docs/archive/README.md)
 
-Historical documents under `docs/archive/` are evidence, not current instructions. Do not cite an archived design as the active target when a canonical successor is listed.
+`AGENTS.md` owns maintained contributor, architecture and operational requirements. Move completed or inactive release designs, execution plans and qualification records into the release-owned archive after carrying forward still-current contracts here. Historical documents under `docs/archive/` preserve dated evidence and reasoning, not current instructions; archiving never establishes acceptance or completes pending deployment, indexing or storage-retirement actions.

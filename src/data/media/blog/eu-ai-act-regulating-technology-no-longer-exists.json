@@ -1,0 +1,66 @@
+{
+  "schemaVersion": 1,
+  "pipelineVersion": "v1",
+  "source": {
+    "sha256": "2ea9ebb21400a723cf2c1269df680da69cf5249b620071cd2b1cc7e7f065704d",
+    "width": 1920,
+    "height": 1080,
+    "format": "jpeg"
+  },
+  "renditions": [
+    {
+      "role": "responsive-small",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/blog/eu-ai-act-regulating-technology-no-longer-exists/2ea9ebb21400a723cf2c1269df680da69cf5249b620071cd2b1cc7e7f065704d/responsive-small-e721008e62c80b34acd789aacb2f507a022ff5ae0e2ebafb643dd70bdf81d6cd.webp",
+      "width": 480,
+      "height": 270,
+      "format": "webp",
+      "bytes": 15172,
+      "sha256": "e721008e62c80b34acd789aacb2f507a022ff5ae0e2ebafb643dd70bdf81d6cd"
+    },
+    {
+      "role": "responsive-medium",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/blog/eu-ai-act-regulating-technology-no-longer-exists/2ea9ebb21400a723cf2c1269df680da69cf5249b620071cd2b1cc7e7f065704d/responsive-medium-8fcda2ea568f1b5a600d60ce3dcb9b0298635a90702733f2c3587d53ee6c5e7a.webp",
+      "width": 960,
+      "height": 540,
+      "format": "webp",
+      "bytes": 66704,
+      "sha256": "8fcda2ea568f1b5a600d60ce3dcb9b0298635a90702733f2c3587d53ee6c5e7a"
+    },
+    {
+      "role": "carousel",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/blog/eu-ai-act-regulating-technology-no-longer-exists/2ea9ebb21400a723cf2c1269df680da69cf5249b620071cd2b1cc7e7f065704d/carousel-4178e1f726ac11800615dd1e4098fb786902dc29ceb76a44b8919ccb5132f8f3.webp",
+      "width": 1152,
+      "height": 648,
+      "format": "webp",
+      "bytes": 97372,
+      "sha256": "4178e1f726ac11800615dd1e4098fb786902dc29ceb76a44b8919ccb5132f8f3"
+    },
+    {
+      "role": "responsive-large",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/blog/eu-ai-act-regulating-technology-no-longer-exists/2ea9ebb21400a723cf2c1269df680da69cf5249b620071cd2b1cc7e7f065704d/responsive-large-62323c5b096d9799238af825478a9a41eeea5b28fb87f5f5b5080d1dc1a8301e.webp",
+      "width": 1440,
+      "height": 810,
+      "format": "webp",
+      "bytes": 151564,
+      "sha256": "62323c5b096d9799238af825478a9a41eeea5b28fb87f5f5b5080d1dc1a8301e"
+    },
+    {
+      "role": "detail",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/blog/eu-ai-act-regulating-technology-no-longer-exists/2ea9ebb21400a723cf2c1269df680da69cf5249b620071cd2b1cc7e7f065704d/detail-0848c8794ec2d133833d2cfe7414a563756dcbd1cb3143a00d8bac207f7af1b3.webp",
+      "width": 1920,
+      "height": 1080,
+      "format": "webp",
+      "bytes": 248868,
+      "sha256": "0848c8794ec2d133833d2cfe7414a563756dcbd1cb3143a00d8bac207f7af1b3"
+    },
+    {
+      "role": "social",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/blog/eu-ai-act-regulating-technology-no-longer-exists/2ea9ebb21400a723cf2c1269df680da69cf5249b620071cd2b1cc7e7f065704d/social-9e57ac5cee1fdc08dabbeffb250ac1b9f06618d25e475085910645f70892d191.jpg",
+      "width": 1200,
+      "height": 675,
+      "format": "jpeg",
+      "bytes": 94724,
+      "sha256": "9e57ac5cee1fdc08dabbeffb250ac1b9f06618d25e475085910645f70892d191"
+    }
+  ]
+}

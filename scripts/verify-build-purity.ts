@@ -1,6 +1,7 @@
 import { spawnSync } from 'node:child_process';
 import { createHash } from 'node:crypto';
-import { readFileSync } from 'node:fs';
+import { existsSync, mkdtempSync, readFileSync, rmSync } from 'node:fs';
+import { tmpdir } from 'node:os';
 import { resolve } from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -94,12 +95,21 @@ function changedPaths(before: Snapshot, after: Snapshot): string[] {
 function runBuild(): void {
   const environment = { ...process.env };
   delete environment.PUBLIC_EGREGORE_E2E;
+  const probe = mkdtempSync(resolve(tmpdir(), 'jet-media-network-'));
+  const log = resolve(probe, 'requests.log');
+  environment.JET_MEDIA_NETWORK_LOG = log;
+  environment.NODE_OPTIONS = `${environment.NODE_OPTIONS ?? ''} --import=${resolve('scripts/media/deny-network.mjs')}`;
+  delete environment.BLOB_READ_WRITE_TOKEN;
+  delete environment.BLOB_ORIGINALS_READ_WRITE_TOKEN;
   const result = spawnSync('npm', ['run', 'build'], {
     cwd: process.cwd(),
     env: environment,
     shell: false,
     stdio: 'inherit',
   });
+  const attempted = existsSync(log);
+  rmSync(probe, { recursive: true, force: true });
+  if (attempted) throw new Error('BUILD_MEDIA_NETWORK_FORBIDDEN');
   if (result.error || result.status !== 0) throw new Error('BUILD_FAILED');
 }
 

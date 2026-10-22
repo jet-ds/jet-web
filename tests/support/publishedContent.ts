@@ -35,6 +35,7 @@ export type PublishedContent = {
   image?: {
     url: string;
     darkUrl?: string;
+    social: { url: string; width: number; height: number };
     alt: string;
     width?: number;
     height?: number;

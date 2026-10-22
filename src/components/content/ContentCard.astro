@@ -33,7 +33,6 @@ const imageSizes =
   variant === 'compact'
     ? '(max-width: 767px) 100vw, (max-width: 1023px) 50vw, 384px'
     : '(max-width: 767px) 100vw, 50vw';
-const imageWidths = variant === 'compact' ? [384, 768, 1152] : undefined;
 ---
 
 <article class="h-full">
@@ -48,6 +47,8 @@ const imageWidths = variant === 'compact' ? [384, 768, 1152] : undefined;
     <div data-content-card-media class="aspect-video overflow-hidden">
       <ThemeAwareImage
         src={image.url}
+        srcSet={image.srcSet}
+        darkSrcSet={image.darkSrcSet}
         darkSrc={image.darkUrl}
         alt={image.alt}
         width={image.width}
@@ -55,7 +56,6 @@ const imageWidths = variant === 'compact' ? [384, 768, 1152] : undefined;
         class="h-full w-full object-cover motion-safe:transition-transform motion-safe:duration-300 motion-safe:group-hover:scale-105"
         loading="lazy"
         sizes={imageSizes}
-        widths={imageWidths}
       />
     </div>
 

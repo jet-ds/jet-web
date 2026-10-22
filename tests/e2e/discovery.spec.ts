@@ -1,4 +1,5 @@
-import { expect, test, type Page } from '@playwright/test';
+import { test } from '../support/localBrowser';
+import { expect, type Page } from '@playwright/test';
 
 async function itemListUrls(page: Page, route: string): Promise<string[]> {
   await page.goto(route);

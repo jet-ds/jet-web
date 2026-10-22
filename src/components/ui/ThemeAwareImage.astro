@@ -4,27 +4,27 @@ import OptimizedImage from './OptimizedImage.astro';
 interface Props {
   src: string;
   darkSrc?: string;
+  srcSet?: string;
+  darkSrcSet?: string;
   alt: string;
   width: number;
   height: number;
   class?: string;
   loading?: 'lazy' | 'eager';
   sizes?: string;
-  widths?: number[];
-  quality?: number;
 }
 
 const {
   src,
   darkSrc,
+  srcSet,
+  darkSrcSet,
   alt,
   width,
   height,
   class: className = '',
   loading = 'lazy',
   sizes,
-  widths,
-  quality = 80,
 } = Astro.props;
 
 const resolvedLoading = loading;
@@ -35,38 +35,35 @@ const resolvedLoading = loading;
     <>
       <OptimizedImage
         src={src}
+        srcSet={srcSet}
         alt={alt}
         width={width}
         height={height}
         class={`${className} dark:hidden`}
         loading={resolvedLoading}
         sizes={sizes}
-        widths={widths}
-        quality={quality}
       />
       <OptimizedImage
         src={darkSrc}
+        srcSet={darkSrcSet}
         alt={alt}
         width={width}
         height={height}
         class={`hidden ${className} dark:block`}
         loading={resolvedLoading}
         sizes={sizes}
-        widths={widths}
-        quality={quality}
       />
     </>
   ) : (
     <OptimizedImage
       src={src}
+      srcSet={srcSet}
       alt={alt}
       width={width}
       height={height}
       class={className}
       loading={resolvedLoading}
       sizes={sizes}
-      widths={widths}
-      quality={quality}
     />
   )
 }

@@ -1,0 +1,39 @@
+{
+  "schemaVersion": 1,
+  "pipelineVersion": "v1",
+  "source": {
+    "sha256": "b0ab33a5f5ee4f69cdf32aa14ef81a4bb45402ae5e268d35d3b98b24312138ec",
+    "width": 3060,
+    "height": 4080,
+    "format": "jpeg"
+  },
+  "renditions": [
+    {
+      "role": "portrait-small",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/about/about-hero/b0ab33a5f5ee4f69cdf32aa14ef81a4bb45402ae5e268d35d3b98b24312138ec/portrait-small-5894f6055ec047042b2978cf22cd8ed6987d011a87e3d6efb4f3c0380100b7f0.webp",
+      "width": 400,
+      "height": 533,
+      "format": "webp",
+      "bytes": 33806,
+      "sha256": "5894f6055ec047042b2978cf22cd8ed6987d011a87e3d6efb4f3c0380100b7f0"
+    },
+    {
+      "role": "portrait-medium",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/about/about-hero/b0ab33a5f5ee4f69cdf32aa14ef81a4bb45402ae5e268d35d3b98b24312138ec/portrait-medium-09550506cd80b63ba15e4e05a57e3a3897b54e11b1de5efdc2ccacbb6e35f6c6.webp",
+      "width": 800,
+      "height": 1067,
+      "format": "webp",
+      "bytes": 85436,
+      "sha256": "09550506cd80b63ba15e4e05a57e3a3897b54e11b1de5efdc2ccacbb6e35f6c6"
+    },
+    {
+      "role": "portrait-detail",
+      "url": "https://vyge4wbmw8jgd8rh.public.blob.vercel-storage.com/images/v1/about/about-hero/b0ab33a5f5ee4f69cdf32aa14ef81a4bb45402ae5e268d35d3b98b24312138ec/portrait-detail-cbdd9c89e4d3ab95705e13c876da1553b7c5cf15d41ea2bfac41814a9cbe35dc.webp",
+      "width": 1200,
+      "height": 1600,
+      "format": "webp",
+      "bytes": 164022,
+      "sha256": "cbdd9c89e4d3ab95705e13c876da1553b7c5cf15d41ea2bfac41814a9cbe35dc"
+    }
+  ]
+}

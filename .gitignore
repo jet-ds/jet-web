@@ -5,6 +5,7 @@ dist/
 .astro/
 
 # generated verification output
+.superpowers/
 coverage/
 playwright-report/
 test-results/

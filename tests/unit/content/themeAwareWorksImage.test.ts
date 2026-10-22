@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest';
-import { worksSchema } from '../../../src/schemas/content';
+import { fixtureContentSchemas } from '../../fixtures/media';
+const { worksSchema } = fixtureContentSchemas();
 
 describe('theme-aware Works images', () => {
   it('preserves a dark-mode image and verified intrinsic dimensions', () => {
@@ -12,22 +13,20 @@ describe('theme-aware Works images', () => {
       status: 'published',
       assistant: true,
       image: {
-        url: 'https://assets.public.blob.vercel-storage.com/images/works/timesheet-light-a1b2c3d4.png',
-        darkUrl:
-          'https://assets.public.blob.vercel-storage.com/images/works/timesheet-dark-e5f6a7b8.png',
+        asset: 'works/example',
+        darkAsset: 'works/example-dark',
         alt: 'Digital Squad Timesheet weekly dashboard',
-        width: 1920,
-        height: 1080,
       },
     });
 
-    expect(parsed.image).toEqual({
-      url: 'https://assets.public.blob.vercel-storage.com/images/works/timesheet-light-a1b2c3d4.png',
-      darkUrl:
-        'https://assets.public.blob.vercel-storage.com/images/works/timesheet-dark-e5f6a7b8.png',
-      alt: 'Digital Squad Timesheet weekly dashboard',
+    expect(parsed.image).toMatchObject({
+      asset: 'works/example',
+      darkAsset: 'works/example-dark',
       width: 1920,
       height: 1080,
     });
+    expect(parsed.image?.darkUrl).toContain('/works/example-dark/');
+    expect(parsed.image?.social.url).toContain('/works/example/');
+    expect(parsed.image?.darkSrcSet).toContain('480w');
   });
 });

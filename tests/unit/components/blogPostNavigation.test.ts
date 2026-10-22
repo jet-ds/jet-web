@@ -10,11 +10,15 @@ import {
 } from '../../../src/features/collections/resolveCollections';
 import { setAstroContentStub } from '../../fixtures/astroContent';
 
+import { mediaDescriptor } from '../../fixtures/media';
+import { resolveMediaPresentation } from '../../../src/features/media/contract';
+const asset = mediaDescriptor('blog/example');
 const image = {
-  url: 'https://assets.public.blob.vercel-storage.com/images/blog/invented-a1b2c3d4.webp',
+  ...resolveMediaPresentation(asset, 'detail'),
   alt: 'An invented Blog illustration',
-  width: 1920 as const,
-  height: 1080 as const,
+  asset: 'blog/example',
+  social: resolveMediaPresentation(asset, 'social'),
+  carousel: resolveMediaPresentation(asset, 'carousel'),
 };
 
 type RenderableBlogEntry = BlogEntry & {

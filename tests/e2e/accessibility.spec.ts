@@ -1,5 +1,7 @@
+import { revealCarousel } from '../support/carousel';
+import { test } from '../support/localBrowser';
 import AxeBuilder from '@axe-core/playwright';
-import { expect, test, type Locator, type Page } from '@playwright/test';
+import { expect, type Locator, type Page } from '@playwright/test';
 import { publishedContent } from '../support/publishedContent';
 
 interface LinearColor {
@@ -220,9 +222,9 @@ test(
     for (const carousel of await page
       .locator('[data-home-collection-carousel]')
       .all()) {
-      const sentinel = carousel.locator('[data-carousel-sentinel]');
-      if ((await sentinel.count()) > 0) await sentinel.scrollIntoViewIfNeeded();
-      await expect(carousel.getByRole('region')).toBeVisible();
+      const label = await carousel.getAttribute('data-carousel-label');
+      expect(label).not.toBeNull();
+      await revealCarousel(carousel, label ?? '');
       await expect(carousel.getByRole('link')).toHaveCount(1);
       const position = carousel.getByRole('status');
       const positionBox = await position.boundingBox();
