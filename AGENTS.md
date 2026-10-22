@@ -123,12 +123,34 @@ image:
   alt: A descriptive account of the visible image
 ```
 
-Works additionally supports `darkAsset`. Direct authored `url`, `darkUrl`, width or height fields are rejected. Git-track descriptors together with content. About resolves `about/about-hero` through the same local registry. Rendering uses public renditions; no build-time remote optimization or media credentials are required. Social metadata consistently uses the light 1200×675 JPEG. The complete role/budget contract is in [the 2.4.0 spec](docs/superpowers/specs/2026-10-21-jet-web-2.4.0-media-design.md).
+Works additionally supports `darkAsset`. Direct authored `url`, `darkUrl`, width or height fields are rejected. Git-track descriptors together with content. About resolves `about/about-hero` through the same local registry. Rendering uses public renditions; no build-time remote optimization or media credentials are required. Social metadata consistently uses the light 1200×675 JPEG. The public rendition contract is maintained below.
 
 1. Run `npm run verify:content`, `npm run verify:media`, and `npm run verify:build-purity`.
 2. Use `npm run validate-images` only for explicit remote verification. It deduplicates and bounds reads of public renditions; routine tests/builds remain offline for media.
 3. Inspect mobile/desktop and light/dark rendering. Preserve staged originals until the private archive is verified; never delete local progress implicitly.
 4. Legacy migration is operator-only: `npm run upload-image -- --cache-legacy` caches each inventoried source once; `npm run upload-image -- --migrate-legacy` archives all 14 originals and publishes the 11 referenced sets. Receipts and source caches live under ignored `Untracked/media-migration/`. Retain all legacy public objects until an explicitly approved retirement after release acceptance and verified deployment. Publication alone cannot stop requests to old URLs.
+
+### Public rendition contract
+
+Generate this finite set at upload time; builds only resolve checked-in descriptors.
+
+| Source lane  | Public role       | Dimensions | Format | Maximum encoded bytes |
+| ------------ | ----------------- | ---------- | ------ | --------------------- |
+| Blog / Works | responsive-small  | 480x270    | WebP   | 60,000                |
+| Blog / Works | responsive-medium | 960x540    | WebP   | 160,000               |
+| Blog / Works | carousel          | 1152x648   | WebP   | 220,000               |
+| Blog / Works | responsive-large  | 1440x810   | WebP   | 300,000               |
+| Blog / Works | detail            | 1920x1080  | WebP   | 500,000               |
+| Blog / Works | social            | 1200x675   | JPEG   | 200,000               |
+| About        | portrait-small    | 400x533    | WebP   | 100,000               |
+| About        | portrait-medium   | 800x1067   | WebP   | 200,000               |
+| About        | portrait-detail   | 1200x1600  | WebP   | 350,000               |
+
+Intermediate portrait heights use aspect-preserving rounding, with at most one pixel of rounding difference; record decoded dimensions. Public output strips source metadata; transparent social JPEGs flatten against white. Start at WebP quality 82 or JPEG quality 80, with bounded quality reduction no lower than 70. Fail with the role and measured size when a budget cannot be met; never silently crop, resize or publish an oversized fallback. Use no-overwrite immutable object paths and a one-year cache lifetime. Light/dark artwork has separate descriptors; social metadata uses the light asset, and About keeps the default social image.
+
+### Media release cutover
+
+Qualify the rendition references, metadata and rendering on Preview before an approved Production promotion. After cutover, verify live page and metadata identities and monitor continuing requests to legacy URLs separately. Before any separately approved retirement, inventory retained deployments and rollback dependencies and present the exact targets and consequences. An application-domain redirect cannot intercept direct Blob-host requests. Before retirement, old content commits remain rollback targets; afterward, rollback must use rendition-based releases. Preserve the private archive and local operation receipts.
 
 The default social image is the committed `public/images/og-default.jpg`. Recreate it only through `npm run capture:og -- --overwrite`, visually inspect the result, and retain the exact shared metadata contract in `src/config/site.ts`.
 
@@ -136,7 +158,7 @@ The default social image is the committed `public/images/og-default.jpg`. Recrea
 
 Egregore is a local-first technical showcase and experimental personal assistant, not a general website-support widget.
 
-The released `2.2` runtime and interaction boundaries are in force:
+The following runtime and interaction boundaries are maintained:
 
 - The semantic route is the canonical `200` document at `/chatbot/`; platform normalization owns slashless variants, and one explicit legacy `/tools/chatbot/` rule redirects to `/chatbot/`.
 - `/chatbot/` is an index-follow canonical page and appears once in the generated sitemap. Vercel owns Preview and outdated-deployment exclusion through its deployment-wide `X-Robots-Tag`; do not add a page-level Egregore indexing gate.
@@ -148,9 +170,25 @@ The released `2.2` runtime and interaction boundaries are in force:
 - `/api/chat`, hosted generation, and the OpenRouter production credential remain removed.
 - The distributed license bundle, pinned package and runtime identities, public notice routes, and applicable notice text are current product contracts. Historical legal analysis is evidence, not an executable input.
 
-Preserve the released interaction model: a full-screen local-first experience, explicit compatibility and load actions, stable lifecycle controls, deterministic citations, keyboard-operable disclosures, responsive layouts, reduced-motion behavior, and the established semantic color roles. The [2.2.0 design](./docs/superpowers/specs/2026-07-18-jet-web-2.2.0-design.md) is the current product authority.
+Preserve the released interaction model: a full-screen local-first experience, explicit compatibility and load actions, stable lifecycle controls, deterministic citations, keyboard-operable disclosures, responsive layouts, reduced-motion behavior, and the established semantic color roles.
 
 Assistant responses render constrained Markdown through the dedicated response renderer. Raw HTML and model-authored images remain inert; links allow only HTTP(S), `mailto:`, and same-document fragments; unsupported nodes retain safe text where possible; and only validated source identifiers become citation links. Preserve arbitrary incomplete streamed text and the plain-text failure fallback without changing retrieval or model behavior.
+
+### Grounding and model storage
+
+- `src/config/egregore.ts` owns product identity and public routes. `src/features/egregore/config.ts` owns the exact model, runtime, context and corpus pins; package versions remain authoritative in `package.json`.
+- The tracked, published, assistant-enabled `profile:jet-sanchez` record supplies About content, public role and biography, Person metadata and assistant grounding. It creates no standalone public profile route. Do not duplicate changing biographical facts in the system prompt.
+- Egregore refers to Jet in the third person, answers from supplied published sources, abstains without evidence and exposes only validated citations used in the answer. Conversation state and prompts remain session-only and local.
+- Cache Storage identity includes the cache schema and exact model SHA-256; its request key includes the pinned revision and filename. Application-version changes do not invalidate the model cache, and there is no TTL, service worker, IndexedDB or OPFS storage path.
+- After explicit loading authorization, stream the trusted pinned response into Cache API and read the completed cached body for runtime use. Do not clone or tee the model-sized body. Cache unavailability permits an explicit uncached attempt; a failed write must never silently trigger another transfer.
+- **Unload** releases conversation, runtime, engine, GPU and memory state while retaining downloaded bytes. **Remove downloaded model** explicitly removes the current cached model and is available only when it exists.
+- Browser Fetch cannot inspect opaque manual redirect hops. The release/manual delivery check owns exact initial URL, trusted HTTPS redirect hops and redirect limits; keep this check outside routine model-free CI.
+
+### Dock and immersive layouts
+
+Below `48rem`, an ordinary fresh document starts with an open dock and discovers its disclosure through the first qualifying scroll; a fresh immersive document exposes the disclosure immediately. Explicit open/closed choices persist across client navigation, reload and history in the same tab. At `48rem` and above, the dock is always exposed and mobile preference is suspended, then restored below that boundary. A closed dock is inert, absent from the accessibility tree and sequential focus; its semantic disclosure maintains accurate expanded/control state and focus restoration.
+
+Shared navigation exclusion zones reserve the bottom dock/disclosure envelope below `48rem`, the always-open bottom dock from `48rem` to below `64rem`, and top separation at `64rem` and above. Internally scrolling Egregore lifecycle surfaces consume the same stable clearance. Short mobile viewports must fit without clipping activation, consent, recovery, composer or conversation content. Starter prompts are omitted below `48rem`; direct composition remains available. Keep **Egregore can make mistakes. Check cited sources.** immediately above the composer until the first submission, using the shared meta text token and allowing accessible wrapping.
 
 ## SEO and release behavior
 
@@ -197,13 +235,8 @@ Before deployment, verify light and dark modes, keyboard/focus behavior, respons
 
 ## Canonical documentation
 
-- [Jet Web 2.4.0 media design](./docs/superpowers/specs/2026-10-21-jet-web-2.4.0-media-design.md)
-- [Jet Web 2.4.0 verification record](./docs/verification/jet-web-2.4.0.md)
-
-- [Jet Web 2.3.0 design](./docs/superpowers/specs/2026-08-25-jet-web-2.3.0-design.md)
-- [Jet Web 2.3.0 implementation plan](./docs/superpowers/plans/2026-08-25-jet-web-2.3.0.md)
-- [Jet Web 2.3.0 verification record](./docs/verification/jet-web-2.3.0.md)
-- [Jet Web 2.2.0 Egregore product authority](./docs/superpowers/specs/2026-07-18-jet-web-2.2.0-design.md)
+- [Project overview and development commands](./README.md)
+- [Third-party notices](./THIRD_PARTY_NOTICES.md)
 - [Documentation archive](./docs/archive/README.md)
 
-Historical documents under `docs/archive/` are evidence, not current instructions. Do not cite an archived design as the active target when a canonical successor is listed.
+`AGENTS.md` owns maintained contributor, architecture and operational requirements. Move completed or inactive release designs, execution plans and qualification records into the release-owned archive after carrying forward still-current contracts here. Historical documents under `docs/archive/` preserve dated evidence and reasoning, not current instructions; archiving never establishes acceptance or completes pending deployment, indexing or storage-retirement actions.

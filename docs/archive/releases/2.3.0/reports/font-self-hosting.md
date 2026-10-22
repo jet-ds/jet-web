@@ -1,5 +1,7 @@
 # Task report: self-host site fonts
 
+> Archived on 2026-10-22 as a completed implementation report. Current requirements live in [AGENTS.md](../../../../../AGENTS.md). Results and local artifact paths below are historical observations, not current release gates or an archived screenshot bundle.
+
 ## Scope and implementation
 
 - Base commit: `1686959` (`fix(analytics): harden consent and route measurement`).

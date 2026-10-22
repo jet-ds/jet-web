@@ -1,8 +1,10 @@
 # Jet Web 2.4.0 verification
 
+> Archived on 2026-10-22 as implementation history. Current contributor and operating requirements live in [AGENTS.md](../../../../AGENTS.md). Dated statuses, commands and evidence below describe their original checkpoints; archiving does not complete pending release, deployment or retirement actions.
+
 Date: 2026-10-21. Release acceptance and deployment remain separate from this record.
 
-The implementation follows the [approved media design](../superpowers/specs/2026-10-21-jet-web-2.4.0-media-design.md) and [repository workflow](../../AGENTS.md#image-workflow). It is on `codex/blob-transfer-2.4.0`, based on `46149edf72d300120e6e147d202392f2733931d9` after safely fast-forwarding the local checkout. No implementation plan was added.
+The implementation follows the [approved media design](2026-10-21-jet-web-2.4.0-media-design.md) and [repository workflow](../../../../AGENTS.md#image-workflow). It is on `codex/blob-transfer-2.4.0`, based on `46149edf72d300120e6e147d202392f2733931d9` after safely fast-forwarding the local checkout. No implementation plan was added.
 
 ## Implemented boundaries
 
@@ -13,7 +15,7 @@ The implementation follows the [approved media design](../superpowers/specs/2026
 
 ## Storage evidence
 
-The [migration manifest](../evidence/2.4.0-media-migration.json) records every legacy URL, full source SHA-256, byte count, descriptor key, publication/archive status and the retirement hold.
+The [migration manifest](evidence/2.4.0-media-migration.json) records every legacy URL, full source SHA-256, byte count, descriptor key, publication/archive status and the retirement hold.
 
 | Check                   | Verified result                                                                 |
 | ----------------------- | ------------------------------------------------------------------------------- |

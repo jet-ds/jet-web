@@ -1,5 +1,7 @@
 # Jet Web 2.3.0 search polish verification
 
+> Archived on 2026-10-22 as implementation history. Current contributor and operating requirements live in [AGENTS.md](../../../../AGENTS.md). Dated statuses, commands and evidence below describe their original checkpoints; archiving does not complete pending release, deployment or retirement actions.
+
 **Scope:** Pre-release Blog search recall and input presentation only.
 
 ## Root cause and accepted contract

@@ -1,5 +1,7 @@
 # Jet Web 2.3.0 verification record
 
+> Archived on 2026-10-22 as implementation history. Current contributor and operating requirements live in [AGENTS.md](../../../../AGENTS.md). Dated statuses, commands and evidence below describe their original checkpoints; archiving does not complete pending release, deployment or retirement actions.
+
 **Status:** Version `2.3.0` qualified as a local release candidate from reviewed
 parent `30b1437424e901ff66c788ae7ee409972223e418`. Remote release, production
 readback, tag, GitHub Release, and Search Console work remain deferred. Counts

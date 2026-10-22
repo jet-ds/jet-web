@@ -1,12 +1,12 @@
 {
   "schemaVersion": "1.1.0",
-  "lastUpdated": "2026-07-21",
+  "lastUpdated": "2026-10-22",
   "entries": [
     {
       "sourcePath": "docs/superpowers/specs/2026-07-11-v1-modernization-design.md",
       "archivePath": "docs/archive/releases/2.0.0/2026-07-11-v1-modernization-design.md",
       "status": "historical",
-      "successorPath": "docs/superpowers/specs/2026-07-18-jet-web-2.2.0-design.md",
+      "successorPath": "AGENTS.md",
       "archivedAt": "2026-07-21",
       "sourceSha256": "870b313b5b130e253723a39e7b740281a0f607285053df5cb7dc7ee105dd76f5",
       "archiveSha256": "870b313b5b130e253723a39e7b740281a0f607285053df5cb7dc7ee105dd76f5"
@@ -15,7 +15,7 @@
       "sourcePath": "docs/superpowers/plans/2026-07-11-v1-modernization.md",
       "archivePath": "docs/archive/releases/2.0.0/2026-07-11-v1-modernization.md",
       "status": "historical",
-      "successorPath": "docs/superpowers/plans/2026-07-18-jet-web-2.2.0.md",
+      "successorPath": "AGENTS.md",
       "archivedAt": "2026-07-21",
       "sourceSha256": "bdcd7db3627431cac06bdd636c4e34389a6d4e59e95d10cd620817ffd01755dd",
       "archiveSha256": "bdcd7db3627431cac06bdd636c4e34389a6d4e59e95d10cd620817ffd01755dd"
@@ -24,7 +24,7 @@
       "sourcePath": "docs/verification/core-modernization-2.0.0.md",
       "archivePath": "docs/archive/releases/2.0.0/core-modernization-2.0.0.md",
       "status": "historical",
-      "successorPath": "docs/verification/jet-web-2.2.0.md",
+      "successorPath": "AGENTS.md",
       "archivedAt": "2026-07-21",
       "sourceSha256": "f44a5fa73e27f0553670298988460814118bcc5d4dc96f5a724a4e9de26df9fa",
       "archiveSha256": "f44a5fa73e27f0553670298988460814118bcc5d4dc96f5a724a4e9de26df9fa"
@@ -33,7 +33,7 @@
       "sourcePath": "docs/verification/baselines/core-1.0.0/manifest.json",
       "archivePath": "docs/archive/releases/2.0.0/evidence/core-1.0.0/manifest.json",
       "status": "historical",
-      "successorPath": "docs/verification/jet-web-2.2.0.md",
+      "successorPath": "AGENTS.md",
       "archivedAt": "2026-07-21",
       "sourceSha256": "cc76b137b11279efac110193bc86ff90e36eb39e185b3525a5906b33f19c816b",
       "archiveSha256": "b3c82baa5bd23835c48993901f2847fda4872f0ebe658bd0a833bed0584e5d94"
@@ -42,7 +42,7 @@
       "sourcePath": "docs/verification/baselines/core-1.0.0/operator-state-attestation.json",
       "archivePath": "docs/archive/releases/2.0.0/evidence/core-1.0.0/operator-state-attestation.json",
       "status": "historical",
-      "successorPath": "docs/verification/jet-web-2.2.0.md",
+      "successorPath": "AGENTS.md",
       "archivedAt": "2026-07-21",
       "sourceSha256": "eeb69e8e9e93871df012d966b3dbebc9a46f2bf0e54c417be3078447a09badf5",
       "archiveSha256": "eeb69e8e9e93871df012d966b3dbebc9a46f2bf0e54c417be3078447a09badf5"
@@ -51,7 +51,7 @@
       "sourcePath": "docs/verification/baselines/core-1.0.0/vercel-deployment.json",
       "archivePath": "docs/archive/releases/2.0.0/evidence/core-1.0.0/vercel-deployment.json",
       "status": "historical",
-      "successorPath": "docs/verification/jet-web-2.2.0.md",
+      "successorPath": "AGENTS.md",
       "archivedAt": "2026-07-21",
       "sourceSha256": "35b4b88224d484ec3d40c0474b695f0ac48cebd55b030d509139f1993a4302af",
       "archiveSha256": "35b4b88224d484ec3d40c0474b695f0ac48cebd55b030d509139f1993a4302af"
@@ -60,7 +60,7 @@
       "sourcePath": "docs/verification/baselines/core-1.0.0/vercel-inspect.json",
       "archivePath": "docs/archive/releases/2.0.0/evidence/core-1.0.0/vercel-inspect.json",
       "status": "historical",
-      "successorPath": "docs/verification/jet-web-2.2.0.md",
+      "successorPath": "AGENTS.md",
       "archivedAt": "2026-07-21",
       "sourceSha256": "d8ed0ec8de137363526f880efdf91db2928788ffb01e3b60e6eabd137e43e4cd",
       "archiveSha256": "d8ed0ec8de137363526f880efdf91db2928788ffb01e3b60e6eabd137e43e4cd"
@@ -69,7 +69,7 @@
       "sourcePath": "docs/verification/containment/chatbot-blobs-after.json",
       "archivePath": "docs/archive/releases/2.0.0/evidence/containment/chatbot-blobs-after.json",
       "status": "historical",
-      "successorPath": "docs/verification/jet-web-2.2.0.md",
+      "successorPath": "AGENTS.md",
       "archivedAt": "2026-07-21",
       "sourceSha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570",
       "archiveSha256": "37517e5f3dc66819f61f5a7bb8ace1921282415f10551d2defa5c3eb0985b570"
@@ -78,7 +78,7 @@
       "sourcePath": "docs/verification/containment/chatbot-blobs-before.json",
       "archivePath": "docs/archive/releases/2.0.0/evidence/containment/chatbot-blobs-before.json",
       "status": "historical",
-      "successorPath": "docs/verification/jet-web-2.2.0.md",
+      "successorPath": "AGENTS.md",
       "archivedAt": "2026-07-21",
       "sourceSha256": "be48436d459ffad940496315cff89a3ad7a50581b805a66ca4ad24cde4a52f30",
       "archiveSha256": "be48436d459ffad940496315cff89a3ad7a50581b805a66ca4ad24cde4a52f30"
@@ -87,7 +87,7 @@
       "sourcePath": "docs/verification/containment/openrouter-key-revocation.json",
       "archivePath": "docs/archive/releases/2.0.0/evidence/containment/openrouter-key-revocation.json",
       "status": "historical",
-      "successorPath": "docs/verification/jet-web-2.2.0.md",
+      "successorPath": "AGENTS.md",
       "archivedAt": "2026-07-21",
       "sourceSha256": "339789c4588be93181e86736a9c8ad759d166665921761a7ac9c3bdb868f5f17",
       "archiveSha256": "339789c4588be93181e86736a9c8ad759d166665921761a7ac9c3bdb868f5f17"
@@ -96,7 +96,7 @@
       "sourcePath": "docs/verification/containment/result.json",
       "archivePath": "docs/archive/releases/2.0.0/evidence/containment/result.json",
       "status": "historical",
-      "successorPath": "docs/verification/jet-web-2.2.0.md",
+      "successorPath": "AGENTS.md",
       "archivedAt": "2026-07-21",
       "sourceSha256": "c2d5523f4d9112156ae4f6ea1b94f2f36a2b02d35e401ce09a462515a58c10cf",
       "archiveSha256": "c2d5523f4d9112156ae4f6ea1b94f2f36a2b02d35e401ce09a462515a58c10cf"
@@ -105,7 +105,7 @@
       "sourcePath": "docs/verification/containment/vercel-deployment.json",
       "archivePath": "docs/archive/releases/2.0.0/evidence/containment/vercel-deployment.json",
       "status": "historical",
-      "successorPath": "docs/verification/jet-web-2.2.0.md",
+      "successorPath": "AGENTS.md",
       "archivedAt": "2026-07-21",
       "sourceSha256": "981ff2f6c602abd3a6452261057a8344f8b3bfc71d11a6b032e6dbb1bf4be5b2",
       "archiveSha256": "981ff2f6c602abd3a6452261057a8344f8b3bfc71d11a6b032e6dbb1bf4be5b2"
@@ -114,7 +114,7 @@
       "sourcePath": "docs/verification/containment/vercel-env-development.json",
       "archivePath": "docs/archive/releases/2.0.0/evidence/containment/vercel-env-development.json",
       "status": "historical",
-      "successorPath": "docs/verification/jet-web-2.2.0.md",
+      "successorPath": "AGENTS.md",
       "archivedAt": "2026-07-21",
       "sourceSha256": "5abece420d835a89d4e2a8f2ac3c97d6b0a870f7de6d6f329d4383b7789087f0",
       "archiveSha256": "5abece420d835a89d4e2a8f2ac3c97d6b0a870f7de6d6f329d4383b7789087f0"
@@ -123,7 +123,7 @@
       "sourcePath": "docs/verification/containment/vercel-env-preview.json",
       "archivePath": "docs/archive/releases/2.0.0/evidence/containment/vercel-env-preview.json",
       "status": "historical",
-      "successorPath": "docs/verification/jet-web-2.2.0.md",
+      "successorPath": "AGENTS.md",
       "archivedAt": "2026-07-21",
       "sourceSha256": "ed6af6867a77382cbe79e031db7eb8f907cb2c3455604b84d1960efa956f89d1",
       "archiveSha256": "ed6af6867a77382cbe79e031db7eb8f907cb2c3455604b84d1960efa956f89d1"
@@ -132,7 +132,7 @@
       "sourcePath": "docs/verification/containment/vercel-env-production.json",
       "archivePath": "docs/archive/releases/2.0.0/evidence/containment/vercel-env-production.json",
       "status": "historical",
-      "successorPath": "docs/verification/jet-web-2.2.0.md",
+      "successorPath": "AGENTS.md",
       "archivedAt": "2026-07-21",
       "sourceSha256": "e725495981e6cc181bac63f5e039fcab7a31bd01b874707471e40e7a0d02289d",
       "archiveSha256": "e725495981e6cc181bac63f5e039fcab7a31bd01b874707471e40e7a0d02289d"
@@ -141,7 +141,7 @@
       "sourcePath": "docs/verification/containment/vercel-inspect.json",
       "archivePath": "docs/archive/releases/2.0.0/evidence/containment/vercel-inspect.json",
       "status": "historical",
-      "successorPath": "docs/verification/jet-web-2.2.0.md",
+      "successorPath": "AGENTS.md",
       "archivedAt": "2026-07-21",
       "sourceSha256": "841d2b45ddc3a8a2187c97a24561daa78d37d2f232bb4c8a0f45054b6ba656ae",
       "archiveSha256": "841d2b45ddc3a8a2187c97a24561daa78d37d2f232bb4c8a0f45054b6ba656ae"
@@ -150,7 +150,7 @@
       "sourcePath": "docs/superpowers/specs/2026-07-11-jets-ghost-local-assistant-design.md",
       "archivePath": "docs/archive/releases/2.1.0/2026-07-11-jets-ghost-local-assistant-design.md",
       "status": "historical",
-      "successorPath": "docs/superpowers/specs/2026-07-18-jet-web-2.2.0-design.md",
+      "successorPath": "AGENTS.md",
       "archivedAt": "2026-07-21",
       "sourceSha256": "c79e7ac1d1c3bef33e5307c2f383cdc4749a24a66869f7bceb5e93b50631eb97",
       "archiveSha256": "c79e7ac1d1c3bef33e5307c2f383cdc4749a24a66869f7bceb5e93b50631eb97"
@@ -159,7 +159,7 @@
       "sourcePath": "docs/superpowers/plans/2026-07-11-jets-ghost-local-assistant.md",
       "archivePath": "docs/archive/releases/2.1.0/2026-07-11-jets-ghost-local-assistant.md",
       "status": "historical",
-      "successorPath": "docs/superpowers/plans/2026-07-18-jet-web-2.2.0.md",
+      "successorPath": "AGENTS.md",
       "archivedAt": "2026-07-21",
       "sourceSha256": "fd10bd450e19003ef2425f468fa63e8f345ceadf164415ed3503bdf9b93f2bb1",
       "archiveSha256": "fd10bd450e19003ef2425f468fa63e8f345ceadf164415ed3503bdf9b93f2bb1"
@@ -168,7 +168,7 @@
       "sourcePath": "docs/jets-ghost-chat-experience.md",
       "archivePath": "docs/archive/releases/2.1.0/jets-ghost-chat-experience.md",
       "status": "historical",
-      "successorPath": "docs/superpowers/specs/2026-07-18-jet-web-2.2.0-design.md",
+      "successorPath": "AGENTS.md",
       "archivedAt": "2026-07-21",
       "sourceSha256": "3ab7d4b3b3c98b296a3d0ab34e88e844c06c7b22149b7666ed92ff0ee28680d5",
       "archiveSha256": "3ab7d4b3b3c98b296a3d0ab34e88e844c06c7b22149b7666ed92ff0ee28680d5"
@@ -177,7 +177,7 @@
       "sourcePath": "docs/verification/jets-ghost-2.1.0.md",
       "archivePath": "docs/archive/releases/2.1.0/jets-ghost-2.1.0.md",
       "status": "historical",
-      "successorPath": "docs/verification/jet-web-2.2.0.md",
+      "successorPath": "AGENTS.md",
       "archivedAt": "2026-07-21",
       "sourceSha256": "ba528929ddeef7bcd81b8daabc6de949c6569a21f00577e34a1e8e0c81d6ba43",
       "archiveSha256": "ba528929ddeef7bcd81b8daabc6de949c6569a21f00577e34a1e8e0c81d6ba43"
@@ -186,7 +186,7 @@
       "sourcePath": "docs/verification/jets-ghost-2.1.0-consolidation.md",
       "archivePath": "docs/archive/releases/2.1.0/jets-ghost-2.1.0-consolidation.md",
       "status": "historical",
-      "successorPath": "docs/verification/jet-web-2.2.0.md",
+      "successorPath": "AGENTS.md",
       "archivedAt": "2026-07-21",
       "sourceSha256": "7c9ac8a6c528391b51038fa37b59f99a0da9c781dbaddc840a8d1e7c149c8119",
       "archiveSha256": "7c9ac8a6c528391b51038fa37b59f99a0da9c781dbaddc840a8d1e7c149c8119"
@@ -204,7 +204,7 @@
       "sourcePath": "EMBEDDING_STORAGE_RESEARCH.md",
       "archivePath": "docs/archive/jets-ghost/legacy-rag/embedding-storage-research.md",
       "status": "superseded",
-      "successorPath": "docs/superpowers/specs/2026-07-18-jet-web-2.2.0-design.md",
+      "successorPath": "AGENTS.md",
       "archivedAt": "2026-07-13",
       "sourceSha256": "9415f65df1073d5e003fdd4ea60f512e697ebdf6a6b832de01856c46ad6279ef",
       "archiveSha256": "f8d2c38b6a84b29c69d60a5d60cbfc4bf35ecfc42f614397f392a37074a1ac21"
@@ -213,7 +213,7 @@
       "sourcePath": "docs/jets-ghost-v1.5-spec.md",
       "archivePath": "docs/archive/jets-ghost/legacy-rag/jets-ghost-v1.5-spec.md",
       "status": "superseded",
-      "successorPath": "docs/superpowers/specs/2026-07-18-jet-web-2.2.0-design.md",
+      "successorPath": "AGENTS.md",
       "archivedAt": "2026-07-13",
       "sourceSha256": "c92304d12e685399beb0531749b0f178b53776e7a78f960bf48c9785a6c8e739",
       "archiveSha256": "a0a868b07f15c52aefb1f4d62c3b55552a4536ab26a911469ce147b77b1e39c5"
@@ -222,7 +222,7 @@
       "sourcePath": "docs/rag-chatbot-implementation-review.md",
       "archivePath": "docs/archive/jets-ghost/legacy-rag/rag-chatbot-implementation-review.md",
       "status": "superseded",
-      "successorPath": "docs/superpowers/specs/2026-07-18-jet-web-2.2.0-design.md",
+      "successorPath": "AGENTS.md",
       "archivedAt": "2026-07-13",
       "sourceSha256": "28ac557f54075082b0e318d401b21bac8371609f728fd7343b4019f86e72151f",
       "archiveSha256": "6ab8591e8e8c6bce622dcc868a6b17937a5aec347a44db6834a8b8b873d01491"
@@ -231,7 +231,7 @@
       "sourcePath": "docs/liquid-glass-dock-v2-log.md",
       "archivePath": "docs/archive/site/implementation-logs/liquid-glass-dock-v2.md",
       "status": "historical",
-      "successorPath": "docs/superpowers/specs/2026-07-18-jet-web-2.2.0-design.md",
+      "successorPath": "AGENTS.md",
       "archivedAt": "2026-07-13",
       "sourceSha256": "41cc96317cbaadc427b4494a2e6f9aeebd69370a428830a6f36b628799a0ff32",
       "archiveSha256": "397373385ea65fe7e4b979c872d48fc1f5b2c360cca05f6eca04e30710dcb34f"
@@ -240,7 +240,7 @@
       "sourcePath": "Untracked/docs/emdash-news-theme-spec.md",
       "archivePath": "docs/archive/deferred-concepts/emdash-news-theme-spec.md",
       "status": "deferred",
-      "successorPath": "docs/superpowers/specs/2026-07-18-jet-web-2.2.0-design.md",
+      "successorPath": "AGENTS.md",
       "archivedAt": "2026-07-13",
       "sourceSha256": "da68b14d3c85f6d51b262dd6af6a840307e221a08ca45f85b4e3d6add25c48c2",
       "archiveSha256": "f118f002d124511e8b1bf64e72fbe87a4d3f56261392d8dc63535429b2f45044"
@@ -249,7 +249,7 @@
       "sourcePath": "Untracked/docs/page-analyzer-spec.md",
       "archivePath": "docs/archive/deferred-concepts/page-analyzer-spec.md",
       "status": "deferred",
-      "successorPath": "docs/superpowers/specs/2026-07-18-jet-web-2.2.0-design.md",
+      "successorPath": "AGENTS.md",
       "archivedAt": "2026-07-13",
       "sourceSha256": "f91b13d46df2e2bdef66c5c38107357223257eddac144a49de69faeb8ef2b928",
       "archiveSha256": "8278977a8a15983ee96e00e4ec6d9798c7f090b9070abd3ab9998e8a9bc34cf2"
@@ -258,10 +258,118 @@
       "sourcePath": "Untracked/docs/schema-visualizer-spec.md",
       "archivePath": "docs/archive/deferred-concepts/schema-visualizer-spec.md",
       "status": "deferred",
-      "successorPath": "docs/superpowers/specs/2026-07-18-jet-web-2.2.0-design.md",
+      "successorPath": "AGENTS.md",
       "archivedAt": "2026-07-13",
       "sourceSha256": "80ab161095add322d4cf177338ebcc0faa915c3d6e8786b0053a49f1864109ee",
       "archiveSha256": "7e67869a7977eb5f456e0feee6ed536724128cca550c8967aaa4e376127a6d97"
+    },
+    {
+      "sourcePath": "docs/superpowers/specs/2026-07-18-jet-web-2.2.0-design.md",
+      "archivePath": "docs/archive/releases/2.2.0/2026-07-18-jet-web-2.2.0-design.md",
+      "status": "historical",
+      "successorPath": "AGENTS.md",
+      "archivedAt": "2026-10-22",
+      "sourceSha256": "ab0ffb96b7371d55867ae0cfaa0d7fe6f80a9c1383a963d084814e92e1f6cb68",
+      "archiveSha256": "11545bb9a41f98b9f94d4156d515366ef4aa0fff6c7dbfbd95e4409164a89b92"
+    },
+    {
+      "sourcePath": "docs/superpowers/plans/2026-07-18-jet-web-2.2.0.md",
+      "archivePath": "docs/archive/releases/2.2.0/2026-07-18-jet-web-2.2.0.md",
+      "status": "historical",
+      "successorPath": "AGENTS.md",
+      "archivedAt": "2026-10-22",
+      "sourceSha256": "aa86d14272f11e17ec00bb568adc3feddd6ccd1bf9c3f8ceece669820591b35b",
+      "archiveSha256": "c706fecda3dcc3b63b1d08f3a48ad67940bb2ee347b255bea308196feb25fa6d"
+    },
+    {
+      "sourcePath": "docs/verification/jet-web-2.2.0.md",
+      "archivePath": "docs/archive/releases/2.2.0/jet-web-2.2.0.md",
+      "status": "historical",
+      "successorPath": "AGENTS.md",
+      "archivedAt": "2026-10-22",
+      "sourceSha256": "4d5c1a153a1ea99789d5f671b938934db3ba0e48a60b6c62360d001c0bb0b579",
+      "archiveSha256": "b9c542da19d2fb193b8d29f78fad15241eb8a14e43afce61504bf2ed95961a6e"
+    },
+    {
+      "sourcePath": "docs/superpowers/specs/2026-08-25-jet-web-2.3.0-design.md",
+      "archivePath": "docs/archive/releases/2.3.0/2026-08-25-jet-web-2.3.0-design.md",
+      "status": "historical",
+      "successorPath": "AGENTS.md",
+      "archivedAt": "2026-10-22",
+      "sourceSha256": "fdbfc5e748f01004f7346e4aa6e8b2e53083a0377e8b0e92fbde9e23a6796114",
+      "archiveSha256": "4441ae2cda353d9c006f4762f7a5e80265098bfca61434e7866d86fc82992f2f"
+    },
+    {
+      "sourcePath": "docs/superpowers/plans/2026-08-25-jet-web-2.3.0.md",
+      "archivePath": "docs/archive/releases/2.3.0/2026-08-25-jet-web-2.3.0.md",
+      "status": "historical",
+      "successorPath": "AGENTS.md",
+      "archivedAt": "2026-10-22",
+      "sourceSha256": "20e1e0222e17add6e8c93c50ea68141f4e8bafe3de759eb1191523e3a89e8774",
+      "archiveSha256": "f500a80730030565728373ab9b8ce2835831ba7452253b4a664c12271f27740f"
+    },
+    {
+      "sourcePath": "docs/verification/jet-web-2.3.0.md",
+      "archivePath": "docs/archive/releases/2.3.0/jet-web-2.3.0.md",
+      "status": "historical",
+      "successorPath": "AGENTS.md",
+      "archivedAt": "2026-10-22",
+      "sourceSha256": "9f665daacad0e512bb5855cd3b48ff89f0193ddc9973cd2a026800585d0f9031",
+      "archiveSha256": "0b3500c826272da2cb3869a4d5ca6bf17a48014d3ecb9f4e8abe130a171b7089"
+    },
+    {
+      "sourcePath": "docs/verification/jet-web-2.3.0-search-polish.md",
+      "archivePath": "docs/archive/releases/2.3.0/jet-web-2.3.0-search-polish.md",
+      "status": "historical",
+      "successorPath": "AGENTS.md",
+      "archivedAt": "2026-10-22",
+      "sourceSha256": "b1404f220a213a13891e4b698e178c00d1f4f73fb608359c0850ea672476797b",
+      "archiveSha256": "032c6482a58eadf7c5c0add4ca1ff8ec677c33768dfa5762d1bd82c5200b147b"
+    },
+    {
+      "sourcePath": "docs/superpowers/specs/2026-10-21-jet-web-2.4.0-media-design.md",
+      "archivePath": "docs/archive/releases/2.4.0/2026-10-21-jet-web-2.4.0-media-design.md",
+      "status": "historical",
+      "successorPath": "AGENTS.md",
+      "archivedAt": "2026-10-22",
+      "sourceSha256": "3472ead69ec4fa04a37a7a7a357dac1d2dc2098a5670a4aa220ce034c4d0602e",
+      "archiveSha256": "00bc2e4525f0dc25e09d4419176c165eb9970dbafa6aa1f83684fa70aa521feb"
+    },
+    {
+      "sourcePath": "docs/verification/jet-web-2.4.0.md",
+      "archivePath": "docs/archive/releases/2.4.0/jet-web-2.4.0.md",
+      "status": "historical",
+      "successorPath": "AGENTS.md",
+      "archivedAt": "2026-10-22",
+      "sourceSha256": "b0e3a294667d6ec672f55cbbb00288d191cd8ff7de39f7082062c3327fc7effa",
+      "archiveSha256": "cf9f5f1f5daee07eed3a89adf1c5b57e5da23869476dda4e2f64ca126fe912ff"
+    },
+    {
+      "sourcePath": "docs/evidence/2.4.0-media-migration.json",
+      "archivePath": "docs/archive/releases/2.4.0/evidence/2.4.0-media-migration.json",
+      "status": "historical",
+      "successorPath": "AGENTS.md",
+      "archivedAt": "2026-10-22",
+      "sourceSha256": "e0d64f628159dac5d0c23f4e99dd9a4fb8bdebdd3be0925f51786d5591b10a69",
+      "archiveSha256": "e0d64f628159dac5d0c23f4e99dd9a4fb8bdebdd3be0925f51786d5591b10a69"
+    },
+    {
+      "sourcePath": ".superpowers/sdd/2026-08-25-jet-web-2.3.0/task-13-canvas-performance-report.md",
+      "archivePath": "docs/archive/releases/2.3.0/reports/carousel-canvas-performance.md",
+      "status": "historical",
+      "successorPath": "AGENTS.md",
+      "archivedAt": "2026-10-22",
+      "sourceSha256": "ff2649d080dacb79f17329d0bd78d8ff1cfa07df288d366b8ad22edc3646fbe5",
+      "archiveSha256": "09564d0571f42e9fcf98f706e013f1e38aa9b2be19f59adfb00e8f88affb1c00"
+    },
+    {
+      "sourcePath": ".superpowers/sdd/2026-08-25-jet-web-2.3.0/task-font-self-hosting-report.md",
+      "archivePath": "docs/archive/releases/2.3.0/reports/font-self-hosting.md",
+      "status": "historical",
+      "successorPath": "AGENTS.md",
+      "archivedAt": "2026-10-22",
+      "sourceSha256": "12c1d246fd0715f3cd39e6d677676419240225558816e46ec3d1d205956c6ada",
+      "archiveSha256": "531848af46b01ca74ba01ce42a54b9176fc83a0017808e183ec058bb0090af0c"
     }
   ]
 }

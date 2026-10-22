@@ -1,5 +1,7 @@
 # Supplemental Task 13 — carousel canvas and Home-entry performance report
 
+> Archived on 2026-10-22 as a completed implementation report. Current requirements live in [AGENTS.md](../../../../../AGENTS.md). Results and local artifact paths below are historical observations, not current release gates or an archived screenshot bundle.
+
 ## Result
 
 Passed the supplemental carousel contract in the production preview. Blog and Works now use their full Homepage sections as the lower card canvas, keep the accepted UI and disclosure treatment above that layer, anchor the active card to the owning section center, and render unique adaptive revolving rails. The current Blog ring is `2 previous + active + 2 next`; Works is `1 + active + 1`; future collections cap at three unique cards per side.

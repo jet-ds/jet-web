@@ -90,7 +90,7 @@ Egregore is available at canonical `/chatbot/` as a local-first experimental ass
 
 The integrated experience uses the pinned Gemma 4 E2B LiteRT-LM runtime in compatible WebGPU browsers with deterministic cited retrieval. The exact model is `litert-community/gemma-4-E2B-it-litert-lm` revision `9262660a1676eed6d0c477ab1a86344430854664`, filename `gemma-4-E2B-it-web.litertlm`, 2,008,432,640 bytes, SHA-256 `3a08e8d94e23b814ae5414469c370c503813949acb8ceaa17e4ebf8a35af35b5`. After explicit visitor action, the browser downloads it directly from Hugging Face at the pinned revision; the site does not mirror or rename the model. See the [pinned model card](https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm/blob/9262660a1676eed6d0c477ab1a86344430854664/README.md), [Google's Gemma 4 model card](https://ai.google.dev/gemma/docs/core/model_card_4), and [Gemma Apache 2.0 license](https://ai.google.dev/gemma/apache_2).
 
-Compatibility checks, model download, and GPU allocation remain behind explicit visitor actions, and there is no hosted generation fallback. The [2.2.0 design](./docs/superpowers/specs/2026-07-18-jet-web-2.2.0-design.md) is the current product authority. Exact package, asset, license, and copyright details are recorded in [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md) and exposed at the stable public [Egregore model and open-source licenses](https://jetsanchez.com/licenses/egregore/) page.
+Compatibility checks, model download, and GPU allocation remain behind explicit visitor actions, and there is no hosted generation fallback. Current product and operating contracts are maintained in [AGENTS.md](./AGENTS.md#egregore). Exact package, asset, license, and copyright details are recorded in [THIRD_PARTY_NOTICES.md](./THIRD_PARTY_NOTICES.md) and exposed at the stable public [Egregore model and open-source licenses](https://jetsanchez.com/licenses/egregore/) page.
 
 The `2.2.0` release retains the Apple M4 qualification baseline and adds an accepted Xiaomi 14T qualification on Android 16 and Chrome 150. The phone reused the complete pinned model cache with no model transfer, reached Ready in about 9–12 seconds, completed four substantial grounded and cited turns in one retained conversation, and then surfaced the designed session boundary before another turn could exceed the 8,192-token engine ceiling. Results on other hardware remain environment-dependent rather than inferred from these reviewed devices.
 
@@ -102,8 +102,5 @@ Do not introduce network writes into `npm run build`. Image uploads, credential 
 
 ## Documentation
 
-- [Jet Web 2.2.0 design](./docs/superpowers/specs/2026-07-18-jet-web-2.2.0-design.md)
-- [Jet Web 2.2.0 implementation plan](./docs/superpowers/plans/2026-07-18-jet-web-2.2.0.md)
-- [Jet Web 2.2.0 verification record](./docs/verification/jet-web-2.2.0.md)
-- [Documentation archive](./docs/archive/README.md)
+- [Historical release designs, implementation plans and verification evidence](./docs/archive/README.md)
 - [Agent and contributor guidance](./AGENTS.md)

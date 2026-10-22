@@ -1,5 +1,7 @@
 # Jet Web 2.2.0 verification baseline
 
+> Archived on 2026-10-22 as implementation history. Current contributor and operating requirements live in [AGENTS.md](../../../../AGENTS.md). Dated statuses, commands and evidence below describe their original checkpoints; archiving does not complete pending release, deployment or retirement actions.
+
 **Status:** `2.2.0` was released on 2026-08-08 from annotated tag `v2.2.0` at `44c32325cd530e11bb9fb02d7d40ca27efbd3dfd`. Its accepted physical-device qualification remains the current model/runtime evidence. The `2.2.1` patch qualification is appended below.
 
 This record fixes the starting point for the approved `2.2.0` work. It records only release and device facts needed to evaluate the implementation; it contains no device serial, browsing history, raw logs, traces, screenshots, conversation content, or credentials.
@@ -15,9 +17,9 @@ This record fixes the starting point for the approved `2.2.0` work. It records o
 | Production `v2.1.0` commit       | `0d59dc9210f38f5ab32dd8636604563bef8024a3`                                               |
 | Approved-content anchor          | `27afb67dc169d5fd725d6e78457e5ee84e66145e` is an ancestor of the execution-start commit. |
 
-The execution-start commit contains the approved [2.2.0 design](../superpowers/specs/2026-07-18-jet-web-2.2.0-design.md) and [implementation plan](../superpowers/plans/2026-07-18-jet-web-2.2.0.md). `package.json` declares Node `24.x`, and the routine verification workflow uses Node `24`.
+The execution-start commit contains the approved [2.2.0 design](2026-07-18-jet-web-2.2.0-design.md) and [implementation plan](2026-07-18-jet-web-2.2.0.md). `package.json` declares Node `24.x`, and the routine verification workflow uses Node `24`.
 
-At task start, the expected pre-implementation workspace changes were the frozen [2.1.0 qualification and follow-up record](../archive/releases/2.1.0/jets-ghost-2.1.0.md) and user-owned material under `Untracked/`. The latter was not inspected, altered, or staged.
+At task start, the expected pre-implementation workspace changes were the frozen [2.1.0 qualification and follow-up record](../2.1.0/jets-ghost-2.1.0.md) and user-owned material under `Untracked/`. The latter was not inspected, altered, or staged.
 
 ## Repository verification
 
