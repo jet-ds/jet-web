@@ -213,6 +213,8 @@ Tests are organized by boundary:
 - `tests/e2e/` covers built-site behavior in Playwright.
 - `tests/deployment/` covers Vercel and production-only routing or header behavior.
 
+Generated QA screenshots, browser traces, run output and agent execution scratch are local or bounded CI artifacts. Keep `.superpowers/`, `test-results/`, `playwright-report/` and `coverage/` outside Git. Durable repository evidence uses compact text records; do not commit generated screenshot bundles.
+
 > **Contract-Coupling Principle:** Every test must derive its assertions from an observable, durable contract at the narrowest appropriate boundary. For components, this includes public APIs, rendered semantics, interaction, accessibility, and explicitly standardized visual behavior. For modules, scripts, builds, CI, and security controls, it includes declared inputs, outputs, failure modes, generated artifacts, and invariants. Private helpers, source layout, call graphs, intermediate representations, CSS classes, and implementation choices are not valid test targets unless explicitly designated as compatibility or artifact contracts. A behavior-preserving refactor should not ordinarily break a test.
 
 > **Test Contract Revalidation:** Developmental tests help discover and construct the implementation. Durable tests protect the accepted contract afterward. Within each task slice, follow RED → GREEN → refactor the implementation → revalidate the contract, retaining or consolidating durable tests and removing developmental tests that have served their purpose.
